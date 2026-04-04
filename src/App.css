@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Leaflet z-index fix */
+.leaflet-pane { z-index: 1; }
+.leaflet-top, .leaflet-bottom { z-index: 2; }
+.leaflet-popup { z-index: 3; }
