@@ -112,7 +112,7 @@ async function migrate() {
 // Run migration on import
 const ready = migrate().catch((err) => {
   console.error('DB migration failed:', err);
-  process.exit(1);
+  throw err;
 });
 
 module.exports = { pool, ready };

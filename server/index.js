@@ -36,13 +36,15 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/organizations', orgsRoutes);
 app.use('/api/locations', locationsRoutes);
 
-// ── Serve React build in production ──
-const distPath = path.join(__dirname, '..', 'dist');
-if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
-  app.get('/{*splat}', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
+// ── Serve React build in local dev only (Vercel serves static files itself) ──
+if (!process.env.VERCEL) {
+  const distPath = path.join(__dirname, '..', 'dist');
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.get('/{*splat}', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
 }
 
 // Only start listener in local dev (Vercel uses the export)
