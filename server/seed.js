@@ -1,10 +1,10 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const bcrypt = require('bcryptjs');
-const { pool, ready } = require('./db');
+const { pool, ensureReady } = require('./db');
 
 async function seed() {
-  await ready;
+  await ensureReady();
 
   // Create a default admin user if none exists
   const { rows: [{ count: userCount }] } = await pool.query('SELECT COUNT(*) as count FROM users');

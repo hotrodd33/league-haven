@@ -109,10 +109,21 @@ async function migrate() {
   }
 }
 
-// Run migration on import
-const ready = migrate().catch((err) => {
-  console.error('DB migration failed:', err);
-  throw err;
-});
+// Lazy migration: retries on each request until it succeeds
+let migrated = false;
+let migrating = null;
 
-module.exports = { pool, ready };
+async function ensureReady() {
+  if (migrated) return;
+  if (!migrating) {
+    migrating = migrate()
+      .then(() => { migrated = true; })
+      .catch((err) => {
+        migrating = null; // allow retry on next request
+        throw err;
+      });
+  }
+  return migrating;
+}
+
+module.exports = { pool, ensureReady };

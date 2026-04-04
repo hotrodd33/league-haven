@@ -4,8 +4,8 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 
-// Initialize DB (runs migration)
-const { ready } = require('./db');
+// Initialize DB (lazy migration)
+const { ensureReady } = require('./db');
 
 const authRoutes = require('./routes/auth');
 const teamsRoutes = require('./routes/teams');
@@ -23,8 +23,11 @@ app.use(express.json());
 
 // Wait for DB migration before handling requests
 app.use(async (req, res, next) => {
-  try { await ready; next(); }
-  catch (err) { res.status(503).json({ error: 'Database not ready' }); }
+  try { await ensureReady(); next(); }
+  catch (err) {
+    console.error('DB not ready:', err.message);
+    res.status(503).json({ error: 'Database not ready', detail: err.message });
+  }
 });
 
 // ── API Routes ──
