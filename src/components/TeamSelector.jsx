@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchTeams, fetchOrganizations, createTeam, updateTeam, deleteTeam } from '../api/index.js';
+import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, createTeam, updateTeam, deleteTeam } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
@@ -108,7 +108,13 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
           <div className="text-sm space-y-1">
             <div className="font-semibold text-gray-800">{selected.name}</div>
             {selected.age_group && <div className="text-gray-500"><span className="font-medium text-gray-600">Age Group:</span> {selected.age_group}</div>}
-            {selected.division && <div className="text-gray-500"><span className="font-medium text-gray-600">Division:</span> {selected.division}</div>}
+            {selected.level && <div className="text-gray-500"><span className="font-medium text-gray-600">Level:</span> {selected.level}</div>}
+            {selected.divisions && selected.divisions.length > 0 && (
+              <div className="text-gray-500"><span className="font-medium text-gray-600">Division{selected.divisions.length > 1 ? 's' : ''}:</span> {selected.divisions.map(d => d.name).join(', ')}</div>
+            )}
+            {!selected.divisions?.length && selected.division && (
+              <div className="text-gray-500"><span className="font-medium text-gray-600">Division:</span> {selected.division}</div>
+            )}
             <div className="text-gray-500">
               <span className="font-medium text-gray-600">Org:</span> {selected.org_name || 'Unassigned'}
             </div>
@@ -157,19 +163,42 @@ function TeamForm({ team, onDone, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [orgs, setOrgs] = useState([]);
+  const [ageGroups, setAgeGroups] = useState([]);
+  const [levels, setLevels] = useState([]);
+  const [divisions, setDivisions] = useState([]);
   const [form, setForm] = useState({
     name: team?.name || '',
     age_group: team?.age_group || '',
-    division: team?.division || '',
+    level: team?.level || '',
     org_id: team?.org_id || '',
+    division_ids: team?.divisions ? team.divisions.map(d => d.id) : [],
   });
 
   useEffect(() => {
-    fetchOrganizations().then(data => setOrgs(data)).catch(() => {});
+    Promise.all([
+      fetchOrganizations(),
+      fetchAgeGroups(),
+      fetchLevels(),
+      fetchDivisions(),
+    ]).then(([orgData, agData, lvData, dvData]) => {
+      setOrgs(orgData);
+      setAgeGroups(agData);
+      setLevels(lvData);
+      setDivisions(dvData);
+    }).catch(() => {});
   }, []);
 
   function handleChange(e) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  function toggleDivision(divId) {
+    setForm(prev => ({
+      ...prev,
+      division_ids: prev.division_ids.includes(divId)
+        ? prev.division_ids.filter(id => id !== divId)
+        : [...prev.division_ids, divId],
+    }));
   }
 
   async function handleSubmit(e) {
@@ -178,8 +207,9 @@ function TeamForm({ team, onDone, onCancel }) {
     setError(null);
     const data = {
       name: form.name.trim(),
-      age_group: form.age_group.trim() || null,
-      division: form.division.trim() || null,
+      age_group: form.age_group || null,
+      level: form.level || null,
+      division_ids: form.division_ids,
       org_id: form.org_id ? Number(form.org_id) : null,
     };
     try {
@@ -205,12 +235,51 @@ function TeamForm({ team, onDone, onCancel }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="team-age-group" className={labelCls}>Age Group</label>
-              <input id="team-age-group" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className={inputCls} />
+              {ageGroups.length > 0 ? (
+                <select id="team-age-group" name="age_group" value={form.age_group} onChange={handleChange} className={inputCls}>
+                  <option value="">— Select —</option>
+                  {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
+                </select>
+              ) : (
+                <input id="team-age-group" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className={inputCls} />
+              )}
             </div>
             <div>
-              <label htmlFor="team-division" className={labelCls}>Division</label>
-              <input id="team-division" name="division" type="text" value={form.division} onChange={handleChange} placeholder="e.g. Gold" className={inputCls} />
+              <label htmlFor="team-level" className={labelCls}>Level</label>
+              {levels.length > 0 ? (
+                <select id="team-level" name="level" value={form.level} onChange={handleChange} className={inputCls}>
+                  <option value="">— Select —</option>
+                  {levels.map(lv => <option key={lv.id} value={lv.name}>{lv.name}</option>)}
+                </select>
+              ) : (
+                <input id="team-level" name="level" type="text" value={form.level} onChange={handleChange} placeholder="e.g. Competitive" className={inputCls} />
+              )}
             </div>
+          </div>
+          <div>
+            <label className={labelCls}>Divisions</label>
+            {divisions.length > 0 ? (
+              <div className="border border-gray-300 rounded-lg p-2 max-h-40 overflow-y-auto space-y-1">
+                {divisions.map(dv => (
+                  <label key={dv.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.division_ids.includes(dv.id)}
+                      onChange={() => toggleDivision(dv.id)}
+                      className="rounded border-gray-300"
+                    />
+                    {dv.name}
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">No divisions configured. Add them in League Config.</p>
+            )}
+            {form.division_ids.length > 0 && (
+              <p className="text-xs text-gray-500 mt-1">
+                {form.division_ids.length} selected: {divisions.filter(d => form.division_ids.includes(d.id)).map(d => d.name).join(', ')}
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="team-org" className={labelCls}>Organization</label>

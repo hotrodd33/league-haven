@@ -4,6 +4,37 @@ const { authMiddleware, requireAdmin } = require('../auth');
 
 const router = express.Router();
 
+// Helper: attach divisions array to each team row
+async function attachDivisions(teams) {
+  if (!teams.length) return teams;
+  const teamIds = teams.map(t => t.id);
+  const { rows: divRows } = await pool.query(
+    `SELECT td.team_id, ld.id, ld.name FROM team_divisions td
+     JOIN league_divisions ld ON ld.id = td.division_id
+     WHERE td.team_id = ANY($1)
+     ORDER BY ld.sort_order, ld.name`, [teamIds]
+  );
+  const divMap = {};
+  for (const r of divRows) {
+    if (!divMap[r.team_id]) divMap[r.team_id] = [];
+    divMap[r.team_id].push({ id: r.id, name: r.name });
+  }
+  return teams.map(t => ({ ...t, divisions: divMap[t.id] || [] }));
+}
+
+// Helper: sync team_divisions junction table
+async function syncDivisions(teamId, divisionIds, client) {
+  const q = client || pool;
+  await q.query('DELETE FROM team_divisions WHERE team_id = $1', [teamId]);
+  if (divisionIds && divisionIds.length) {
+    const values = divisionIds.map((dId, i) => `($1, $${i + 2})`).join(', ');
+    await q.query(
+      `INSERT INTO team_divisions (team_id, division_id) VALUES ${values} ON CONFLICT DO NOTHING`,
+      [teamId, ...divisionIds]
+    );
+  }
+}
+
 router.get('/', async (req, res) => {
   try {
     const { org_id } = req.query;
@@ -21,7 +52,8 @@ router.get('/', async (req, res) => {
          ORDER BY o.name, t.name`
       );
     }
-    res.json(result.rows);
+    const teams = await attachDivisions(result.rows);
+    res.json(teams);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -30,18 +62,23 @@ router.get('/', async (req, res) => {
 
 router.post('/', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, age_group, division, org_id } = req.body;
+    const { name, age_group, level, division, division_ids, org_id } = req.body;
     if (!name) return res.status(400).json({ error: 'Team name is required' });
 
     const { rows } = await pool.query(
-      'INSERT INTO teams (name, age_group, division, org_id) VALUES ($1, $2, $3, $4) RETURNING id',
-      [name, age_group || null, division || null, org_id || null]
+      'INSERT INTO teams (name, age_group, level, division, org_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [name, age_group || null, level || null, division || null, org_id || null]
     );
+    const teamId = rows[0].id;
+    if (division_ids && division_ids.length) {
+      await syncDivisions(teamId, division_ids);
+    }
     const result = await pool.query(
       `SELECT t.*, o.name as org_name FROM teams t
-       LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [rows[0].id]
+       LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [teamId]
     );
-    res.status(201).json(result.rows[0]);
+    const teams = await attachDivisions(result.rows);
+    res.status(201).json(teams[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -50,7 +87,7 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
 
 router.put('/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, age_group, division, org_id } = req.body;
+    const { name, age_group, level, division, division_ids, org_id } = req.body;
     const { id } = req.params;
     if (!name) return res.status(400).json({ error: 'Team name is required' });
 
@@ -58,14 +95,18 @@ router.put('/:id', authMiddleware, requireAdmin, async (req, res) => {
     if (!existing.length) return res.status(404).json({ error: 'Team not found' });
 
     await pool.query(
-      'UPDATE teams SET name = $1, age_group = $2, division = $3, org_id = $4 WHERE id = $5',
-      [name, age_group || null, division || null, org_id ?? null, id]
+      'UPDATE teams SET name = $1, age_group = $2, level = $3, division = $4, org_id = $5 WHERE id = $6',
+      [name, age_group || null, level || null, division || null, org_id ?? null, id]
     );
+    if (division_ids !== undefined) {
+      await syncDivisions(id, division_ids || []);
+    }
     const result = await pool.query(
       `SELECT t.*, o.name as org_name FROM teams t
        LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [id]
     );
-    res.json(result.rows[0]);
+    const teams = await attachDivisions(result.rows);
+    res.json(teams[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

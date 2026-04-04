@@ -201,6 +201,80 @@ export async function deleteLocation(locId) {
   });
 }
 
+// ── League Config ──
+
+export async function fetchAgeGroups() {
+  return apiFetch('/league-config/age-groups');
+}
+
+export async function createAgeGroup(data) {
+  return apiFetch('/league-config/age-groups', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAgeGroup(id, data) {
+  return apiFetch(`/league-config/age-groups/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteAgeGroup(id) {
+  return apiFetch(`/league-config/age-groups/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchLevels() {
+  return apiFetch('/league-config/levels');
+}
+
+export async function createLevel(data) {
+  return apiFetch('/league-config/levels', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateLevel(id, data) {
+  return apiFetch(`/league-config/levels/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteLevel(id) {
+  return apiFetch(`/league-config/levels/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchDivisions() {
+  return apiFetch('/league-config/divisions');
+}
+
+export async function createDivision(data) {
+  return apiFetch('/league-config/divisions', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateDivision(id, data) {
+  return apiFetch(`/league-config/divisions/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteDivision(id) {
+  return apiFetch(`/league-config/divisions/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 // ── Users (admin) ──
 
 export async function fetchMe() {

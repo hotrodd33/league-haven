@@ -100,6 +100,37 @@ async function migrate() {
       team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    -- League structure lookup tables
+    CREATE TABLE IF NOT EXISTS league_age_groups (
+      id SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      sort_order INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS league_levels (
+      id SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      sort_order INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS league_divisions (
+      id SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      sort_order INTEGER DEFAULT 0
+    );
+
+    -- Many-to-many: teams can belong to multiple divisions
+    CREATE TABLE IF NOT EXISTS team_divisions (
+      team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      division_id INTEGER NOT NULL REFERENCES league_divisions(id) ON DELETE CASCADE,
+      PRIMARY KEY (team_id, division_id)
+    );
+  `);
+
+  // Add level column to teams if missing
+  await pool.query(`
+    ALTER TABLE teams ADD COLUMN IF NOT EXISTS level TEXT;
   `);
 
   // Promote seed admin user to admin role
