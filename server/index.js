@@ -2,7 +2,6 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const fs = require('fs');
 
 // Initialize DB (runs migration)
@@ -52,7 +51,5 @@ if (!process.env.VERCEL) {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
-
-module.exports = app;
 
 module.exports = app;
