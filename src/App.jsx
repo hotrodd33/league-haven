@@ -93,7 +93,7 @@ export default function App() {
             ) : (
                 <main className="flex flex-col md:flex-row min-h-[calc(100vh-56px)]">
                     <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-gray-200 p-4 shrink-0">
-                        <TeamSelector selectedTeam={selectedTeam} onSelectTeam={(id, orgId) => { setSelectedTeam(id); setSelectedTeamOrgId(orgId); }} />
+                        <TeamSelector selectedTeam={selectedTeam} onSelectTeam={(id, orgId) => { setSelectedTeam(id); setSelectedTeamOrgId(orgId); }} onTeamsChanged={() => setRefreshKey((k) => k + 1)} />
                     </aside>
                     <div className="flex-1 p-4 overflow-x-auto">
                         <RosterList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} />

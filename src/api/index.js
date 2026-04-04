@@ -80,6 +80,12 @@ export async function updateTeam(id, data) {
   });
 }
 
+export async function deleteTeam(id) {
+  return apiFetch(`/teams/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 // ── Positions ──
 
 export async function fetchPositions() {
