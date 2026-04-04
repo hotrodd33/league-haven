@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchStaffByTeam, createStaff, updateStaff, deleteStaff } from '../api/index.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const ROLE_OPTIONS = [
   { value: 'head_coach', label: 'Head Coach' },
@@ -10,7 +11,9 @@ const ROLE_OPTIONS = [
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
 const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
 
-export default function StaffList({ teamId, refreshKey }) {
+export default function StaffList({ teamId, teamOrgId, refreshKey }) {
+  const { canEditTeam: canEdit } = useAuth();
+  const editable = teamId ? canEdit(teamId, teamOrgId) : false;
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -44,17 +47,23 @@ export default function StaffList({ teamId, refreshKey }) {
     <div className="mt-8">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-bold">Coaches &amp; Staff ({staff.length})</h2>
-        <button onClick={() => { setEditing(null); setShowForm(true); }}
-          className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors">
-          + Add Staff
-        </button>
+        {editable && (
+          <button onClick={() => { setEditing(null); setShowForm(true); }}
+            className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors">
+            + Add Staff
+          </button>
+        )}
       </div>
 
       {staff.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
           No coaches or staff assigned yet.
-          <br />
-          <button onClick={() => { setEditing(null); setShowForm(true); }} className="text-blue-700 underline mt-1 inline-block">Add the first staff member</button>
+          {editable && (
+            <>
+              <br />
+              <button onClick={() => { setEditing(null); setShowForm(true); }} className="text-blue-700 underline mt-1 inline-block">Add the first staff member</button>
+            </>
+          )}
         </div>
       ) : (
         <>
@@ -67,7 +76,7 @@ export default function StaffList({ teamId, refreshKey }) {
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Name</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Email</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Phone</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Actions</th>
+                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -77,15 +86,17 @@ export default function StaffList({ teamId, refreshKey }) {
                     <td className="px-3 py-2 font-semibold">{m.name}</td>
                     <td className="px-3 py-2 break-all">{m.email || '—'}</td>
                     <td className="px-3 py-2">{m.phone || '—'}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <div className="flex gap-1">
-                        <button onClick={() => { setEditing(m); setShowForm(true); }} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                        <button onClick={() => handleDelete(m)} disabled={deleting === m.id}
-                          className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
-                          {deleting === m.id ? '…' : 'Remove'}
-                        </button>
-                      </div>
-                    </td>
+                    {editable && (
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="flex gap-1">
+                          <button onClick={() => { setEditing(m); setShowForm(true); }} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
+                          <button onClick={() => handleDelete(m)} disabled={deleting === m.id}
+                            className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                            {deleting === m.id ? '…' : 'Remove'}
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -101,13 +112,15 @@ export default function StaffList({ teamId, refreshKey }) {
                     <div className="font-semibold">{m.name}</div>
                     <div className="text-sm text-gray-500">{m.role_label}</div>
                   </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <button onClick={() => { setEditing(m); setShowForm(true); }} className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                    <button onClick={() => handleDelete(m)} disabled={deleting === m.id}
-                      className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
-                      {deleting === m.id ? '…' : 'Del'}
-                    </button>
-                  </div>
+                  {editable && (
+                    <div className="flex gap-1.5 shrink-0">
+                      <button onClick={() => { setEditing(m); setShowForm(true); }} className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
+                      <button onClick={() => handleDelete(m)} disabled={deleting === m.id}
+                        className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                        {deleting === m.id ? '…' : 'Del'}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="text-sm text-gray-600 space-y-0.5">
                   {m.email && <div className="truncate">{m.email}</div>}

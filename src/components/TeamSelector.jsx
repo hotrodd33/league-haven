@@ -48,7 +48,11 @@ export default function TeamSelector({ selectedTeam, onSelectTeam }) {
       <select
         id="team-select"
         value={selectedTeam || ''}
-        onChange={(e) => onSelectTeam(e.target.value ? Number(e.target.value) : null)}
+        onChange={(e) => {
+          const id = e.target.value ? Number(e.target.value) : null;
+          const team = id ? teams.find(t => t.id === id) : null;
+          onSelectTeam(id, team?.org_id || null);
+        }}
         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600"
       >
         <option value="">— Choose a team —</option>

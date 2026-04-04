@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware } = require('../auth');
+const { authMiddleware, canEditTeam } = require('../auth');
 
 const router = express.Router();
 
@@ -51,6 +51,7 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!team_id || !first_name || !last_name) {
       return res.status(400).json({ error: 'team_id, first_name, and last_name are required' });
     }
+    if (!(await canEditTeam(req.user, team_id))) return res.status(403).json({ error: 'No permission for this team' });
 
     const { rows: teamCheck } = await client.query('SELECT id FROM teams WHERE id = $1', [team_id]);
     if (!teamCheck.length) return res.status(400).json({ error: 'Team not found' });
@@ -90,6 +91,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const { rows: existingRows } = await client.query('SELECT * FROM players WHERE id = $1', [id]);
     if (!existingRows.length) return res.status(404).json({ error: 'Player not found' });
     const existing = existingRows[0];
+    if (!(await canEditTeam(req.user, existing.team_id))) return res.status(403).json({ error: 'No permission for this team' });
 
     const { team_id, first_name, last_name, jersey_number, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade, position_ids } = req.body;
 
@@ -139,8 +141,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await pool.query('SELECT id FROM players WHERE id = $1', [id]);
+    const { rows } = await pool.query('SELECT id, team_id FROM players WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Player not found' });
+    if (!(await canEditTeam(req.user, rows[0].team_id))) return res.status(403).json({ error: 'No permission for this team' });
 
     await pool.query('DELETE FROM players WHERE id = $1', [id]);
     res.json({ success: true });

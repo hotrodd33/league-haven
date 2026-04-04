@@ -194,3 +194,40 @@ export async function deleteLocation(locId) {
     method: 'DELETE',
   });
 }
+
+// ── Users (admin) ──
+
+export async function fetchMe() {
+  return apiFetch('/auth/me');
+}
+
+export async function fetchUsers() {
+  return apiFetch('/users');
+}
+
+export async function createUser(data) {
+  return apiFetch('/users', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateUser(userId, data) {
+  return apiFetch(`/users/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteUser(userId) {
+  return apiFetch(`/users/${userId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function updateUserPermissions(userId, permissions) {
+  return apiFetch(`/users/${userId}/permissions`, {
+    method: 'PUT',
+    body: JSON.stringify(permissions),
+  });
+}

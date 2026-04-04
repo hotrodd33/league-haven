@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware } = require('../auth');
+const { authMiddleware, canEditOrg } = require('../auth');
 
 const router = express.Router();
 
@@ -39,6 +39,7 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     const { org_id, name, address, city, state, zip, latitude, longitude, comments } = req.body;
     if (!org_id || !name) return res.status(400).json({ error: 'org_id and name are required' });
+    if (!(await canEditOrg(req.user, org_id))) return res.status(403).json({ error: 'No permission for this organization' });
 
     const { rows: orgCheck } = await pool.query('SELECT id FROM organizations WHERE id = $1', [org_id]);
     if (!orgCheck.length) return res.status(400).json({ error: 'Organization not found' });
@@ -61,6 +62,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const { rows: existing } = await pool.query('SELECT * FROM field_locations WHERE id = $1', [id]);
     if (!existing.length) return res.status(404).json({ error: 'Location not found' });
     const old = existing[0];
+    if (!(await canEditOrg(req.user, old.org_id))) return res.status(403).json({ error: 'No permission for this organization' });
 
     const { name, address, city, state, zip, latitude, longitude, comments } = req.body;
 
@@ -83,8 +85,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await pool.query('SELECT id FROM field_locations WHERE id = $1', [id]);
+    const { rows } = await pool.query('SELECT id, org_id FROM field_locations WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Location not found' });
+    if (!(await canEditOrg(req.user, rows[0].org_id))) return res.status(403).json({ error: 'No permission for this organization' });
 
     await pool.query('DELETE FROM field_locations WHERE id = $1', [id]);
     res.json({ success: true });

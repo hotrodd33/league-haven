@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware } = require('../auth');
+const { authMiddleware, requireAdmin, canEditOrg } = require('../auth');
 
 const router = express.Router();
 
@@ -33,7 +33,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { name, contact_name, contact_email, contact_phone, address, city, state, zip, notes } = req.body;
     if (!name) return res.status(400).json({ error: 'Organization name is required' });
@@ -53,6 +53,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!(await canEditOrg(req.user, id))) return res.status(403).json({ error: 'No permission for this organization' });
     const { rows: existing } = await pool.query('SELECT * FROM organizations WHERE id = $1', [id]);
     if (!existing.length) return res.status(404).json({ error: 'Organization not found' });
     const old = existing[0];
@@ -75,7 +76,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query('SELECT id FROM organizations WHERE id = $1', [id]);

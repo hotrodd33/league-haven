@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchPlayersByTeam, deletePlayer } from '../api/index.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
-export default function RosterList({ teamId, onEditPlayer, onAddPlayer, refreshKey }) {
+export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlayer, refreshKey }) {
+  const { canEditTeam: canEdit } = useAuth();
+  const editable = teamId ? canEdit(teamId, teamOrgId) : false;
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -50,16 +53,22 @@ export default function RosterList({ teamId, onEditPlayer, onAddPlayer, refreshK
     <div>
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-bold">Team Roster ({players.length})</h2>
-        <button onClick={onAddPlayer} className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors">
-          + Add Player
-        </button>
+        {editable && (
+          <button onClick={onAddPlayer} className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors">
+            + Add Player
+          </button>
+        )}
       </div>
 
       {players.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
           No players on this roster yet.
-          <br />
-          <button onClick={onAddPlayer} className="text-blue-700 underline mt-1 inline-block">Add the first player</button>
+          {editable && (
+            <>
+              <br />
+              <button onClick={onAddPlayer} className="text-blue-700 underline mt-1 inline-block">Add the first player</button>
+            </>
+          )}
         </div>
       ) : (
         <>
@@ -77,7 +86,7 @@ export default function RosterList({ teamId, onEditPlayer, onAddPlayer, refreshK
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">B/T</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Parent Email</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Parent Phone</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Actions</th>
+                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -92,15 +101,17 @@ export default function RosterList({ teamId, onEditPlayer, onAddPlayer, refreshK
                     <td className="px-3 py-2">{formatBatThrow(player)}</td>
                     <td className="px-3 py-2 break-all">{player.parent_email || '—'}</td>
                     <td className="px-3 py-2">{player.parent_phone || '—'}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <div className="flex gap-1">
-                        <button onClick={() => onEditPlayer(player)} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                        <button onClick={() => handleDelete(player)} disabled={deleting === player.id}
-                          className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
-                          {deleting === player.id ? '…' : 'Remove'}
-                        </button>
-                      </div>
-                    </td>
+                    {editable && (
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="flex gap-1">
+                          <button onClick={() => onEditPlayer(player)} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
+                          <button onClick={() => handleDelete(player)} disabled={deleting === player.id}
+                            className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                            {deleting === player.id ? '…' : 'Remove'}
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -116,13 +127,15 @@ export default function RosterList({ teamId, onEditPlayer, onAddPlayer, refreshK
                     <span className="text-blue-800 font-bold text-lg mr-2">#{player.jersey_number ?? '—'}</span>
                     <span className="font-semibold text-base">{player.first_name} {player.last_name}</span>
                   </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <button onClick={() => onEditPlayer(player)} className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                    <button onClick={() => handleDelete(player)} disabled={deleting === player.id}
-                      className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
-                      {deleting === player.id ? '…' : 'Del'}
-                    </button>
-                  </div>
+                  {editable && (
+                    <div className="flex gap-1.5 shrink-0">
+                      <button onClick={() => onEditPlayer(player)} className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
+                      <button onClick={() => handleDelete(player)} disabled={deleting === player.id}
+                        className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                        {deleting === player.id ? '…' : 'Del'}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600">
                   <div><span className="font-medium text-gray-800">Pos:</span> {formatPositions(player)}</div>

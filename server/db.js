@@ -92,7 +92,18 @@ async function migrate() {
       phone TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS user_permissions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
+
+  // Promote seed admin user to admin role
+  await pool.query("UPDATE users SET role = 'admin' WHERE username = 'admin' AND role = 'manager'");
 
   // Seed default positions if empty
   const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM positions');

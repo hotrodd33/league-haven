@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import {
   fetchLocations, createLocation, updateLocation, deleteLocation,
 } from '../api/index.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 // Fix default marker icons for bundled builds
 delete L.Icon.Default.prototype._getIconUrl;
@@ -38,6 +39,8 @@ function FitBounds({ locations }) {
 }
 
 export default function FieldLocations({ orgId, orgName }) {
+  const { canEditOrg } = useAuth();
+  const editable = canEditOrg(orgId);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -79,7 +82,7 @@ export default function FieldLocations({ orgId, orgName }) {
     <div className="mt-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <h3 className="text-base font-bold">Field Locations{orgName ? ` — ${orgName}` : ''}</h3>
-        <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Field</button>
+        {editable && <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Field</button>}
       </div>
 
       {/* Map */}
@@ -133,7 +136,7 @@ export default function FieldLocations({ orgId, orgName }) {
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Address</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Lat / Lng</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Comments</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide w-44">Actions</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide w-44">{editable ? 'Actions' : 'Directions'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -162,10 +165,14 @@ export default function FieldLocations({ orgId, orgName }) {
                               Directions
                             </a>
                           )}
-                          <button onClick={(e) => { e.stopPropagation(); setEditing(loc); setShowForm(true); }} className={btnSecondary}>Edit</button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDelete(loc); }} disabled={deleting === loc.id} className={btnDanger}>
-                            {deleting === loc.id ? '…' : 'Del'}
-                          </button>
+                          {editable && (
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); setEditing(loc); setShowForm(true); }} className={btnSecondary}>Edit</button>
+                              <button onClick={(e) => { e.stopPropagation(); handleDelete(loc); }} disabled={deleting === loc.id} className={btnDanger}>
+                                {deleting === loc.id ? '…' : 'Del'}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -209,10 +216,14 @@ export default function FieldLocations({ orgId, orgName }) {
                         Directions
                       </a>
                     )}
-                    <button onClick={() => { setEditing(loc); setShowForm(true); }} className={btnSecondary}>Edit</button>
-                    <button onClick={() => handleDelete(loc)} disabled={deleting === loc.id} className={btnDanger}>
-                      {deleting === loc.id ? '…' : 'Del'}
-                    </button>
+                    {editable && (
+                      <>
+                        <button onClick={() => { setEditing(loc); setShowForm(true); }} className={btnSecondary}>Edit</button>
+                        <button onClick={() => handleDelete(loc)} disabled={deleting === loc.id} className={btnDanger}>
+                          {deleting === loc.id ? '…' : 'Del'}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               );

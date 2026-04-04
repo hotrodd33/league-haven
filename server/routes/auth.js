@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
-const { JWT_SECRET } = require('../auth');
+const { JWT_SECRET, authMiddleware, getUserPermissions } = require('../auth');
 
 const router = express.Router();
 
@@ -27,39 +27,29 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ token, user: { id: user.id, username: user.username, name: user.name, role: user.role } });
+    const permissions = await getUserPermissions(user.id);
+
+    res.json({
+      token,
+      user: { id: user.id, username: user.username, name: user.name, role: user.role },
+      permissions,
+    });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// POST /api/auth/register
-router.post('/register', async (req, res) => {
+// GET /api/auth/me — return current user info + permissions
+router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const { username, password, name } = req.body;
-    if (!username || !password || !name) {
-      return res.status(400).json({ error: 'Username, password, and name are required' });
-    }
-
-    const { rows: existing } = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
-    if (existing.length) return res.status(409).json({ error: 'Username already taken' });
-
-    const hash = await bcrypt.hash(password, 10);
-    const { rows } = await pool.query(
-      'INSERT INTO users (username, password_hash, name) VALUES ($1, $2, $3) RETURNING id',
-      [username, hash, name]
-    );
-
-    const token = jwt.sign(
-      { id: rows[0].id, username, name, role: 'manager' },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({ token, user: { id: rows[0].id, username, name, role: 'manager' } });
+    const { rows } = await pool.query('SELECT id, username, name, role FROM users WHERE id = $1', [req.user.id]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    const user = rows[0];
+    const permissions = await getUserPermissions(user.id);
+    res.json({ user, permissions });
   } catch (err) {
-    console.error('Register error:', err);
+    console.error('Me error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

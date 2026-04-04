@@ -6,10 +6,12 @@ import RosterList from "./components/RosterList.jsx";
 import PlayerForm from "./components/PlayerForm.jsx";
 import StaffList from "./components/StaffList.jsx";
 import OrgManager from "./components/OrgManager.jsx";
+import UserManager from "./components/UserManager.jsx";
 
 export default function App() {
-    const { isAuthenticated, user, logout } = useAuth();
+    const { isAuthenticated, isAdmin, user, logout } = useAuth();
     const [selectedTeam, setSelectedTeam] = useState(null);
+    const [selectedTeamOrgId, setSelectedTeamOrgId] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [editingPlayer, setEditingPlayer] = useState(null);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -60,6 +62,14 @@ export default function App() {
                             >
                                 Rosters
                             </button>
+                            {isAdmin && (
+                                <button
+                                    className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "users" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                                    onClick={() => setPage("users")}
+                                >
+                                    Users
+                                </button>
+                            )}
                         </nav>
                     </div>
                     <div className="flex items-center gap-3">
@@ -76,14 +86,18 @@ export default function App() {
                 <main className="p-4 max-w-7xl mx-auto">
                     <OrgManager onBack={() => setPage("rosters")} />
                 </main>
+            ) : page === "users" && isAdmin ? (
+                <main className="p-4 max-w-7xl mx-auto">
+                    <UserManager onBack={() => setPage("rosters")} />
+                </main>
             ) : (
                 <main className="flex flex-col md:flex-row min-h-[calc(100vh-56px)]">
                     <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-gray-200 p-4 shrink-0">
-                        <TeamSelector selectedTeam={selectedTeam} onSelectTeam={setSelectedTeam} />
+                        <TeamSelector selectedTeam={selectedTeam} onSelectTeam={(id, orgId) => { setSelectedTeam(id); setSelectedTeamOrgId(orgId); }} />
                     </aside>
                     <div className="flex-1 p-4 overflow-x-auto">
-                        <RosterList teamId={selectedTeam} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} />
-                        <StaffList teamId={selectedTeam} refreshKey={refreshKey} />
+                        <RosterList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} />
+                        <StaffList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} refreshKey={refreshKey} />
                     </div>
                 </main>
             )}

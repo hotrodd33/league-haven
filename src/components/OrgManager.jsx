@@ -3,6 +3,7 @@ import {
   fetchOrganizations, createOrganization, updateOrganization, deleteOrganization,
   fetchTeams, updateTeam,
 } from '../api/index.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import FieldLocations from './FieldLocations.jsx';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
@@ -13,6 +14,7 @@ const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold round
 const btnSm = "px-3 py-1.5 text-xs font-semibold rounded";
 
 export default function OrgManager({ onBack }) {
+  const { isAdmin, canEditOrg } = useAuth();
   const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -52,7 +54,7 @@ export default function OrgManager({ onBack }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
         <h2 className="text-lg font-bold">Organizations ({orgs.length})</h2>
         <div className="flex gap-2">
-          <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Organization</button>
+          {isAdmin && <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Organization</button>}
           {onBack && <button onClick={onBack} className={btnSecondary}>← Rosters</button>}
         </div>
       </div>
@@ -60,8 +62,12 @@ export default function OrgManager({ onBack }) {
       {orgs.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
           No organizations yet.
-          <br />
-          <button onClick={() => setShowForm(true)} className="text-blue-700 underline mt-1 inline-block">Add the first organization</button>
+          {isAdmin && (
+            <>
+              <br />
+              <button onClick={() => setShowForm(true)} className="text-blue-700 underline mt-1 inline-block">Add the first organization</button>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -80,10 +86,12 @@ export default function OrgManager({ onBack }) {
                 <p className="text-sm text-gray-500">{org.locations.length} field location{org.locations.length !== 1 ? 's' : ''}</p>
               )}
               <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
-                <button onClick={() => { setEditing(org); setShowForm(true); }} className={`${btnSm} bg-gray-200 text-gray-800 hover:bg-gray-300`}>Edit</button>
-                <button onClick={() => handleDelete(org)} disabled={deleting === org.id} className={btnDanger}>
-                  {deleting === org.id ? '…' : 'Delete'}
-                </button>
+                {canEditOrg(org.id) && <button onClick={() => { setEditing(org); setShowForm(true); }} className={`${btnSm} bg-gray-200 text-gray-800 hover:bg-gray-300`}>Edit</button>}
+                {isAdmin && (
+                  <button onClick={() => handleDelete(org)} disabled={deleting === org.id} className={btnDanger}>
+                    {deleting === org.id ? '…' : 'Delete'}
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -225,6 +233,7 @@ function OrgDetailView({ org: initialOrg, onBack }) {
 }
 
 function OrgTeams({ org, allTeams, onChanged }) {
+  const { isAdmin } = useAuth();
   const [assigning, setAssigning] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState('');
 
@@ -262,7 +271,7 @@ function OrgTeams({ org, allTeams, onChanged }) {
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500">Team Name</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500">Age Group</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500">Division</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 w-24">Actions</th>
+                  {isAdmin && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 w-24">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -271,7 +280,7 @@ function OrgTeams({ org, allTeams, onChanged }) {
                     <td className="px-3 py-2 font-semibold">{t.name}</td>
                     <td className="px-3 py-2">{t.age_group || '—'}</td>
                     <td className="px-3 py-2">{t.division || '—'}</td>
-                    <td className="px-3 py-2"><button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button></td>
+                    {isAdmin && <td className="px-3 py-2"><button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button></td>}
                   </tr>
                 ))}
               </tbody>
@@ -285,7 +294,7 @@ function OrgTeams({ org, allTeams, onChanged }) {
                   <div className="font-semibold text-sm">{t.name}</div>
                   <div className="text-xs text-gray-500">{[t.age_group, t.division].filter(Boolean).join(' · ') || '—'}</div>
                 </div>
-                <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>
+                {isAdmin && <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>}
               </div>
             ))}
           </div>
@@ -294,7 +303,7 @@ function OrgTeams({ org, allTeams, onChanged }) {
         <div className="py-4 text-center text-gray-500 text-sm">No teams assigned yet.</div>
       )}
 
-      {unassignedTeams.length > 0 && (
+      {isAdmin && unassignedTeams.length > 0 && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
           <select value={selectedTeamId} onChange={(e) => setSelectedTeamId(e.target.value)}
             className="flex-1 sm:flex-none sm:min-w-[220px] px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
