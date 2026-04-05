@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchGame, updateGame,
   fetchPitchCounts, createPitchCount, updatePitchCount, deletePitchCount,
-  fetchPlayersByTeam, createPlayer,
+  fetchPlayersByTeam, createPlayer, fetchPitchEligibility,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -63,6 +63,10 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   const [newPlayerForm, setNewPlayerForm] = useState({ first_name: '', last_name: '', jersey_number: '' });
   const [savingNewPlayer, setSavingNewPlayer] = useState(false);
 
+  // Pitch eligibility
+  const [homeEligibility, setHomeEligibility] = useState(null);
+  const [awayEligibility, setAwayEligibility] = useState(null);
+
   const canEdit = useCallback((g) => {
     if (!g) return false;
     if (isAdmin) return true;
@@ -89,6 +93,13 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       ]);
       setHomePlayers(hp);
       setAwayPlayers(ap);
+      // Fetch pitch eligibility
+      const [he, ae] = await Promise.all([
+        g.home_team_id ? fetchPitchEligibility(g.home_team_id, g.game_date, gameId).catch(() => null) : null,
+        g.away_team_id ? fetchPitchEligibility(g.away_team_id, g.game_date, gameId).catch(() => null) : null,
+      ]);
+      setHomeEligibility(he);
+      setAwayEligibility(ae);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   }, [gameId]);
@@ -171,10 +182,13 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         last_name: newPlayerForm.last_name.trim(),
         jersey_number: newPlayerForm.jersey_number.trim() || undefined,
       });
-      // Refresh player list for the relevant team
-      const updated = await fetchPlayersByTeam(teamId);
-      if (side === 'home') setHomePlayers(updated);
-      else setAwayPlayers(updated);
+      // Refresh player list and eligibility for the relevant team
+      const [updated, elig] = await Promise.all([
+        fetchPlayersByTeam(teamId),
+        fetchPitchEligibility(teamId, game.game_date, gameId).catch(() => null),
+      ]);
+      if (side === 'home') { setHomePlayers(updated); setHomeEligibility(elig); }
+      else { setAwayPlayers(updated); setAwayEligibility(elig); }
       setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' });
       setAddingNewPlayerFor(null);
     } catch (err) { setError(err.message); }
@@ -315,6 +329,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         setNewPlayerForm={setNewPlayerForm}
         onSaveNewPlayer={() => handleQuickAddPlayer('home')}
         savingNewPlayer={savingNewPlayer}
+        eligibilityData={homeEligibility}
       />
 
       {/* Pitch Counts — Away */}
@@ -344,6 +359,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         setNewPlayerForm={setNewPlayerForm}
         onSaveNewPlayer={() => handleQuickAddPlayer('away')}
         savingNewPlayer={savingNewPlayer}
+        eligibilityData={awayEligibility}
       />
     </div>
   );
@@ -356,13 +372,37 @@ function PitchCountSection({
   editingPc, onStartEdit, onSaveEdit, onCancelEdit, onDelete,
   addingNewPlayer, onStartAddNewPlayer, onCancelAddNewPlayer,
   newPlayerForm, setNewPlayerForm, onSaveNewPlayer, savingNewPlayer,
+  eligibilityData,
 }) {
   const totalPitches = entries.reduce((sum, e) => sum + (e.pitch_count || 0), 0);
+
+  // Build eligibility lookup map
+  const eligMap = {};
+  if (eligibilityData?.players) {
+    for (const p of eligibilityData.players) eligMap[p.player_id] = p;
+  }
+  const dailyLimit = eligibilityData?.daily_limit;
+  const rules = eligibilityData?.rules;
+
+  // Calculate rest days from a pitch count total using the rules
+  function calcRestDays(totalPitches) {
+    if (!rules?.rest_thresholds) return null;
+    for (const t of rules.rest_thresholds) {
+      if (totalPitches >= t.min) return t.days;
+    }
+    return 0;
+  }
+
+  // Selected player eligibility (for add form)
+  const selectedElig = pcForm.player_id ? eligMap[Number(pcForm.player_id)] : null;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 mb-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">{label}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">{label}</h3>
+          {dailyLimit && <span className="text-xs text-gray-400">Limit: {dailyLimit}/day</span>}
+        </div>
         {canEdit && !isAdding && !editingPc && (
           <button onClick={onStartAdd} className="text-xs text-blue-700 font-semibold hover:underline">+ Add Pitcher</button>
         )}
@@ -375,14 +415,21 @@ function PitchCountSection({
           {/* Header */}
           <div className="hidden sm:grid grid-cols-12 gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide px-2">
             <div className="col-span-1">#</div>
-            <div className="col-span-4">Player</div>
+            <div className="col-span-3">Player</div>
             <div className="col-span-2 text-right">Pitches</div>
             <div className="col-span-2 text-right">IP</div>
-            <div className="col-span-3"></div>
+            <div className="col-span-2 text-right">Rest</div>
+            <div className="col-span-2"></div>
           </div>
 
-          {entries.map(pc => (
-            editingPc?.id === pc.id ? (
+          {entries.map(pc => {
+            // Calculate rest days for this entry (pitch count in this game + other games today)
+            const otherToday = eligMap[pc.player_id]?.today_pitches || 0;
+            const totalToday = (pc.pitch_count || 0) + otherToday;
+            const restDays = calcRestDays(totalToday);
+            const overLimit = dailyLimit && totalToday > dailyLimit;
+
+            return editingPc?.id === pc.id ? (
               <form key={pc.id} onSubmit={onSaveEdit} className="bg-gray-50 rounded-lg p-3 space-y-2">
                 <div className="text-sm font-semibold">{pc.first_name} {pc.last_name} {pc.jersey_number ? `#${pc.jersey_number}` : ''}</div>
                 <div className="grid grid-cols-2 gap-2">
@@ -391,6 +438,9 @@ function PitchCountSection({
                     <input type="number" min="0" required value={pcForm.pitch_count}
                       onChange={(e) => setPcForm(prev => ({ ...prev, pitch_count: e.target.value }))}
                       className={inputCls} />
+                    {pcForm.pitch_count && dailyLimit && (Number(pcForm.pitch_count) + otherToday) > dailyLimit && (
+                      <div className="mt-1 text-xs text-red-600 font-semibold">Exceeds daily limit of {dailyLimit}</div>
+                    )}
                   </div>
                   <div>
                     <label className={labelCls}>Innings Pitched</label>
@@ -408,17 +458,29 @@ function PitchCountSection({
               <div key={pc.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 group">
                 <div className="w-8 text-xs text-gray-400 font-mono">{pc.jersey_number || '—'}</div>
                 <div className="flex-1 text-sm font-medium truncate">{pc.first_name} {pc.last_name}</div>
-                <div className="w-16 text-sm font-bold text-right tabular-nums">{pc.pitch_count}</div>
+                <div className={`w-16 text-sm font-bold text-right tabular-nums ${overLimit ? 'text-red-600' : ''}`}>{pc.pitch_count}</div>
                 <div className="w-12 text-sm text-gray-500 text-right tabular-nums">{pc.innings_pitched || '—'}</div>
+                <div className="w-16 text-right">
+                  {restDays != null && (
+                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                      restDays >= 3 ? 'bg-red-100 text-red-700' :
+                      restDays >= 2 ? 'bg-orange-100 text-orange-700' :
+                      restDays >= 1 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-green-100 text-green-700'
+                    }`}>
+                      {restDays > 0 ? `${restDays}d rest` : '0d'}
+                    </span>
+                  )}
+                </div>
                 {canEdit && (
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
                     <button onClick={() => onStartEdit(pc)} className="px-2 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300">Edit</button>
                     <button onClick={() => onDelete(pc)} className={btnDanger}>×</button>
                   </div>
                 )}
               </div>
-            )
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -437,15 +499,39 @@ function PitchCountSection({
               <select value={pcForm.player_id} onChange={(e) => setPcForm(prev => ({ ...prev, player_id: e.target.value }))}
                 required className={inputCls}>
                 <option value="">— Select Player —</option>
-                {availablePlayers.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.first_name} {p.last_name}
-                  </option>
-                ))}
+                {availablePlayers.map(p => {
+                  const elig = eligMap[p.id];
+                  const isEligible = elig?.eligible !== false;
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {isEligible ? '✓ ' : '⛔ '}
+                      {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.first_name} {p.last_name}
+                      {!isEligible ? ' — UNAVAILABLE' : ''}
+                    </option>
+                  );
+                })}
               </select>
             ) : (
               <div className="text-sm text-gray-500 italic">All rostered players already added. Use "New Player" below to add one.</div>
             )}
+
+            {/* Eligibility warning for selected player */}
+            {selectedElig && !selectedElig.eligible && (
+              <div className="mt-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">
+                <strong>⚠ Ineligible to pitch:</strong>
+                <ul className="mt-1 list-disc list-inside">
+                  {selectedElig.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {/* Eligibility info for eligible player */}
+            {selectedElig && selectedElig.eligible && selectedElig.today_pitches > 0 && (
+              <div className="mt-2 bg-yellow-50 border border-yellow-200 text-yellow-800 text-xs rounded-lg px-3 py-2">
+                Already threw {selectedElig.today_pitches} pitches today in another game. Remaining: {selectedElig.remaining_today}
+              </div>
+            )}
+
             {!addingNewPlayer && (
               <button type="button" onClick={onStartAddNewPlayer}
                 className="mt-1 text-xs text-green-700 font-semibold hover:underline">+ New Player</button>
@@ -488,20 +574,42 @@ function PitchCountSection({
           )}
 
           {availablePlayers.length > 0 && (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={labelCls}>Pitch Count *</label>
-                <input type="number" min="0" required value={pcForm.pitch_count}
-                  onChange={(e) => setPcForm(prev => ({ ...prev, pitch_count: e.target.value }))}
-                  className={inputCls} />
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={labelCls}>Pitch Count *</label>
+                  <input type="number" min="0" required value={pcForm.pitch_count}
+                    onChange={(e) => setPcForm(prev => ({ ...prev, pitch_count: e.target.value }))}
+                    className={inputCls} />
+                  {/* Real-time pitch count feedback */}
+                  {pcForm.pitch_count && dailyLimit && (() => {
+                    const entered = Number(pcForm.pitch_count);
+                    const otherToday = selectedElig?.today_pitches || 0;
+                    const total = entered + otherToday;
+                    const rest = calcRestDays(total);
+                    return (
+                      <div className="mt-1 space-y-0.5">
+                        {total > dailyLimit && (
+                          <div className="text-xs text-red-600 font-semibold">⚠ Exceeds daily limit of {dailyLimit}</div>
+                        )}
+                        {rest != null && rest > 0 && (
+                          <div className="text-xs text-gray-500">→ Will require <strong>{rest} rest day{rest !== 1 ? 's' : ''}</strong></div>
+                        )}
+                        {otherToday > 0 && (
+                          <div className="text-xs text-gray-400">({otherToday} from other games + {entered} = {total} total today)</div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <div>
+                  <label className={labelCls}>Innings Pitched</label>
+                  <input type="text" value={pcForm.innings_pitched} placeholder="e.g. 3.1"
+                    onChange={(e) => setPcForm(prev => ({ ...prev, innings_pitched: e.target.value }))}
+                    className={inputCls} />
+                </div>
               </div>
-              <div>
-                <label className={labelCls}>Innings Pitched</label>
-                <input type="text" value={pcForm.innings_pitched} placeholder="e.g. 3.1"
-                  onChange={(e) => setPcForm(prev => ({ ...prev, innings_pitched: e.target.value }))}
-                  className={inputCls} />
-              </div>
-            </div>
+            </>
           )}
           <div className="flex gap-2">
             {availablePlayers.length > 0 && (
