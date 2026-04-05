@@ -116,7 +116,8 @@ async function migrate() {
 
     CREATE TABLE IF NOT EXISTS league_divisions (
       id SERIAL PRIMARY KEY,
-      name TEXT UNIQUE NOT NULL,
+      parent_id INTEGER REFERENCES league_divisions(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
       sort_order INTEGER DEFAULT 0
     );
 
@@ -131,6 +132,19 @@ async function migrate() {
   // Add level column to teams if missing
   await pool.query(`
     ALTER TABLE teams ADD COLUMN IF NOT EXISTS level TEXT;
+  `);
+
+  // Add parent_id to league_divisions if missing (hierarchy support)
+  await pool.query(`
+    ALTER TABLE league_divisions ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES league_divisions(id) ON DELETE CASCADE;
+  `);
+
+  // Drop unique constraint on league_divisions.name if it exists (allow duplicate names in different branches)
+  await pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE league_divisions DROP CONSTRAINT IF EXISTS league_divisions_name_key;
+    EXCEPTION WHEN undefined_object THEN NULL;
+    END $$;
   `);
 
   // Promote seed admin user to admin role

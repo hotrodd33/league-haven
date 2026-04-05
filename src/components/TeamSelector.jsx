@@ -261,14 +261,16 @@ function TeamForm({ team, onDone, onCancel }) {
             {divisions.length > 0 ? (
               <div className="border border-gray-300 rounded-lg p-2 max-h-40 overflow-y-auto space-y-1">
                 {divisions.map(dv => (
-                  <label key={dv.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer text-sm">
+                  <label key={dv.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer text-sm"
+                    style={{ paddingLeft: `${(dv.depth || 0) * 16 + 8}px` }}>
                     <input
                       type="checkbox"
                       checked={form.division_ids.includes(dv.id)}
                       onChange={() => toggleDivision(dv.id)}
                       className="rounded border-gray-300"
                     />
-                    {dv.name}
+                    <span className="truncate">{dv.name}</span>
+                    {dv.depth > 0 && <span className="text-xs text-gray-400 shrink-0">({dv.path})</span>}
                   </label>
                 ))}
               </div>
@@ -277,7 +279,7 @@ function TeamForm({ team, onDone, onCancel }) {
             )}
             {form.division_ids.length > 0 && (
               <p className="text-xs text-gray-500 mt-1">
-                {form.division_ids.length} selected: {divisions.filter(d => form.division_ids.includes(d.id)).map(d => d.name).join(', ')}
+                {form.division_ids.length} selected: {divisions.filter(d => form.division_ids.includes(d.id)).map(d => d.path || d.name).join(', ')}
               </p>
             )}
           </div>
