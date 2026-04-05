@@ -139,7 +139,7 @@ export default function App() {
                     <div className="flex-1 p-4 overflow-x-auto">
                         <RosterList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} />
                         <StaffList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} refreshKey={refreshKey} />
-                        <TeamSchedule teamId={selectedTeam} />
+                        <TeamSchedule teamId={selectedTeam} onNavigateToTeam={navigateToTeam} />
                     </div>
                 </main>
             )}

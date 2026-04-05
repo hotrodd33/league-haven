@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchGames } from '../api/index.js';
+import GameDetail from './GameDetail.jsx';
 
 const STATUS_COLORS = {
   scheduled: 'bg-blue-100 text-blue-800',
@@ -28,11 +29,12 @@ function TeamLogo({ src, name }) {
   return <img src={src} alt="" className="w-6 h-6 object-contain rounded shrink-0" />;
 }
 
-export default function TeamSchedule({ teamId }) {
+export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedGameId, setSelectedGameId] = useState(null);
 
-  useEffect(() => {
+  const loadGames = useCallback(() => {
     if (!teamId) { setGames([]); return; }
     setLoading(true);
     fetchGames({ team_id: teamId })
@@ -40,6 +42,16 @@ export default function TeamSchedule({ teamId }) {
       .catch(() => setGames([]))
       .finally(() => setLoading(false));
   }, [teamId]);
+
+  useEffect(() => { loadGames(); }, [loadGames]);
+
+  if (selectedGameId) {
+    return (
+      <div className="mt-6">
+        <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} onNavigateToTeam={onNavigateToTeam} />
+      </div>
+    );
+  }
 
   if (!teamId) return null;
   if (loading) return <div className="py-4 text-center text-gray-400 text-sm">Loading schedule…</div>;
@@ -71,7 +83,8 @@ export default function TeamSchedule({ teamId }) {
           const resultColor = result === 'W' ? 'text-green-700' : result === 'L' ? 'text-red-600' : result === 'T' ? 'text-gray-500' : '';
 
           return (
-            <div key={game.id} className="bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-3 text-sm">
+            <div key={game.id} onClick={() => setSelectedGameId(game.id)}
+              className="bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-3 text-sm cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
               {/* Date + Time */}
               <div className="w-24 shrink-0">
                 <div className="font-semibold text-gray-700 text-xs">{formatDate(game.game_date)}</div>
