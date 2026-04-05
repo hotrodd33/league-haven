@@ -79,8 +79,8 @@ export default function GameDetail({ gameId, onBack }) {
         innings_played: g.innings_played ?? '',
       });
       const [hp, ap] = await Promise.all([
-        fetchPlayersByTeam(g.home_team_id),
-        fetchPlayersByTeam(g.away_team_id),
+        g.home_team_id ? fetchPlayersByTeam(g.home_team_id) : [],
+        g.away_team_id ? fetchPlayersByTeam(g.away_team_id) : [],
       ]);
       setHomePlayers(hp);
       setAwayPlayers(ap);

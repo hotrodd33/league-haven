@@ -251,6 +251,27 @@ async function migrate() {
   // Add innings_played column to games if missing
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS innings_played INTEGER;`);
 
+  // Fix: Change games team FKs from CASCADE to SET NULL so deleting a team
+  // doesn't wipe out all its games (and cascading pitch counts).
+  await pool.query(`
+    ALTER TABLE games ALTER COLUMN home_team_id DROP NOT NULL;
+    ALTER TABLE games ALTER COLUMN away_team_id DROP NOT NULL;
+    ALTER TABLE games DROP CONSTRAINT IF EXISTS games_home_team_id_fkey;
+    ALTER TABLE games ADD CONSTRAINT games_home_team_id_fkey
+      FOREIGN KEY (home_team_id) REFERENCES teams(id) ON DELETE SET NULL;
+    ALTER TABLE games DROP CONSTRAINT IF EXISTS games_away_team_id_fkey;
+    ALTER TABLE games ADD CONSTRAINT games_away_team_id_fkey
+      FOREIGN KEY (away_team_id) REFERENCES teams(id) ON DELETE SET NULL;
+  `);
+
+  // Fix: Change game_pitch_counts team FK from CASCADE to SET NULL
+  await pool.query(`
+    ALTER TABLE game_pitch_counts ALTER COLUMN team_id DROP NOT NULL;
+    ALTER TABLE game_pitch_counts DROP CONSTRAINT IF EXISTS game_pitch_counts_team_id_fkey;
+    ALTER TABLE game_pitch_counts ADD CONSTRAINT game_pitch_counts_team_id_fkey
+      FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL;
+  `);
+
   // Pitch counts per game per pitcher
   await pool.query(`
     CREATE TABLE IF NOT EXISTS game_pitch_counts (

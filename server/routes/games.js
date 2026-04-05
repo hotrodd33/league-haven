@@ -26,9 +26,9 @@ const BASE_SELECT = `
     ls.name AS season_name, ls.year AS season_year,
     gd.division_id, gd.division_name, gd.division_sort
   FROM games g
-  JOIN teams ht ON ht.id = g.home_team_id
+  LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
-  JOIN teams at ON at.id = g.away_team_id
+  LEFT JOIN teams at ON at.id = g.away_team_id
   LEFT JOIN organizations ao ON ao.id = at.org_id
   LEFT JOIN field_locations fl ON fl.id = g.location_id
   LEFT JOIN league_seasons ls ON ls.id = g.season_id
@@ -55,6 +55,8 @@ function enrichGame(row) {
     ...row,
     game_date: gameDate,
     status_label: STATUS_LABELS[row.status] || row.status,
+    home_team_name: row.home_team_name || '(Deleted Team)',
+    away_team_name: row.away_team_name || '(Deleted Team)',
     home_logo: row.home_team_logo || row.home_org_logo || null,
     away_logo: row.away_team_logo || row.away_org_logo || null,
   };
@@ -167,6 +169,7 @@ router.get('/standings', async (req, res) => {
           SUM(runs_for)::int AS runs_for,
           SUM(runs_against)::int AS runs_against
         FROM team_results
+        WHERE team_id IS NOT NULL
         GROUP BY team_id
       )
       SELECT s.*,
