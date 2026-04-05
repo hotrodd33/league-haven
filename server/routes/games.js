@@ -23,7 +23,8 @@ const BASE_SELECT = `
     ao.logo_url AS away_org_logo,
     fl.name AS location_name, fl.address AS location_address,
     fl.city AS location_city, fl.state AS location_state,
-    ls.name AS season_name, ls.year AS season_year
+    ls.name AS season_name, ls.year AS season_year,
+    gd.division_id, gd.division_name, gd.division_sort
   FROM games g
   JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
@@ -31,6 +32,15 @@ const BASE_SELECT = `
   LEFT JOIN organizations ao ON ao.id = at.org_id
   LEFT JOIN field_locations fl ON fl.id = g.location_id
   LEFT JOIN league_seasons ls ON ls.id = g.season_id
+  LEFT JOIN LATERAL (
+    SELECT ld.id AS division_id, ld.name AS division_name, ld.sort_order AS division_sort
+    FROM team_divisions htd
+    JOIN team_divisions atd ON htd.division_id = atd.division_id
+    JOIN league_divisions ld ON ld.id = htd.division_id
+    WHERE htd.team_id = g.home_team_id AND atd.team_id = g.away_team_id
+    ORDER BY ld.sort_order
+    LIMIT 1
+  ) gd ON true
 `;
 
 function enrichGame(row) {
@@ -85,7 +95,7 @@ router.get('/', async (req, res) => {
     }
 
     const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
-    const sql = BASE_SELECT + where + ' ORDER BY g.game_date, g.game_time NULLS LAST';
+    const sql = BASE_SELECT + where + ' ORDER BY gd.division_sort NULLS LAST, gd.division_name NULLS LAST, g.game_date, g.game_time NULLS LAST';
     const { rows } = await pool.query(sql, params);
     res.json(rows.map(enrichGame));
   } catch (err) {

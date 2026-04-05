@@ -105,14 +105,25 @@ export default function GameSchedule({ onBack }) {
     setShowForm(false); setEditing(null); loadGames();
   }
 
-  // Group games by date
-  const grouped = {};
+  // Group games by division, then by date within each division
+  const divisions = []; // ordered list of { key, name, dateGroups: { dateKey: [games] }, dateKeys: [...] }
+  const divMap = {};
   for (const g of games) {
-    const key = g.game_date;
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(g);
+    const divKey = g.division_id ? String(g.division_id) : '__none__';
+    const divName = g.division_name || null;
+    if (!divMap[divKey]) {
+      divMap[divKey] = { key: divKey, name: divName, dateGroups: {}, dateKeys: [] };
+      divisions.push(divMap[divKey]);
+    }
+    const dg = divMap[divKey];
+    if (!dg.dateGroups[g.game_date]) {
+      dg.dateGroups[g.game_date] = [];
+      dg.dateKeys.push(g.game_date);
+    }
+    dg.dateGroups[g.game_date].push(g);
   }
-  const dateKeys = Object.keys(grouped).sort();
+  // Sort date keys within each division
+  for (const div of divisions) div.dateKeys.sort();
 
   // Build team optgroups
   const teamsByOrg = {};
@@ -187,100 +198,113 @@ export default function GameSchedule({ onBack }) {
           )}
         </div>
       ) : (
-        <div className="space-y-6">
-          {dateKeys.map(dateKey => (
-            <div key={dateKey}>
-              <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-2 border-b border-gray-200 pb-1">
-                {formatDate(dateKey)}
-              </h3>
+        <div className="space-y-8">
+          {divisions.map(div => (
+            <div key={div.key}>
+              {/* Division header — only show if there are named divisions */}
+              {(divisions.length > 1 || div.name) && (
+                <h2 className="text-base font-bold text-blue-900 mb-3 border-b-2 border-blue-200 pb-1">
+                  {div.name || 'Other Games'}
+                </h2>
+              )}
 
-              {/* Desktop */}
-              <div className="hidden md:block">
-                <div className="space-y-2">
-                  {grouped[dateKey].map(game => (
-                    <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                      className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
-                      {/* Time */}
-                      <div className="w-16 text-center shrink-0">
-                        <span className="text-sm font-semibold text-gray-700">{formatTime(game.game_time) || 'TBD'}</span>
+              <div className="space-y-6">
+                {div.dateKeys.map(dateKey => (
+                  <div key={dateKey}>
+                    <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-2 border-b border-gray-200 pb-1">
+                      {formatDate(dateKey)}
+                    </h3>
+
+                    {/* Desktop */}
+                    <div className="hidden md:block">
+                      <div className="space-y-2">
+                        {div.dateGroups[dateKey].map(game => (
+                          <div key={game.id} onClick={() => setSelectedGameId(game.id)}
+                            className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                            {/* Time */}
+                            <div className="w-16 text-center shrink-0">
+                              <span className="text-sm font-semibold text-gray-700">{formatTime(game.game_time) || 'TBD'}</span>
+                            </div>
+
+                            {/* Matchup */}
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                                <span className="font-semibold text-sm truncate">{game.home_team_name}</span>
+                                <TeamLogo src={game.home_logo} name={game.home_team_name} />
+                              </div>
+                              <div className="px-2 shrink-0">
+                                {game.status === 'completed' ? (
+                                  <span className="font-bold text-sm">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
+                                ) : (
+                                  <span className="text-xs font-semibold text-gray-400">vs</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <TeamLogo src={game.away_logo} name={game.away_team_name} />
+                                <span className="font-semibold text-sm truncate">{game.away_team_name}</span>
+                              </div>
+                            </div>
+
+                            {/* Location + Status */}
+                            <div className="flex items-center gap-3 shrink-0">
+                              {game.location_name && (
+                                <span className="text-xs text-gray-500 hidden lg:inline truncate max-w-[180px]">
+                                  📍 {game.location_name}
+                                </span>
+                              )}
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
+                                {game.status_label}
+                              </span>
+                              {isAdmin && (
+                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <button onClick={() => { setEditing(game); setShowForm(true); }}
+                                    className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
+                                  <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
+                                    className={btnDanger}>{deleting === game.id ? '…' : 'Del'}</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
+                    </div>
 
-                      {/* Matchup */}
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                          <span className="font-semibold text-sm truncate">{game.home_team_name}</span>
-                          <TeamLogo src={game.home_logo} name={game.home_team_name} />
-                        </div>
-                        <div className="px-2 shrink-0">
-                          {game.status === 'completed' ? (
-                            <span className="font-bold text-sm">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
-                          ) : (
-                            <span className="text-xs font-semibold text-gray-400">vs</span>
+                    {/* Mobile cards */}
+                    <div className="md:hidden space-y-2">
+                      {div.dateGroups[dateKey].map(game => (
+                        <div key={game.id} onClick={() => setSelectedGameId(game.id)}
+                          className="bg-white border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-gray-500">{formatTime(game.game_time) || 'TBD'}</span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
+                              {game.status_label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <TeamLogo src={game.home_logo} name={game.home_team_name} size="w-6 h-6" />
+                            <span className="font-semibold text-sm flex-1 truncate">{game.home_team_name}</span>
+                            {game.status === 'completed' && <span className="font-bold text-sm">{game.home_score ?? '—'}</span>}
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <TeamLogo src={game.away_logo} name={game.away_team_name} size="w-6 h-6" />
+                            <span className="font-semibold text-sm flex-1 truncate">{game.away_team_name}</span>
+                            {game.status === 'completed' && <span className="font-bold text-sm">{game.away_score ?? '—'}</span>}
+                          </div>
+                          {game.location_name && (
+                            <div className="text-xs text-gray-500 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
+                          )}
+                          {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
+                          {isAdmin && (
+                            <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => { setEditing(game); setShowForm(true); }}
+                                className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
+                              <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
+                                className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
+                            </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <TeamLogo src={game.away_logo} name={game.away_team_name} />
-                          <span className="font-semibold text-sm truncate">{game.away_team_name}</span>
-                        </div>
-                      </div>
-
-                      {/* Location + Status */}
-                      <div className="flex items-center gap-3 shrink-0">
-                        {game.location_name && (
-                          <span className="text-xs text-gray-500 hidden lg:inline truncate max-w-[180px]">
-                            📍 {game.location_name}
-                          </span>
-                        )}
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
-                          {game.status_label}
-                        </span>
-                        {isAdmin && (
-                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => { setEditing(game); setShowForm(true); }}
-                              className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                            <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
-                              className={btnDanger}>{deleting === game.id ? '…' : 'Del'}</button>
-                          </div>
-                        )}
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mobile cards */}
-              <div className="md:hidden space-y-2">
-                {grouped[dateKey].map(game => (
-                  <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                    className="bg-white border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-gray-500">{formatTime(game.game_time) || 'TBD'}</span>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
-                        {game.status_label}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <TeamLogo src={game.home_logo} name={game.home_team_name} size="w-6 h-6" />
-                      <span className="font-semibold text-sm flex-1 truncate">{game.home_team_name}</span>
-                      {game.status === 'completed' && <span className="font-bold text-sm">{game.home_score ?? '—'}</span>}
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <TeamLogo src={game.away_logo} name={game.away_team_name} size="w-6 h-6" />
-                      <span className="font-semibold text-sm flex-1 truncate">{game.away_team_name}</span>
-                      {game.status === 'completed' && <span className="font-bold text-sm">{game.away_score ?? '—'}</span>}
-                    </div>
-                    {game.location_name && (
-                      <div className="text-xs text-gray-500 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
-                    )}
-                    {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
-                    {isAdmin && (
-                      <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => { setEditing(game); setShowForm(true); }}
-                          className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                        <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
-                          className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
