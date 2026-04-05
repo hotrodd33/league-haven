@@ -104,6 +104,76 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET standings — ?season_id= required
+router.get('/standings', async (req, res) => {
+  try {
+    const { season_id } = req.query;
+    if (!season_id) return res.status(400).json({ error: 'season_id is required' });
+
+    const { rows } = await pool.query(`
+      WITH completed_games AS (
+        SELECT id, home_team_id, away_team_id, home_score, away_score
+        FROM games
+        WHERE status = 'completed' AND season_id = $1
+      ),
+      team_results AS (
+        -- Home team perspective
+        SELECT home_team_id AS team_id,
+          1 AS gp,
+          CASE WHEN home_score > away_score THEN 1 ELSE 0 END AS wins,
+          CASE WHEN home_score < away_score THEN 1 ELSE 0 END AS losses,
+          CASE WHEN home_score = away_score THEN 1 ELSE 0 END AS ties,
+          COALESCE(home_score, 0) AS runs_for,
+          COALESCE(away_score, 0) AS runs_against
+        FROM completed_games
+        UNION ALL
+        -- Away team perspective
+        SELECT away_team_id AS team_id,
+          1 AS gp,
+          CASE WHEN away_score > home_score THEN 1 ELSE 0 END AS wins,
+          CASE WHEN away_score < home_score THEN 1 ELSE 0 END AS losses,
+          CASE WHEN away_score = home_score THEN 1 ELSE 0 END AS ties,
+          COALESCE(away_score, 0) AS runs_for,
+          COALESCE(home_score, 0) AS runs_against
+        FROM completed_games
+      ),
+      standings AS (
+        SELECT team_id,
+          SUM(gp)::int AS gp,
+          SUM(wins)::int AS wins,
+          SUM(losses)::int AS losses,
+          SUM(ties)::int AS ties,
+          SUM(runs_for)::int AS runs_for,
+          SUM(runs_against)::int AS runs_against
+        FROM team_results
+        GROUP BY team_id
+      )
+      SELECT s.*,
+        t.name AS team_name, t.logo_url AS team_logo, t.org_id,
+        o.name AS org_name, o.logo_url AS org_logo,
+        ld.id AS division_id, ld.name AS division_name, ld.sort_order AS division_sort
+      FROM standings s
+      JOIN teams t ON t.id = s.team_id
+      LEFT JOIN organizations o ON o.id = t.org_id
+      LEFT JOIN team_divisions td ON td.team_id = t.id
+      LEFT JOIN league_divisions ld ON ld.id = td.division_id AND ld.season_id = $1
+      ORDER BY ld.sort_order NULLS LAST, ld.name NULLS LAST,
+        wins DESC, losses ASC, (runs_for - runs_against) DESC, t.name
+    `, [season_id]);
+
+    // Resolve logo fallback
+    const result = rows.map(r => ({
+      ...r,
+      logo: r.team_logo || r.org_logo || null,
+    }));
+
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET single game
 router.get('/:id', async (req, res) => {
   try {

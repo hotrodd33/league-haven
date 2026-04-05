@@ -227,6 +227,12 @@ export async function deleteGame(gameId) {
   });
 }
 
+// ── Standings ──
+
+export async function fetchStandings(seasonId) {
+  return apiFetch(`/games/standings?season_id=${seasonId}`);
+}
+
 // ── Pitch Counts ──
 
 export async function fetchPitchCounts(gameId) {
