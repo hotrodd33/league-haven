@@ -267,6 +267,10 @@ export async function fetchPitchEligibility(teamId, gameDate, gameId) {
   return apiFetch(`/pitch-rules/eligibility?${params}`);
 }
 
+export async function fetchTeamPitcherStats(teamId) {
+  return apiFetch(`/pitch-rules/team-stats?team_id=${teamId}`);
+}
+
 // ── Organizations ──
 
 export async function fetchOrganizations() {

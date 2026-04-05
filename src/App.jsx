@@ -11,6 +11,7 @@ import LeagueConfig from "./components/LeagueConfig.jsx";
 import GameSchedule from "./components/GameSchedule.jsx";
 import Standings from "./components/Standings.jsx";
 import TeamSchedule from "./components/TeamSchedule.jsx";
+import PitcherRest from "./components/PitcherRest.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, user, logout } = useAuth();
@@ -139,6 +140,7 @@ export default function App() {
                     <div className="flex-1 p-4 overflow-x-auto">
                         <RosterList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} />
                         <StaffList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} refreshKey={refreshKey} />
+                        <PitcherRest teamId={selectedTeam} />
                         <TeamSchedule teamId={selectedTeam} onNavigateToTeam={navigateToTeam} />
                     </div>
                 </main>

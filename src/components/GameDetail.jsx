@@ -330,6 +330,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         onSaveNewPlayer={() => handleQuickAddPlayer('home')}
         savingNewPlayer={savingNewPlayer}
         eligibilityData={homeEligibility}
+        gameDate={game.game_date}
       />
 
       {/* Pitch Counts — Away */}
@@ -360,6 +361,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         onSaveNewPlayer={() => handleQuickAddPlayer('away')}
         savingNewPlayer={savingNewPlayer}
         eligibilityData={awayEligibility}
+        gameDate={game.game_date}
       />
     </div>
   );
@@ -372,7 +374,7 @@ function PitchCountSection({
   editingPc, onStartEdit, onSaveEdit, onCancelEdit, onDelete,
   addingNewPlayer, onStartAddNewPlayer, onCancelAddNewPlayer,
   newPlayerForm, setNewPlayerForm, onSaveNewPlayer, savingNewPlayer,
-  eligibilityData,
+  eligibilityData, gameDate,
 }) {
   const totalPitches = entries.reduce((sum, e) => sum + (e.pitch_count || 0), 0);
 
@@ -391,6 +393,14 @@ function PitchCountSection({
       if (totalPitches >= t.min) return t.days;
     }
     return 0;
+  }
+
+  // Helper to compute available date from rest days
+  function availableDate(restDays) {
+    if (!gameDate || !restDays || restDays <= 0) return null;
+    const d = new Date(gameDate + 'T00:00:00');
+    d.setDate(d.getDate() + restDays + 1);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
   // Selected player eligibility (for add form)
@@ -461,16 +471,21 @@ function PitchCountSection({
                 <div className={`w-16 text-sm font-bold text-right tabular-nums ${overLimit ? 'text-red-600' : ''}`}>{pc.pitch_count}</div>
                 <div className="w-12 text-sm text-gray-500 text-right tabular-nums">{pc.innings_pitched || '—'}</div>
                 <div className="w-16 text-right">
-                  {restDays != null && (
-                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
-                      restDays >= 3 ? 'bg-red-100 text-red-700' :
-                      restDays >= 2 ? 'bg-orange-100 text-orange-700' :
-                      restDays >= 1 ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      {restDays > 0 ? `${restDays}d rest` : '0d'}
-                    </span>
-                  )}
+                  {restDays != null && (() => {
+                    const availDate = availableDate(restDays);
+                    return (
+                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                        restDays >= 3 ? 'bg-red-100 text-red-700' :
+                        restDays >= 2 ? 'bg-orange-100 text-orange-700' :
+                        restDays >= 1 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-green-100 text-green-700'
+                      }`}
+                        title={availDate ? `Available ${availDate}` : 'No rest required'}
+                      >
+                        {restDays > 0 ? `${restDays}d → ${availDate}` : '0d'}
+                      </span>
+                    );
+                  })()}
                 </div>
                 {canEdit && (
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
