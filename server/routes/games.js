@@ -147,17 +147,34 @@ router.get('/standings', async (req, res) => {
           SUM(runs_against)::int AS runs_against
         FROM team_results
         GROUP BY team_id
+      ),
+      div_tree AS (
+        SELECT id, parent_id, name, sort_order,
+          name::text AS path, sort_order::text AS sort_path
+        FROM league_divisions WHERE parent_id IS NULL AND season_id = $1
+        UNION ALL
+        SELECT d.id, d.parent_id, d.name, d.sort_order,
+          (dt.path || ' > ' || d.name)::text,
+          (dt.sort_path || '.' || d.sort_order::text)::text
+        FROM league_divisions d JOIN div_tree dt ON d.parent_id = dt.id
+      ),
+      -- Pick the deepest (leaf) division each team belongs to
+      team_leaf_div AS (
+        SELECT DISTINCT ON (td.team_id)
+          td.team_id, dv.id AS division_id, dv.path AS division_name, dv.sort_path
+        FROM team_divisions td
+        JOIN div_tree dv ON dv.id = td.division_id
+        ORDER BY td.team_id, length(dv.path) DESC
       )
       SELECT s.*,
         t.name AS team_name, t.logo_url AS team_logo, t.org_id,
         o.name AS org_name, o.logo_url AS org_logo,
-        ld.id AS division_id, ld.name AS division_name, ld.sort_order AS division_sort
+        tld.division_id, tld.division_name, tld.sort_path AS division_sort
       FROM standings s
       JOIN teams t ON t.id = s.team_id
       LEFT JOIN organizations o ON o.id = t.org_id
-      LEFT JOIN team_divisions td ON td.team_id = t.id
-      LEFT JOIN league_divisions ld ON ld.id = td.division_id AND ld.season_id = $1
-      ORDER BY ld.sort_order NULLS LAST, ld.name NULLS LAST,
+      LEFT JOIN team_leaf_div tld ON tld.team_id = t.id
+      ORDER BY tld.sort_path NULLS LAST,
         wins DESC, losses ASC, (runs_for - runs_against) DESC, t.name
     `, [season_id]);
 
