@@ -34,8 +34,16 @@ const BASE_SELECT = `
 `;
 
 function enrichGame(row) {
+  // Postgres DATE comes as JS Date object; normalize to YYYY-MM-DD string
+  let gameDate = row.game_date;
+  if (gameDate instanceof Date) {
+    gameDate = gameDate.toISOString().slice(0, 10);
+  } else if (typeof gameDate === 'string' && gameDate.length > 10) {
+    gameDate = gameDate.slice(0, 10);
+  }
   return {
     ...row,
+    game_date: gameDate,
     status_label: STATUS_LABELS[row.status] || row.status,
     home_logo: row.home_team_logo || row.home_org_logo || null,
     away_logo: row.away_team_logo || row.away_org_logo || null,
