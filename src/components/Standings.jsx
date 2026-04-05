@@ -92,7 +92,7 @@ export default function Standings({ onBack }) {
                       <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-12">L</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-12">T</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-14">GP</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-16">PCT</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-14">PTS</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-12">RF</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-12">RA</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-14">DIFF</th>
@@ -100,7 +100,6 @@ export default function Standings({ onBack }) {
                   </thead>
                   <tbody>
                     {div.teams.map((team, idx) => {
-                      const pct = team.gp > 0 ? ((team.wins + team.ties * 0.5) / team.gp) : 0;
                       const diff = team.runs_for - team.runs_against;
                       return (
                         <tr key={team.team_id} className={`border-b border-gray-100 ${idx === 0 ? 'bg-yellow-50/50' : 'hover:bg-gray-50'}`}>
@@ -118,7 +117,7 @@ export default function Standings({ onBack }) {
                           <td className="py-2.5 px-2 text-center font-bold">{team.losses}</td>
                           <td className="py-2.5 px-2 text-center text-gray-500">{team.ties || '—'}</td>
                           <td className="py-2.5 px-2 text-center text-gray-500">{team.gp}</td>
-                          <td className="py-2.5 px-2 text-center font-semibold tabular-nums">{pct.toFixed(3).replace(/^0/, '')}</td>
+                          <td className="py-2.5 px-2 text-center font-bold text-blue-800 tabular-nums">{team.points}</td>
                           <td className="py-2.5 px-2 text-center text-gray-600 tabular-nums">{team.runs_for}</td>
                           <td className="py-2.5 px-2 text-center text-gray-600 tabular-nums">{team.runs_against}</td>
                           <td className={`py-2.5 px-2 text-center font-semibold tabular-nums ${diff > 0 ? 'text-green-700' : diff < 0 ? 'text-red-600' : 'text-gray-500'}`}>
@@ -134,7 +133,6 @@ export default function Standings({ onBack }) {
               {/* Mobile cards */}
               <div className="sm:hidden space-y-2">
                 {div.teams.map((team, idx) => {
-                  const pct = team.gp > 0 ? ((team.wins + team.ties * 0.5) / team.gp) : 0;
                   const diff = team.runs_for - team.runs_against;
                   return (
                     <div key={team.team_id} className={`bg-white border border-gray-200 rounded-lg p-3 ${idx === 0 ? 'ring-1 ring-yellow-300' : ''}`}>
@@ -147,12 +145,12 @@ export default function Standings({ onBack }) {
                         </div>
                         <div className="text-right shrink-0">
                           <div className="font-bold text-sm">{team.wins}-{team.losses}{team.ties ? `-${team.ties}` : ''}</div>
-                          <div className="text-xs text-gray-500">{pct.toFixed(3).replace(/^0/, '')}</div>
+                          <div className="text-xs font-bold text-blue-800">{team.points} pts</div>
                         </div>
                       </div>
                       <div className="flex justify-between text-xs text-gray-500 border-t border-gray-100 pt-1.5">
                         <span>GP: {team.gp}</span>
-                        <span>RF: {team.runs_for}</span>
+                        <span>PTS: {team.points}</span>
                         <span>RA: {team.runs_against}</span>
                         <span className={`font-semibold ${diff > 0 ? 'text-green-700' : diff < 0 ? 'text-red-600' : ''}`}>
                           DIFF: {diff > 0 ? '+' : ''}{diff}

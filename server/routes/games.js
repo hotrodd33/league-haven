@@ -182,14 +182,16 @@ router.get('/standings', async (req, res) => {
       ORDER BY t.name
     `, [season_id]);
 
-    // Enrich with division path, picking the deepest division per team
+    // Enrich with division path and points (W=3, T=2, L=1)
     const result = rows.map(r => {
       let div = null;
       if (r.division_id && divLookup[r.division_id]) {
         div = divLookup[r.division_id];
       }
+      const points = (r.wins * 3) + (r.ties * 2) + (r.losses * 1);
       return {
         ...r,
+        points,
         logo: r.team_logo || r.org_logo || null,
         division_id: div?.division_id || null,
         division_name: div?.division_name || null,
@@ -197,13 +199,13 @@ router.get('/standings', async (req, res) => {
       };
     });
 
-    // Sort by division path, then wins desc
+    // Sort by division path, then points desc, then run differential
     result.sort((a, b) => {
       const da = a.division_sort || 'zzz';
       const db = b.division_sort || 'zzz';
       if (da !== db) return da.localeCompare(db);
+      if (a.points !== b.points) return b.points - a.points;
       if (a.wins !== b.wins) return b.wins - a.wins;
-      if (a.losses !== b.losses) return a.losses - b.losses;
       return (b.runs_for - b.runs_against) - (a.runs_for - a.runs_against);
     });
 
