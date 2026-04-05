@@ -170,6 +170,18 @@ router.post('/teams', authMiddleware, requireAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // 0. Clear existing data (order matters for FK constraints)
+    await client.query('DELETE FROM game_pitch_counts');
+    await client.query('DELETE FROM games');
+    await client.query('DELETE FROM team_divisions');
+    await client.query('DELETE FROM team_players');
+    await client.query('DELETE FROM team_staff_assignments');
+    await client.query('DELETE FROM teams');
+    await client.query('DELETE FROM field_locations');
+    await client.query('DELETE FROM organizations');
+    await client.query('DELETE FROM league_age_groups');
+    await client.query('DELETE FROM league_levels');
+
     // 1. Seed age groups
     const ageGroups = ['8u', '9u', '10u', '11u', '12u', '13u', '14/15u'];
     for (let i = 0; i < ageGroups.length; i++) {
