@@ -134,7 +134,7 @@ router.get('/standings', async (req, res) => {
       divLookup[d.id] = { division_id: d.id, division_name: d.path, sort_path: d.sort_path };
     }
 
-    // Get standings from completed games
+    // Get all teams in divisions for this season, with optional standings from completed games
     const { rows } = await pool.query(`
       WITH completed_games AS (
         SELECT id, home_team_id, away_team_id, home_score, away_score
@@ -171,17 +171,26 @@ router.get('/standings', async (req, res) => {
         FROM team_results
         WHERE team_id IS NOT NULL
         GROUP BY team_id
+      ),
+      season_divs AS (
+        SELECT id FROM league_divisions WHERE season_id = $1
       )
-      SELECT s.*,
+      SELECT
+        t.id AS team_id,
+        COALESCE(s.gp, 0) AS gp,
+        COALESCE(s.wins, 0) AS wins,
+        COALESCE(s.losses, 0) AS losses,
+        COALESCE(s.ties, 0) AS ties,
+        COALESCE(s.runs_for, 0) AS runs_for,
+        COALESCE(s.runs_against, 0) AS runs_against,
         t.name AS team_name, t.logo_url AS team_logo, t.org_id,
         o.name AS org_name, o.logo_url AS org_logo,
         td.division_id
-      FROM standings s
-      JOIN teams t ON t.id = s.team_id
+      FROM team_divisions td
+      JOIN season_divs sd ON sd.id = td.division_id
+      JOIN teams t ON t.id = td.team_id
+      LEFT JOIN standings s ON s.team_id = t.id
       LEFT JOIN organizations o ON o.id = t.org_id
-      LEFT JOIN LATERAL (
-        SELECT division_id FROM team_divisions WHERE team_id = t.id LIMIT 1
-      ) td ON true
       ORDER BY t.name
     `, [season_id]);
 
