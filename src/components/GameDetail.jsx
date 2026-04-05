@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchGame, updateGame,
   fetchPitchCounts, createPitchCount, updatePitchCount, deletePitchCount,
-  fetchPlayersByTeam,
+  fetchPlayersByTeam, createPlayer,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -57,6 +57,11 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   const [addingFor, setAddingFor] = useState(null); // 'home' | 'away'
   const [pcForm, setPcForm] = useState({ player_id: '', pitch_count: '', innings_pitched: '' });
   const [editingPc, setEditingPc] = useState(null);
+
+  // Quick-add new player
+  const [addingNewPlayerFor, setAddingNewPlayerFor] = useState(null); // 'home' | 'away'
+  const [newPlayerForm, setNewPlayerForm] = useState({ first_name: '', last_name: '', jersey_number: '' });
+  const [savingNewPlayer, setSavingNewPlayer] = useState(false);
 
   const canEdit = useCallback((g) => {
     if (!g) return false;
@@ -153,6 +158,27 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
     setEditingPc(pc);
     setAddingFor(null);
     setPcForm({ player_id: String(pc.player_id), pitch_count: String(pc.pitch_count), innings_pitched: pc.innings_pitched || '' });
+  }
+
+  async function handleQuickAddPlayer(side) {
+    if (!newPlayerForm.first_name.trim() || !newPlayerForm.last_name.trim()) return;
+    setSavingNewPlayer(true);
+    try {
+      const teamId = side === 'home' ? game.home_team_id : game.away_team_id;
+      await createPlayer({
+        team_id: teamId,
+        first_name: newPlayerForm.first_name.trim(),
+        last_name: newPlayerForm.last_name.trim(),
+        jersey_number: newPlayerForm.jersey_number.trim() || undefined,
+      });
+      // Refresh player list for the relevant team
+      const updated = await fetchPlayersByTeam(teamId);
+      if (side === 'home') setHomePlayers(updated);
+      else setAwayPlayers(updated);
+      setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' });
+      setAddingNewPlayerFor(null);
+    } catch (err) { setError(err.message); }
+    finally { setSavingNewPlayer(false); }
   }
 
   if (loading) return <div className="py-8 text-center text-gray-500">Loading game…</div>;
@@ -271,8 +297,8 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         availablePlayers={availableHome}
         canEdit={userCanEdit}
         isAdding={addingFor === 'home'}
-        onStartAdd={() => { setAddingFor('home'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' }); }}
-        onCancelAdd={() => setAddingFor(null)}
+        onStartAdd={() => { setAddingFor('home'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' }); setAddingNewPlayerFor(null); }}
+        onCancelAdd={() => { setAddingFor(null); setAddingNewPlayerFor(null); }}
         onAdd={handleAddPitchCount}
         pcForm={pcForm}
         setPcForm={setPcForm}
@@ -282,6 +308,13 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         onSaveEdit={handleUpdatePitchCount}
         onCancelEdit={() => { setEditingPc(null); setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' }); }}
         onDelete={handleDeletePitchCount}
+        addingNewPlayer={addingNewPlayerFor === 'home'}
+        onStartAddNewPlayer={() => setAddingNewPlayerFor('home')}
+        onCancelAddNewPlayer={() => { setAddingNewPlayerFor(null); setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' }); }}
+        newPlayerForm={newPlayerForm}
+        setNewPlayerForm={setNewPlayerForm}
+        onSaveNewPlayer={() => handleQuickAddPlayer('home')}
+        savingNewPlayer={savingNewPlayer}
       />
 
       {/* Pitch Counts — Away */}
@@ -293,8 +326,8 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         availablePlayers={availableAway}
         canEdit={userCanEdit}
         isAdding={addingFor === 'away'}
-        onStartAdd={() => { setAddingFor('away'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' }); }}
-        onCancelAdd={() => setAddingFor(null)}
+        onStartAdd={() => { setAddingFor('away'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' }); setAddingNewPlayerFor(null); }}
+        onCancelAdd={() => { setAddingFor(null); setAddingNewPlayerFor(null); }}
         onAdd={handleAddPitchCount}
         pcForm={pcForm}
         setPcForm={setPcForm}
@@ -304,6 +337,13 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         onSaveEdit={handleUpdatePitchCount}
         onCancelEdit={() => { setEditingPc(null); setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' }); }}
         onDelete={handleDeletePitchCount}
+        addingNewPlayer={addingNewPlayerFor === 'away'}
+        onStartAddNewPlayer={() => setAddingNewPlayerFor('away')}
+        onCancelAddNewPlayer={() => { setAddingNewPlayerFor(null); setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' }); }}
+        newPlayerForm={newPlayerForm}
+        setNewPlayerForm={setNewPlayerForm}
+        onSaveNewPlayer={() => handleQuickAddPlayer('away')}
+        savingNewPlayer={savingNewPlayer}
       />
     </div>
   );
@@ -314,6 +354,8 @@ function PitchCountSection({
   isAdding, onStartAdd, onCancelAdd, onAdd,
   pcForm, setPcForm, saving,
   editingPc, onStartEdit, onSaveEdit, onCancelEdit, onDelete,
+  addingNewPlayer, onStartAddNewPlayer, onCancelAddNewPlayer,
+  newPlayerForm, setNewPlayerForm, onSaveNewPlayer, savingNewPlayer,
 }) {
   const totalPitches = entries.reduce((sum, e) => sum + (e.pitch_count || 0), 0);
 
@@ -321,7 +363,7 @@ function PitchCountSection({
     <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 mb-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">{label}</h3>
-        {canEdit && !isAdding && !editingPc && availablePlayers.length > 0 && (
+        {canEdit && !isAdding && !editingPc && (
           <button onClick={onStartAdd} className="text-xs text-blue-700 font-semibold hover:underline">+ Add Pitcher</button>
         )}
       </div>
@@ -391,32 +433,80 @@ function PitchCountSection({
         <form onSubmit={onAdd} className="mt-3 bg-blue-50 rounded-lg p-3 space-y-2">
           <div>
             <label className={labelCls}>Player *</label>
-            <select value={pcForm.player_id} onChange={(e) => setPcForm(prev => ({ ...prev, player_id: e.target.value }))}
-              required className={inputCls}>
-              <option value="">— Select Player —</option>
-              {availablePlayers.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.first_name} {p.last_name}
-                </option>
-              ))}
-            </select>
+            {availablePlayers.length > 0 ? (
+              <select value={pcForm.player_id} onChange={(e) => setPcForm(prev => ({ ...prev, player_id: e.target.value }))}
+                required className={inputCls}>
+                <option value="">— Select Player —</option>
+                {availablePlayers.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.first_name} {p.last_name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="text-sm text-gray-500 italic">All rostered players already added. Use "New Player" below to add one.</div>
+            )}
+            {!addingNewPlayer && (
+              <button type="button" onClick={onStartAddNewPlayer}
+                className="mt-1 text-xs text-green-700 font-semibold hover:underline">+ New Player</button>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={labelCls}>Pitch Count *</label>
-              <input type="number" min="0" required value={pcForm.pitch_count}
-                onChange={(e) => setPcForm(prev => ({ ...prev, pitch_count: e.target.value }))}
-                className={inputCls} />
+
+          {/* Inline new player form */}
+          {addingNewPlayer && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-bold uppercase tracking-wide text-green-700 mb-1">Quick Add Player</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className={labelCls}>First Name *</label>
+                  <input type="text" required value={newPlayerForm.first_name}
+                    onChange={(e) => setNewPlayerForm(prev => ({ ...prev, first_name: e.target.value }))}
+                    className={inputCls} placeholder="First" />
+                </div>
+                <div>
+                  <label className={labelCls}>Last Name *</label>
+                  <input type="text" required value={newPlayerForm.last_name}
+                    onChange={(e) => setNewPlayerForm(prev => ({ ...prev, last_name: e.target.value }))}
+                    className={inputCls} placeholder="Last" />
+                </div>
+                <div>
+                  <label className={labelCls}>Jersey #</label>
+                  <input type="text" value={newPlayerForm.jersey_number}
+                    onChange={(e) => setNewPlayerForm(prev => ({ ...prev, jersey_number: e.target.value }))}
+                    className={inputCls} placeholder="#" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" disabled={savingNewPlayer} onClick={(e) => { e.preventDefault(); onSaveNewPlayer(); }}
+                  className="px-3 py-1.5 bg-green-700 text-white text-xs font-semibold rounded-lg hover:bg-green-800 disabled:opacity-60">
+                  {savingNewPlayer ? 'Adding…' : 'Add Player'}
+                </button>
+                <button type="button" onClick={onCancelAddNewPlayer}
+                  className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-300">Cancel</button>
+              </div>
             </div>
-            <div>
-              <label className={labelCls}>Innings Pitched</label>
-              <input type="text" value={pcForm.innings_pitched} placeholder="e.g. 3.1"
-                onChange={(e) => setPcForm(prev => ({ ...prev, innings_pitched: e.target.value }))}
-                className={inputCls} />
+          )}
+
+          {availablePlayers.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls}>Pitch Count *</label>
+                <input type="number" min="0" required value={pcForm.pitch_count}
+                  onChange={(e) => setPcForm(prev => ({ ...prev, pitch_count: e.target.value }))}
+                  className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Innings Pitched</label>
+                <input type="text" value={pcForm.innings_pitched} placeholder="e.g. 3.1"
+                  onChange={(e) => setPcForm(prev => ({ ...prev, innings_pitched: e.target.value }))}
+                  className={inputCls} />
+              </div>
             </div>
-          </div>
+          )}
           <div className="flex gap-2">
-            <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Adding…' : 'Add'}</button>
+            {availablePlayers.length > 0 && (
+              <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Adding…' : 'Add'}</button>
+            )}
             <button type="button" onClick={onCancelAdd} className={btnSecondary}>Cancel</button>
           </div>
         </form>
