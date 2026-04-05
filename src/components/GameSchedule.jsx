@@ -47,7 +47,7 @@ function TeamLogo({ src, name, size = 'w-8 h-8' }) {
   return <img src={src} alt="" className={`${size} object-contain rounded shrink-0`} />;
 }
 
-export default function GameSchedule({ onBack }) {
+export default function GameSchedule({ onBack, onNavigateToTeam }) {
   const { isAdmin } = useAuth();
   const [games, setGames] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -142,7 +142,7 @@ export default function GameSchedule({ onBack }) {
   if (error) return <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
 
   if (selectedGameId) {
-    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} />;
+    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} onNavigateToTeam={onNavigateToTeam} />;
   }
 
   return (
@@ -229,7 +229,7 @@ export default function GameSchedule({ onBack }) {
                             {/* Matchup */}
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                                <span className="font-semibold text-sm truncate">{game.home_team_name}</span>
+                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-blue-700 hover:text-blue-900 hover:underline">{game.home_team_name}</button>
                                 <TeamLogo src={game.home_logo} name={game.home_team_name} />
                               </div>
                               <div className="px-2 shrink-0">
@@ -241,7 +241,7 @@ export default function GameSchedule({ onBack }) {
                               </div>
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <TeamLogo src={game.away_logo} name={game.away_team_name} />
-                                <span className="font-semibold text-sm truncate">{game.away_team_name}</span>
+                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-blue-700 hover:text-blue-900 hover:underline">{game.away_team_name}</button>
                               </div>
                             </div>
 
@@ -282,12 +282,12 @@ export default function GameSchedule({ onBack }) {
                           </div>
                           <div className="flex items-center gap-2 mb-1">
                             <TeamLogo src={game.home_logo} name={game.home_team_name} size="w-6 h-6" />
-                            <span className="font-semibold text-sm flex-1 truncate">{game.home_team_name}</span>
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-700 hover:text-blue-900 hover:underline text-left">{game.home_team_name}</button>
                             {game.status === 'completed' && <span className="font-bold text-sm">{game.home_score ?? '—'}</span>}
                           </div>
                           <div className="flex items-center gap-2 mb-2">
                             <TeamLogo src={game.away_logo} name={game.away_team_name} size="w-6 h-6" />
-                            <span className="font-semibold text-sm flex-1 truncate">{game.away_team_name}</span>
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-700 hover:text-blue-900 hover:underline text-left">{game.away_team_name}</button>
                             {game.status === 'completed' && <span className="font-bold text-sm">{game.away_score ?? '—'}</span>}
                           </div>
                           {game.location_name && (

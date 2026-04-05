@@ -20,6 +20,11 @@ export default function App() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [page, setPage] = useState("rosters");
 
+    function navigateToTeam(teamId, orgId) {
+        setSelectedTeam(teamId);
+        setSelectedTeamOrgId(orgId || null);
+        setPage("rosters");
+    }
     if (!isAuthenticated) {
         return <Login />;
     }
@@ -119,11 +124,11 @@ export default function App() {
                 </main>
             ) : page === "schedule" ? (
                 <main className="p-4 max-w-7xl mx-auto">
-                    <GameSchedule onBack={() => setPage("rosters")} />
+                    <GameSchedule onBack={() => setPage("rosters")} onNavigateToTeam={navigateToTeam} />
                 </main>
             ) : page === "standings" ? (
                 <main className="p-4 max-w-7xl mx-auto">
-                    <Standings onBack={() => setPage("rosters")} />
+                    <Standings onBack={() => setPage("rosters")} onNavigateToTeam={navigateToTeam} />
                 </main>
             ) : (
                 <main className="flex flex-col md:flex-row min-h-[calc(100vh-56px)]">

@@ -39,7 +39,7 @@ function formatTime(timeStr) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-export default function GameDetail({ gameId, onBack }) {
+export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   const { isAdmin, canEditTeam } = useAuth();
   const [game, setGame] = useState(null);
   const [pitchCounts, setPitchCounts] = useState([]);
@@ -186,7 +186,7 @@ export default function GameDetail({ gameId, onBack }) {
         <div className="flex items-center justify-center gap-3 sm:gap-6 mb-3">
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
             <TeamLogo src={game.home_logo} name={game.home_team_name} size="w-12 h-12" />
-            <span className="font-bold text-sm text-center truncate w-full">{game.home_team_name}</span>
+            <button onClick={() => onNavigateToTeam?.(game.home_team_id, game.home_org_id)} className="font-bold text-sm text-center truncate w-full text-blue-700 hover:text-blue-900 hover:underline">{game.home_team_name}</button>
             <span className="text-xs text-gray-400 uppercase">Home</span>
           </div>
           <div className="text-center shrink-0 px-2">
@@ -199,7 +199,7 @@ export default function GameDetail({ gameId, onBack }) {
           </div>
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
             <TeamLogo src={game.away_logo} name={game.away_team_name} size="w-12 h-12" />
-            <span className="font-bold text-sm text-center truncate w-full">{game.away_team_name}</span>
+            <button onClick={() => onNavigateToTeam?.(game.away_team_id, game.away_org_id)} className="font-bold text-sm text-center truncate w-full text-blue-700 hover:text-blue-900 hover:underline">{game.away_team_name}</button>
             <span className="text-xs text-gray-400 uppercase">Away</span>
           </div>
         </div>

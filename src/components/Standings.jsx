@@ -8,7 +8,7 @@ function TeamLogo({ src, name, size = 'w-7 h-7' }) {
   return <img src={src} alt="" className={`${size} object-contain rounded shrink-0`} />;
 }
 
-export default function Standings({ onBack }) {
+export default function Standings({ onBack, onNavigateToTeam }) {
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
   const [standings, setStandings] = useState([]);
@@ -108,7 +108,7 @@ export default function Standings({ onBack }) {
                             <div className="flex items-center gap-2">
                               <TeamLogo src={team.logo} name={team.team_name} />
                               <div>
-                                <span className="font-semibold">{team.team_name}</span>
+                                <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-blue-700 hover:text-blue-900 hover:underline text-left">{team.team_name}</button>
                                 {team.org_name && <span className="text-xs text-gray-400 ml-1.5">({team.org_name})</span>}
                               </div>
                             </div>
@@ -140,7 +140,7 @@ export default function Standings({ onBack }) {
                         <span className="text-xs font-mono text-gray-400 w-5">{idx + 1}</span>
                         <TeamLogo src={team.logo} name={team.team_name} size="w-8 h-8" />
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm truncate">{team.team_name}</div>
+                          <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-sm truncate text-blue-700 hover:text-blue-900 hover:underline text-left block max-w-full">{team.team_name}</button>
                           {team.org_name && <div className="text-xs text-gray-400">{team.org_name}</div>}
                         </div>
                         <div className="text-right shrink-0">
