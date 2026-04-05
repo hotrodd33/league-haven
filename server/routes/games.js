@@ -110,6 +110,29 @@ router.get('/standings', async (req, res) => {
     const { season_id } = req.query;
     if (!season_id) return res.status(400).json({ error: 'season_id is required' });
 
+    // Build division paths first
+    const { rows: divRows } = await pool.query(`
+      WITH RECURSIVE div_tree AS (
+        SELECT id, parent_id, name, sort_order,
+          name::text AS path,
+          LPAD(COALESCE(sort_order, 0)::text, 5, '0') AS sort_path
+        FROM league_divisions WHERE parent_id IS NULL AND season_id = $1
+        UNION ALL
+        SELECT d.id, d.parent_id, d.name, d.sort_order,
+          (dt.path || ' > ' || d.name)::text,
+          (dt.sort_path || '.' || LPAD(COALESCE(d.sort_order, 0)::text, 5, '0'))::text
+        FROM league_divisions d JOIN div_tree dt ON d.parent_id = dt.id
+      )
+      SELECT * FROM div_tree
+    `, [season_id]);
+
+    // Build a lookup: division_id -> {path, sort_path}
+    const divLookup = {};
+    for (const d of divRows) {
+      divLookup[d.id] = { division_id: d.id, division_name: d.path, sort_path: d.sort_path };
+    }
+
+    // Get standings from completed games
     const { rows } = await pool.query(`
       WITH completed_games AS (
         SELECT id, home_team_id, away_team_id, home_score, away_score
@@ -117,7 +140,6 @@ router.get('/standings', async (req, res) => {
         WHERE status = 'completed' AND season_id = $1
       ),
       team_results AS (
-        -- Home team perspective
         SELECT home_team_id AS team_id,
           1 AS gp,
           CASE WHEN home_score > away_score THEN 1 ELSE 0 END AS wins,
@@ -127,7 +149,6 @@ router.get('/standings', async (req, res) => {
           COALESCE(away_score, 0) AS runs_against
         FROM completed_games
         UNION ALL
-        -- Away team perspective
         SELECT away_team_id AS team_id,
           1 AS gp,
           CASE WHEN away_score > home_score THEN 1 ELSE 0 END AS wins,
@@ -147,42 +168,44 @@ router.get('/standings', async (req, res) => {
           SUM(runs_against)::int AS runs_against
         FROM team_results
         GROUP BY team_id
-      ),
-      div_tree AS (
-        SELECT id, parent_id, name, sort_order,
-          name::text AS path, sort_order::text AS sort_path
-        FROM league_divisions WHERE parent_id IS NULL AND season_id = $1
-        UNION ALL
-        SELECT d.id, d.parent_id, d.name, d.sort_order,
-          (dt.path || ' > ' || d.name)::text,
-          (dt.sort_path || '.' || d.sort_order::text)::text
-        FROM league_divisions d JOIN div_tree dt ON d.parent_id = dt.id
-      ),
-      -- Pick the deepest (leaf) division each team belongs to
-      team_leaf_div AS (
-        SELECT DISTINCT ON (td.team_id)
-          td.team_id, dv.id AS division_id, dv.path AS division_name, dv.sort_path
-        FROM team_divisions td
-        JOIN div_tree dv ON dv.id = td.division_id
-        ORDER BY td.team_id, length(dv.path) DESC
       )
       SELECT s.*,
         t.name AS team_name, t.logo_url AS team_logo, t.org_id,
         o.name AS org_name, o.logo_url AS org_logo,
-        tld.division_id, tld.division_name, tld.sort_path AS division_sort
+        td.division_id
       FROM standings s
       JOIN teams t ON t.id = s.team_id
       LEFT JOIN organizations o ON o.id = t.org_id
-      LEFT JOIN team_leaf_div tld ON tld.team_id = t.id
-      ORDER BY tld.sort_path NULLS LAST,
-        wins DESC, losses ASC, (runs_for - runs_against) DESC, t.name
+      LEFT JOIN LATERAL (
+        SELECT division_id FROM team_divisions WHERE team_id = t.id LIMIT 1
+      ) td ON true
+      ORDER BY t.name
     `, [season_id]);
 
-    // Resolve logo fallback
-    const result = rows.map(r => ({
-      ...r,
-      logo: r.team_logo || r.org_logo || null,
-    }));
+    // Enrich with division path, picking the deepest division per team
+    const result = rows.map(r => {
+      let div = null;
+      if (r.division_id && divLookup[r.division_id]) {
+        div = divLookup[r.division_id];
+      }
+      return {
+        ...r,
+        logo: r.team_logo || r.org_logo || null,
+        division_id: div?.division_id || null,
+        division_name: div?.division_name || null,
+        division_sort: div?.sort_path || null,
+      };
+    });
+
+    // Sort by division path, then wins desc
+    result.sort((a, b) => {
+      const da = a.division_sort || 'zzz';
+      const db = b.division_sort || 'zzz';
+      if (da !== db) return da.localeCompare(db);
+      if (a.wins !== b.wins) return b.wins - a.wins;
+      if (a.losses !== b.losses) return a.losses - b.losses;
+      return (b.runs_for - b.runs_against) - (a.runs_for - a.runs_against);
+    });
 
     res.json(result);
   } catch (err) {
