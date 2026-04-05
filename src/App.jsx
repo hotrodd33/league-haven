@@ -55,10 +55,10 @@ export default function App() {
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900">
             {/* Header */}
-            <header className="bg-blue-800 text-white shadow-md">
+            <header className="bg-blue-800 text-white shadow-lg border-t-4 border-baseball-600">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-2">
                     <div className="flex items-center gap-4">
-                        <h1 className="text-lg font-bold whitespace-nowrap">ZVBL Roster Manager</h1>
+                        <h1 className="font-heading text-xl font-bold whitespace-nowrap tracking-wide">⚾ ZVBL Roster Manager</h1>
                         <nav className="flex gap-1">
                             <button
                                 className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "organizations" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}

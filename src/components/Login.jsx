@@ -17,8 +17,8 @@ export default function Login() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-      <div className="bg-white rounded-lg shadow-md p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-1">ZVBL Roster Manager</h1>
+      <div className="bg-white rounded-lg shadow-md p-8 w-full max-w-md border-t-4 border-baseball-600">
+        <h1 className="font-heading text-3xl font-bold mb-1 tracking-wide text-blue-800">⚾ ZVBL</h1>
         <p className="text-gray-500 mb-6 text-sm">Sign in to manage your team rosters</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
