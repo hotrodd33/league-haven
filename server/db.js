@@ -63,10 +63,8 @@ async function migrate() {
 
     CREATE TABLE IF NOT EXISTS players (
       id SERIAL PRIMARY KEY,
-      team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
       first_name TEXT NOT NULL,
       last_name TEXT NOT NULL,
-      jersey_number INTEGER,
       date_of_birth TEXT,
       batting_hand TEXT CHECK(batting_hand IN ('R','L','S') OR batting_hand IS NULL),
       throwing_hand TEXT CHECK(throwing_hand IN ('R','L') OR throwing_hand IS NULL),
@@ -81,6 +79,15 @@ async function migrate() {
       player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
       position_id INTEGER NOT NULL REFERENCES positions(id) ON DELETE CASCADE,
       PRIMARY KEY (player_id, position_id)
+    );
+
+    -- Many-to-many: players can belong to multiple teams
+    CREATE TABLE IF NOT EXISTS team_players (
+      team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      jersey_number INTEGER,
+      added_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (team_id, player_id)
     );
 
     CREATE TABLE IF NOT EXISTS team_staff (
@@ -163,6 +170,19 @@ async function migrate() {
 
   // Promote seed admin user to admin role
   await pool.query("UPDATE users SET role = 'admin' WHERE username = 'admin' AND role = 'manager'");
+
+  // Migrate players from old team_id/jersey_number columns to team_players junction table
+  await pool.query(`
+    DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'players' AND column_name = 'team_id') THEN
+        INSERT INTO team_players (team_id, player_id, jersey_number)
+        SELECT team_id, id, jersey_number FROM players WHERE team_id IS NOT NULL
+        ON CONFLICT DO NOTHING;
+        ALTER TABLE players DROP COLUMN IF EXISTS team_id;
+        ALTER TABLE players DROP COLUMN IF EXISTS jersey_number;
+      END IF;
+    END $$;
+  `);
 
   // Seed default positions if empty
   const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM positions');

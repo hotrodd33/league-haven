@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchPlayersByTeam, deletePlayer } from '../api/index.js';
+import { fetchPlayersByTeam, deletePlayer, unassignPlayerFromTeam, searchPlayers, assignPlayerToTeam } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlayer, refreshKey }) {
@@ -9,6 +9,11 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [showAddExisting, setShowAddExisting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [assigning, setAssigning] = useState(null);
 
   const loadPlayers = useCallback(async () => {
     if (!teamId) return;
@@ -29,9 +34,23 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
     loadPlayers();
   }, [loadPlayers, refreshKey]);
 
-  async function handleDelete(player) {
+  async function handleRemoveFromTeam(player) {
     const name = `${player.first_name} ${player.last_name}`;
-    if (!window.confirm(`Remove ${name} from the roster?`)) return;
+    if (!window.confirm(`Remove ${name} from this team's roster? The player will still exist in the system.`)) return;
+    setDeleting(player.id);
+    try {
+      await unassignPlayerFromTeam(teamId, player.id);
+      setPlayers((prev) => prev.filter((p) => p.id !== player.id));
+    } catch (err) {
+      alert(`Failed to remove: ${err.message}`);
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  async function handleDeletePlayer(player) {
+    const name = `${player.first_name} ${player.last_name}`;
+    if (!window.confirm(`Permanently delete ${name}? This removes them from ALL teams.`)) return;
     setDeleting(player.id);
     try {
       await deletePlayer(player.id);
@@ -40,6 +59,34 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
       alert(`Failed to delete: ${err.message}`);
     } finally {
       setDeleting(null);
+    }
+  }
+
+  async function handleSearch() {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    try {
+      const results = await searchPlayers(searchQuery.trim());
+      // Filter out players already on this team
+      const currentIds = new Set(players.map(p => p.id));
+      setSearchResults(results.filter(p => !currentIds.has(p.id)));
+    } catch (err) {
+      alert(`Search failed: ${err.message}`);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function handleAssignExisting(playerId) {
+    setAssigning(playerId);
+    try {
+      await assignPlayerToTeam(teamId, playerId);
+      setSearchResults(prev => prev.filter(p => p.id !== playerId));
+      await loadPlayers();
+    } catch (err) {
+      alert(`Failed to add: ${err.message}`);
+    } finally {
+      setAssigning(null);
     }
   }
 
@@ -54,11 +101,55 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-bold">Team Roster ({players.length})</h2>
         {editable && (
-          <button onClick={onAddPlayer} className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors">
-            + Add Player
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowAddExisting(!showAddExisting)} className="px-3 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors">
+              + Existing Player
+            </button>
+            <button onClick={onAddPlayer} className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors">
+              + New Player
+            </button>
+          </div>
         )}
       </div>
+
+      {/* Search existing players to add to this team */}
+      {showAddExisting && editable && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+          <p className="text-xs text-gray-500 mb-2">Search for an existing player to add to this team:</p>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name…" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600"
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+            />
+            <button onClick={handleSearch} disabled={searching || !searchQuery.trim()} className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-60">
+              {searching ? '…' : 'Search'}
+            </button>
+            <button onClick={() => { setShowAddExisting(false); setSearchQuery(''); setSearchResults([]); }} className="px-3 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300">
+              Close
+            </button>
+          </div>
+          {searchResults.length > 0 && (
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {searchResults.map(p => (
+                <div key={p.id} className="flex items-center justify-between bg-white border border-gray-200 rounded px-3 py-2 text-sm">
+                  <div>
+                    <span className="font-semibold">{p.first_name} {p.last_name}</span>
+                    {p.positions?.length > 0 && <span className="text-gray-400 ml-2">{p.positions.map(pos => pos.abbreviation || pos.name).join(', ')}</span>}
+                  </div>
+                  <button onClick={() => handleAssignExisting(p.id)} disabled={assigning === p.id}
+                    className="px-3 py-1 text-xs font-semibold bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60">
+                    {assigning === p.id ? '…' : 'Add to Team'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {searchResults.length === 0 && searchQuery && !searching && (
+            <p className="text-xs text-gray-400">No matching players found. Try a different search or add a new player.</p>
+          )}
+        </div>
+      )}
 
       {players.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
@@ -66,7 +157,9 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
           {editable && (
             <>
               <br />
-              <button onClick={onAddPlayer} className="text-blue-700 underline mt-1 inline-block">Add the first player</button>
+              <button onClick={onAddPlayer} className="text-blue-700 underline mt-1 inline-block">Add a new player</button>
+              {' or '}
+              <button onClick={() => setShowAddExisting(true)} className="text-blue-700 underline mt-1 inline-block">add an existing one</button>
             </>
           )}
         </div>
@@ -105,9 +198,15 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex gap-1">
                           <button onClick={() => onEditPlayer(player)} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                          <button onClick={() => handleDelete(player)} disabled={deleting === player.id}
-                            className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                          <button onClick={() => handleRemoveFromTeam(player)} disabled={deleting === player.id}
+                            className="px-2 py-1 text-xs font-semibold bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-60"
+                            title="Remove from this team only">
                             {deleting === player.id ? '…' : 'Remove'}
+                          </button>
+                          <button onClick={() => handleDeletePlayer(player)} disabled={deleting === player.id}
+                            className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
+                            title="Delete player from all teams">
+                            {deleting === player.id ? '…' : 'Del'}
                           </button>
                         </div>
                       </td>
@@ -130,7 +229,11 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                   {editable && (
                     <div className="flex gap-1.5 shrink-0">
                       <button onClick={() => onEditPlayer(player)} className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                      <button onClick={() => handleDelete(player)} disabled={deleting === player.id}
+                      <button onClick={() => handleRemoveFromTeam(player)} disabled={deleting === player.id}
+                        className="px-2.5 py-1 text-xs font-semibold bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-60">
+                        {deleting === player.id ? '…' : 'Remove'}
+                      </button>
+                      <button onClick={() => handleDeletePlayer(player)} disabled={deleting === player.id}
                         className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
                         {deleting === player.id ? '…' : 'Del'}
                       </button>

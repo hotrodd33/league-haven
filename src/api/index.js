@@ -118,6 +118,24 @@ export async function deletePlayer(playerId) {
   });
 }
 
+export async function searchPlayers(query) {
+  return apiFetch(`/players?search=${encodeURIComponent(query)}`);
+}
+
+export async function assignPlayerToTeam(teamId, playerId, jerseyNumber) {
+  return apiFetch('/players/assign', {
+    method: 'POST',
+    body: JSON.stringify({ team_id: teamId, player_id: playerId, jersey_number: jerseyNumber || null }),
+  });
+}
+
+export async function unassignPlayerFromTeam(teamId, playerId) {
+  return apiFetch('/players/unassign', {
+    method: 'POST',
+    body: JSON.stringify({ team_id: teamId, player_id: playerId }),
+  });
+}
+
 // ── Staff ──
 
 export async function fetchStaffByTeam(teamId) {
