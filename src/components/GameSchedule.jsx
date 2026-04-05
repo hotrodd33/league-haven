@@ -4,6 +4,7 @@ import {
   fetchTeams, fetchSeasons, fetchLocations,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import GameDetail from './GameDetail.jsx';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
 const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
@@ -56,6 +57,7 @@ export default function GameSchedule({ onBack }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [selectedGameId, setSelectedGameId] = useState(null);
 
   // Filters
   const [filterTeam, setFilterTeam] = useState('');
@@ -128,6 +130,10 @@ export default function GameSchedule({ onBack }) {
   if (loading) return <div className="py-8 text-center text-gray-500">Loading schedule…</div>;
   if (error) return <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
 
+  if (selectedGameId) {
+    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} />;
+  }
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
@@ -192,7 +198,8 @@ export default function GameSchedule({ onBack }) {
               <div className="hidden md:block">
                 <div className="space-y-2">
                   {grouped[dateKey].map(game => (
-                    <div key={game.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+                    <div key={game.id} onClick={() => setSelectedGameId(game.id)}
+                      className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
                       {/* Time */}
                       <div className="w-16 text-center shrink-0">
                         <span className="text-sm font-semibold text-gray-700">{formatTime(game.game_time) || 'TBD'}</span>
@@ -228,7 +235,7 @@ export default function GameSchedule({ onBack }) {
                           {game.status_label}
                         </span>
                         {isAdmin && (
-                          <div className="flex gap-1">
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                             <button onClick={() => { setEditing(game); setShowForm(true); }}
                               className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
                             <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
@@ -244,7 +251,8 @@ export default function GameSchedule({ onBack }) {
               {/* Mobile cards */}
               <div className="md:hidden space-y-2">
                 {grouped[dateKey].map(game => (
-                  <div key={game.id} className="bg-white border border-gray-200 rounded-lg p-3">
+                  <div key={game.id} onClick={() => setSelectedGameId(game.id)}
+                    className="bg-white border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-gray-500">{formatTime(game.game_time) || 'TBD'}</span>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
@@ -266,7 +274,7 @@ export default function GameSchedule({ onBack }) {
                     )}
                     {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
                     {isAdmin && (
-                      <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+                      <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
                         <button onClick={() => { setEditing(game); setShowForm(true); }}
                           className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
                         <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
@@ -310,6 +318,7 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
     status: game?.status || 'scheduled',
     home_score: game?.home_score ?? '',
     away_score: game?.away_score ?? '',
+    innings_played: game?.innings_played ?? '',
     notes: game?.notes || '',
   });
 
@@ -333,6 +342,7 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
       status: form.status,
       home_score: form.home_score !== '' ? Number(form.home_score) : null,
       away_score: form.away_score !== '' ? Number(form.away_score) : null,
+      innings_played: form.innings_played !== '' ? Number(form.innings_played) : null,
       notes: form.notes.trim() || null,
     };
     try {
@@ -445,8 +455,8 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
             </select>
           </div>
 
-          {/* Status + Score */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Status + Score + Innings */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label htmlFor="game-status" className={labelCls}>Status</label>
               <select id="game-status" name="status" value={form.status} onChange={handleChange} className={inputCls}>
@@ -460,6 +470,10 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
             <div>
               <label htmlFor="game-away-score" className={labelCls}>Away Score</label>
               <input id="game-away-score" name="away_score" type="number" min="0" value={form.away_score} onChange={handleChange} className={inputCls} placeholder="—" />
+            </div>
+            <div>
+              <label htmlFor="game-innings" className={labelCls}>Innings</label>
+              <input id="game-innings" name="innings_played" type="number" min="1" max="99" value={form.innings_played} onChange={handleChange} className={inputCls} placeholder="6" />
             </div>
           </div>
 

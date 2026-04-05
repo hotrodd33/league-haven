@@ -248,6 +248,22 @@ async function migrate() {
     END $$;
   `);
 
+  // Add innings_played column to games if missing
+  await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS innings_played INTEGER;`);
+
+  // Pitch counts per game per pitcher
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS game_pitch_counts (
+      id SERIAL PRIMARY KEY,
+      game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      pitch_count INTEGER NOT NULL,
+      innings_pitched TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   // Seed default positions if empty
   const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM positions');
   if (rows[0].count === 0) {

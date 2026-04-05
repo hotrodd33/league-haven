@@ -227,6 +227,32 @@ export async function deleteGame(gameId) {
   });
 }
 
+// ── Pitch Counts ──
+
+export async function fetchPitchCounts(gameId) {
+  return apiFetch(`/games/${gameId}/pitch-counts`);
+}
+
+export async function createPitchCount(gameId, data) {
+  return apiFetch(`/games/${gameId}/pitch-counts`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updatePitchCount(gameId, id, data) {
+  return apiFetch(`/games/${gameId}/pitch-counts/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deletePitchCount(gameId, id) {
+  return apiFetch(`/games/${gameId}/pitch-counts/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 // ── Organizations ──
 
 export async function fetchOrganizations() {
