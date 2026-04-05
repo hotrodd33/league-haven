@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchOrganizations, createOrganization, updateOrganization, deleteOrganization,
-  fetchTeams, updateTeam,
+  fetchTeams, updateTeam, uploadOrgLogo, removeOrgLogo,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldLocations from './FieldLocations.jsx';
@@ -75,7 +75,10 @@ export default function OrgManager({ onBack }) {
             <div key={org.id} onClick={() => setSelectedOrg(org)}
               className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-base truncate">{org.name}</h3>
+                <div className="flex items-center gap-2 min-w-0">
+                  {org.logo_url && <img src={org.logo_url} alt="" className="w-8 h-8 object-contain rounded shrink-0" />}
+                  <h3 className="font-bold text-base truncate">{org.name}</h3>
+                </div>
                 <span className="bg-blue-800 text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ml-2">
                   {org.team_count} team{org.team_count !== 1 ? 's' : ''}
                 </span>
@@ -106,7 +109,10 @@ export default function OrgManager({ onBack }) {
 function OrgCard({ org }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
-      <h2 className="text-xl font-bold mb-3">{org.name}</h2>
+      <div className="flex items-center gap-3 mb-3">
+        {org.logo_url && <img src={org.logo_url} alt="" className="w-12 h-12 object-contain rounded" />}
+        <h2 className="text-xl font-bold">{org.name}</h2>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
         {org.contact_name && <div><span className="font-semibold">Contact:</span> {org.contact_name}</div>}
         {org.contact_email && <div><span className="font-semibold">Email:</span> {org.contact_email}</div>}
@@ -122,6 +128,9 @@ function OrgForm({ org, onDone, onCancel }) {
   const isEditing = !!org;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(org?.logo_url || null);
+  const [removeLogo, setRemoveLogo] = useState(false);
   const [form, setForm] = useState({
     name: org?.name || '', contact_name: org?.contact_name || '',
     contact_email: org?.contact_email || '', contact_phone: org?.contact_phone || '',
@@ -131,13 +140,37 @@ function OrgForm({ org, onDone, onCancel }) {
 
   function handleChange(e) { setForm((prev) => ({ ...prev, [e.target.name]: e.target.value })); }
 
+  function handleLogoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    setRemoveLogo(false);
+    setLogoPreview(URL.createObjectURL(file));
+  }
+
+  function handleRemoveLogo() {
+    setLogoFile(null);
+    setRemoveLogo(true);
+    setLogoPreview(null);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true); setError(null);
     const data = {};
     for (const [key, value] of Object.entries(form)) data[key] = value.trim() || null;
     try {
-      if (isEditing) await updateOrganization(org.id, data);
-      else await createOrganization(data);
+      let savedOrg;
+      if (isEditing) {
+        savedOrg = await updateOrganization(org.id, data);
+      } else {
+        savedOrg = await createOrganization(data);
+      }
+      const orgId = savedOrg.id;
+      if (logoFile) {
+        await uploadOrgLogo(orgId, logoFile);
+      } else if (removeLogo && isEditing) {
+        await removeOrgLogo(orgId);
+      }
       onDone();
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -151,6 +184,23 @@ function OrgForm({ org, onDone, onCancel }) {
           <div>
             <label htmlFor="org-name" className={labelCls}>Organization Name *</label>
             <input id="org-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="e.g. Lake City Baseball" className={inputCls} />
+          </div>
+
+          <div>
+            <label className={labelCls}>Logo</label>
+            <div className="flex items-center gap-3">
+              {logoPreview && <img src={logoPreview} alt="Logo preview" className="w-16 h-16 object-contain rounded border border-gray-200" />}
+              <div className="flex flex-col gap-1">
+                <label className="px-3 py-1.5 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 cursor-pointer inline-block w-fit">
+                  {logoPreview ? 'Change' : 'Upload'}
+                  <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+                </label>
+                {logoPreview && (
+                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-700 rounded hover:bg-red-200 w-fit">Remove</button>
+                )}
+                <p className="text-xs text-gray-400">Max 500 KB. PNG, JPEG, GIF, WebP, or SVG.</p>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

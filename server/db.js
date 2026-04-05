@@ -178,6 +178,10 @@ async function migrate() {
     ALTER TABLE league_divisions ADD COLUMN IF NOT EXISTS season_id INTEGER REFERENCES league_seasons(id) ON DELETE CASCADE;
   `);
 
+  // Add logo_url to organizations and teams
+  await pool.query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS logo_url TEXT;`);
+  await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS logo_url TEXT;`);
+
   // Drop unique constraint on league_divisions.name if it exists (allow duplicate names in different branches)
   await pool.query(`
     DO $$ BEGIN

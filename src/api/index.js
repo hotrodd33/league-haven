@@ -15,18 +15,20 @@ function getToken() {
 
 function authHeaders() {
   const token = getToken();
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 }
 
 async function apiFetch(endpoint, options = {}) {
+  const headers = { ...authHeaders(), ...options.headers };
+  // Only set Content-Type for non-FormData bodies
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
-    headers: {
-      ...authHeaders(),
-      ...options.headers,
-    },
+    headers,
   });
 
   if (response.status === 401) {
@@ -84,6 +86,16 @@ export async function deleteTeam(id) {
   return apiFetch(`/teams/${id}`, {
     method: 'DELETE',
   });
+}
+
+export async function uploadTeamLogo(teamId, file) {
+  const fd = new FormData();
+  fd.append('logo', file);
+  return apiFetch(`/teams/${teamId}/logo`, { method: 'POST', body: fd });
+}
+
+export async function removeTeamLogo(teamId) {
+  return apiFetch(`/teams/${teamId}/logo`, { method: 'DELETE' });
 }
 
 // ── Positions ──
@@ -208,6 +220,16 @@ export async function deleteOrganization(orgId) {
   return apiFetch(`/organizations/${orgId}`, {
     method: 'DELETE',
   });
+}
+
+export async function uploadOrgLogo(orgId, file) {
+  const fd = new FormData();
+  fd.append('logo', file);
+  return apiFetch(`/organizations/${orgId}/logo`, { method: 'POST', body: fd });
+}
+
+export async function removeOrgLogo(orgId) {
+  return apiFetch(`/organizations/${orgId}/logo`, { method: 'DELETE' });
 }
 
 // ── Field Locations ──

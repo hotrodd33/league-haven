@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, fetchSeasons, createTeam, updateTeam, deleteTeam } from '../api/index.js';
+import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, fetchSeasons, createTeam, updateTeam, deleteTeam, uploadTeamLogo, removeTeamLogo } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
@@ -106,7 +106,15 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
       {selected && (
         <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
           <div className="text-sm space-y-1">
-            <div className="font-semibold text-gray-800">{selected.name}</div>
+            <div className="flex items-center gap-2">
+              {(selected.logo_url || selected.org_logo_url) && (
+                <img src={selected.logo_url || selected.org_logo_url} alt="" className="w-10 h-10 object-contain rounded shrink-0" />
+              )}
+              <div>
+                <div className="font-semibold text-gray-800">{selected.name}</div>
+                {selected.logo_url ? null : selected.org_logo_url ? <span className="text-[10px] text-gray-400">Org logo</span> : null}
+              </div>
+            </div>
             {selected.age_group && <div className="text-gray-500"><span className="font-medium text-gray-600">Age Group:</span> {selected.age_group}</div>}
             {selected.level && <div className="text-gray-500"><span className="font-medium text-gray-600">Level:</span> {selected.level}</div>}
             {selected.divisions && selected.divisions.length > 0 && (
@@ -168,6 +176,9 @@ function TeamForm({ team, onDone, onCancel }) {
   const [seasons, setSeasons] = useState([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState(null);
   const [divisions, setDivisions] = useState([]);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(team?.logo_url || null);
+  const [removeLogo, setRemoveLogo] = useState(false);
   const [form, setForm] = useState({
     name: team?.name || '',
     age_group: team?.age_group || '',
@@ -175,6 +186,20 @@ function TeamForm({ team, onDone, onCancel }) {
     org_id: team?.org_id || '',
     division_ids: team?.divisions ? team.divisions.map(d => d.id) : [],
   });
+
+  function handleLogoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    setRemoveLogo(false);
+    setLogoPreview(URL.createObjectURL(file));
+  }
+
+  function handleRemoveLogo() {
+    setLogoFile(null);
+    setRemoveLogo(true);
+    setLogoPreview(null);
+  }
 
   useEffect(() => {
     (async () => {
@@ -233,8 +258,18 @@ function TeamForm({ team, onDone, onCancel }) {
       org_id: form.org_id ? Number(form.org_id) : null,
     };
     try {
-      if (isEditing) await updateTeam(team.id, data);
-      else await createTeam(data);
+      let savedTeam;
+      if (isEditing) {
+        savedTeam = await updateTeam(team.id, data);
+      } else {
+        savedTeam = await createTeam(data);
+      }
+      const teamId = savedTeam.id;
+      if (logoFile) {
+        await uploadTeamLogo(teamId, logoFile);
+      } else if (removeLogo && isEditing) {
+        await removeTeamLogo(teamId);
+      }
       onDone();
     } catch (err) {
       setError(err.message);
@@ -251,6 +286,22 @@ function TeamForm({ team, onDone, onCancel }) {
           <div>
             <label htmlFor="team-name" className={labelCls}>Team Name *</label>
             <input id="team-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="e.g. Thunder 12U" className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Team Logo</label>
+            <div className="flex items-center gap-3">
+              {logoPreview && <img src={logoPreview} alt="Logo preview" className="w-14 h-14 object-contain rounded border border-gray-200" />}
+              <div className="flex flex-col gap-1">
+                <label className="px-3 py-1.5 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 cursor-pointer inline-block w-fit">
+                  {logoPreview ? 'Change' : 'Upload'}
+                  <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+                </label>
+                {logoPreview && (
+                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-700 rounded hover:bg-red-200 w-fit">Remove</button>
+                )}
+                <p className="text-xs text-gray-400">Max 500 KB. If none, uses org logo.</p>
+              </div>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

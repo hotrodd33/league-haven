@@ -1,8 +1,10 @@
 const express = require('express');
+const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin } = require('../auth');
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
 
 // Helper: attach divisions array to each team row
 async function attachDivisions(teams) {
@@ -41,13 +43,13 @@ router.get('/', async (req, res) => {
     let result;
     if (org_id) {
       result = await pool.query(
-        `SELECT t.*, o.name as org_name FROM teams t
+        `SELECT t.*, o.name as org_name, o.logo_url as org_logo_url FROM teams t
          LEFT JOIN organizations o ON o.id = t.org_id
          WHERE t.org_id = $1 ORDER BY t.name`, [org_id]
       );
     } else {
       result = await pool.query(
-        `SELECT t.*, o.name as org_name FROM teams t
+        `SELECT t.*, o.name as org_name, o.logo_url as org_logo_url FROM teams t
          LEFT JOIN organizations o ON o.id = t.org_id
          ORDER BY o.name, t.name`
       );
@@ -74,7 +76,7 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
       await syncDivisions(teamId, division_ids);
     }
     const result = await pool.query(
-      `SELECT t.*, o.name as org_name FROM teams t
+      `SELECT t.*, o.name as org_name, o.logo_url as org_logo_url FROM teams t
        LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [teamId]
     );
     const teams = await attachDivisions(result.rows);
@@ -102,7 +104,7 @@ router.put('/:id', authMiddleware, requireAdmin, async (req, res) => {
       await syncDivisions(id, division_ids || []);
     }
     const result = await pool.query(
-      `SELECT t.*, o.name as org_name FROM teams t
+      `SELECT t.*, o.name as org_name, o.logo_url as org_logo_url FROM teams t
        LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [id]
     );
     const teams = await attachDivisions(result.rows);
@@ -120,6 +122,42 @@ router.delete('/:id', authMiddleware, requireAdmin, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Team not found' });
 
     await pool.query('DELETE FROM teams WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Upload team logo
+router.post('/:id/logo', authMiddleware, requireAdmin, upload.single('logo'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query('SELECT id FROM teams WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Team not found' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const mime = req.file.mimetype;
+    if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'].includes(mime)) {
+      return res.status(400).json({ error: 'File must be an image (PNG, JPEG, GIF, WebP, SVG)' });
+    }
+    const dataUrl = `data:${mime};base64,${req.file.buffer.toString('base64')}`;
+    await pool.query('UPDATE teams SET logo_url = $1 WHERE id = $2', [dataUrl, id]);
+    res.json({ logo_url: dataUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Remove team logo
+router.delete('/:id/logo', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query('SELECT id FROM teams WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Team not found' });
+
+    await pool.query('UPDATE teams SET logo_url = NULL WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (err) {
     console.error(err);

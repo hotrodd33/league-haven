@@ -1,8 +1,10 @@
 const express = require('express');
+const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin, canEditOrg } = require('../auth');
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
 
 async function enrich(org) {
   if (!org) return null;
@@ -83,6 +85,44 @@ router.delete('/:id', authMiddleware, requireAdmin, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Organization not found' });
 
     await pool.query('DELETE FROM organizations WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Upload org logo
+router.post('/:id/logo', authMiddleware, upload.single('logo'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!(await canEditOrg(req.user, id))) return res.status(403).json({ error: 'No permission for this organization' });
+    const { rows } = await pool.query('SELECT id FROM organizations WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Organization not found' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const mime = req.file.mimetype;
+    if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'].includes(mime)) {
+      return res.status(400).json({ error: 'File must be an image (PNG, JPEG, GIF, WebP, SVG)' });
+    }
+    const dataUrl = `data:${mime};base64,${req.file.buffer.toString('base64')}`;
+    await pool.query('UPDATE organizations SET logo_url = $1 WHERE id = $2', [dataUrl, id]);
+    res.json({ logo_url: dataUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Remove org logo
+router.delete('/:id/logo', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!(await canEditOrg(req.user, id))) return res.status(403).json({ error: 'No permission for this organization' });
+    const { rows } = await pool.query('SELECT id FROM organizations WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Organization not found' });
+
+    await pool.query('UPDATE organizations SET logo_url = NULL WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
