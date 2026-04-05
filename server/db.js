@@ -100,6 +100,24 @@ async function migrate() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    -- Standalone staff members (decoupled from teams)
+    CREATE TABLE IF NOT EXISTS staff_members (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT,
+      phone TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- Many-to-many: staff can be on multiple teams with different roles
+    CREATE TABLE IF NOT EXISTS team_staff_assignments (
+      team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      staff_id INTEGER NOT NULL REFERENCES staff_members(id) ON DELETE CASCADE,
+      role TEXT NOT NULL CHECK(role IN ('head_coach','assistant_coach','travel_director')),
+      added_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (team_id, staff_id)
+    );
+
     CREATE TABLE IF NOT EXISTS user_permissions (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -180,6 +198,32 @@ async function migrate() {
         ON CONFLICT DO NOTHING;
         ALTER TABLE players DROP COLUMN IF EXISTS team_id;
         ALTER TABLE players DROP COLUMN IF EXISTS jersey_number;
+      END IF;
+    END $$;
+  `);
+
+  // Migrate staff from old team_staff to staff_members + team_staff_assignments
+  await pool.query(`
+    DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'team_staff')
+         AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'staff_members')
+         AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'team_staff' AND column_name = 'name') THEN
+        -- Insert unique staff members (deduplicate by name+email+phone)
+        INSERT INTO staff_members (name, email, phone, created_at)
+        SELECT DISTINCT ON (name, COALESCE(email,''), COALESCE(phone,''))
+               name, email, phone, MIN(created_at) OVER (PARTITION BY name, COALESCE(email,''), COALESCE(phone,''))
+        FROM team_staff
+        ON CONFLICT DO NOTHING;
+        -- Create team assignments from old records
+        INSERT INTO team_staff_assignments (team_id, staff_id, role)
+        SELECT ts.team_id, sm.id, ts.role
+        FROM team_staff ts
+        JOIN staff_members sm ON sm.name = ts.name
+          AND COALESCE(sm.email,'') = COALESCE(ts.email,'')
+          AND COALESCE(sm.phone,'') = COALESCE(ts.phone,'')
+        ON CONFLICT DO NOTHING;
+        -- Drop old table
+        DROP TABLE team_staff;
       END IF;
     END $$;
   `);

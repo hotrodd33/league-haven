@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchStaffByTeam, createStaff, updateStaff, deleteStaff } from '../api/index.js';
+import { fetchStaffByTeam, createStaff, updateStaff, deleteStaff, searchStaff, assignStaffToTeam, unassignStaffFromTeam } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const ROLE_OPTIONS = [
@@ -20,6 +20,12 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [showAddExisting, setShowAddExisting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [assigning, setAssigning] = useState(null);
+  const [assignRole, setAssignRole] = useState('assistant_coach');
 
   const loadStaff = useCallback(async () => {
     if (!teamId) return;
@@ -31,12 +37,45 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
 
   useEffect(() => { setStaff([]); loadStaff(); }, [loadStaff, refreshKey]);
 
-  async function handleDelete(member) {
-    if (!window.confirm(`Remove ${member.name}?`)) return;
+  async function handleRemoveFromTeam(member) {
+    if (!window.confirm(`Remove ${member.name} from this team? They will still exist in the system.`)) return;
     setDeleting(member.id);
-    try { await deleteStaff(member.id); setStaff((prev) => prev.filter((s) => s.id !== member.id)); }
-    catch (err) { alert(`Failed to delete: ${err.message}`); }
+    try {
+      await unassignStaffFromTeam(teamId, member.id);
+      setStaff((prev) => prev.filter((s) => s.id !== member.id));
+    } catch (err) { alert(`Failed to remove: ${err.message}`); }
     finally { setDeleting(null); }
+  }
+
+  async function handleDeleteStaff(member) {
+    if (!window.confirm(`Permanently delete ${member.name}? This removes them from ALL teams.`)) return;
+    setDeleting(member.id);
+    try {
+      await deleteStaff(member.id);
+      setStaff((prev) => prev.filter((s) => s.id !== member.id));
+    } catch (err) { alert(`Failed to delete: ${err.message}`); }
+    finally { setDeleting(null); }
+  }
+
+  async function handleSearch() {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    try {
+      const results = await searchStaff(searchQuery.trim());
+      const currentIds = new Set(staff.map(s => s.id));
+      setSearchResults(results.filter(s => !currentIds.has(s.id)));
+    } catch (err) { alert(`Search failed: ${err.message}`); }
+    finally { setSearching(false); }
+  }
+
+  async function handleAssignExisting(staffId) {
+    setAssigning(staffId);
+    try {
+      await assignStaffToTeam(teamId, staffId, assignRole);
+      setSearchResults(prev => prev.filter(s => s.id !== staffId));
+      await loadStaff();
+    } catch (err) { alert(`Failed to add: ${err.message}`); }
+    finally { setAssigning(null); }
   }
 
   if (!teamId) return null;
@@ -48,12 +87,61 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-bold">Coaches &amp; Staff ({staff.length})</h2>
         {editable && (
-          <button onClick={() => { setEditing(null); setShowForm(true); }}
-            className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors">
-            + Add Staff
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowAddExisting(!showAddExisting)}
+              className="px-3 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors">
+              + Existing Staff
+            </button>
+            <button onClick={() => { setEditing(null); setShowForm(true); }}
+              className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors">
+              + New Staff
+            </button>
+          </div>
         )}
       </div>
+
+      {/* Search existing staff to add to this team */}
+      {showAddExisting && editable && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+          <p className="text-xs text-gray-500 mb-2">Search for an existing staff member to add to this team:</p>
+          <div className="flex gap-2 mb-2">
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name…" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600"
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }} />
+            <select value={assignRole} onChange={(e) => setAssignRole(e.target.value)}
+              className="px-2 py-2 border border-gray-300 rounded-lg text-sm">
+              {ROLE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+            <button onClick={handleSearch} disabled={searching || !searchQuery.trim()}
+              className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-60">
+              {searching ? '…' : 'Search'}
+            </button>
+            <button onClick={() => { setShowAddExisting(false); setSearchQuery(''); setSearchResults([]); }}
+              className="px-3 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300">
+              Close
+            </button>
+          </div>
+          {searchResults.length > 0 && (
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {searchResults.map(s => (
+                <div key={s.id} className="flex items-center justify-between bg-white border border-gray-200 rounded px-3 py-2 text-sm">
+                  <div>
+                    <span className="font-semibold">{s.name}</span>
+                    {s.email && <span className="text-gray-400 ml-2">{s.email}</span>}
+                  </div>
+                  <button onClick={() => handleAssignExisting(s.id)} disabled={assigning === s.id}
+                    className="px-3 py-1 text-xs font-semibold bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60">
+                    {assigning === s.id ? '…' : 'Add to Team'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {searchResults.length === 0 && searchQuery && !searching && (
+            <p className="text-xs text-gray-400">No matching staff found. Try a different search or add a new staff member.</p>
+          )}
+        </div>
+      )}
 
       {staff.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
@@ -61,7 +149,9 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
           {editable && (
             <>
               <br />
-              <button onClick={() => { setEditing(null); setShowForm(true); }} className="text-blue-700 underline mt-1 inline-block">Add the first staff member</button>
+              <button onClick={() => { setEditing(null); setShowForm(true); }} className="text-blue-700 underline mt-1 inline-block">Add a new staff member</button>
+              {' or '}
+              <button onClick={() => setShowAddExisting(true)} className="text-blue-700 underline mt-1 inline-block">add an existing one</button>
             </>
           )}
         </div>
@@ -90,9 +180,15 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex gap-1">
                           <button onClick={() => { setEditing(m); setShowForm(true); }} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                          <button onClick={() => handleDelete(m)} disabled={deleting === m.id}
-                            className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                          <button onClick={() => handleRemoveFromTeam(m)} disabled={deleting === m.id}
+                            className="px-2 py-1 text-xs font-semibold bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-60"
+                            title="Remove from this team only">
                             {deleting === m.id ? '…' : 'Remove'}
+                          </button>
+                          <button onClick={() => handleDeleteStaff(m)} disabled={deleting === m.id}
+                            className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
+                            title="Delete staff from all teams">
+                            {deleting === m.id ? '…' : 'Del'}
                           </button>
                         </div>
                       </td>
@@ -115,7 +211,11 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
                   {editable && (
                     <div className="flex gap-1.5 shrink-0">
                       <button onClick={() => { setEditing(m); setShowForm(true); }} className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                      <button onClick={() => handleDelete(m)} disabled={deleting === m.id}
+                      <button onClick={() => handleRemoveFromTeam(m)} disabled={deleting === m.id}
+                        className="px-2.5 py-1 text-xs font-semibold bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-60">
+                        {deleting === m.id ? '…' : 'Remove'}
+                      </button>
+                      <button onClick={() => handleDeleteStaff(m)} disabled={deleting === m.id}
                         className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
                         {deleting === m.id ? '…' : 'Del'}
                       </button>

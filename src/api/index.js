@@ -162,6 +162,24 @@ export async function deleteStaff(staffId) {
   });
 }
 
+export async function searchStaff(query) {
+  return apiFetch(`/staff?search=${encodeURIComponent(query)}`);
+}
+
+export async function assignStaffToTeam(teamId, staffId, role) {
+  return apiFetch('/staff/assign', {
+    method: 'POST',
+    body: JSON.stringify({ team_id: teamId, staff_id: staffId, role }),
+  });
+}
+
+export async function unassignStaffFromTeam(teamId, staffId) {
+  return apiFetch('/staff/unassign', {
+    method: 'POST',
+    body: JSON.stringify({ team_id: teamId, staff_id: staffId }),
+  });
+}
+
 // ── Organizations ──
 
 export async function fetchOrganizations() {
