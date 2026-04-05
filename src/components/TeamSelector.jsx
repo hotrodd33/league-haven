@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, createTeam, updateTeam, deleteTeam } from '../api/index.js';
+import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, fetchSeasons, createTeam, updateTeam, deleteTeam } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
@@ -165,6 +165,8 @@ function TeamForm({ team, onDone, onCancel }) {
   const [orgs, setOrgs] = useState([]);
   const [ageGroups, setAgeGroups] = useState([]);
   const [levels, setLevels] = useState([]);
+  const [seasons, setSeasons] = useState([]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
   const [divisions, setDivisions] = useState([]);
   const [form, setForm] = useState({
     name: team?.name || '',
@@ -175,18 +177,36 @@ function TeamForm({ team, onDone, onCancel }) {
   });
 
   useEffect(() => {
-    Promise.all([
-      fetchOrganizations(),
-      fetchAgeGroups(),
-      fetchLevels(),
-      fetchDivisions(),
-    ]).then(([orgData, agData, lvData, dvData]) => {
-      setOrgs(orgData);
-      setAgeGroups(agData);
-      setLevels(lvData);
-      setDivisions(dvData);
-    }).catch(() => {});
+    (async () => {
+      try {
+        const [orgData, agData, lvData, ssData] = await Promise.all([
+          fetchOrganizations(), fetchAgeGroups(), fetchLevels(), fetchSeasons(),
+        ]);
+        setOrgs(orgData);
+        setAgeGroups(agData);
+        setLevels(lvData);
+        setSeasons(ssData);
+        // Default to active season
+        const active = ssData.find(s => s.is_active);
+        const sid = active ? active.id : (ssData.length > 0 ? ssData[0].id : null);
+        setSelectedSeasonId(sid);
+        if (sid) {
+          setDivisions(await fetchDivisions(sid));
+        }
+      } catch {}
+    })();
   }, []);
+
+  async function handleSeasonChange(e) {
+    const sid = e.target.value ? Number(e.target.value) : null;
+    setSelectedSeasonId(sid);
+    if (sid) {
+      try { setDivisions(await fetchDivisions(sid)); }
+      catch { setDivisions([]); }
+    } else {
+      setDivisions([]);
+    }
+  }
 
   function handleChange(e) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -257,25 +277,36 @@ function TeamForm({ team, onDone, onCancel }) {
             </div>
           </div>
           <div>
-            <label className={labelCls}>Divisions</label>
-            {divisions.length > 0 ? (
-              <div className="border border-gray-300 rounded-lg p-2 max-h-40 overflow-y-auto space-y-1">
-                {divisions.map(dv => (
-                  <label key={dv.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer text-sm"
-                    style={{ paddingLeft: `${(dv.depth || 0) * 16 + 8}px` }}>
-                    <input
-                      type="checkbox"
-                      checked={form.division_ids.includes(dv.id)}
-                      onChange={() => toggleDivision(dv.id)}
-                      className="rounded border-gray-300"
-                    />
-                    <span className="truncate">{dv.name}</span>
-                    {dv.depth > 0 && <span className="text-xs text-gray-400 shrink-0">({dv.path})</span>}
-                  </label>
-                ))}
-              </div>
+            <label className={labelCls}>Season / Divisions</label>
+            {seasons.length > 0 ? (
+              <>
+                <select value={selectedSeasonId || ''} onChange={handleSeasonChange} className={inputCls + ' mb-2'}>
+                  {seasons.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
+                  ))}
+                </select>
+                {divisions.length > 0 ? (
+                  <div className="border border-gray-300 rounded-lg p-2 max-h-40 overflow-y-auto space-y-1">
+                    {divisions.map(dv => (
+                      <label key={dv.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer text-sm"
+                        style={{ paddingLeft: `${(dv.depth || 0) * 16 + 8}px` }}>
+                        <input
+                          type="checkbox"
+                          checked={form.division_ids.includes(dv.id)}
+                          onChange={() => toggleDivision(dv.id)}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="truncate">{dv.name}</span>
+                        {dv.depth > 0 && <span className="text-xs text-gray-400 shrink-0">({dv.path})</span>}
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">No divisions for this season. Add them in League Config.</p>
+                )}
+              </>
             ) : (
-              <p className="text-xs text-gray-400">No divisions configured. Add them in League Config.</p>
+              <p className="text-xs text-gray-400">No seasons configured. Add them in League Config.</p>
             )}
             {form.division_ids.length > 0 && (
               <p className="text-xs text-gray-500 mt-1">

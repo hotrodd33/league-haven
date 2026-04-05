@@ -251,8 +251,9 @@ export async function deleteLevel(id) {
   });
 }
 
-export async function fetchDivisions() {
-  return apiFetch('/league-config/divisions');
+export async function fetchDivisions(seasonId) {
+  const url = seasonId ? `/league-config/divisions?season_id=${seasonId}` : '/league-config/divisions';
+  return apiFetch(url);
 }
 
 export async function createDivision(data) {
@@ -271,6 +272,32 @@ export async function updateDivision(id, data) {
 
 export async function deleteDivision(id) {
   return apiFetch(`/league-config/divisions/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Seasons ──
+
+export async function fetchSeasons() {
+  return apiFetch('/league-config/seasons');
+}
+
+export async function createSeason(data) {
+  return apiFetch('/league-config/seasons', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateSeason(id, data) {
+  return apiFetch(`/league-config/seasons/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSeason(id) {
+  return apiFetch(`/league-config/seasons/${id}`, {
     method: 'DELETE',
   });
 }

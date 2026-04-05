@@ -3,6 +3,7 @@ import {
   fetchAgeGroups, createAgeGroup, updateAgeGroup, deleteAgeGroup,
   fetchLevels, createLevel, updateLevel, deleteLevel,
   fetchDivisions, createDivision, updateDivision, deleteDivision,
+  fetchSeasons, createSeason, updateSeason, deleteSeason,
 } from '../api/index.js';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
@@ -26,11 +27,13 @@ export default function LeagueConfig({ onBack }) {
       <p className="text-sm text-gray-500 mb-4">
         Configure age groups, levels, and divisions for the league. These populate dropdowns when creating or editing teams.
       </p>
-      <div className="flex gap-2 mb-5">
+      <div className="flex gap-2 mb-5 flex-wrap">
+        <button className={tabCls('seasons')} onClick={() => setTab('seasons')}>Seasons</button>
         <button className={tabCls('age_groups')} onClick={() => setTab('age_groups')}>Age Groups</button>
         <button className={tabCls('levels')} onClick={() => setTab('levels')}>Levels</button>
         <button className={tabCls('divisions')} onClick={() => setTab('divisions')}>Divisions</button>
       </div>
+      {tab === 'seasons' && <SeasonList />}
       {tab === 'age_groups' && (
         <ConfigList
           title="Age Groups" placeholder="e.g. 8U, 10U, 12U, 14U"
@@ -46,6 +49,150 @@ export default function LeagueConfig({ onBack }) {
         />
       )}
       {tab === 'divisions' && <DivisionTree />}
+    </div>
+  );
+}
+
+// ── Season Management ──
+
+function SeasonList() {
+  const [seasons, setSeasons] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingSeason, setEditingSeason] = useState(null);
+  const [form, setForm] = useState({ year: new Date().getFullYear(), name: '', is_active: false });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try { setSeasons(await fetchSeasons()); }
+    catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function openAdd() {
+    setEditingSeason(null);
+    setForm({ year: new Date().getFullYear(), name: '', is_active: false });
+    setShowForm(true);
+  }
+
+  function openEdit(s) {
+    setEditingSeason(s);
+    setForm({ year: s.year, name: s.name, is_active: s.is_active });
+    setShowForm(true);
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!form.name.trim() || !form.year) return;
+    setSaving(true); setError(null);
+    try {
+      if (editingSeason) {
+        await updateSeason(editingSeason.id, form);
+      } else {
+        await createSeason(form);
+      }
+      setShowForm(false);
+      setEditingSeason(null);
+      await load();
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDelete(s) {
+    if (!window.confirm(`Delete "${s.name}"? This will also delete all divisions in this season.`)) return;
+    setDeletingId(s.id); setError(null);
+    try { await deleteSeason(s.id); await load(); }
+    catch (err) { setError(err.message); }
+    finally { setDeletingId(null); }
+  }
+
+  async function handleSetActive(s) {
+    setError(null);
+    try {
+      await updateSeason(s.id, { ...s, is_active: true });
+      await load();
+    } catch (err) { setError(err.message); }
+  }
+
+  if (loading) return <div className="py-8 text-center text-gray-500">Loading seasons…</div>;
+
+  return (
+    <div>
+      <h3 className="text-base font-bold mb-3">Seasons ({seasons.length})</h3>
+      <p className="text-xs text-gray-500 mb-3">
+        Manage league seasons. The active season is used as the default when assigning divisions. Deleting a season removes all its divisions.
+      </p>
+
+      {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+
+      {showForm ? (
+        <form onSubmit={handleSave} className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Year *</label>
+              <input type="number" value={form.year} onChange={(e) => setForm(prev => ({ ...prev, year: Number(e.target.value) }))}
+                required min="2000" max="2100" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Name *</label>
+              <input type="text" value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+                required placeholder="e.g. Spring 2026" className={inputCls} />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={form.is_active} onChange={(e) => setForm(prev => ({ ...prev, is_active: e.target.checked }))}
+              className="rounded border-gray-300" />
+            Set as active season
+          </label>
+          <div className="flex gap-2">
+            <button type="submit" disabled={saving || !form.name.trim()} className={btnPrimary}>
+              {saving ? '…' : editingSeason ? 'Update' : 'Add Season'}
+            </button>
+            <button type="button" onClick={() => setShowForm(false)} className={btnSecondary}>Cancel</button>
+          </div>
+        </form>
+      ) : (
+        <button onClick={openAdd} className={`${btnPrimary} mb-4`}>+ Add Season</button>
+      )}
+
+      {seasons.length === 0 ? (
+        <div className="py-8 text-center text-gray-500">No seasons configured yet.</div>
+      ) : (
+        <div className="space-y-2">
+          {seasons.map(s => (
+            <div key={s.id} className={`bg-white border rounded-lg p-3 flex items-center gap-3 ${s.is_active ? 'border-green-400 bg-green-50' : 'border-gray-200'}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm">{s.name}</span>
+                  <span className="text-xs text-gray-400">({s.year})</span>
+                  {s.is_active && <span className="text-xs font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded">Active</span>}
+                </div>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                {!s.is_active && (
+                  <button onClick={() => handleSetActive(s)}
+                    className="px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded hover:bg-green-200">
+                    Set Active
+                  </button>
+                )}
+                <button onClick={() => openEdit(s)}
+                  className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                  Edit
+                </button>
+                <button onClick={() => handleDelete(s)} disabled={deletingId === s.id}
+                  className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                  {deletingId === s.id ? '…' : 'Del'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -188,6 +335,8 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
 
 function DivisionTree() {
   const [divisions, setDivisions] = useState([]);
+  const [seasons, setSeasons] = useState([]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [addingTo, setAddingTo] = useState(null); // null = root, or parent_id
@@ -199,14 +348,38 @@ function DivisionTree() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true); setError(null);
-    try { setDivisions(await fetchDivisions()); }
-    catch (err) { setError(err.message); }
-    finally { setLoading(false); }
+  // Load seasons first, then divisions for the selected season
+  useEffect(() => {
+    (async () => {
+      setLoading(true); setError(null);
+      try {
+        const ss = await fetchSeasons();
+        setSeasons(ss);
+        const active = ss.find(s => s.is_active);
+        const sid = active ? active.id : (ss.length > 0 ? ss[0].id : null);
+        setSelectedSeasonId(sid);
+        if (sid) {
+          setDivisions(await fetchDivisions(sid));
+        } else {
+          setDivisions([]);
+        }
+      } catch (err) { setError(err.message); }
+      finally { setLoading(false); }
+    })();
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadDivisions = useCallback(async (seasonId) => {
+    setError(null);
+    try {
+      setDivisions(seasonId ? await fetchDivisions(seasonId) : []);
+    } catch (err) { setError(err.message); }
+  }, []);
+
+  function handleSeasonChange(e) {
+    const sid = e.target.value ? Number(e.target.value) : null;
+    setSelectedSeasonId(sid);
+    loadDivisions(sid);
+  }
 
   // Build tree structure from flat list
   function buildTree(items, parentId = null) {
@@ -217,14 +390,14 @@ function DivisionTree() {
   }
 
   async function handleAdd(parentId) {
-    if (!newName.trim()) return;
+    if (!newName.trim() || !selectedSeasonId) return;
     setAdding(true); setError(null);
     try {
       const siblings = divisions.filter(d => (d.parent_id || null) === parentId);
-      await createDivision({ name: newName.trim(), sort_order: siblings.length, parent_id: parentId });
+      await createDivision({ name: newName.trim(), sort_order: siblings.length, parent_id: parentId, season_id: selectedSeasonId });
       setNewName('');
       setAddingTo(null);
-      await load();
+      await loadDivisions(selectedSeasonId);
     } catch (err) { setError(err.message); }
     finally { setAdding(false); }
   }
@@ -239,9 +412,9 @@ function DivisionTree() {
     if (!editName.trim()) return;
     setSavingEdit(true); setError(null);
     try {
-      await updateDivision(editingId, { name: editName.trim(), sort_order: editOrder, parent_id: parentId });
+      await updateDivision(editingId, { name: editName.trim(), sort_order: editOrder, parent_id: parentId, season_id: selectedSeasonId });
       setEditingId(null);
-      await load();
+      await loadDivisions(selectedSeasonId);
     } catch (err) { setError(err.message); }
     finally { setSavingEdit(false); }
   }
@@ -253,7 +426,7 @@ function DivisionTree() {
       : `Delete "${item.name}"?`;
     if (!window.confirm(msg)) return;
     setDeletingId(item.id); setError(null);
-    try { await deleteDivision(item.id); await load(); }
+    try { await deleteDivision(item.id); await loadDivisions(selectedSeasonId); }
     catch (err) { setError(err.message); }
     finally { setDeletingId(null); }
   }
@@ -266,9 +439,30 @@ function DivisionTree() {
   return (
     <div>
       <h3 className="text-base font-bold mb-3">Divisions ({totalCount})</h3>
-      <p className="text-xs text-gray-500 mb-3">
-        Create a hierarchy: League → Division → Sub-division → etc. Use "+ Sub" to nest divisions.
-      </p>
+
+      {/* Season selector */}
+      <div className="mb-4">
+        <label className={labelCls}>Season</label>
+        {seasons.length > 0 ? (
+          <select value={selectedSeasonId || ''} onChange={handleSeasonChange} className={inputCls + ' max-w-xs'}>
+            {seasons.map(s => (
+              <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+            No seasons configured. Go to the Seasons tab to add one first.
+          </p>
+        )}
+      </div>
+
+      {!selectedSeasonId ? (
+        <div className="py-8 text-center text-gray-500">Select a season to manage divisions.</div>
+      ) : (
+        <>
+          <p className="text-xs text-gray-500 mb-3">
+            Create a hierarchy: League → Division → Sub-division → etc. Use "+ Sub" to nest divisions.
+          </p>
 
       {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
 
@@ -309,6 +503,8 @@ function DivisionTree() {
             />
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   );

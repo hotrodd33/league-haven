@@ -114,9 +114,18 @@ async function migrate() {
       sort_order INTEGER DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS league_seasons (
+      id SERIAL PRIMARY KEY,
+      year INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      is_active BOOLEAN DEFAULT false,
+      sort_order INTEGER DEFAULT 0
+    );
+
     CREATE TABLE IF NOT EXISTS league_divisions (
       id SERIAL PRIMARY KEY,
       parent_id INTEGER REFERENCES league_divisions(id) ON DELETE CASCADE,
+      season_id INTEGER REFERENCES league_seasons(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
       sort_order INTEGER DEFAULT 0
     );
@@ -137,6 +146,11 @@ async function migrate() {
   // Add parent_id to league_divisions if missing (hierarchy support)
   await pool.query(`
     ALTER TABLE league_divisions ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES league_divisions(id) ON DELETE CASCADE;
+  `);
+
+  // Add season_id to league_divisions if missing
+  await pool.query(`
+    ALTER TABLE league_divisions ADD COLUMN IF NOT EXISTS season_id INTEGER REFERENCES league_seasons(id) ON DELETE CASCADE;
   `);
 
   // Drop unique constraint on league_divisions.name if it exists (allow duplicate names in different branches)
