@@ -192,6 +192,41 @@ export async function unassignStaffFromTeam(teamId, staffId) {
   });
 }
 
+// ── Games / Schedule ──
+
+export async function fetchGames(filters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, val] of Object.entries(filters)) {
+    if (val != null && val !== '') params.append(key, val);
+  }
+  const qs = params.toString();
+  return apiFetch(`/games${qs ? '?' + qs : ''}`);
+}
+
+export async function fetchGame(gameId) {
+  return apiFetch(`/games/${gameId}`);
+}
+
+export async function createGame(data) {
+  return apiFetch('/games', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateGame(gameId, data) {
+  return apiFetch(`/games/${gameId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGame(gameId) {
+  return apiFetch(`/games/${gameId}`, {
+    method: 'DELETE',
+  });
+}
+
 // ── Organizations ──
 
 export async function fetchOrganizations() {

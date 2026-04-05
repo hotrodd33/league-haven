@@ -161,6 +161,22 @@ async function migrate() {
       division_id INTEGER NOT NULL REFERENCES league_divisions(id) ON DELETE CASCADE,
       PRIMARY KEY (team_id, division_id)
     );
+
+    CREATE TABLE IF NOT EXISTS games (
+      id SERIAL PRIMARY KEY,
+      season_id INTEGER REFERENCES league_seasons(id) ON DELETE SET NULL,
+      home_team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      away_team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      location_id INTEGER REFERENCES field_locations(id) ON DELETE SET NULL,
+      game_date DATE NOT NULL,
+      game_time TIME,
+      status TEXT NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled','in_progress','completed','cancelled','postponed')),
+      home_score INTEGER,
+      away_score INTEGER,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
 
   // Add level column to teams if missing

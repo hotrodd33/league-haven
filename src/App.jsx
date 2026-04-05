@@ -8,6 +8,7 @@ import StaffList from "./components/StaffList.jsx";
 import OrgManager from "./components/OrgManager.jsx";
 import UserManager from "./components/UserManager.jsx";
 import LeagueConfig from "./components/LeagueConfig.jsx";
+import GameSchedule from "./components/GameSchedule.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, user, logout } = useAuth();
@@ -63,6 +64,12 @@ export default function App() {
                             >
                                 Rosters
                             </button>
+                            <button
+                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "schedule" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                                onClick={() => setPage("schedule")}
+                            >
+                                Schedule
+                            </button>
                             {isAdmin && (
                                 <button
                                     className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "league" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
@@ -102,6 +109,10 @@ export default function App() {
             ) : page === "league" && isAdmin ? (
                 <main className="p-4 max-w-7xl mx-auto">
                     <LeagueConfig onBack={() => setPage("rosters")} />
+                </main>
+            ) : page === "schedule" ? (
+                <main className="p-4 max-w-7xl mx-auto">
+                    <GameSchedule onBack={() => setPage("rosters")} />
                 </main>
             ) : (
                 <main className="flex flex-col md:flex-row min-h-[calc(100vh-56px)]">
