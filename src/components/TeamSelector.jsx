@@ -86,19 +86,19 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
         {orgNames.map((orgName) => (
           <optgroup key={orgName} label={orgName}>
             {grouped[orgName].map((team) => (
-              <option key={team.id} value={team.id}>{team.name}</option>
+              <option key={team.id} value={team.id}>{team.name}{team.age_group ? ` ${team.age_group}` : ''}{team.level ? ` ${team.level}` : ''}</option>
             ))}
           </optgroup>
         ))}
         {ungrouped.length > 0 && orgNames.length > 0 && (
           <optgroup label="Unassigned">
             {ungrouped.map((team) => (
-              <option key={team.id} value={team.id}>{team.name}</option>
+              <option key={team.id} value={team.id}>{team.name}{team.age_group ? ` ${team.age_group}` : ''}{team.level ? ` ${team.level}` : ''}</option>
             ))}
           </optgroup>
         )}
         {ungrouped.length > 0 && orgNames.length === 0 && ungrouped.map((team) => (
-          <option key={team.id} value={team.id}>{team.name}</option>
+          <option key={team.id} value={team.id}>{team.name}{team.age_group ? ` ${team.age_group}` : ''}{team.level ? ` ${team.level}` : ''}</option>
         ))}
       </select>
 
