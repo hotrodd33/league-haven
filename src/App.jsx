@@ -21,6 +21,7 @@ export default function App() {
     const [editingPlayer, setEditingPlayer] = useState(null);
     const [refreshKey, setRefreshKey] = useState(0);
     const [page, setPage] = useState("rosters");
+    const [menuOpen, setMenuOpen] = useState(false);
 
     function navigateToTeam(teamId, orgId) {
         setSelectedTeam(teamId);
@@ -56,59 +57,93 @@ export default function App() {
         <div className="min-h-screen bg-gray-50 text-gray-900">
             {/* Header */}
             <header className="bg-blue-800 text-white shadow-lg border-t-4 border-baseball-600">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-2">
-                    <div className="flex items-center gap-4">
-                        <h1 className="font-heading text-xl font-bold whitespace-nowrap tracking-wide">⚾ ZVBL Roster Manager</h1>
-                        <nav className="flex gap-1">
+                <div className="flex items-center justify-between px-4 py-3">
+                    <h1 className="font-heading text-xl font-bold whitespace-nowrap tracking-wide">⚾ ZVBL Roster Manager</h1>
+                    {/* Desktop nav */}
+                    <nav className="hidden sm:flex items-center gap-1">
+                        <button
+                            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "organizations" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                            onClick={() => setPage("organizations")}
+                        >
+                            Organizations
+                        </button>
+                        <button
+                            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "rosters" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                            onClick={() => setPage("rosters")}
+                        >
+                            Rosters
+                        </button>
+                        <button
+                            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "schedule" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                            onClick={() => setPage("schedule")}
+                        >
+                            Schedule
+                        </button>
+                        <button
+                            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "standings" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                            onClick={() => setPage("standings")}
+                        >
+                            Standings
+                        </button>
+                        {isAdmin && (
                             <button
-                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "organizations" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                                onClick={() => setPage("organizations")}
+                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "league" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                                onClick={() => setPage("league")}
                             >
-                                Organizations
+                                League
                             </button>
+                        )}
+                        {isAdmin && (
                             <button
-                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "rosters" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                                onClick={() => setPage("rosters")}
+                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "users" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                                onClick={() => setPage("users")}
                             >
-                                Rosters
+                                Users
                             </button>
-                            <button
-                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "schedule" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                                onClick={() => setPage("schedule")}
-                            >
-                                Schedule
-                            </button>
-                            <button
-                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "standings" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                                onClick={() => setPage("standings")}
-                            >
-                                Standings
-                            </button>
-                            {isAdmin && (
-                                <button
-                                    className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "league" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                                    onClick={() => setPage("league")}
-                                >
-                                    League
-                                </button>
-                            )}
-                            {isAdmin && (
-                                <button
-                                    className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "users" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                                    onClick={() => setPage("users")}
-                                >
-                                    Users
-                                </button>
-                            )}
-                        </nav>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm opacity-90 hidden sm:inline">{user?.name || user?.username}</span>
+                        )}
+                    </nav>
+                    <div className="hidden sm:flex items-center gap-3">
+                        <span className="text-sm opacity-90">{user?.name || user?.username}</span>
                         <button className="px-3 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" onClick={logout}>
                             Sign Out
                         </button>
                     </div>
+                    {/* Mobile hamburger (2-line bun) → X morph */}
+                    <button
+                        className="sm:hidden relative w-7 h-5 flex flex-col justify-between"
+                        onClick={() => setMenuOpen((v) => !v)}
+                        aria-label={menuOpen ? "Close menu" : "Open menu"}
+                    >
+                        <span className={`block h-0.5 w-full bg-white rounded transition-transform duration-300 origin-center ${menuOpen ? "translate-y-[9px] rotate-45" : ""}`} />
+                        <span className={`block h-0.5 w-full bg-white rounded transition-transform duration-300 origin-center ${menuOpen ? "-translate-y-[9px] -rotate-45" : ""}`} />
+                    </button>
                 </div>
+                {/* Mobile dropdown */}
+                {menuOpen && (
+                    <nav className="sm:hidden flex flex-col border-t border-white/20 px-4 pb-3 pt-2 gap-1">
+                        {[
+                            { key: "organizations", label: "Organizations" },
+                            { key: "rosters", label: "Rosters" },
+                            { key: "schedule", label: "Schedule" },
+                            { key: "standings", label: "Standings" },
+                            ...(isAdmin ? [{ key: "league", label: "League" }, { key: "users", label: "Users" }] : []),
+                        ].map((item) => (
+                            <button
+                                key={item.key}
+                                className={`text-left px-3 py-2 text-sm rounded-md transition-colors ${page === item.key ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                                onClick={() => { setPage(item.key); setMenuOpen(false); }}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20">
+                            <span className="text-sm opacity-90">{user?.name || user?.username}</span>
+                            <button className="px-3 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" onClick={logout}>
+                                Sign Out
+                            </button>
+                        </div>
+                    </nav>
+                )}
             </header>
 
             {/* Content */}
