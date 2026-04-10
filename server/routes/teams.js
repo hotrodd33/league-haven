@@ -165,4 +165,187 @@ router.delete('/:id/logo', authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
+// ── CSV Import ──
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return { headers: [], rows: [] };
+  const headers = parseLine(lines[0]).map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = parseLine(lines[i]);
+    const row = {};
+    headers.forEach((h, idx) => { row[h] = (vals[idx] || '').trim(); });
+    rows.push(row);
+  }
+  return { headers, rows };
+}
+
+function parseLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { current += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { result.push(current); current = ''; }
+      else { current += ch; }
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// POST /teams/import  — bulk CSV import
+// Expected columns: team_name (required), org_name, age_group, level, division (comma-sep or single)
+router.post('/import', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { csv, season_id, mode } = req.body;
+    if (!csv || typeof csv !== 'string') return res.status(400).json({ error: 'csv field is required (string)' });
+
+    const { headers, rows } = parseCSV(csv);
+    if (!rows.length) return res.status(400).json({ error: 'CSV has no data rows' });
+
+    const nameCol = headers.find(h => ['team_name', 'name', 'team'].includes(h));
+    if (!nameCol) return res.status(400).json({ error: 'CSV must have a "team_name" or "name" column' });
+
+    const orgCol = headers.find(h => ['org_name', 'organization', 'org'].includes(h));
+    const ageCol = headers.find(h => ['age_group', 'age', 'agegroup'].includes(h));
+    const lvlCol = headers.find(h => ['level', 'lvl'].includes(h));
+    const divCol = headers.find(h => ['division', 'divisions', 'div'].includes(h));
+
+    // Pre-load orgs and divisions for name matching
+    const { rows: allOrgs } = await pool.query('SELECT id, name FROM organizations');
+    const orgLookup = {};
+    for (const o of allOrgs) orgLookup[o.name.toLowerCase().trim()] = o.id;
+
+    let divLookup = {};
+    if (season_id) {
+      const { rows: allDivs } = await pool.query(
+        `WITH RECURSIVE tree AS (
+          SELECT id, name, parent_id, name::text AS path FROM league_divisions WHERE parent_id IS NULL AND season_id = $1
+          UNION ALL
+          SELECT d.id, d.name, d.parent_id, (tree.path || ' / ' || d.name)::text FROM league_divisions d JOIN tree ON tree.id = d.parent_id
+        ) SELECT id, name, path FROM tree`, [season_id]
+      );
+      for (const d of allDivs) {
+        divLookup[d.name.toLowerCase().trim()] = d.id;
+        divLookup[d.path.toLowerCase().trim()] = d.id;
+      }
+    }
+
+    // Pre-load existing teams for update matching
+    const { rows: existingTeams } = await pool.query('SELECT id, name, org_id FROM teams');
+    const existingMap = {};
+    for (const t of existingTeams) {
+      existingMap[t.name.toLowerCase().trim()] = t;
+    }
+
+    const results = { created: 0, updated: 0, skipped: 0, errors: [] };
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const teamName = row[nameCol]?.trim();
+      if (!teamName) { results.skipped++; continue; }
+
+      const orgName = orgCol ? row[orgCol]?.trim() : '';
+      const ageGroup = ageCol ? row[ageCol]?.trim() : '';
+      const level = lvlCol ? row[lvlCol]?.trim() : '';
+      const divText = divCol ? row[divCol]?.trim() : '';
+
+      const orgId = orgName ? (orgLookup[orgName.toLowerCase()] || null) : null;
+
+      // Resolve division names to IDs
+      const divisionIds = [];
+      if (divText && season_id) {
+        const divNames = divText.split(/[;|]/).map(s => s.trim()).filter(Boolean);
+        for (const dn of divNames) {
+          const did = divLookup[dn.toLowerCase()];
+          if (did) divisionIds.push(did);
+          else results.errors.push(`Row ${i + 2}: division "${dn}" not found`);
+        }
+      }
+
+      try {
+        const existing = existingMap[teamName.toLowerCase()];
+        if (existing && mode !== 'create_only') {
+          // Update existing team
+          await pool.query(
+            'UPDATE teams SET age_group = COALESCE(NULLIF($1, \'\'), age_group), level = COALESCE(NULLIF($2, \'\'), level), org_id = COALESCE($3, org_id) WHERE id = $4',
+            [ageGroup, level, orgId, existing.id]
+          );
+          if (divisionIds.length) await syncDivisions(existing.id, divisionIds);
+          results.updated++;
+        } else if (!existing) {
+          // Create new team
+          const { rows: newRows } = await pool.query(
+            'INSERT INTO teams (name, age_group, level, org_id) VALUES ($1, $2, $3, $4) RETURNING id',
+            [teamName, ageGroup || null, level || null, orgId]
+          );
+          if (divisionIds.length) await syncDivisions(newRows[0].id, divisionIds);
+          existingMap[teamName.toLowerCase()] = { id: newRows[0].id, name: teamName };
+          results.created++;
+        } else {
+          results.skipped++;
+        }
+      } catch (err) {
+        results.errors.push(`Row ${i + 2}: ${err.message}`);
+      }
+    }
+
+    res.json(results);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /teams/export — download CSV of all teams
+router.get('/export', async (req, res) => {
+  try {
+    const { rows: teams } = await pool.query(
+      `SELECT t.name AS team_name, o.name AS org_name, t.age_group, t.level
+       FROM teams t LEFT JOIN organizations o ON o.id = t.org_id
+       ORDER BY o.name, t.name`
+    );
+    // Attach divisions
+    const { rows: divRows } = await pool.query(
+      `SELECT td.team_id, ld.name FROM team_divisions td
+       JOIN league_divisions ld ON ld.id = td.division_id
+       JOIN teams t ON t.id = td.team_id
+       ORDER BY td.team_id, ld.sort_order, ld.name`
+    );
+    const divMap = {};
+    for (const r of divRows) {
+      if (!divMap[r.team_id]) divMap[r.team_id] = [];
+      divMap[r.team_id].push(r.name);
+    }
+
+    // Get team IDs in order
+    const { rows: teamIds } = await pool.query(
+      'SELECT id, name FROM teams ORDER BY name'
+    );
+    const teamIdMap = {};
+    for (const t of teamIds) teamIdMap[t.name] = t.id;
+
+    const csvLines = ['team_name,org_name,age_group,level,division'];
+    for (const t of teams) {
+      const tid = teamIdMap[t.team_name];
+      const divs = divMap[tid] ? divMap[tid].join('; ') : '';
+      csvLines.push([t.team_name, t.org_name || '', t.age_group || '', t.level || '', divs].map(v => `"${v.replace(/"/g, '""')}"`).join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=teams.csv');
+    res.send(csvLines.join('\n'));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

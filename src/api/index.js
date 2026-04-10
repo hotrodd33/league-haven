@@ -123,6 +123,17 @@ export async function removeTeamLogo(teamId) {
   return apiFetch(`/teams/${teamId}/logo`, { method: 'DELETE' });
 }
 
+export async function importTeamsCSV(csv, seasonId, mode) {
+  return apiFetch('/teams/import', {
+    method: 'POST',
+    body: JSON.stringify({ csv, season_id: seasonId, mode }),
+  });
+}
+
+export function exportTeamsCSVUrl() {
+  return `${API_BASE}/teams/export`;
+}
+
 // ── Positions ──
 
 export async function fetchPositions() {
