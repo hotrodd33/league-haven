@@ -313,11 +313,19 @@ router.get('/export', async (req, res) => {
        FROM teams t LEFT JOIN organizations o ON o.id = t.org_id
        ORDER BY o.name, t.name`
     );
-    // Attach divisions
+    // Attach divisions with full path (e.g. "10U AA / East" instead of just "East")
     const { rows: divRows } = await pool.query(
-      `SELECT td.team_id, ld.name FROM team_divisions td
-       JOIN league_divisions ld ON ld.id = td.division_id
-       ORDER BY td.team_id, ld.sort_order, ld.name`
+      `WITH RECURSIVE tree AS (
+        SELECT id, name, parent_id, name::text AS path
+        FROM league_divisions WHERE parent_id IS NULL
+        UNION ALL
+        SELECT d.id, d.name, d.parent_id, (tree.path || ' / ' || d.name)::text
+        FROM league_divisions d JOIN tree ON tree.id = d.parent_id
+      )
+      SELECT td.team_id, tree.path AS name
+      FROM team_divisions td
+      JOIN tree ON tree.id = td.division_id
+      ORDER BY td.team_id, tree.path`
     );
     const divMap = {};
     for (const r of divRows) {
