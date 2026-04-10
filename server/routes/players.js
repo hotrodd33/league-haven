@@ -131,7 +131,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Permission: user must be able to edit at least one team this player is on
     const { rows: teamRows } = await client.query('SELECT team_id FROM team_players WHERE player_id = $1', [id]);
-    let hasPermission = req.user.role === 'admin';
+    let hasPermission = req.user.role === 'super_admin';
     if (!hasPermission) {
       for (const tr of teamRows) {
         if (await canEditTeam(req.user, tr.team_id)) { hasPermission = true; break; }
@@ -207,7 +207,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 
     // Permission: must be admin or can edit at least one team
     const { rows: teamRows } = await pool.query('SELECT team_id FROM team_players WHERE player_id = $1', [id]);
-    let hasPermission = req.user.role === 'admin';
+    let hasPermission = req.user.role === 'super_admin';
     if (!hasPermission) {
       for (const tr of teamRows) {
         if (await canEditTeam(req.user, tr.team_id)) { hasPermission = true; break; }

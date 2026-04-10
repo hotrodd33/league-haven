@@ -107,7 +107,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Permission: must be able to edit at least one team this staff is on
     const { rows: teamRows } = await pool.query('SELECT team_id FROM team_staff_assignments WHERE staff_id = $1', [id]);
-    let hasPermission = req.user.role === 'admin';
+    let hasPermission = req.user.role === 'super_admin';
     if (!hasPermission) {
       for (const tr of teamRows) {
         if (await canEditTeam(req.user, tr.team_id)) { hasPermission = true; break; }
@@ -146,7 +146,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Staff member not found' });
 
     const { rows: teamRows } = await pool.query('SELECT team_id FROM team_staff_assignments WHERE staff_id = $1', [id]);
-    let hasPermission = req.user.role === 'admin';
+    let hasPermission = req.user.role === 'super_admin';
     if (!hasPermission) {
       for (const tr of teamRows) {
         if (await canEditTeam(req.user, tr.team_id)) { hasPermission = true; break; }

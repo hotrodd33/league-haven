@@ -55,11 +55,36 @@ export async function login(username, password) {
   });
 }
 
-export async function register(username, password, name) {
+export async function register(username, password, name, email) {
   return apiFetch('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ username, password, name }),
+    body: JSON.stringify({ username, password, name, email }),
   });
+}
+
+export async function forgotPassword(email) {
+  return apiFetch('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(token, password) {
+  return apiFetch('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+  });
+}
+
+export async function changePassword(currentPassword, newPassword) {
+  return apiFetch('/auth/change-password', {
+    method: 'PUT',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+export async function inviteUser(userId) {
+  return apiFetch(`/users/${userId}/invite`, { method: 'POST' });
 }
 
 // ── Teams ──

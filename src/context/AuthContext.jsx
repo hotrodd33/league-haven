@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react';
-import { login as apiLogin } from '../api/index.js';
+import { login as apiLogin, register as apiRegister } from '../api/index.js';
 
 const AuthContext = createContext(null);
 
@@ -40,37 +40,75 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const register = useCallback(async (username, password, name, email) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiRegister(username, password, name, email);
+      const saved = {
+        token: data.token,
+        user: data.user,
+        permissions: data.permissions || { org_ids: [], team_ids: [] },
+      };
+      setAuth(saved);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(() => {
     setAuth(null);
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  const isAdmin = auth?.user?.role === 'admin';
+  const role = auth?.user?.role;
+  const isSuperAdmin = role === 'super_admin';
+  const isOrgAdmin = role === 'org_admin';
+  const isAdmin = isSuperAdmin; // backward compat
   const permissions = auth?.permissions || { org_ids: [], team_ids: [] };
 
   const canEditOrg = useCallback((orgId) => {
-    if (isAdmin) return true;
+    if (isSuperAdmin) return true;
+    if (role === 'score_reporter') return false;
     return permissions.org_ids.includes(Number(orgId));
-  }, [isAdmin, permissions.org_ids]);
+  }, [isSuperAdmin, role, permissions.org_ids]);
 
   const canEditTeam = useCallback((teamId, orgId) => {
-    if (isAdmin) return true;
+    if (isSuperAdmin) return true;
+    if (role === 'score_reporter') return false;
     if (permissions.team_ids.includes(Number(teamId))) return true;
     if (orgId && permissions.org_ids.includes(Number(orgId))) return true;
     return false;
-  }, [isAdmin, permissions.org_ids, permissions.team_ids]);
+  }, [isSuperAdmin, role, permissions.org_ids, permissions.team_ids]);
+
+  const canScoreGame = useCallback((homeTeamId, awayTeamId) => {
+    if (isSuperAdmin) return true;
+    const ids = [Number(homeTeamId), Number(awayTeamId)];
+    if (ids.some(id => permissions.team_ids.includes(id))) return true;
+    if (role !== 'score_reporter' && ids.some(id => permissions.org_ids.includes(id))) return true;
+    return false;
+  }, [isSuperAdmin, role, permissions.org_ids, permissions.team_ids]);
 
   const value = {
     token: auth?.token,
     user: auth?.user,
     isAuthenticated: !!auth?.token,
     isAdmin,
+    isSuperAdmin,
+    isOrgAdmin,
+    role,
     permissions,
     canEditOrg,
     canEditTeam,
+    canScoreGame,
     loading,
     error,
     login,
+    register,
     logout,
   };
 

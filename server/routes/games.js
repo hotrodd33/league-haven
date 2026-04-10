@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, requireAdmin, canEditTeam } = require('../auth');
+const { authMiddleware, requireAdmin, canEditTeam, canScoreGame } = require('../auth');
 
 const router = express.Router();
 
@@ -277,9 +277,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!existing.length) return res.status(404).json({ error: 'Game not found' });
 
     const game = existing[0];
-    const allowed = req.user.role === 'admin'
-      || await canEditTeam(req.user, game.home_team_id)
-      || await canEditTeam(req.user, game.away_team_id);
+    const allowed = await canScoreGame(req.user, game.home_team_id, game.away_team_id);
     if (!allowed) return res.status(403).json({ error: 'Not authorized to update this game' });
 
     const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, home_score, away_score, innings_played, notes } = req.body;
@@ -354,12 +352,12 @@ router.get('/:gameId/pitch-counts', async (req, res) => {
   }
 });
 
-// Helper: check if user can edit pitch counts for a game
+// Helper: check if user can edit pitch counts / scores for a game
 async function canEditGame(user, gameId) {
-  if (user.role === 'admin') return true;
+  if (user.role === 'super_admin') return true;
   const { rows } = await pool.query('SELECT home_team_id, away_team_id FROM games WHERE id = $1', [gameId]);
   if (!rows.length) return false;
-  return (await canEditTeam(user, rows[0].home_team_id)) || (await canEditTeam(user, rows[0].away_team_id));
+  return canScoreGame(user, rows[0].home_team_id, rows[0].away_team_id);
 }
 
 // ADD pitch count entry

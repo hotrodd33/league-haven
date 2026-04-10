@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchUsers, createUser, updateUser, deleteUser, updateUserPermissions,
-  fetchOrganizations, fetchTeams,
+  fetchOrganizations, fetchTeams, inviteUser,
 } from '../api/index.js';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
@@ -10,6 +10,20 @@ const btnPrimary = "px-4 py-2 bg-blue-800 text-white text-sm font-semibold round
 const btnSecondary = "px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors";
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 const btnSm = "px-3 py-1.5 text-xs font-semibold rounded";
+
+const ROLE_LABELS = {
+  super_admin: 'Super Admin',
+  org_admin: 'Org Admin',
+  team_manager: 'Team Manager',
+  score_reporter: 'Score Reporter',
+};
+
+const ROLE_COLORS = {
+  super_admin: 'bg-purple-100 text-purple-800',
+  org_admin: 'bg-blue-100 text-blue-800',
+  team_manager: 'bg-green-100 text-green-800',
+  score_reporter: 'bg-gray-100 text-gray-700',
+};
 
 export default function UserManager({ onBack }) {
   const [users, setUsers] = useState([]);
@@ -37,6 +51,17 @@ export default function UserManager({ onBack }) {
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
     } catch (err) { alert(`Failed to delete: ${err.message}`); }
     finally { setDeleting(null); }
+  }
+
+  const [inviting, setInviting] = useState(null);
+  async function handleInvite(user) {
+    if (!user.email) { alert('User has no email address. Edit the user to add one first.'); return; }
+    setInviting(user.id);
+    try {
+      const result = await inviteUser(user.id);
+      alert(result.message || `Invite sent to ${user.email}`);
+    } catch (err) { alert(`Failed to send invite: ${err.message}`); }
+    finally { setInviting(null); }
   }
 
   if (loading) return <div className="py-8 text-center text-gray-500">Loading users…</div>;
@@ -71,6 +96,7 @@ export default function UserManager({ onBack }) {
                 <tr className="bg-gray-100 border-b-2 border-gray-200">
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Username</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Name</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Email</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Role</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Permissions</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Actions</th>
@@ -81,13 +107,14 @@ export default function UserManager({ onBack }) {
                   <tr key={u.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 font-mono text-sm">{u.username}</td>
                     <td className="px-3 py-2 font-semibold">{u.name}</td>
+                    <td className="px-3 py-2 text-sm text-gray-500">{u.email || <span className="text-gray-300">—</span>}</td>
                     <td className="px-3 py-2">
-                      <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full ${u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-700'}`}>
-                        {u.role === 'admin' ? 'Admin' : 'User'}
+                      <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-700'}`}>
+                        {ROLE_LABELS[u.role] || u.role}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-600">
-                      {u.role === 'admin' ? (
+                      {u.role === 'super_admin' ? (
                         <span className="text-purple-600 font-medium">Full access</span>
                       ) : (
                         <span>
@@ -99,8 +126,14 @@ export default function UserManager({ onBack }) {
                     <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex gap-1">
                         <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} bg-gray-200 text-gray-800 hover:bg-gray-300`}>Edit</button>
-                        {u.role !== 'admin' && (
-                          <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-100 text-blue-800 hover:bg-blue-200`}>Permissions</button>
+                        {u.role !== 'super_admin' && (
+                          <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-100 text-blue-800 hover:bg-blue-200`}>Perms</button>
+                        )}
+                        {u.email && (
+                          <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
+                            className={`${btnSm} bg-green-100 text-green-800 hover:bg-green-200`}>
+                            {inviting === u.id ? '…' : 'Invite'}
+                          </button>
                         )}
                         <button onClick={() => handleDelete(u)} disabled={deleting === u.id} className={btnDanger}>
                           {deleting === u.id ? '…' : 'Delete'}
@@ -121,12 +154,13 @@ export default function UserManager({ onBack }) {
                   <div>
                     <div className="font-semibold">{u.name}</div>
                     <div className="text-sm text-gray-500 font-mono">{u.username}</div>
+                    {u.email && <div className="text-xs text-gray-400">{u.email}</div>}
                   </div>
-                  <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full shrink-0 ${u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-700'}`}>
-                    {u.role === 'admin' ? 'Admin' : 'User'}
+                  <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full shrink-0 ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-700'}`}>
+                    {ROLE_LABELS[u.role] || u.role}
                   </span>
                 </div>
-                {u.role !== 'admin' && (
+                {u.role !== 'super_admin' && (
                   <div className="text-sm text-gray-600 mb-2">
                     {u.permissions.org_ids.length} org{u.permissions.org_ids.length !== 1 ? 's' : ''},
                     {' '}{u.permissions.team_ids.length} team{u.permissions.team_ids.length !== 1 ? 's' : ''}
@@ -134,8 +168,14 @@ export default function UserManager({ onBack }) {
                 )}
                 <div className="flex gap-1.5 pt-2 border-t border-gray-100">
                   <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} bg-gray-200 text-gray-800 hover:bg-gray-300`}>Edit</button>
-                  {u.role !== 'admin' && (
-                    <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-100 text-blue-800 hover:bg-blue-200`}>Permissions</button>
+                  {u.role !== 'super_admin' && (
+                    <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-100 text-blue-800 hover:bg-blue-200`}>Perms</button>
+                  )}
+                  {u.email && (
+                    <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
+                      className={`${btnSm} bg-green-100 text-green-800 hover:bg-green-200`}>
+                      {inviting === u.id ? '…' : 'Invite'}
+                    </button>
                   )}
                   <button onClick={() => handleDelete(u)} disabled={deleting === u.id} className={btnDanger}>
                     {deleting === u.id ? '…' : 'Delete'}
@@ -165,7 +205,8 @@ function UserForm({ user, onDone, onCancel }) {
   const [form, setForm] = useState({
     username: user?.username || '',
     name: user?.name || '',
-    role: user?.role || 'user',
+    email: user?.email || '',
+    role: user?.role || 'score_reporter',
     password: '',
   });
 
@@ -175,7 +216,7 @@ function UserForm({ user, onDone, onCancel }) {
     e.preventDefault(); setSaving(true); setError(null);
     try {
       if (isEditing) {
-        const data = { name: form.name.trim(), role: form.role };
+        const data = { name: form.name.trim(), role: form.role, email: form.email.trim() || null };
         if (form.password.trim()) data.password = form.password.trim();
         await updateUser(user.id, data);
       } else {
@@ -183,6 +224,7 @@ function UserForm({ user, onDone, onCancel }) {
         await createUser({
           username: form.username.trim(),
           name: form.name.trim(),
+          email: form.email.trim() || undefined,
           role: form.role,
           password: form.password.trim(),
         });
@@ -210,12 +252,19 @@ function UserForm({ user, onDone, onCancel }) {
                 onChange={handleChange} required placeholder="John Doe" className={inputCls} />
             </div>
           </div>
+          <div>
+            <label htmlFor="user-email" className={labelCls}>Email</label>
+            <input id="user-email" name="email" type="email" value={form.email}
+              onChange={handleChange} placeholder="user@example.com" className={inputCls} />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="user-role" className={labelCls}>Role *</label>
               <select id="user-role" name="role" value={form.role} onChange={handleChange} className={inputCls}>
-                <option value="user">User (restricted)</option>
-                <option value="admin">Admin (full access)</option>
+                <option value="score_reporter">Score Reporter</option>
+                <option value="team_manager">Team Manager</option>
+                <option value="org_admin">Org Admin</option>
+                <option value="super_admin">Super Admin</option>
               </select>
             </div>
             <div>

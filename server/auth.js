@@ -3,6 +3,9 @@ const { pool } = require('./db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
 
+// Valid roles ordered by privilege level
+const ROLES = ['score_reporter', 'team_manager', 'org_admin', 'super_admin'];
+
 function authMiddleware(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
@@ -19,10 +22,20 @@ function authMiddleware(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
+  if (!req.user || req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Super admin access required' });
   }
   next();
+}
+
+// Require at least a certain role level
+function requireRole(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    next();
+  };
 }
 
 async function getUserPermissions(userId) {
@@ -37,19 +50,41 @@ async function getUserPermissions(userId) {
 }
 
 async function canEditOrg(user, orgId) {
-  if (user.role === 'admin') return true;
+  if (user.role === 'super_admin') return true;
+  if (user.role === 'score_reporter') return false;
   const perms = await getUserPermissions(user.id);
   return perms.org_ids.includes(Number(orgId));
 }
 
 async function canEditTeam(user, teamId) {
-  if (user.role === 'admin') return true;
+  if (user.role === 'super_admin') return true;
+  if (user.role === 'score_reporter') return false;
   const perms = await getUserPermissions(user.id);
   if (perms.team_ids.includes(Number(teamId))) return true;
-  // Check if user has permission for the team's org
+  // Check if user has permission for the team's org (org_admin or team_manager with org access)
   const { rows } = await pool.query('SELECT org_id FROM teams WHERE id = $1', [teamId]);
   if (rows[0]?.org_id && perms.org_ids.includes(rows[0].org_id)) return true;
   return false;
 }
 
-module.exports = { authMiddleware, requireAdmin, getUserPermissions, canEditOrg, canEditTeam, JWT_SECRET };
+// Score reporters can score games for their assigned teams (or any team they can edit)
+async function canScoreGame(user, gameHomeTeamId, gameAwayTeamId) {
+  if (user.role === 'super_admin') return true;
+  const perms = await getUserPermissions(user.id);
+  const teamIds = [Number(gameHomeTeamId), Number(gameAwayTeamId)];
+
+  // Direct team permission
+  if (teamIds.some(id => perms.team_ids.includes(id))) return true;
+
+  // Org-level permission (org_admin or team_manager with org access)
+  if (user.role !== 'score_reporter') {
+    for (const tid of teamIds) {
+      const { rows } = await pool.query('SELECT org_id FROM teams WHERE id = $1', [tid]);
+      if (rows[0]?.org_id && perms.org_ids.includes(rows[0].org_id)) return true;
+    }
+  }
+
+  return false;
+}
+
+module.exports = { authMiddleware, requireAdmin, requireRole, getUserPermissions, canEditOrg, canEditTeam, canScoreGame, JWT_SECRET, ROLES };

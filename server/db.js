@@ -206,8 +206,8 @@ async function migrate() {
     END $$;
   `);
 
-  // Promote seed admin user to admin role
-  await pool.query("UPDATE users SET role = 'admin' WHERE username = 'admin' AND role = 'manager'");
+  // Promote seed admin user to super_admin role (legacy migration)
+  await pool.query("UPDATE users SET role = 'super_admin' WHERE username = 'admin' AND role = 'manager'");
 
   // Migrate players from old team_id/jersey_number columns to team_players junction table
   await pool.query(`
@@ -298,6 +298,29 @@ async function migrate() {
       await pool.query('INSERT INTO positions (name, abbreviation) VALUES ($1, $2) ON CONFLICT DO NOTHING', [name, abbr]);
     }
   }
+
+  // ── Auth system v2: email, 4-tier roles, password reset tokens ──
+
+  // Add email column to users
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;`);
+
+  // Password reset tokens table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // Migrate roles: admin → super_admin, user → team_manager, manager → team_manager
+  await pool.query(`
+    UPDATE users SET role = 'super_admin' WHERE role = 'admin';
+    UPDATE users SET role = 'team_manager' WHERE role IN ('user', 'manager');
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds

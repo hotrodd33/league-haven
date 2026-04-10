@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "./context/AuthContext.jsx";
 import Login from "./components/Login.jsx";
+import ResetPassword from "./components/ResetPassword.jsx";
+import ChangePassword from "./components/ChangePassword.jsx";
 import TeamSelector from "./components/TeamSelector.jsx";
 import RosterList from "./components/RosterList.jsx";
 import PlayerForm from "./components/PlayerForm.jsx";
@@ -24,12 +26,21 @@ export default function App() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [page, setPage] = useState("rosters");
     const [menuOpen, setMenuOpen] = useState(false);
+    const [showChangePassword, setShowChangePassword] = useState(false);
 
     function navigateToTeam(teamId, orgId) {
         setSelectedTeam(teamId);
         setSelectedTeamOrgId(orgId || null);
         setPage("rosters");
     }
+
+    // Handle password reset token in URL (?reset=TOKEN)
+    const params = new URLSearchParams(window.location.search);
+    const resetToken = params.get('reset');
+    if (resetToken) {
+        return <ResetPassword token={resetToken} onDone={() => { window.history.replaceState({}, '', window.location.pathname); window.location.reload(); }} />;
+    }
+
     if (!isAuthenticated) {
         return <Login />;
     }
@@ -112,6 +123,9 @@ export default function App() {
                     </nav>
                     <div className="hidden sm:flex items-center gap-3">
                         <span className="text-sm opacity-90">{user?.name || user?.username}</span>
+                        <button className="px-3 py-1 text-xs font-semibold bg-white/20 text-white rounded-md hover:bg-white/30" onClick={() => setShowChangePassword(true)}>
+                            Password
+                        </button>
                         <button className="px-3 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" onClick={logout}>
                             Sign Out
                         </button>
@@ -147,9 +161,14 @@ export default function App() {
                         ))}
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20">
                             <span className="text-sm opacity-90">{user?.name || user?.username}</span>
-                            <button className="px-3 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" onClick={logout}>
-                                Sign Out
-                            </button>
+                            <div className="flex gap-2">
+                                <button className="px-3 py-1 text-xs font-semibold bg-white/20 text-white rounded-md hover:bg-white/30" onClick={() => { setShowChangePassword(true); setMenuOpen(false); }}>
+                                    Password
+                                </button>
+                                <button className="px-3 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" onClick={logout}>
+                                    Sign Out
+                                </button>
+                            </div>
                         </div>
                     </nav>
                 )}
@@ -196,6 +215,7 @@ export default function App() {
             )}
 
             {showForm && selectedTeam && <PlayerForm teamId={selectedTeam} player={editingPlayer} onSaved={handleFormSaved} onCancel={handleFormCancel} />}
+            {showChangePassword && <ChangePassword onClose={() => setShowChangePassword(false)} />}
         </div>
     );
 }
