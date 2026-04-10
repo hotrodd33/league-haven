@@ -178,7 +178,7 @@ export default function App() {
                 </main>
             ) : page === "directory" ? (
                 <main className="p-4 max-w-7xl mx-auto">
-                    <Directory />
+                    <Directory onEditTeam={navigateToTeam} />
                 </main>
             ) : (
                 <main className="flex flex-col md:flex-row min-h-[calc(100vh-56px)]">

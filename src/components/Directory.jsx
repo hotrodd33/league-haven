@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext.jsx';
 import { fetchDirectory } from '../api/index.js';
 
 const ROLE_LABELS = {
@@ -16,11 +17,13 @@ function OrgLogo({ src, name, size = 'w-10 h-10' }) {
   return <img src={src} alt="" className={`${size} object-contain rounded shrink-0`} />;
 }
 
-export default function Directory() {
+export default function Directory({ onEditTeam }) {
+  const { canEditTeam } = useAuth();
   const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const printRef = useRef();
 
   useEffect(() => {
     fetchDirectory()
@@ -29,12 +32,33 @@ export default function Directory() {
       .finally(() => setLoading(false));
   }, []);
 
+  function handlePrint() {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    const html = buildPrintHTML(orgs);
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.addEventListener('afterprint', () => printWindow.close());
+    setTimeout(() => printWindow.print(), 300);
+  }
+
   if (loading) return <div className="py-8 text-center text-gray-500">Loading directory…</div>;
   if (error) return <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>;
 
   return (
     <div>
-      <h2 className="font-heading text-2xl font-bold tracking-wide text-blue-800 mb-6">Team Directory</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="font-heading text-2xl font-bold tracking-wide text-blue-800">Team Directory</h2>
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors print:hidden"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm0-12V3a1 1 0 011-1h4a1 1 0 011 1v4" />
+          </svg>
+          Print
+        </button>
+      </div>
 
       <div className="space-y-6">
         {orgs.map(org => (
@@ -75,26 +99,40 @@ export default function Directory() {
                 {org.teams.map(team => {
                   const isExpanded = expanded === team.id;
                   const headCoach = team.staff.find(s => s.role === 'head_coach');
+                  const editable = onEditTeam && canEditTeam(team.id, org.id);
                   return (
                     <div key={team.id}>
-                      <button
-                        onClick={() => setExpanded(isExpanded ? null : team.id)}
-                        className="w-full text-left px-4 sm:px-6 py-3 hover:bg-gray-50 transition-colors flex items-center gap-4"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm">{team.name}</div>
-                          <div className="text-xs text-gray-500">
-                            {[team.age_group, team.level].filter(Boolean).join(' · ')}
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => setExpanded(isExpanded ? null : team.id)}
+                          className="flex-1 text-left px-4 sm:px-6 py-3 hover:bg-gray-50 transition-colors flex items-center gap-4"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-sm">{team.name}</div>
+                            <div className="text-xs text-gray-500">
+                              {[team.age_group, team.level].filter(Boolean).join(' · ')}
+                            </div>
                           </div>
-                        </div>
-                        {headCoach && (
-                          <div className="hidden sm:block text-right text-sm shrink-0">
-                            <div className="font-medium text-gray-700">{headCoach.name}</div>
-                            <div className="text-xs text-gray-400">Head Coach</div>
-                          </div>
+                          {headCoach && (
+                            <div className="hidden sm:block text-right text-sm shrink-0">
+                              <div className="font-medium text-gray-700">{headCoach.name}</div>
+                              <div className="text-xs text-gray-400">Head Coach</div>
+                            </div>
+                          )}
+                          <span className={`text-gray-400 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                        </button>
+                        {editable && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onEditTeam(team.id, org.id); }}
+                            className="mr-3 sm:mr-5 p-1.5 text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                            title="Edit team roster & staff"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
                         )}
-                        <span className={`text-gray-400 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
-                      </button>
+                      </div>
 
                       {isExpanded && (
                         <div className="bg-gray-50 px-4 sm:px-6 py-3 border-t border-gray-100">
@@ -136,4 +174,53 @@ export default function Directory() {
       </div>
     </div>
   );
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function buildPrintHTML(orgs) {
+  const rows = orgs.map(org => {
+    const orgContact = [
+      org.contact_name ? `<strong>${esc(org.contact_name)}</strong>` : '',
+      org.contact_email ? esc(org.contact_email) : '',
+      org.contact_phone ? esc(org.contact_phone) : '',
+    ].filter(Boolean).join(' &middot; ');
+
+    const teamRows = org.teams.map(team => {
+      const staffRows = team.staff.map(s =>
+        `<tr>
+          <td style="padding:2px 12px 2px 40px;font-size:12px;color:#888;">${esc(ROLE_LABELS[s.role] || s.role)}</td>
+          <td style="padding:2px 8px;font-size:13px;">${esc(s.name)}</td>
+          <td style="padding:2px 8px;font-size:12px;color:#1d4ed8;">${esc(s.email)}</td>
+          <td style="padding:2px 8px;font-size:12px;color:#666;">${esc(s.phone)}</td>
+        </tr>`
+      ).join('');
+      return `<tr style="border-top:1px solid #e5e7eb;">
+        <td colspan="4" style="padding:6px 12px;font-weight:600;font-size:14px;">
+          ${esc(team.name)}
+          <span style="font-weight:400;color:#888;font-size:12px;margin-left:8px;">${esc([team.age_group, team.level].filter(Boolean).join(' · '))}</span>
+        </td>
+      </tr>${staffRows || '<tr><td colspan="4" style="padding:2px 40px;font-size:12px;color:#aaa;">No staff assigned</td></tr>'}`;
+    }).join('');
+
+    return `<div style="margin-bottom:24px;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;">
+      <div style="background:#f9fafb;padding:10px 16px;border-bottom:1px solid #e5e7eb;">
+        <div style="font-size:16px;font-weight:700;color:#1e3a5f;">${esc(org.name)}</div>
+        ${orgContact ? `<div style="font-size:12px;color:#555;margin-top:2px;">${orgContact}</div>` : ''}
+        ${org.city ? `<div style="font-size:11px;color:#999;">${esc(org.city)}${org.state ? ', ' + esc(org.state) : ''}</div>` : ''}
+      </div>
+      <table style="width:100%;border-collapse:collapse;">${teamRows || '<tr><td style="padding:12px;color:#aaa;text-align:center;">No teams</td></tr>'}</table>
+    </div>`;
+  }).join('');
+
+  return `<!DOCTYPE html><html><head><title>ZVBL Team Directory</title>
+<style>@media print{body{margin:0.5in;}}</style></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#222;max-width:800px;margin:0 auto;padding:20px;">
+<h1 style="font-size:22px;color:#1e3a5f;margin-bottom:4px;">ZVBL Team Directory</h1>
+<div style="font-size:12px;color:#999;margin-bottom:20px;">Printed ${new Date().toLocaleDateString()}</div>
+${rows}
+</body></html>`;
 }
