@@ -1,0 +1,113 @@
+import { useState, useEffect } from 'react';
+import { fetchTeamPitcherStats } from '../api/index.js';
+
+function dayLabel(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+}
+
+export default function PitchLog({ teamId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!teamId) { setData(null); return; }
+    let cancelled = false;
+    setLoading(true); setError(null);
+    fetchTeamPitcherStats(teamId)
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(err => { if (!cancelled) setError(err.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [teamId]);
+
+  if (!teamId) return null;
+  if (loading) return <div className="mt-6 text-sm text-gray-400 text-center py-4">Loading pitch log…</div>;
+  if (error) return <div className="mt-6 text-sm text-red-600 text-center py-4">{error}</div>;
+  if (!data) return null;
+
+  const { players, today } = data;
+
+  // Build array of 7 dates: today-6 … today
+  const dates = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today + 'T00:00:00');
+    d.setDate(d.getDate() - i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+
+  // Build a lookup: playerId → { [date]: pitchCount }
+  const pitchers = players
+    .filter(p => p.pitches_last_7 > 0)
+    .map(p => {
+      const byDate = {};
+      for (const day of p.last_7_days) {
+        byDate[day.date] = day.total_pitches;
+      }
+      return { ...p, byDate };
+    });
+
+  if (pitchers.length === 0) return null;
+
+  return (
+    <div className="mt-6">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-100">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
+            7-Day Pitch Log
+          </h3>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left px-4 sm:px-6 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
+                  Player
+                </th>
+                {dates.map(d => (
+                  <th
+                    key={d}
+                    className={`text-center px-2 py-2 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${d === today ? 'text-blue-700 bg-blue-50/50' : 'text-gray-400'}`}
+                  >
+                    {dayLabel(d)}
+                  </th>
+                ))}
+                <th className="text-center px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {pitchers.map(p => (
+                <tr key={p.player_id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 sm:px-6 py-2.5 whitespace-nowrap font-medium">
+                    {p.jersey_number != null && (
+                      <span className="text-xs text-gray-400 font-mono mr-2">#{p.jersey_number}</span>
+                    )}
+                    {p.first_name} {p.last_name}
+                  </td>
+                  {dates.map(d => {
+                    const count = p.byDate[d];
+                    return (
+                      <td
+                        key={d}
+                        className={`text-center px-2 py-2.5 tabular-nums ${d === today ? 'bg-blue-50/50 font-semibold' : ''} ${count ? 'font-semibold' : 'text-gray-300'}`}
+                      >
+                        {count || '—'}
+                      </td>
+                    );
+                  })}
+                  <td className="text-center px-3 py-2.5 tabular-nums font-bold text-blue-800">
+                    {p.pitches_last_7}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

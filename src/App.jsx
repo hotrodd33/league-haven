@@ -12,6 +12,7 @@ import GameSchedule from "./components/GameSchedule.jsx";
 import Standings from "./components/Standings.jsx";
 import TeamSchedule from "./components/TeamSchedule.jsx";
 import PitcherRest from "./components/PitcherRest.jsx";
+import PitchLog from "./components/PitchLog.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, user, logout } = useAuth();
@@ -176,6 +177,7 @@ export default function App() {
                         <RosterList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} />
                         <StaffList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} refreshKey={refreshKey} />
                         <PitcherRest teamId={selectedTeam} />
+                        <PitchLog teamId={selectedTeam} />
                         <TeamSchedule teamId={selectedTeam} onNavigateToTeam={navigateToTeam} />
                     </div>
                 </main>
