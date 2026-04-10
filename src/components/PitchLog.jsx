@@ -29,15 +29,15 @@ export default function PitchLog({ teamId }) {
 
   const { players, today } = data;
 
-  // Build array of 7 dates: today-6 … today
+  // Build array of dates: today-6 … today … today+3
   const dates = [];
-  for (let i = 6; i >= 0; i--) {
+  for (let i = 6; i >= -3; i--) {
     const d = new Date(today + 'T00:00:00');
     d.setDate(d.getDate() - i);
     dates.push(d.toISOString().split('T')[0]);
   }
 
-  // Build a lookup: playerId → { [date]: pitchCount }
+  // Build a lookup: playerId → { [date]: pitchCount }, plus ineligible future dates
   const pitchers = players
     .filter(p => p.pitches_last_7 > 0)
     .map(p => {
@@ -45,7 +45,21 @@ export default function PitchLog({ teamId }) {
       for (const day of p.last_7_days) {
         byDate[day.date] = day.total_pitches;
       }
-      return { ...p, byDate };
+      // Determine ineligible dates from available_date
+      const ineligibleDates = new Set();
+      const avail = p.available_date || p.next_available_after_today;
+      if (avail && avail > today) {
+        // Mark every day from tomorrow up to (but not including) available_date
+        const start = new Date(today + 'T00:00:00');
+        const end = new Date(avail + 'T00:00:00');
+        const cur = new Date(start);
+        cur.setDate(cur.getDate() + 1); // start from tomorrow
+        while (cur < end) {
+          ineligibleDates.add(cur.toISOString().split('T')[0]);
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+      return { ...p, byDate, ineligibleDates };
     });
 
   if (pitchers.length === 0) return null;
@@ -55,7 +69,7 @@ export default function PitchLog({ teamId }) {
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b border-gray-100">
           <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
-            7-Day Pitch Log
+            Pitch Log
           </h3>
         </div>
 
@@ -66,14 +80,18 @@ export default function PitchLog({ teamId }) {
                 <th className="text-left px-4 sm:px-6 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                   Player
                 </th>
-                {dates.map(d => (
-                  <th
-                    key={d}
-                    className={`text-center px-2 py-2 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${d === today ? 'text-blue-700 bg-blue-50/50' : 'text-gray-400'}`}
-                  >
-                    {dayLabel(d)}
-                  </th>
-                ))}
+                {dates.map(d => {
+                  const isFuture = d > today;
+                  const isToday = d === today;
+                  return (
+                    <th
+                      key={d}
+                      className={`text-center px-2 py-2 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${isToday ? 'text-blue-700 bg-blue-50/50' : isFuture ? 'text-gray-400 bg-gray-50/50' : 'text-gray-400'}`}
+                    >
+                      {dayLabel(d)}
+                    </th>
+                  );
+                })}
                 <th className="text-center px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                   Total
                 </th>
@@ -90,12 +108,23 @@ export default function PitchLog({ teamId }) {
                   </td>
                   {dates.map(d => {
                     const count = p.byDate[d];
+                    const isFuture = d > today;
+                    const isToday = d === today;
+                    const isIneligible = isFuture && p.ineligibleDates.has(d);
+                    let cls = 'text-center px-2 py-2.5 tabular-nums';
+                    if (isIneligible) {
+                      cls += ' bg-red-100 text-red-600 font-semibold';
+                    } else if (isToday) {
+                      cls += ' bg-blue-50/50 font-semibold';
+                    } else if (isFuture) {
+                      cls += ' bg-gray-50/50';
+                    }
+                    if (!isFuture && !isIneligible) {
+                      cls += count ? ' font-semibold' : ' text-gray-300';
+                    }
                     return (
-                      <td
-                        key={d}
-                        className={`text-center px-2 py-2.5 tabular-nums ${d === today ? 'bg-blue-50/50 font-semibold' : ''} ${count ? 'font-semibold' : 'text-gray-300'}`}
-                      >
-                        {count || '—'}
+                      <td key={d} className={cls}>
+                        {isIneligible ? '✕' : count || '—'}
                       </td>
                     );
                   })}
