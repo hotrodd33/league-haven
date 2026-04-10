@@ -13,6 +13,7 @@ import Standings from "./components/Standings.jsx";
 import TeamSchedule from "./components/TeamSchedule.jsx";
 import PitcherRest from "./components/PitcherRest.jsx";
 import PitchLog from "./components/PitchLog.jsx";
+import Directory from "./components/Directory.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, user, logout } = useAuth();
@@ -86,6 +87,12 @@ export default function App() {
                         >
                             Standings
                         </button>
+                        <button
+                            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "directory" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                            onClick={() => setPage("directory")}
+                        >
+                            Directory
+                        </button>
                         {isAdmin && (
                             <button
                                 className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "league" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
@@ -127,6 +134,7 @@ export default function App() {
                             { key: "rosters", label: "Rosters" },
                             { key: "schedule", label: "Schedule" },
                             { key: "standings", label: "Standings" },
+                            { key: "directory", label: "Directory" },
                             ...(isAdmin ? [{ key: "league", label: "League" }, { key: "users", label: "Users" }] : []),
                         ].map((item) => (
                             <button
@@ -167,6 +175,10 @@ export default function App() {
             ) : page === "standings" ? (
                 <main className="p-4 max-w-7xl mx-auto">
                     <Standings onBack={() => setPage("rosters")} onNavigateToTeam={navigateToTeam} />
+                </main>
+            ) : page === "directory" ? (
+                <main className="p-4 max-w-7xl mx-auto">
+                    <Directory />
                 </main>
             ) : (
                 <main className="flex flex-col md:flex-row min-h-[calc(100vh-56px)]">

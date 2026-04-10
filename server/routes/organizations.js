@@ -24,6 +24,50 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /directory — orgs with teams and staff contacts (public, read-only)
+router.get('/directory', async (req, res) => {
+  try {
+    const { rows: orgs } = await pool.query('SELECT * FROM organizations ORDER BY name');
+    const { rows: teams } = await pool.query(
+      `SELECT t.*, o.name AS org_name, o.logo_url AS org_logo
+       FROM teams t LEFT JOIN organizations o ON o.id = t.org_id
+       ORDER BY t.name`
+    );
+    const teamIds = teams.map(t => t.id);
+    let staffRows = [];
+    if (teamIds.length > 0) {
+      const { rows } = await pool.query(
+        `SELECT tsa.team_id, tsa.role, sm.name, sm.email, sm.phone
+         FROM team_staff_assignments tsa
+         JOIN staff_members sm ON sm.id = tsa.staff_id
+         WHERE tsa.team_id = ANY($1)
+         ORDER BY tsa.role, sm.name`, [teamIds]
+      );
+      staffRows = rows;
+    }
+    // Group staff by team
+    const staffByTeam = {};
+    for (const s of staffRows) {
+      if (!staffByTeam[s.team_id]) staffByTeam[s.team_id] = [];
+      staffByTeam[s.team_id].push(s);
+    }
+    // Group teams by org
+    const teamsByOrg = {};
+    for (const t of teams) {
+      if (!teamsByOrg[t.org_id]) teamsByOrg[t.org_id] = [];
+      teamsByOrg[t.org_id].push({ ...t, staff: staffByTeam[t.id] || [] });
+    }
+    const result = orgs.map(o => ({
+      ...o,
+      teams: teamsByOrg[o.id] || [],
+    }));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM organizations WHERE id = $1', [req.params.id]);

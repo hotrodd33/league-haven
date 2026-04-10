@@ -277,6 +277,10 @@ export async function fetchOrganizations() {
   return apiFetch('/organizations');
 }
 
+export async function fetchDirectory() {
+  return apiFetch('/organizations/directory');
+}
+
 export async function fetchOrganization(orgId) {
   return apiFetch(`/organizations/${orgId}`);
 }
