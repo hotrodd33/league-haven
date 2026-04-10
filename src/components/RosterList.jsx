@@ -173,12 +173,12 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">#</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Name</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Position</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Age</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Grade</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">DOB</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">B/T</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Parent Email</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Parent Phone</th>
+                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Age</th>}
+                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Grade</th>}
+                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">DOB</th>}
+                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">B/T</th>}
+                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Parent Email</th>}
+                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Parent Phone</th>}
                   {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Actions</th>}
                 </tr>
               </thead>
@@ -188,12 +188,12 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                     <td className="px-3 py-2 font-bold text-blue-800">{player.jersey_number ?? '—'}</td>
                     <td className="px-3 py-2 font-semibold">{player.first_name} {player.last_name}</td>
                     <td className="px-3 py-2">{formatPositions(player)}</td>
-                    <td className="px-3 py-2">{calcAge(player.date_of_birth)}</td>
-                    <td className="px-3 py-2">{player.grade || '—'}</td>
-                    <td className="px-3 py-2">{player.date_of_birth || '—'}</td>
-                    <td className="px-3 py-2">{formatBatThrow(player)}</td>
-                    <td className="px-3 py-2 break-all">{player.parent_email || '—'}</td>
-                    <td className="px-3 py-2">{player.parent_phone || '—'}</td>
+                    {editable && <td className="px-3 py-2">{calcAge(player.date_of_birth)}</td>}
+                    {editable && <td className="px-3 py-2">{player.grade || '—'}</td>}
+                    {editable && <td className="px-3 py-2">{player.date_of_birth || '—'}</td>}
+                    {editable && <td className="px-3 py-2">{formatBatThrow(player)}</td>}
+                    {editable && <td className="px-3 py-2 break-all">{player.parent_email || '—'}</td>}
+                    {editable && <td className="px-3 py-2">{player.parent_phone || '—'}</td>}
                     {editable && (
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex gap-1">
@@ -242,11 +242,11 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600">
                   <div><span className="font-medium text-gray-800">Pos:</span> {formatPositions(player)}</div>
-                  <div><span className="font-medium text-gray-800">B/T:</span> {formatBatThrow(player)}</div>
-                  <div><span className="font-medium text-gray-800">Age:</span> {calcAge(player.date_of_birth)}</div>
-                  <div><span className="font-medium text-gray-800">Grade:</span> {player.grade || '—'}</div>
-                  {player.parent_email && <div className="col-span-2 truncate"><span className="font-medium text-gray-800">Email:</span> {player.parent_email}</div>}
-                  {player.parent_phone && <div className="col-span-2"><span className="font-medium text-gray-800">Phone:</span> {player.parent_phone}</div>}
+                  {editable && <div><span className="font-medium text-gray-800">B/T:</span> {formatBatThrow(player)}</div>}
+                  {editable && <div><span className="font-medium text-gray-800">Age:</span> {calcAge(player.date_of_birth)}</div>}
+                  {editable && <div><span className="font-medium text-gray-800">Grade:</span> {player.grade || '—'}</div>}
+                  {editable && player.parent_email && <div className="col-span-2 truncate"><span className="font-medium text-gray-800">Email:</span> {player.parent_email}</div>}
+                  {editable && player.parent_phone && <div className="col-span-2"><span className="font-medium text-gray-800">Phone:</span> {player.parent_phone}</div>}
                 </div>
               </div>
             ))}
