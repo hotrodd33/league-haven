@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  /* Baseball Navy */
+  --color-blue-50: #ebf0f7;
+  --color-blue-100: #d4e1f0;
+  --color-blue-200: #abc3df;
+  --color-blue-300: #82a3ca;
+  --color-blue-400: #5a83b4;
+  --color-blue-500: #3b6396;
+  --color-blue-600: #2e4d7a;
+  --color-blue-700: #243a60;
+  --color-blue-800: #1b2a4a;
+  --color-blue-900: #0f1b33;
+  --color-blue-950: #080e1c;
+
+  /* Warm Neutrals */
+  --color-gray-50: #faf8f5;
+  --color-gray-100: #f2efe9;
+  --color-gray-200: #e4dfd7;
+  --color-gray-300: #cfc8bd;
+  --color-gray-400: #a9a198;
+  --color-gray-500: #837b73;
+  --color-gray-600: #615a54;
+  --color-gray-700: #46413c;
+  --color-gray-800: #2d2925;
+  --color-gray-900: #191715;
+  --color-gray-950: #0d0c0b;
+
+  /* Baseball Red */
+  --color-baseball-50: #fef2f3;
+  --color-baseball-100: #fde3e5;
+  --color-baseball-200: #fbc8cc;
+  --color-baseball-300: #f89da4;
+  --color-baseball-400: #f06570;
+  --color-baseball-500: #e63946;
+  --color-baseball-600: #c41e3a;
+  --color-baseball-700: #a51830;
+  --color-baseball-800: #891828;
+  --color-baseball-900: #751a28;
+  --color-baseball-950: #410910;
+
+  /* Heading Font */
+  --font-heading: 'Oswald', sans-serif;
+}
