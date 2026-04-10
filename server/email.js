@@ -1,26 +1,22 @@
-const { Resend } = require('resend');
+const sgMail = require('@sendgrid/mail');
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
 
 const FROM_EMAIL = process.env.FROM_EMAIL || 'ZVBL <noreply@zvbl.org>';
 const APP_URL = process.env.APP_URL || 'https://portal.zvbl.org';
 
 async function sendEmail({ to, subject, html }) {
-  if (!resend) {
-    console.warn('[EMAIL] RESEND_API_KEY not set — email not sent:', { to, subject });
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn('[EMAIL] SENDGRID_API_KEY not set — email not sent:', { to, subject });
     return null;
   }
   try {
-    const { data, error } = await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
-    if (error) {
-      console.error('[EMAIL] Send failed:', error);
-      return null;
-    }
-    return data;
+    const result = await sgMail.send({ from: FROM_EMAIL, to, subject, html });
+    return result;
   } catch (err) {
-    console.error('[EMAIL] Error:', err);
+    console.error('[EMAIL] Send failed:', err?.response?.body || err);
     return null;
   }
 }

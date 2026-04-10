@@ -10,6 +10,7 @@
     "dev:all": "concurrently \"npm run server\" \"npm run dev\""
   },
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "@tailwindcss/vite": "^4.2.2",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -22,7 +23,6 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-leaflet": "^5.0.0",
-    "resend": "^6.10.0",
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
