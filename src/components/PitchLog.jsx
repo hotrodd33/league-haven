@@ -27,7 +27,22 @@ export default function PitchLog({ teamId }) {
   if (error) return <div className="mt-6 text-sm text-red-600 text-center py-4">{error}</div>;
   if (!data) return null;
 
-  const { players, today } = data;
+  const { players, today, rules } = data;
+
+  // Rest-day calculator from rules thresholds
+  function getRestDays(pitchCount) {
+    if (!rules || !rules.rest_thresholds) return 0;
+    for (const t of rules.rest_thresholds) {
+      if (pitchCount >= t.min) return t.days;
+    }
+    return 0;
+  }
+
+  function addDays(dateStr, n) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    return d.toISOString().split('T')[0];
+  }
 
   // Build array of dates: today-6 … today … today+3
   const dates = [];
@@ -37,7 +52,7 @@ export default function PitchLog({ teamId }) {
     dates.push(d.toISOString().split('T')[0]);
   }
 
-  // Build a lookup: playerId → { [date]: pitchCount }, plus ineligible future dates
+  // Build per-pitcher lookup with rest days and violations computed for ALL days
   const pitchers = players
     .filter(p => p.pitches_last_7 > 0)
     .map(p => {
@@ -45,21 +60,36 @@ export default function PitchLog({ teamId }) {
       for (const day of p.last_7_days) {
         byDate[day.date] = day.total_pitches;
       }
-      // Determine ineligible dates from available_date
-      const ineligibleDates = new Set();
-      const avail = p.available_date || p.next_available_after_today;
-      if (avail && avail > today) {
-        // Mark every day from tomorrow up to (but not including) available_date
-        const start = new Date(today + 'T00:00:00');
-        const end = new Date(avail + 'T00:00:00');
-        const cur = new Date(start);
-        cur.setDate(cur.getDate() + 1); // start from tomorrow
-        while (cur < end) {
-          ineligibleDates.add(cur.toISOString().split('T')[0]);
-          cur.setDate(cur.getDate() + 1);
+
+      // Compute rest periods from every pitching day in the visible window
+      // restDates = dates where this pitcher should be resting
+      const restDates = new Set();
+      // violations = dates where they pitched while they should have been resting
+      const violationDates = new Set();
+
+      // Sort pitching days chronologically to walk forward
+      const pitchDays = Object.keys(byDate).sort();
+      for (const pd of pitchDays) {
+        const rest = getRestDays(byDate[pd]);
+        for (let d = 1; d <= rest; d++) {
+          restDates.add(addDays(pd, d));
         }
       }
-      return { ...p, byDate, ineligibleDates };
+
+      // Check for violations: pitched on a rest day
+      for (const pd of pitchDays) {
+        if (restDates.has(pd)) {
+          violationDates.add(pd);
+        }
+      }
+
+      // Future ineligible dates (rest still owed from most recent pitching)
+      const futureRestDates = new Set();
+      for (const rd of restDates) {
+        if (rd > today) futureRestDates.add(rd);
+      }
+
+      return { ...p, byDate, restDates, violationDates, futureRestDates };
     });
 
   if (pitchers.length === 0) return null;
@@ -110,21 +140,30 @@ export default function PitchLog({ teamId }) {
                     const count = p.byDate[d];
                     const isFuture = d > today;
                     const isToday = d === today;
-                    const isIneligible = isFuture && p.ineligibleDates.has(d);
+                    const isRest = p.restDates.has(d);
+                    const isViolation = p.violationDates.has(d);
+                    const isFutureRest = isFuture && p.futureRestDates.has(d);
+
                     let cls = 'text-center px-2 py-2.5 tabular-nums';
-                    if (isIneligible) {
+                    if (isViolation) {
+                      // Pitched on a rest day — dark red outline + background
+                      cls += ' bg-red-200 text-red-900 font-bold ring-2 ring-inset ring-red-700';
+                    } else if (isFutureRest) {
+                      // Future rest day — red background
                       cls += ' bg-red-100 text-red-600 font-semibold';
+                    } else if (isRest && !count) {
+                      // Past rest day, correctly rested — light highlight
+                      cls += ' bg-red-50 text-red-400';
                     } else if (isToday) {
                       cls += ' bg-blue-50/50 font-semibold';
                     } else if (isFuture) {
                       cls += ' bg-gray-50/50';
-                    }
-                    if (!isFuture && !isIneligible) {
+                    } else {
                       cls += count ? ' font-semibold' : ' text-gray-300';
                     }
                     return (
                       <td key={d} className={cls}>
-                        {isIneligible ? '✕' : count || '—'}
+                        {isFutureRest ? '✕' : isRest && !count ? '⏸' : count || '—'}
                       </td>
                     );
                   })}
