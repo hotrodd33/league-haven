@@ -309,7 +309,7 @@ router.post('/import', authMiddleware, requireAdmin, async (req, res) => {
 router.get('/export', async (req, res) => {
   try {
     const { rows: teams } = await pool.query(
-      `SELECT t.name AS team_name, o.name AS org_name, t.age_group, t.level
+      `SELECT t.id, t.name AS team_name, o.name AS org_name, t.age_group, t.level
        FROM teams t LEFT JOIN organizations o ON o.id = t.org_id
        ORDER BY o.name, t.name`
     );
@@ -317,7 +317,6 @@ router.get('/export', async (req, res) => {
     const { rows: divRows } = await pool.query(
       `SELECT td.team_id, ld.name FROM team_divisions td
        JOIN league_divisions ld ON ld.id = td.division_id
-       JOIN teams t ON t.id = td.team_id
        ORDER BY td.team_id, ld.sort_order, ld.name`
     );
     const divMap = {};
@@ -326,17 +325,9 @@ router.get('/export', async (req, res) => {
       divMap[r.team_id].push(r.name);
     }
 
-    // Get team IDs in order
-    const { rows: teamIds } = await pool.query(
-      'SELECT id, name FROM teams ORDER BY name'
-    );
-    const teamIdMap = {};
-    for (const t of teamIds) teamIdMap[t.name] = t.id;
-
     const csvLines = ['team_name,org_name,age_group,level,division'];
     for (const t of teams) {
-      const tid = teamIdMap[t.team_name];
-      const divs = divMap[tid] ? divMap[tid].join('; ') : '';
+      const divs = divMap[t.id] ? divMap[t.id].join('; ') : '';
       csvLines.push([t.team_name, t.org_name || '', t.age_group || '', t.level || '', divs].map(v => `"${v.replace(/"/g, '""')}"`).join(','));
     }
     res.setHeader('Content-Type', 'text/csv');
