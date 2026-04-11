@@ -100,10 +100,23 @@ async function buildPlayerLookup(teamId) {
   return lookup;
 }
 
-function matchPlayer(name, playerLookup) {
+function matchPlayer(name, jersey, playerLookup) {
   if (!name) return null;
   const clean = name.replace(/\s+/g, ' ').trim().toLowerCase();
+
+  // Exact full name match
   if (playerLookup[clean]) return playerLookup[clean];
+
+  // Jersey number match (most reliable for GC data)
+  if (jersey && playerLookup[`#${jersey}`]) return playerLookup[`#${jersey}`];
+
+  // GC uses "F LastName" — try matching "firstInitial. lastname"
+  const parts = clean.split(' ');
+  if (parts.length >= 2 && parts[0].length === 1) {
+    // Try "F. LastName" format in lookup
+    const initialDot = `${parts[0]}. ${parts.slice(1).join(' ')}`;
+    if (playerLookup[initialDot]) return playerLookup[initialDot];
+  }
 
   // Try "Last, First" → "First Last"
   const commaMatch = clean.match(/^(.+?),\s*(.+)$/);
@@ -112,8 +125,7 @@ function matchPlayer(name, playerLookup) {
     if (playerLookup[flipped]) return playerLookup[flipped];
   }
 
-  // Try last name only
-  const parts = clean.split(' ');
+  // Try last name only (unambiguous)
   const lastName = parts[parts.length - 1];
   if (playerLookup[lastName] && playerLookup[lastName] !== null) return playerLookup[lastName];
 
@@ -201,20 +213,29 @@ async function buildBoxScorePreview(parsed) {
     }
   }
 
-  // Pitching rows
+  // Pitching rows — show jersey, pitch count, match status
   for (const side of ['away', 'home']) {
     const teamName = side === 'away' ? gameInfo.awayTeam : gameInfo.homeTeam;
+    const teamId = side === 'away' ? teamLookup[(gameInfo.awayTeam || '').toLowerCase()] : teamLookup[(gameInfo.homeTeam || '').toLowerCase()];
+    const playerLookup = teamId ? await buildPlayerLookup(teamId) : {};
+
     for (const p of pitching[side]) {
+      const matched = matchPlayer(p.name, p.jersey, playerLookup);
+      const matchLabel = matched ? '✓ Matched' : '+ New player';
+      const jerseyLabel = p.jersey ? `#${p.jersey}` : '';
+
       rows.push({
         type: 'Pitching',
         team: teamName || side,
-        player: `${p.name}${p.decision ? ` (${p.decision})` : ''}`,
+        player: `${p.name} ${jerseyLabel}`.trim(),
         stat_line: [
+          p.pitches != null ? `${p.pitches} pitches` : null,
+          p.strikes != null ? `${p.strikes} strikes` : null,
           p.ip != null ? `${p.ip} IP` : null,
           p.k != null ? `${p.k} K` : null,
           p.bb != null ? `${p.bb} BB` : null,
           p.er != null ? `${p.er} ER` : null,
-          p.pitches != null ? `${p.pitches} pitches` : null,
+          matchLabel,
         ].filter(Boolean).join(', '),
       });
     }
@@ -463,52 +484,65 @@ async function importBoxScore(req, res, opts) {
 
   // ── Match and import pitching data (pitch counts) ──
   if (gameId) {
-    // Build player lookups for both teams
-    const awayPlayers = awayTeamId ? await buildPlayerLookup(awayTeamId) : {};
-    const homePlayers = homeTeamId ? await buildPlayerLookup(homeTeamId) : {};
+    const sides = [
+      { pitchers: pitching.away, teamId: awayTeamId, label: 'Away' },
+      { pitchers: pitching.home, teamId: homeTeamId, label: 'Home' },
+    ];
 
-    // Process away pitchers
-    for (const pitcher of pitching.away) {
-      const player = matchPlayer(pitcher.name, awayPlayers);
-      if (!player) {
-        results.errors.push(`Away pitcher "${pitcher.name}" not matched to a player`);
-        results.skipped++;
-        continue;
+    for (const side of sides) {
+      if (!side.teamId) continue;
+      // Rebuild lookup each iteration so newly-created players are visible
+      let playerLookup = await buildPlayerLookup(side.teamId);
+
+      for (const pitcher of side.pitchers) {
+        let player = matchPlayer(pitcher.name, pitcher.jersey, playerLookup);
+
+        // Auto-create player if not found
+        if (!player && pitcher.name) {
+          const firstName = pitcher.firstName || pitcher.name.split(' ')[0] || '';
+          const lastName = pitcher.lastName || pitcher.name.split(' ').slice(1).join(' ') || '';
+          try {
+            const { rows: newP } = await pool.query(
+              `INSERT INTO players (first_name, last_name) VALUES ($1, $2) RETURNING id`,
+              [firstName, lastName]
+            );
+            const newId = newP[0].id;
+            const jerseyNum = pitcher.jersey ? parseInt(pitcher.jersey) : null;
+            await pool.query(
+              `INSERT INTO team_players (team_id, player_id, jersey_number)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (team_id, player_id) DO UPDATE SET jersey_number = $3`,
+              [side.teamId, newId, jerseyNum]
+            );
+            player = { id: newId, jersey: jerseyNum };
+            results.created++;
+            // Refresh lookup so jersey/name is available for subsequent pitchers
+            playerLookup = await buildPlayerLookup(side.teamId);
+          } catch (err) {
+            results.errors.push(`Could not create player "${pitcher.name}": ${err.message}`);
+            results.skipped++;
+            continue;
+          }
+        }
+
+        if (!player) {
+          results.errors.push(`${side.label} pitcher "${pitcher.name}" could not be matched or created`);
+          results.skipped++;
+          continue;
+        }
+
+        const pitchCount = pitcher.pitches ?? null;
+        const ip = pitcher.ip != null ? String(pitcher.ip) : null;
+
+        if (pitchCount == null && ip == null) {
+          results.skipped++;
+          continue;
+        }
+
+        await upsertPitchCount(gameId, player.id, side.teamId, pitchCount, ip, overwrite);
+        results.stats++;
+        results.players++;
       }
-
-      const pitchCount = pitcher.pitches ?? pitcher.np ?? null;
-      const ip = pitcher.ip != null ? String(pitcher.ip) : null;
-
-      if (pitchCount == null && ip == null) {
-        results.skipped++;
-        continue;
-      }
-
-      await upsertPitchCount(gameId, player.id, awayTeamId, pitchCount, ip, overwrite);
-      results.stats++;
-      results.players++;
-    }
-
-    // Process home pitchers
-    for (const pitcher of pitching.home) {
-      const player = matchPlayer(pitcher.name, homePlayers);
-      if (!player) {
-        results.errors.push(`Home pitcher "${pitcher.name}" not matched to a player`);
-        results.skipped++;
-        continue;
-      }
-
-      const pitchCount = pitcher.pitches ?? pitcher.np ?? null;
-      const ip = pitcher.ip != null ? String(pitcher.ip) : null;
-
-      if (pitchCount == null && ip == null) {
-        results.skipped++;
-        continue;
-      }
-
-      await upsertPitchCount(gameId, player.id, homeTeamId, pitchCount, ip, overwrite);
-      results.stats++;
-      results.players++;
     }
   }
 
