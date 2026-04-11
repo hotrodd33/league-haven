@@ -2,9 +2,8 @@
    GameChanger Box Score Parser
    ═══════════════════════════════════════════════════════
    Parses box score data from:
-   - PDF files (via pdf-parse text extraction)
+   - PDF files (via unpdf — WASM-based, serverless-safe)
    - Raw text (pasted from the GC box score web page)
-   - HTML (fetched from a GC URL, text extracted)
    
    GameChanger box scores typically contain:
    - Game header: Teams, date, location, final score
@@ -13,10 +12,6 @@
    - Pitching stats per team (IP, H, R, ER, BB, K, etc.)
    - Sometimes pitch counts per pitcher
    ═══════════════════════════════════════════════════════ */
-
-// pdf-parse is loaded lazily inside parseBoxScorePDF() to avoid crashing
-// Vercel serverless — the module eagerly loads @napi-rs/canvas which is
-// unavailable in that environment and would kill the entire process on startup.
 
 /**
  * Parse box score from raw text (pasted from GC web page, or extracted from PDF).
@@ -56,9 +51,10 @@ function parseBoxScoreText(text) {
 async function parseBoxScorePDF(buffer) {
   let text;
   try {
-    const pdfParse = require('pdf-parse');
-    const data = await pdfParse(buffer);
-    text = data.text;
+    // unpdf uses a WASM build of pdf.js — no native deps, works on Vercel serverless
+    const { extractText } = await import('unpdf');
+    const result = await extractText(new Uint8Array(buffer));
+    text = result.text;
   } catch (err) {
     throw new Error(
       'Could not extract text from this PDF. GameChanger PDFs often use encoded content ' +
