@@ -196,7 +196,7 @@ function OrgForm({ org, onDone, onCancel }) {
                   <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                 </label>
                 {logoPreview && (
-                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-400 rounded hover:bg-red-200 w-fit">Remove</button>
+                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-900/35 text-red-300 rounded hover:bg-red-800/60 w-fit">Remove</button>
                 )}
                 <p className="text-xs text-gray-400">Max 500 KB. PNG, JPEG, GIF, WebP, or SVG.</p>
               </div>

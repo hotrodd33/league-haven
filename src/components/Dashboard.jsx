@@ -203,7 +203,7 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
             </h3>
             <button
               onClick={() => onNavigate?.('schedule')}
-              className="text-xs font-semibold text-field-700 hover:text-field-800 transition-colors flex items-center gap-1"
+              className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
             >
               View All <span aria-hidden="true">→</span>
             </button>
@@ -342,7 +342,7 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
             </h3>
             <button
               onClick={() => onNavigate?.('standings')}
-              className="text-xs font-semibold text-field-700 hover:text-field-800 transition-colors flex items-center gap-1"
+              className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
             >
               Standings <span aria-hidden="true">→</span>
             </button>
@@ -384,8 +384,8 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
       <section aria-label="Data import">
         <Card variant="dirt" className="overflow-hidden">
           <div className="flex flex-col sm:flex-row items-center gap-6 p-6 sm:p-8">
-            <div className="shrink-0 w-16 h-16 rounded-2xl bg-dirt-100 flex items-center justify-center">
-              <ArrowUpTrayIcon className="w-8 h-8 text-dirt-700" />
+            <div className="shrink-0 w-16 h-16 rounded-2xl bg-dirt-900/30 flex items-center justify-center">
+              <ArrowUpTrayIcon className="w-8 h-8 text-dirt-300" />
             </div>
             <div className="flex-1 text-center sm:text-left">
               <h3 className="font-heading text-lg font-bold text-gray-100">

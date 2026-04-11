@@ -85,13 +85,13 @@ export default function PlayerMapper({
                     'rounded-xl border p-4 transition-colors',
                     isNew
                       ? 'border-amber-300 bg-amber-50/50'
-                      : 'border-field-300 bg-field-50/50'
+                      : 'border-field-700 bg-field-900/20'
                   )}
                 >
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm',
-                      isNew ? 'bg-amber-100 text-amber-600' : 'bg-field-100 text-field-600'
+                      isNew ? 'bg-amber-100 text-amber-600' : 'bg-field-900/30 text-field-600'
                     )}>
                       {isNew ? '+' : '✓'}
                     </div>

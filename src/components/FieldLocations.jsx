@@ -149,7 +149,7 @@ export default function FieldLocations({ orgId, orgName }) {
                       onClick={() => handleRowClick(loc)}
                       className={`
                         ${hasPin ? 'cursor-pointer hover:bg-blue-900/30' : ''}
-                        ${isHighlighted ? 'bg-blue-100 shadow-[inset_3px_0_0] shadow-blue-600' : ''}
+                        ${isHighlighted ? 'bg-blue-900/30 shadow-[inset_3px_0_0] shadow-blue-500' : ''}
                         transition-colors
                       `}
                     >

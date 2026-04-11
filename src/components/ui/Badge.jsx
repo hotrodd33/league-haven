@@ -33,9 +33,9 @@ export default function Badge({
         <span
           className={cn(
             'w-1.5 h-1.5 rounded-full',
-            variant === 'success' && 'bg-field-500',
-            variant === 'warning' && 'bg-dirt-500',
-            variant === 'danger' && 'bg-baseball-500',
+            variant === 'success' && 'bg-field-900/200',
+            variant === 'warning' && 'bg-dirt-900/200',
+            variant === 'danger' && 'bg-baseball-900/300',
             variant === 'info' && 'bg-blue-500',
             variant === 'neutral' && 'bg-gray-400',
           )}

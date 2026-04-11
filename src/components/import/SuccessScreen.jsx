@@ -17,7 +17,7 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
     <div className="flex flex-col items-center py-8 space-y-8 animate-fade-in">
       {/* Celebration */}
       <div className="relative">
-        <div className="w-20 h-20 rounded-full bg-field-100 flex items-center justify-center animate-scale-in">
+        <div className="w-20 h-20 rounded-full bg-field-900/30 flex items-center justify-center animate-scale-in">
           <span className="text-4xl" aria-hidden="true">🎉</span>
         </div>
         {/* Sparkle accents */}
@@ -36,7 +36,7 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
 
       {/* Summary stats */}
       {(summary.players > 0 || summary.games > 0 || summary.stats > 0) && (
-        <div className="w-full bg-field-50 rounded-xl border border-field-200 p-5">
+        <div className="w-full bg-field-900/20 rounded-xl border border-field-700 p-5">
           <div className="flex flex-wrap justify-center gap-4">
             {summary.players > 0 && (
               <SummaryStat icon="👤" value={summary.players} label="Players" />
@@ -59,8 +59,8 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
           </div>
 
           {summary.message && (
-            <p className="mt-4 text-center text-xs text-field-800 font-medium bg-field-100/60 rounded-lg px-3 py-2">
-              {summary.message}
+            <p className="mt-4 text-center text-xs text-field-200 font-medium bg-field-900/60 rounded-lg px-3 py-2">
+                {summary.message}
             </p>
           )}
         </div>
@@ -143,7 +143,7 @@ function NextAction({ icon, label, description, onClick }) {
       onClick={onClick}
       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-700 bg-gray-800 hover:bg-gray-900 hover:border-gray-600 transition-all text-left"
     >
-      <div className="w-8 h-8 rounded-lg bg-field-50 flex items-center justify-center text-field-600 shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-field-900/20 flex items-center justify-center text-field-600 shrink-0">
         {icon}
       </div>
       <div className="flex-1 min-w-0">

@@ -206,8 +206,8 @@ export default function DataManager() {
                 </div>
                 {result.errors?.length > 0 && (
                   <div className="bg-yellow-900/30 border border-yellow-200 rounded-lg p-3">
-                    <div className="text-xs font-semibold text-yellow-700 mb-1">Warnings ({result.errors.length})</div>
-                    <div className="text-xs text-yellow-700 max-h-40 overflow-y-auto space-y-0.5">
+                    <div className="text-xs font-semibold text-yellow-300 mb-1">Warnings ({result.errors.length})</div>
+                    <div className="text-xs text-yellow-300 max-h-40 overflow-y-auto space-y-0.5">
                       {result.errors.map((e, i) => <div key={i}>{e}</div>)}
                     </div>
                   </div>
@@ -273,7 +273,7 @@ export default function DataManager() {
                       </div>
                     ) : (
                       <button onClick={() => { setClearConfirm(idx); setClearResult(null); }}
-                        className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-400 rounded hover:bg-red-200"
+                        className="px-3 py-1.5 text-xs font-semibold bg-red-900/35 text-red-300 rounded hover:bg-red-800/60"
                       >Clear</button>
                     )}
                   </div>

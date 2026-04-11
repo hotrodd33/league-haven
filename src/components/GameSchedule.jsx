@@ -24,9 +24,9 @@ const STATUS_OPTIONS = [
 
 const STATUS_COLORS = {
   scheduled: 'bg-blue-900/40 text-blue-200',
-  in_progress: 'bg-yellow-100 text-yellow-800',
-  completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-400',
+  in_progress: 'bg-yellow-900/35 text-yellow-300',
+  completed: 'bg-green-900/35 text-green-300',
+  cancelled: 'bg-red-900/35 text-red-300',
   postponed: 'bg-gray-700 text-gray-300',
 };
 
@@ -259,7 +259,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                               </span>
                               {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                                 <button onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
-                                  className="px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">⚾ Track</button>
+                                  className="px-2 py-1 text-xs font-semibold bg-yellow-900/35 text-yellow-300 rounded hover:bg-yellow-800/60">⚾ Track</button>
                               )}
                               {isAdmin && (
                                 <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -303,7 +303,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                           <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
                             {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                               <button onClick={() => setTrackingGameId(game.id)}
-                                className="px-2.5 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">⚾ Track</button>
+                                className="px-2.5 py-1 text-xs font-semibold bg-yellow-900/35 text-yellow-300 rounded hover:bg-yellow-800/60">⚾ Track</button>
                             )}
                             {isAdmin && (
                               <>

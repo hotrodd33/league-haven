@@ -16,9 +16,9 @@ const btnDanger = "px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded
 
 const STATUS_COLORS = {
   scheduled: 'bg-blue-900/40 text-blue-200',
-  in_progress: 'bg-yellow-100 text-yellow-800',
-  completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-400',
+  in_progress: 'bg-yellow-900/35 text-yellow-300',
+  completed: 'bg-green-900/35 text-green-300',
+  cancelled: 'bg-red-900/35 text-red-300',
   postponed: 'bg-gray-700 text-gray-300',
 };
 
@@ -480,10 +480,10 @@ function PitchCountSection({
                     const availDate = availableDate(restDays);
                     return (
                       <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
-                        restDays >= 3 ? 'bg-red-100 text-red-400' :
+                        restDays >= 3 ? 'bg-red-900/35 text-red-300' :
                         restDays >= 2 ? 'bg-orange-100 text-orange-700' :
-                        restDays >= 1 ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-green-100 text-green-400'
+                        restDays >= 1 ? 'bg-yellow-900/35 text-yellow-300' :
+                        'bg-green-900/35 text-green-300'
                       }`}
                         title={availDate ? `Available ${availDate}` : 'No rest required'}
                       >
@@ -547,7 +547,7 @@ function PitchCountSection({
 
             {/* Eligibility info for eligible player */}
             {selectedElig && selectedElig.eligible && selectedElig.today_pitches > 0 && (
-              <div className="mt-2 bg-yellow-900/30 border border-yellow-200 text-yellow-800 text-xs rounded-lg px-3 py-2">
+              <div className="mt-2 bg-yellow-900/30 border border-yellow-200 text-yellow-300 text-xs rounded-lg px-3 py-2">
                 Already threw {selectedElig.today_pitches} pitches today in another game. Remaining: {selectedElig.remaining_today}
               </div>
             )}

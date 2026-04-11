@@ -19,9 +19,9 @@ const ROLE_LABELS = {
 };
 
 const ROLE_COLORS = {
-  super_admin: 'bg-purple-100 text-purple-800',
+  super_admin: 'bg-purple-900/35 text-purple-200',
   org_admin: 'bg-blue-900/40 text-blue-200',
-  team_manager: 'bg-green-100 text-green-800',
+  team_manager: 'bg-green-900/35 text-green-300',
   score_reporter: 'bg-gray-800 text-gray-300',
 };
 
@@ -131,7 +131,7 @@ export default function UserManager({ onBack }) {
                         )}
                         {u.email && (
                           <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
-                            className={`${btnSm} bg-green-100 text-green-800 hover:bg-green-200`}>
+                            className={`${btnSm} bg-green-900/35 text-green-300 hover:bg-green-800/60`}>
                             {inviting === u.id ? '…' : 'Invite'}
                           </button>
                         )}
@@ -173,7 +173,7 @@ export default function UserManager({ onBack }) {
                   )}
                   {u.email && (
                     <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
-                      className={`${btnSm} bg-green-100 text-green-800 hover:bg-green-200`}>
+                      className={`${btnSm} bg-green-900/35 text-green-300 hover:bg-green-800/60`}>
                       {inviting === u.id ? '…' : 'Invite'}
                     </button>
                   )}

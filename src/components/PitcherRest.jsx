@@ -14,9 +14,9 @@ function formatDayOfWeek(dateStr) {
 }
 
 const STATUS_BADGE = {
-  available: 'bg-green-100 text-green-400',
-  resting: 'bg-yellow-100 text-yellow-800',
-  unavailable: 'bg-red-100 text-red-400',
+  available: 'bg-green-900/35 text-green-300',
+  resting: 'bg-yellow-900/35 text-yellow-300',
+  unavailable: 'bg-red-900/35 text-red-300',
 };
 
 export default function PitcherRest({ teamId }) {

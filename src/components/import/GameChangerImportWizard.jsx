@@ -480,9 +480,9 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
         }
         if (parseError) {
           return (
-            <div className="bg-baseball-50 rounded-xl border border-baseball-200 p-6 text-center">
+            <div className="bg-baseball-900/30 rounded-xl border border-baseball-700 p-6 text-center">
               <p className="text-3xl mb-3 opacity-60">⚠️</p>
-              <p className="text-sm font-semibold text-baseball-700">{parseError}</p>
+              <p className="text-sm font-semibold text-baseball-300">{parseError}</p>
               <Button
                 size="sm"
                 variant="secondary"
@@ -539,8 +539,8 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
           <>
             <ImportProgress progress={progress} status={progressStatus} />
             {importError && (
-              <div className="mt-4 bg-baseball-50 rounded-xl border border-baseball-200 p-4 text-center">
-                <p className="text-sm font-semibold text-baseball-700">{importError}</p>
+              <div className="mt-4 bg-baseball-900/30 rounded-xl border border-baseball-700 p-4 text-center">
+                <p className="text-sm font-semibold text-baseball-300">{importError}</p>
                 <Button
                   size="sm"
                   variant="danger"
@@ -587,7 +587,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0 bg-gray-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-field-100 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-field-900/30 flex items-center justify-center">
               <ArrowUpTrayIcon className="w-4 h-4 text-field-600" />
             </div>
             <div>
@@ -681,7 +681,7 @@ function StepIndicator({ steps, current }) {
             {i > 0 && (
               <div className={cn(
                 'flex-1 h-0.5 rounded-full transition-colors duration-300',
-                isPast ? 'bg-field-500' : 'bg-gray-700',
+                isPast ? 'bg-field-900/200' : 'bg-gray-700',
               )} />
             )}
             <div
@@ -693,7 +693,7 @@ function StepIndicator({ steps, current }) {
               <div className={cn(
                 'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-300',
                 isCurrent && 'bg-field-600 text-white shadow-glow-green scale-110',
-                isPast && 'bg-field-100 text-field-700',
+                isPast && 'bg-field-900/30 text-field-300',
                 !isCurrent && !isPast && 'bg-gray-800 text-gray-400',
               )}>
                 {isPast ? (
@@ -706,7 +706,7 @@ function StepIndicator({ steps, current }) {
               </div>
               <span className={cn(
                 'text-[10px] font-semibold hidden sm:inline whitespace-nowrap',
-                isCurrent ? 'text-field-700' : isPast ? 'text-gray-400' : 'text-gray-400',
+                isCurrent ? 'text-field-300' : isPast ? 'text-gray-400' : 'text-gray-400',
               )}>
                 {s.label}
               </span>

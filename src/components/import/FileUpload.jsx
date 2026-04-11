@@ -205,7 +205,7 @@ export default function FileUpload({
               className={cn(
                 'relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer',
                 dragActive
-                  ? 'border-field-500 bg-field-50 shadow-glow-green'
+                  ? 'border-field-500 bg-field-900/20 shadow-glow-green'
                   : 'border-gray-600 bg-gray-800 hover:border-field-400 hover:bg-gray-900',
               )}
               onClick={() => inputRef.current?.click()}
@@ -225,7 +225,7 @@ export default function FileUpload({
 
               <div className={cn(
                 'w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center transition-colors',
-                dragActive ? 'bg-field-100 text-field-600' : 'bg-gray-800 text-gray-400',
+                dragActive ? 'bg-field-900/30 text-field-600' : 'bg-gray-800 text-gray-400',
               )}>
                 <ArrowUpTrayIcon className="w-7 h-7" />
               </div>
@@ -234,7 +234,7 @@ export default function FileUpload({
                 {dragActive ? 'Drop your file here' : 'Drag & drop your file here'}
               </p>
               <p className="mt-1 text-xs text-gray-400">
-                or <span className="text-field-700 font-medium underline">browse files</span>
+                or <span className="text-field-300 font-medium underline">browse files</span>
               </p>
               <p className="mt-3 text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
                 CSV · ICS · TXT · TSV · PDF
@@ -243,7 +243,7 @@ export default function FileUpload({
           ) : (
             <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-card p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-field-50 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-field-900/20 flex items-center justify-center shrink-0">
                   <ArrowUpTrayIcon className="w-5 h-5 text-field-600" />
                 </div>
                 <div className="flex-1 min-w-0">

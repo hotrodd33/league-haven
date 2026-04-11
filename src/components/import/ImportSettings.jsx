@@ -124,7 +124,7 @@ function SettingToggle({ label, description, checked, onChange }) {
       className={cn(
         'w-full flex items-start gap-3 p-4 rounded-xl border text-left transition-all duration-150',
         checked
-          ? 'border-field-200 bg-field-50/50'
+          ? 'border-field-700 bg-field-900/20'
           : 'border-gray-700 bg-gray-800 hover:bg-gray-900',
       )}
     >

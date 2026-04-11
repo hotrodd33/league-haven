@@ -7,9 +7,9 @@ import TeamLogo from './TeamLogo.jsx';
 
 const STATUS_COLORS = {
   scheduled: 'bg-blue-900/40 text-blue-200',
-  in_progress: 'bg-yellow-100 text-yellow-800',
-  completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-400',
+  in_progress: 'bg-yellow-900/35 text-yellow-300',
+  completed: 'bg-green-900/35 text-green-300',
+  cancelled: 'bg-red-900/35 text-red-300',
   postponed: 'bg-gray-700 text-gray-300',
 };
 
@@ -123,7 +123,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                     {canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
-                        className="text-xs font-semibold px-2 py-1 rounded bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"
+                        className="text-xs font-semibold px-2 py-1 rounded bg-yellow-900/35 text-yellow-300 hover:bg-yellow-800/60 transition-colors"
                         title="Live pitch tracker"
                       >
                         ⚾ Track

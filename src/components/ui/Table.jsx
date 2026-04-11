@@ -49,7 +49,7 @@ export function TableRow({ className, highlight, children, ...props }) {
     <tr
       className={cn(
         'hover:bg-gray-900/50 transition-colors',
-        highlight && 'bg-field-50/50',
+        highlight && 'bg-field-900/20',
         className,
       )}
       {...props}

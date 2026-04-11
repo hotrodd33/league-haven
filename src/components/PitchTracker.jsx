@@ -249,7 +249,7 @@ export default function PitchTracker({ gameId, onBack }) {
           <svg className="w-12 h-12 text-green-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <h2 className="text-xl font-bold text-green-800 mb-2">Game Finalized</h2>
+          <h2 className="text-xl font-bold text-green-300 mb-2">Game Finalized</h2>
           <p className="text-sm text-green-400 mb-1">
             {game.home_team_name} {homeScore} – {awayScore} {game.away_team_name}
           </p>
@@ -454,7 +454,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                 <div className="flex items-center gap-0 shrink-0">
                   <button
                     onClick={() => adjustCount(p.side, p.playerId, -1)}
-                    className="w-10 h-10 rounded-l-lg bg-red-100 text-red-400 text-lg font-bold hover:bg-red-200 active:bg-red-300 transition-colors select-none"
+                    className="w-10 h-10 rounded-l-lg bg-red-900/35 text-red-300 text-lg font-bold hover:bg-red-800/60 active:bg-red-300 transition-colors select-none"
                   >
                     −
                   </button>
@@ -463,7 +463,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                   </div>
                   <button
                     onClick={() => adjustCount(p.side, p.playerId, 1)}
-                    className="w-10 h-10 rounded-r-lg bg-green-100 text-green-400 text-lg font-bold hover:bg-green-200 active:bg-green-300 transition-colors select-none"
+                    className="w-10 h-10 rounded-r-lg bg-green-900/35 text-green-300 text-lg font-bold hover:bg-green-800/60 active:bg-green-700 transition-colors select-none"
                   >
                     +
                   </button>

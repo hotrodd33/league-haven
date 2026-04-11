@@ -114,7 +114,7 @@ export default function ImportTypeSelector({ selected, onSelect }) {
                   <p className="text-[10px] font-semibold uppercase text-gray-400 tracking-wide mb-1">
                     How to export
                   </p>
-                  <p className="text-xs text-field-700 font-medium flex items-center gap-1">
+                  <p className="text-xs text-field-300 font-medium flex items-center gap-1">
                     <SparklesIcon className="w-3 h-3 shrink-0" />
                     {type.howTo}
                   </p>

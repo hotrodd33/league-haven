@@ -113,7 +113,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
               onClick={() => toggleOrg(orgName)}
               className={cn(
                 'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs font-bold uppercase tracking-wide transition-colors',
-                hasSelected ? 'text-field-800 bg-field-50' : 'text-gray-400 hover:bg-gray-900'
+                hasSelected ? 'text-field-200 bg-field-900/20' : 'text-gray-400 hover:bg-gray-900'
               )}
             >
               {org.logo && (
@@ -264,7 +264,7 @@ function TeamItem({ team, isSelected, onSelect }) {
       className={cn(
         'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors text-sm',
         isSelected
-          ? 'bg-field-100 text-field-900 font-semibold shadow-sm ring-1 ring-field-300'
+          ? 'bg-field-900/30 text-field-200 font-semibold shadow-sm ring-1 ring-field-300'
           : 'text-gray-300 hover:bg-gray-900'
       )}
     >
@@ -487,7 +487,7 @@ function TeamForm({ team, onDone, onCancel }) {
                   <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                 </label>
                 {logoPreview && (
-                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-400 rounded hover:bg-red-200 w-fit">Remove</button>
+                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-900/35 text-red-300 rounded hover:bg-red-800/60 w-fit">Remove</button>
                 )}
                 <p className="text-xs text-gray-400">Max 500 KB. If none, uses org logo.</p>
               </div>

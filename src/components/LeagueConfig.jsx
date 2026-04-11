@@ -170,13 +170,13 @@ function SeasonList() {
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-sm">{s.name}</span>
                   <span className="text-xs text-gray-400">({s.year})</span>
-                  {s.is_active && <span className="text-xs font-semibold text-green-400 bg-green-100 px-1.5 py-0.5 rounded">Active</span>}
+                  {s.is_active && <span className="text-xs font-semibold text-green-300 bg-green-900/35 px-1.5 py-0.5 rounded">Active</span>}
                 </div>
               </div>
               <div className="flex gap-1 shrink-0">
                 {!s.is_active && (
                   <button onClick={() => handleSetActive(s)}
-                    className="px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded hover:bg-green-200">
+                    className="px-2 py-1 text-xs font-semibold bg-green-900/35 text-green-300 rounded hover:bg-green-800/60">
                     Set Active
                   </button>
                 )}
