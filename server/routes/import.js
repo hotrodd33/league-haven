@@ -231,6 +231,8 @@ async function buildBoxScorePreview(parsed) {
     unmatchedTeams,
     matchedTeams: matchedTeamMap,
     teamsList: teamsListForMapping,
+    _debug: parsed._debug || null,
+    _rawText: (parsed.raw || '').slice(0, 5000),
   };
 }
 

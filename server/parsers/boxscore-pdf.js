@@ -40,6 +40,25 @@ function parseBoxScoreText(text) {
   result.pitching.away = parsePitchingSection(sections.awayPitching);
   result.pitching.home = parsePitchingSection(sections.homePitching);
 
+  // Debug info — helps diagnose parsing issues
+  result._debug = {
+    lineCount: lines.length,
+    teamsDetected: teams,
+    sectionLineCounts: {
+      awayBatting: sections.awayBatting.length,
+      homeBatting: sections.homeBatting.length,
+      awayPitching: sections.awayPitching.length,
+      homePitching: sections.homePitching.length,
+    },
+    sectionSamples: {
+      awayBatting: sections.awayBatting.slice(0, 5),
+      homeBatting: sections.homeBatting.slice(0, 5),
+      awayPitching: sections.awayPitching.slice(0, 5),
+      homePitching: sections.homePitching.slice(0, 5),
+    },
+    first30Lines: lines.slice(0, 30),
+  };
+
   return result;
 }
 
