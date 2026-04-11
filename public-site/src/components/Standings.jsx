@@ -100,7 +100,7 @@ export default function Standings() {
                   return (
                     <tr key={t.team_id} className={idx === 0 && t.gp > 0 ? 'bg-yellow-50/50' : 'hover:bg-gray-50'} style={{ borderLeft: `3px solid ${t.primary_color || '#ccc'}` }}>
                       <td className="px-3 py-2">
-                        <TeamLogo src={t.logo} name={t.team_name} cityAbbr={t.city_abbr} primaryColor={t.primary_color} secondaryColor={t.secondary_color} />
+                        <TeamLogo src={t.logo} name={t.team_name} ageGroup={t.age_group} level={t.level} cityAbbr={t.city_abbr} primaryColor={t.primary_color} secondaryColor={t.secondary_color} />
                       </td>
                       <td className="px-3 py-2">
                         <div className="font-semibold">{t.team_name}</div>
@@ -129,7 +129,7 @@ export default function Standings() {
               const diff = t.runs_for - t.runs_against;
               return (
                 <div key={t.team_id} className={`bg-white border rounded-lg p-3 flex items-center gap-3 ${idx === 0 && t.gp > 0 ? 'border-yellow-300 ring-1 ring-yellow-200' : 'border-gray-200'}`} style={{ borderLeft: `3px solid ${t.primary_color || '#ccc'}` }}>
-                  <TeamLogo src={t.logo} name={t.team_name} cityAbbr={t.city_abbr} primaryColor={t.primary_color} secondaryColor={t.secondary_color} />
+                  <TeamLogo src={t.logo} name={t.team_name} ageGroup={t.age_group} level={t.level} cityAbbr={t.city_abbr} primaryColor={t.primary_color} secondaryColor={t.secondary_color} />
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-sm truncate">{t.team_name}</div>
                     <div className="text-xs text-gray-400">{t.org_name}</div>

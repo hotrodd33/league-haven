@@ -134,7 +134,7 @@ export default function Scores() {
                       <div className="flex items-center justify-between gap-4">
                         {/* Away team */}
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <TeamLogo src={g.away_logo} name={g.away_team_name} cityAbbr={g.away_city_abbr} primaryColor={g.away_primary_color} secondaryColor={g.away_secondary_color} />
+                          <TeamLogo src={g.away_logo} name={g.away_team_name} ageGroup={g.away_age_group} level={g.away_level} cityAbbr={g.away_city_abbr} primaryColor={g.away_primary_color} secondaryColor={g.away_secondary_color} />
                           <div className="min-w-0">
                             <div className="font-semibold text-sm truncate">{g.away_team_name}</div>
                             <div className="text-xs text-gray-400">Away</div>
@@ -169,7 +169,7 @@ export default function Scores() {
                             <div className="font-semibold text-sm truncate">{g.home_team_name}</div>
                             <div className="text-xs text-gray-400">Home</div>
                           </div>
-                          <TeamLogo src={g.home_logo} name={g.home_team_name} cityAbbr={g.home_city_abbr} primaryColor={g.home_primary_color} secondaryColor={g.home_secondary_color} />
+                          <TeamLogo src={g.home_logo} name={g.home_team_name} ageGroup={g.home_age_group} level={g.home_level} cityAbbr={g.home_city_abbr} primaryColor={g.home_primary_color} secondaryColor={g.home_secondary_color} />
                         </div>
                       </div>
 

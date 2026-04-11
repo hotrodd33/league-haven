@@ -209,6 +209,7 @@ router.get('/standings', async (req, res) => {
         COALESCE(s.runs_for, 0) AS runs_for,
         COALESCE(s.runs_against, 0) AS runs_against,
         t.name AS team_name, t.logo_url AS team_logo, t.org_id,
+        t.age_group, t.level,
         t.team_city, t.team_mascot, t.team_color,
         t.primary_color, t.secondary_color,
         o.name AS org_name, o.logo_url AS org_logo,
