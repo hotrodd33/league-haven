@@ -14,7 +14,9 @@
    - Sometimes pitch counts per pitcher
    ═══════════════════════════════════════════════════════ */
 
-const pdfParse = require('pdf-parse');
+// pdf-parse is loaded lazily inside parseBoxScorePDF() to avoid crashing
+// Vercel serverless — the module eagerly loads @napi-rs/canvas which is
+// unavailable in that environment and would kill the entire process on startup.
 
 /**
  * Parse box score from raw text (pasted from GC web page, or extracted from PDF).
@@ -54,6 +56,7 @@ function parseBoxScoreText(text) {
 async function parseBoxScorePDF(buffer) {
   let text;
   try {
+    const pdfParse = require('pdf-parse');
     const data = await pdfParse(buffer);
     text = data.text;
   } catch (err) {
