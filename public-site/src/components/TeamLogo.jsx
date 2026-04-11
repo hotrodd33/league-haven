@@ -1,6 +1,6 @@
 /**
  * Shared TeamLogo component for public site — renders team logo image or a
- * home-plate shaped fallback with primary/secondary team colors and city abbreviation.
+ * home-plate shaped fallback with primary/secondary team colors and age+level label.
  */
 
 function contrastText(hex) {
@@ -14,11 +14,20 @@ function contrastText(hex) {
   return lum > 0.179 ? '#000000' : '#FFFFFF';
 }
 
+function plateLabel(ageGroup, level) {
+  if (!ageGroup) return null;
+  const nums = ageGroup.match(/\d+/g);
+  const age = nums ? nums[nums.length - 1] : '';
+  return age + (level || '');
+}
+
 // Real home-plate shape (flat top, point bottom) — viewBox 0 0 589 589
-export function HomePlate({ cityAbbr, primaryColor = '#003366', secondaryColor = '#CC0000', size = 'w-8 h-8' }) {
+export function HomePlate({ label, cityAbbr, primaryColor = '#003366', secondaryColor = '#CC0000', size = 'w-8 h-8' }) {
+  const displayText = label || cityAbbr || '?';
   const textColor = contrastText(primaryColor);
   const num = parseInt((size.match(/w-(\d+)/) || [])[1] || '8', 10);
-  const fontSize = num <= 6 ? 180 : num <= 10 ? 150 : num <= 14 ? 130 : 120;
+  const len = displayText.length;
+  const fontSize = len >= 5 ? (num <= 6 ? 130 : 110) : len >= 4 ? (num <= 6 ? 150 : 120) : (num <= 6 ? 180 : num <= 10 ? 150 : num <= 14 ? 130 : 120);
   return (
     <svg viewBox="0 0 589 589" className={`${size} shrink-0`} aria-hidden="true">
       <polygon points="7.5,291.39 7.5,7.5 581.5,7.5 581.5,291.39 294.5,578.39" fill={primaryColor} />
@@ -33,16 +42,18 @@ export function HomePlate({ cityAbbr, primaryColor = '#003366', secondaryColor =
         fontFamily="system-ui, sans-serif"
         letterSpacing="4"
       >
-        {(cityAbbr || '?').substring(0, 4)}
+        {displayText.substring(0, 6)}
       </text>
     </svg>
   );
 }
 
-export default function TeamLogo({ src, name, cityAbbr, primaryColor, secondaryColor, size = 'w-8 h-8' }) {
+export default function TeamLogo({ src, name, ageGroup, level, cityAbbr, primaryColor, secondaryColor, size = 'w-8 h-8' }) {
   if (src) return <img src={src} alt={name || ''} className={`${size} object-contain rounded shrink-0`} />;
+  const label = plateLabel(ageGroup, level);
   return (
     <HomePlate
+      label={label}
       cityAbbr={cityAbbr || (name ? name[0] : '?')}
       primaryColor={primaryColor}
       secondaryColor={secondaryColor}

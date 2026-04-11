@@ -67,6 +67,8 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
           const opponent = isHome ? game.away_team_name : game.home_team_name;
           const opponentLogo = isHome ? game.away_logo : game.home_logo;
           const oppCityAbbr = isHome ? game.away_city_abbr : game.home_city_abbr;
+          const oppAgeGroup = isHome ? game.away_age_group : game.home_age_group;
+          const oppLevel = isHome ? game.away_level : game.home_level;
           const oppPrimary = isHome ? game.away_primary_color : game.home_primary_color;
           const oppSecondary = isHome ? game.away_secondary_color : game.home_secondary_color;
           const prefix = isHome ? 'vs' : '@';
@@ -93,7 +95,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
               {/* Opponent */}
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <span className="text-xs text-gray-400 font-semibold w-5 shrink-0">{prefix}</span>
-                <TeamLogo src={opponentLogo} name={opponent} cityAbbr={oppCityAbbr} primaryColor={oppPrimary} secondaryColor={oppSecondary} size="w-6 h-6" />
+                <TeamLogo src={opponentLogo} name={opponent} ageGroup={oppAgeGroup} level={oppLevel} cityAbbr={oppCityAbbr} primaryColor={oppPrimary} secondaryColor={oppSecondary} size="w-6 h-6" />
                 <span className="font-semibold truncate">{opponent}</span>
               </div>
 

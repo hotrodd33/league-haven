@@ -102,7 +102,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                           <td className="py-2.5 px-2 text-gray-400 font-mono text-xs">{idx + 1}</td>
                           <td className="py-2.5 px-2">
                             <div className="flex items-center gap-2">
-                              <TeamLogo src={team.logo} name={team.team_name} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} />
+                              <TeamLogo src={team.logo} name={team.team_name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} />
                               <div>
                                 <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-blue-700 hover:text-blue-900 hover:underline text-left">{team.team_name}</button>
                                 {team.org_name && <span className="text-xs text-gray-400 ml-1.5">({team.org_name})</span>}
@@ -134,7 +134,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                     <div key={team.team_id} className={`bg-white border border-gray-200 rounded-lg p-3 ${idx === 0 ? 'ring-1 ring-yellow-300' : ''}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-mono text-gray-400 w-5">{idx + 1}</span>
-                        <TeamLogo src={team.logo} name={team.team_name} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-8 h-8" />
+                        <TeamLogo src={team.logo} name={team.team_name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-8 h-8" />
                         <div className="flex-1 min-w-0">
                           <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-sm truncate text-blue-700 hover:text-blue-900 hover:underline text-left block max-w-full">{team.team_name}</button>
                           {team.org_name && <div className="text-xs text-gray-400">{team.org_name}</div>}

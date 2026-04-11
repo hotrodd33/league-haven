@@ -233,6 +233,8 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
                   homeTeam={{
                     name: g.home_team_name || 'TBD',
                     logo: g.home_logo_url,
+                    ageGroup: g.home_age_group,
+                    level: g.home_level,
                     cityAbbr: cityAbbr(g.home_team_city),
                     primaryColor: g.home_primary_color,
                     secondaryColor: g.home_secondary_color,
@@ -240,6 +242,8 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
                   awayTeam={{
                     name: g.away_team_name || 'TBD',
                     logo: g.away_logo_url,
+                    ageGroup: g.away_age_group,
+                    level: g.away_level,
                     cityAbbr: cityAbbr(g.away_team_city),
                     primaryColor: g.away_primary_color,
                     secondaryColor: g.away_secondary_color,
@@ -352,6 +356,8 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
                 homeTeam={{
                   name: g.home_team_name || 'TBD',
                   logo: g.home_logo_url,
+                  ageGroup: g.home_age_group,
+                  level: g.home_level,
                   cityAbbr: cityAbbr(g.home_team_city),
                   primaryColor: g.home_primary_color,
                   secondaryColor: g.home_secondary_color,
@@ -359,6 +365,8 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
                 awayTeam={{
                   name: g.away_team_name || 'TBD',
                   logo: g.away_logo_url,
+                  ageGroup: g.away_age_group,
+                  level: g.away_level,
                   cityAbbr: cityAbbr(g.away_team_city),
                   primaryColor: g.away_primary_color,
                   secondaryColor: g.away_secondary_color,

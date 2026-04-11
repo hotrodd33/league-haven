@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, fetchSeasons, createTeam, updateTeam, deleteTeam, uploadTeamLogo, removeTeamLogo } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import TeamLogo, { HomePlate } from './TeamLogo.jsx';
+import TeamLogo, { HomePlate, plateLabel } from './TeamLogo.jsx';
 import { cn } from '../lib/cn.js';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
@@ -214,6 +214,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 <img src={selected.logo_url || selected.org_logo_url} alt="" className="w-7 h-7 object-contain rounded shrink-0" />
               ) : (
                 <HomePlate
+                  label={plateLabel(selected.age_group, selected.level)}
                   cityAbbr={selected.city_abbr || selected.abbreviation?.slice(0, 3) || ''}
                   primaryColor={selected.primary_color || '#003366'}
                   secondaryColor={selected.secondary_color || '#CC0000'}
@@ -271,6 +272,7 @@ function TeamItem({ team, isSelected, onSelect }) {
         <img src={team.logo_url || team.org_logo_url} alt="" className="w-6 h-6 object-contain rounded shrink-0" />
       ) : (
         <HomePlate
+          label={plateLabel(team.age_group, team.level)}
           cityAbbr={team.city_abbr || team.abbreviation?.slice(0, 3) || ''}
           primaryColor={team.primary_color || '#003366'}
           secondaryColor={team.secondary_color || '#CC0000'}
@@ -466,7 +468,7 @@ function TeamForm({ team, onDone, onCancel }) {
           {shortName && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2 text-sm">
               <div className="flex items-center gap-3">
-                <HomePlate cityAbbr={cityAbbr} primaryColor={form.primary_color} secondaryColor={form.secondary_color} size="w-12 h-12" />
+                <HomePlate cityAbbr={cityAbbr} label={plateLabel(form.age_group, form.level)} primaryColor={form.primary_color} secondaryColor={form.secondary_color} size="w-12 h-12" />
                 <div className="space-y-1">
                   <div><span className="text-xs font-semibold text-gray-400 uppercase">Long Name:</span> <span className="font-semibold text-gray-800">{longName}</span></div>
                   <div><span className="text-xs font-semibold text-gray-400 uppercase">Short Name:</span> <span className="font-semibold text-gray-800">{shortName}</span></div>

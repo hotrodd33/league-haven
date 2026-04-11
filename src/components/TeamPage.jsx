@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchTeams, fetchGames } from '../api/index.js';
 import { cn } from '../lib/cn.js';
-import TeamLogo, { HomePlate } from './TeamLogo.jsx';
+import TeamLogo, { HomePlate, plateLabel } from './TeamLogo.jsx';
 import RosterList from './RosterList.jsx';
 import StaffList from './StaffList.jsx';
 import PitcherRest from './PitcherRest.jsx';
@@ -136,6 +136,7 @@ function TeamHeader({ team, recentGames }) {
           <img src={team.logo_url || team.org_logo_url} alt="" className="w-14 h-14 object-contain rounded-lg" />
         ) : (
           <HomePlate
+            label={plateLabel(team.age_group, team.level)}
             cityAbbr={team.city_abbr || team.abbreviation?.slice(0, 3) || ''}
             primaryColor={team.primary_color || '#003366'}
             secondaryColor={team.secondary_color || '#CC0000'}

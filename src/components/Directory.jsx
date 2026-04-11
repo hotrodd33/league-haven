@@ -117,7 +117,7 @@ export default function Directory({ onEditTeam }) {
                           onClick={() => setExpanded(isExpanded ? null : team.id)}
                           className="flex-1 text-left px-4 sm:px-6 py-3 hover:bg-gray-50 transition-colors flex items-center gap-3"
                         >
-                          <TeamLogo src={team.logo_url} name={team.long_name || team.name} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-7 h-7" />
+                          <TeamLogo src={team.logo_url} name={team.long_name || team.name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-7 h-7" />
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-sm">{team.long_name || team.name}</div>
                             <div className="text-xs text-gray-500">

@@ -81,6 +81,8 @@ function TeamRow({ team, score, isWinner, label }) {
       <TeamLogo
         src={team.logo}
         name={team.name}
+        ageGroup={team.ageGroup}
+        level={team.level}
         cityAbbr={team.cityAbbr}
         primaryColor={team.primaryColor}
         secondaryColor={team.secondaryColor}
