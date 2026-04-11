@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchOrganizations, createOrganization, updateOrganization, deleteOrganization,
   fetchTeams, fetchGames, createTeam, updateTeam, uploadOrgLogo, removeOrgLogo,
+  fetchAgeGroups, fetchLevels,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldLocations from './FieldLocations.jsx';
@@ -432,6 +433,8 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
   const canManage = isAdmin;
   const [assigning, setAssigning] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [ageGroups, setAgeGroups] = useState([]);
+  const [levels, setLevels] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(null);
@@ -439,6 +442,11 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
 
   const orgTeams = org.teams || [];
   const unassignedTeams = allTeams.filter((t) => !t.org_id);
+
+  useEffect(() => {
+    fetchAgeGroups().then(setAgeGroups).catch(() => setAgeGroups([]));
+    fetchLevels().then(setLevels).catch(() => setLevels([]));
+  }, []);
 
   async function handleAssign() {
     if (!selectedTeamId) return;
@@ -570,11 +578,21 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
                 </div>
                 <div>
                   <label htmlFor="new-team-age" className={labelCls}>Age Group</label>
-                  <input id="new-team-age" name="age_group" value={newTeam.age_group} onChange={handleCreateChange} className={inputCls} placeholder="12U" />
+                  <select id="new-team-age" name="age_group" value={newTeam.age_group} onChange={handleCreateChange} className={inputCls}>
+                    <option value="">— Select Age Group —</option>
+                    {ageGroups.map((ag) => (
+                      <option key={ag.id} value={ag.name}>{ag.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label htmlFor="new-team-level" className={labelCls}>Level</label>
-                  <input id="new-team-level" name="level" value={newTeam.level} onChange={handleCreateChange} className={inputCls} placeholder="A" />
+                  <select id="new-team-level" name="level" value={newTeam.level} onChange={handleCreateChange} className={inputCls}>
+                    <option value="">— Select Level —</option>
+                    {levels.map((lvl) => (
+                      <option key={lvl.id} value={lvl.name}>{lvl.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
