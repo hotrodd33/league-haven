@@ -518,17 +518,29 @@ async function importBoxScore(req, res, opts) {
     }
 
     if (existingGameId && overwrite) {
-      // Update existing game
+      // Update existing game — full overwrite including scores, season, status
       await pool.query(
         `UPDATE games SET home_score = $1, away_score = $2, innings_played = $3,
-         status = 'completed', game_time = $4 WHERE id = $5`,
-        [homeScore, awayScore, inningsPlayed, gameInfo.time, existingGameId]
+         status = 'completed', game_time = $4, season_id = COALESCE($6, season_id)
+         WHERE id = $5`,
+        [homeScore, awayScore, inningsPlayed, gameInfo.time, existingGameId, seasonId]
       );
       gameId = existingGameId;
       results.updated++;
     } else if (existingGameId) {
+      // Existing game found — always ensure it's marked completed with season + scores
+      await pool.query(
+        `UPDATE games SET
+           status = 'completed',
+           season_id = COALESCE(season_id, $2),
+           home_score = COALESCE(home_score, $3),
+           away_score = COALESCE(away_score, $4),
+           innings_played = COALESCE(innings_played, $5)
+         WHERE id = $1`,
+        [existingGameId, seasonId, homeScore, awayScore, inningsPlayed]
+      );
       gameId = existingGameId;
-      results.skipped++;
+      results.updated++;
     } else {
       // Create new game
       const { rows: newGame } = await pool.query(
