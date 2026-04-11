@@ -54,7 +54,8 @@ async function parseBoxScorePDF(buffer) {
     // unpdf uses a WASM build of pdf.js — no native deps, works on Vercel serverless
     const { extractText } = await import('unpdf');
     const result = await extractText(new Uint8Array(buffer));
-    text = result.text;
+    // unpdf returns { text: string[] } — one entry per page
+    text = Array.isArray(result.text) ? result.text.join('\n') : String(result.text || '');
   } catch (err) {
     throw new Error(
       'Could not extract text from this PDF. GameChanger PDFs often use encoded content ' +
