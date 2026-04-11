@@ -277,7 +277,7 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
               />
               <QuickAction
                 icon={<UsersIcon className="w-4 h-4" />}
-                label="Manage Rosters"
+                label="Manage Teams"
                 onClick={() => onNavigate?.('rosters')}
                 color="blue"
               />

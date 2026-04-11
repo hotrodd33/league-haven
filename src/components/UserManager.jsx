@@ -77,7 +77,7 @@ export default function UserManager({ onBack }) {
         <h2 className="text-lg font-bold">User Accounts ({users.length})</h2>
         <div className="flex gap-2">
           <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add User</button>
-          {onBack && <button onClick={onBack} className={btnSecondary}>← Rosters</button>}
+          {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
         </div>
       </div>
 

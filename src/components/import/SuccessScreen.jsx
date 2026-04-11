@@ -87,8 +87,8 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
         <div className="grid grid-cols-1 gap-2">
           <NextAction
             icon={<UsersIcon className="w-4 h-4" />}
-            label="View Roster"
-            description="Check your updated roster"
+            label="View Team"
+            description="Check your updated team"
             onClick={() => { onClose(); onNavigate?.('rosters'); }}
           />
           <NextAction

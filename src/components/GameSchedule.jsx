@@ -149,7 +149,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
           {isAdmin && (
             <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Game</button>
           )}
-          {onBack && <button onClick={onBack} className={btnSecondary}>← Rosters</button>}
+          {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
         </div>
       </div>
 
