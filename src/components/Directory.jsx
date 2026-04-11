@@ -23,6 +23,7 @@ export default function Directory({ onEditTeam }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const [expandedOrgs, setExpandedOrgs] = useState(new Set());
   const printRef = useRef();
 
   useEffect(() => {
@@ -63,8 +64,15 @@ export default function Directory({ onEditTeam }) {
       <div className="space-y-6">
         {orgs.map(org => (
           <div key={org.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            {/* Org header */}
-            <div className="px-4 sm:px-6 py-4 border-b border-gray-100 bg-gray-50">
+            {/* Org header — clickable to expand/collapse */}
+            <button
+              onClick={() => setExpandedOrgs(prev => {
+                const next = new Set(prev);
+                next.has(org.id) ? next.delete(org.id) : next.add(org.id);
+                return next;
+              })}
+              className="w-full text-left px-4 sm:px-6 py-4 border-b border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+            >
               <div className="flex items-center gap-4">
                 <OrgLogo src={org.logo_url} name={org.name} />
                 <div className="flex-1 min-w-0">
@@ -82,6 +90,7 @@ export default function Directory({ onEditTeam }) {
                     {org.contact_phone && <div className="text-gray-500 text-xs">{org.contact_phone}</div>}
                   </div>
                 )}
+                <span className={`text-gray-400 text-xs transition-transform ${expandedOrgs.has(org.id) ? 'rotate-90' : ''}`}>▶</span>
               </div>
               {/* Org contact — mobile */}
               {(org.contact_name || org.contact_email || org.contact_phone) && (
@@ -91,10 +100,10 @@ export default function Directory({ onEditTeam }) {
                   {org.contact_phone && <div className="text-gray-500 text-xs">{org.contact_phone}</div>}
                 </div>
               )}
-            </div>
+            </button>
 
-            {/* Teams */}
-            {org.teams.length > 0 ? (
+            {/* Teams — shown when org is expanded */}
+            {expandedOrgs.has(org.id) && org.teams.length > 0 ? (
               <div className="divide-y divide-gray-50">
                 {org.teams.map(team => {
                   const isExpanded = expanded === team.id;
@@ -162,9 +171,9 @@ export default function Directory({ onEditTeam }) {
                   );
                 })}
               </div>
-            ) : (
+            ) : expandedOrgs.has(org.id) ? (
               <div className="px-4 sm:px-6 py-6 text-sm text-gray-400 text-center">No teams in this organization.</div>
-            )}
+            ) : null}
           </div>
         ))}
 

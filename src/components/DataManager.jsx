@@ -10,9 +10,9 @@ const ENTITIES = [
   { key: 'seasons', label: 'Seasons', icon: '📅', cols: 'name, year, is_active, sort_order' },
   { key: 'divisions', label: 'Divisions', icon: '🏆', cols: 'division_path (e.g. "10U AA / East"), season, season_year, sort_order' },
   { key: 'teams', label: 'Teams', icon: '⚾', cols: 'team_name, org_name, age_group, level, division (full path; use ; for multiple)' },
-  { key: 'players', label: 'Players / Rosters', icon: '🧢', cols: 'first_name, last_name, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade, team, jersey_number' },
-  { key: 'staff', label: 'Coaches / Staff', icon: '👔', cols: 'name, email, phone, team, role (head_coach / assistant_coach / travel_director)' },
-  { key: 'games', label: 'Games / Schedule', icon: '🗓️', cols: 'game_date, game_time, home_team, away_team, location, season, status, home_score, away_score, innings_played, notes' },
+  { key: 'players', label: 'Players / Rosters', icon: '🧢', cols: 'first_name, last_name, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade, team (use "Team (Org)" if names overlap), jersey_number' },
+  { key: 'staff', label: 'Coaches / Staff', icon: '👔', cols: 'name, email, phone, team (use "Team (Org)" if names overlap), role (head_coach / assistant_coach / travel_director)' },
+  { key: 'games', label: 'Games / Schedule', icon: '🗓️', cols: 'game_date, game_time, home_team, away_team (use "Team (Org)" if names overlap), location, season, status, home_score, away_score, innings_played, notes' },
 ];
 
 const CLEAR_GROUPS = [

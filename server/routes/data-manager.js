@@ -49,6 +49,25 @@ function findCol(headers, ...names) {
   return headers.find(h => names.includes(h)) || null;
 }
 
+// Build team lookup supporting bare names (if unique) and "Name (Org)" format
+async function buildTeamLookup() {
+  const { rows } = await pool.query(
+    'SELECT t.id, t.name, o.name AS org_name FROM teams t LEFT JOIN organizations o ON o.id = t.org_id'
+  );
+  const byName = {};
+  const lookup = {};
+  for (const t of rows) {
+    const key = t.name.toLowerCase();
+    if (!byName[key]) byName[key] = [];
+    byName[key].push(t.id);
+    if (t.org_name) lookup[`${t.name} (${t.org_name})`.toLowerCase()] = t.id;
+  }
+  for (const [name, ids] of Object.entries(byName)) {
+    if (ids.length === 1) lookup[name] = ids[0];
+  }
+  return lookup;
+}
+
 // ── CLEAR DATA ──
 
 // POST /data-manager/clear
@@ -195,11 +214,12 @@ router.get('/export/:entity', async (req, res) => {
         const { rows } = await pool.query(
           `SELECT p.first_name, p.last_name, p.date_of_birth, p.batting_hand, p.throwing_hand,
                   p.parent_email, p.parent_phone, p.grade,
-                  COALESCE(string_agg(DISTINCT t.name, '; ' ORDER BY t.name), '') AS teams,
+                  COALESCE(string_agg(DISTINCT CASE WHEN o.name IS NOT NULL THEN t.name || ' (' || o.name || ')' ELSE t.name END, '; '), '') AS teams,
                   COALESCE(string_agg(DISTINCT tp.jersey_number::text, '; '), '') AS jersey_numbers
            FROM players p
            LEFT JOIN team_players tp ON tp.player_id = p.id
            LEFT JOIN teams t ON t.id = tp.team_id
+           LEFT JOIN organizations o ON o.id = t.org_id
            GROUP BY p.id ORDER BY p.last_name, p.first_name`
         );
         csvLines = ['first_name,last_name,date_of_birth,batting_hand,throwing_hand,parent_email,parent_phone,grade,team,jersey_number'];
@@ -211,11 +231,12 @@ router.get('/export/:entity', async (req, res) => {
       case 'staff': {
         const { rows } = await pool.query(
           `SELECT sm.name, sm.email, sm.phone,
-                  COALESCE(string_agg(DISTINCT t.name, '; ' ORDER BY t.name), '') AS teams,
+                  COALESCE(string_agg(DISTINCT CASE WHEN o.name IS NOT NULL THEN t.name || ' (' || o.name || ')' ELSE t.name END, '; '), '') AS teams,
                   COALESCE(string_agg(DISTINCT tsa.role, '; '), '') AS roles
            FROM staff_members sm
            LEFT JOIN team_staff_assignments tsa ON tsa.staff_id = sm.id
            LEFT JOIN teams t ON t.id = tsa.team_id
+           LEFT JOIN organizations o ON o.id = t.org_id
            GROUP BY sm.id ORDER BY sm.name`
         );
         csvLines = ['name,email,phone,team,role'];
@@ -238,10 +259,14 @@ router.get('/export/:entity', async (req, res) => {
       case 'games': {
         const { rows } = await pool.query(
           `SELECT g.game_date, g.game_time, g.status, g.home_score, g.away_score, g.innings_played, g.notes,
-                  ht.name AS home_team, at.name AS away_team, fl.name AS location, ls.name AS season
+                  CASE WHEN ho.name IS NOT NULL THEN ht.name || ' (' || ho.name || ')' ELSE ht.name END AS home_team,
+                  CASE WHEN ao.name IS NOT NULL THEN at.name || ' (' || ao.name || ')' ELSE at.name END AS away_team,
+                  fl.name AS location, ls.name AS season
            FROM games g
            LEFT JOIN teams ht ON ht.id = g.home_team_id
+           LEFT JOIN organizations ho ON ho.id = ht.org_id
            LEFT JOIN teams at ON at.id = g.away_team_id
+           LEFT JOIN organizations ao ON ao.id = at.org_id
            LEFT JOIN field_locations fl ON fl.id = g.location_id
            LEFT JOIN league_seasons ls ON ls.id = g.season_id
            ORDER BY g.game_date, g.game_time`
@@ -503,9 +528,7 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const teamCol = findCol(headers, 'team', 'team_name', 'teams');
         const jerseyCol = findCol(headers, 'jersey_number', 'jersey', 'number');
 
-        const { rows: allTeams } = await pool.query('SELECT id, name FROM teams');
-        const teamLookup = {};
-        for (const t of allTeams) teamLookup[t.name.toLowerCase()] = t.id;
+        const teamLookup = await buildTeamLookup();
 
         const { rows: existing } = await pool.query('SELECT id, first_name, last_name FROM players');
         const playerLookup = {};
@@ -576,9 +599,7 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const roleCol = findCol(headers, 'role', 'roles', 'position');
 
         const VALID_ROLES = ['head_coach', 'assistant_coach', 'travel_director'];
-        const { rows: allTeams } = await pool.query('SELECT id, name FROM teams');
-        const teamLookup = {};
-        for (const t of allTeams) teamLookup[t.name.toLowerCase()] = t.id;
+        const teamLookup = await buildTeamLookup();
 
         const { rows: existing } = await pool.query('SELECT id, name FROM staff_members');
         const staffLookup = {};
@@ -645,9 +666,7 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const innCol = findCol(headers, 'innings_played', 'innings');
         const notesCol = findCol(headers, 'notes');
 
-        const { rows: allTeams } = await pool.query('SELECT id, name FROM teams');
-        const teamLookup = {};
-        for (const t of allTeams) teamLookup[t.name.toLowerCase()] = t.id;
+        const teamLookup = await buildTeamLookup();
 
         const { rows: allLocs } = await pool.query('SELECT id, name FROM field_locations');
         const locLookup = {};

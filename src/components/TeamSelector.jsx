@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, fetchSeasons, createTeam, updateTeam, deleteTeam, uploadTeamLogo, removeTeamLogo } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import TeamImport from './TeamImport.jsx';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
 const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
@@ -14,7 +13,6 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showImport, setShowImport] = useState(false);
 
   const loadTeams = useCallback(async () => {
     setLoading(true);
@@ -152,10 +150,6 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
             onClick={() => { setEditing(false); setShowForm(true); }}
             className="flex-1 px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors"
           >+ Add Team</button>
-          <button
-            onClick={() => setShowImport(true)}
-            className="px-4 py-2 bg-green-700 text-white text-sm font-semibold rounded-lg hover:bg-green-800 transition-colors"
-          >CSV Import</button>
         </div>
       )}
 
@@ -171,12 +165,6 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
         />
       )}
 
-      {showImport && (
-        <TeamImport
-          onDone={() => { setShowImport(false); loadTeams(); if (onTeamsChanged) onTeamsChanged(); }}
-          onCancel={() => setShowImport(false)}
-        />
-      )}
     </div>
   );
 }
