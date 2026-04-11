@@ -82,7 +82,7 @@ export default function App() {
                 return <Dashboard onNavigate={setPage} onOpenImport={() => setShowImportWizard(true)} />;
 
             case 'organizations':
-                return <OrgManager onBack={() => setPage("dashboard")} />;
+                return <OrgManager onBack={() => setPage("dashboard")} onNavigateToTeam={navigateToTeam} />;
 
             case 'users':
                 return isAdmin ? <UserManager onBack={() => setPage("dashboard")} /> : null;

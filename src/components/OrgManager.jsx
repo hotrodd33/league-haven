@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchOrganizations, createOrganization, updateOrganization, deleteOrganization,
-  fetchTeams, updateTeam, uploadOrgLogo, removeOrgLogo,
+  fetchTeams, fetchGames, createTeam, updateTeam, uploadOrgLogo, removeOrgLogo,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldLocations from './FieldLocations.jsx';
@@ -13,7 +13,7 @@ const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold 
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 const btnSm = "px-3 py-1.5 text-xs font-semibold rounded";
 
-function summarizeOrgTeams(org) {
+function summarizeOrgTeams(org, upcomingByTeam = {}) {
   const teams = org.teams || [];
   const ageGroups = Object.values(
     teams.reduce((acc, team) => {
@@ -32,9 +32,22 @@ function summarizeOrgTeams(org) {
   const levels = [...new Set(teams.map((team) => team.level).filter(Boolean))].sort();
   const featuredTeams = teams
     .slice()
-    .sort((left, right) => (left.long_name || left.name).localeCompare(right.long_name || right.name))
+    .sort((left, right) => {
+      const leftUpcoming = upcomingByTeam[left.id]?.count || 0;
+      const rightUpcoming = upcomingByTeam[right.id]?.count || 0;
+      if (rightUpcoming !== leftUpcoming) return rightUpcoming - leftUpcoming;
+      const leftNext = upcomingByTeam[left.id]?.nextDate || '9999-12-31';
+      const rightNext = upcomingByTeam[right.id]?.nextDate || '9999-12-31';
+      if (leftNext !== rightNext) return leftNext.localeCompare(rightNext);
+      return (left.long_name || left.name).localeCompare(right.long_name || right.name);
+    })
     .slice(0, 3)
-    .map((team) => team.long_name || team.name);
+    .map((team) => ({
+      id: team.id,
+      orgId: team.org_id,
+      name: team.long_name || team.name,
+      upcomingCount: upcomingByTeam[team.id]?.count || 0,
+    }));
 
   return {
     ageGroups,
@@ -43,9 +56,10 @@ function summarizeOrgTeams(org) {
     remainingTeams: Math.max(teams.length - featuredTeams.length, 0),
   };
 }
-export default function OrgManager({ onBack }) {
+export default function OrgManager({ onBack, onNavigateToTeam }) {
   const { isAdmin, canEditOrg } = useAuth();
   const [orgs, setOrgs] = useState([]);
+  const [upcomingByTeam, setUpcomingByTeam] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -55,7 +69,27 @@ export default function OrgManager({ onBack }) {
 
   const loadOrgs = useCallback(async () => {
     setLoading(true); setError(null);
-    try { setOrgs(await fetchOrganizations()); }
+    try {
+      const [orgData, games] = await Promise.all([fetchOrganizations(), fetchGames()]);
+      setOrgs(orgData);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().slice(0, 10);
+      const upcomingStatuses = new Set(['scheduled', 'in_progress', 'postponed']);
+      const map = {};
+      for (const g of games || []) {
+        if (!g?.game_date || !upcomingStatuses.has(g.status)) continue;
+        if (g.game_date < todayStr) continue;
+        for (const teamId of [g.home_team_id, g.away_team_id]) {
+          if (!teamId) continue;
+          const current = map[teamId] || { count: 0, nextDate: null };
+          current.count += 1;
+          if (!current.nextDate || g.game_date < current.nextDate) current.nextDate = g.game_date;
+          map[teamId] = current;
+        }
+      }
+      setUpcomingByTeam(map);
+    }
     catch (err) { setError(err.message); }
     finally { setLoading(false); }
   }, []);
@@ -76,7 +110,7 @@ export default function OrgManager({ onBack }) {
   if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
 
   if (selectedOrg) {
-    return <OrgDetailView org={selectedOrg} onBack={() => { setSelectedOrg(null); loadOrgs(); }} />;
+    return <OrgDetailView org={selectedOrg} onBack={() => { setSelectedOrg(null); loadOrgs(); }} onNavigateToTeam={onNavigateToTeam} />;
   }
 
   return (
@@ -105,6 +139,7 @@ export default function OrgManager({ onBack }) {
             <OrgListCard
               key={org.id}
               org={org}
+              upcomingByTeam={upcomingByTeam}
               canEdit={canEditOrg(org.id)}
               deleting={deleting === org.id}
               isAdmin={isAdmin}
@@ -121,8 +156,8 @@ export default function OrgManager({ onBack }) {
   );
 }
 
-function OrgListCard({ org, canEdit, deleting, isAdmin, onOpen, onEdit, onDelete }) {
-  const { ageGroups, levels, featuredTeams, remainingTeams } = summarizeOrgTeams(org);
+function OrgListCard({ org, upcomingByTeam, canEdit, deleting, isAdmin, onOpen, onEdit, onDelete }) {
+  const { ageGroups, levels, featuredTeams, remainingTeams } = summarizeOrgTeams(org, upcomingByTeam);
 
   return (
     <div
@@ -193,8 +228,11 @@ function OrgListCard({ org, canEdit, deleting, isAdmin, onOpen, onEdit, onDelete
         <div>
           <div className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-1.5">Featured Teams</div>
           <div className="space-y-1 text-sm text-gray-300">
-            {featuredTeams.map((teamName) => (
-              <div key={teamName} className="truncate">{teamName}</div>
+            {featuredTeams.map((team) => (
+              <div key={team.id} className="truncate">
+                {team.name}
+                {team.upcomingCount > 0 && <span className="text-[11px] text-gray-400 ml-1">({team.upcomingCount} upcoming)</span>}
+              </div>
             ))}
             {remainingTeams > 0 && <div className="text-gray-400 text-xs">+ {remainingTeams} more team{remainingTeams === 1 ? '' : 's'}</div>}
           </div>
@@ -364,7 +402,7 @@ function OrgForm({ org, onDone, onCancel }) {
   );
 }
 
-function OrgDetailView({ org: initialOrg, onBack }) {
+function OrgDetailView({ org: initialOrg, onBack, onNavigateToTeam }) {
   const [org, setOrg] = useState(initialOrg);
   const [allTeams, setAllTeams] = useState([]);
 
@@ -383,16 +421,21 @@ function OrgDetailView({ org: initialOrg, onBack }) {
         ← Back to Organizations
       </button>
       <OrgCard org={org} />
-      <OrgTeams org={org} allTeams={allTeams} onChanged={reload} />
+      <OrgTeams org={org} allTeams={allTeams} onChanged={reload} onNavigateToTeam={onNavigateToTeam} />
       <FieldLocations orgId={org.id} orgName={org.name} />
     </div>
   );
 }
 
-function OrgTeams({ org, allTeams, onChanged }) {
+function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
   const { isAdmin } = useAuth();
+  const canManage = isAdmin;
   const [assigning, setAssigning] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [newTeam, setNewTeam] = useState({ team_city: '', team_mascot: '', team_color: '', age_group: '', level: '' });
 
   const orgTeams = org.teams || [];
   const unassignedTeams = allTeams.filter((t) => !t.org_id);
@@ -414,9 +457,48 @@ function OrgTeams({ org, allTeams, onChanged }) {
     catch (err) { alert(`Failed to unassign: ${err.message}`); }
   }
 
+  function handleCreateChange(e) {
+    const { name, value } = e.target;
+    setNewTeam((prev) => ({ ...prev, [name]: value }));
+  }
+
+  async function handleCreateTeam(e) {
+    e.preventDefault();
+    if (!newTeam.team_city.trim()) {
+      setCreateError('Team city is required.');
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      await createTeam({
+        team_city: newTeam.team_city.trim(),
+        team_mascot: newTeam.team_mascot.trim() || null,
+        team_color: newTeam.team_color.trim() || null,
+        age_group: newTeam.age_group.trim() || null,
+        level: newTeam.level.trim() || null,
+        org_id: org.id,
+      });
+      setNewTeam({ team_city: '', team_mascot: '', team_color: '', age_group: '', level: '' });
+      setShowCreate(false);
+      onChanged();
+    } catch (err) {
+      setCreateError(err.message);
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <div className="mt-6">
-      <h3 className="text-base font-bold text-gray-100 mb-2">Teams ({orgTeams.length})</h3>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <h3 className="text-base font-bold text-gray-100">Teams ({orgTeams.length})</h3>
+        {canManage && (
+          <button onClick={() => { setShowCreate(true); setCreateError(null); }} className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700">
+            + Add Team
+          </button>
+        )}
+      </div>
 
       {orgTeams.length > 0 ? (
         <>
@@ -435,7 +517,11 @@ function OrgTeams({ org, allTeams, onChanged }) {
               <tbody className="divide-y divide-gray-700">
                 {orgTeams.map((t) => (
                   <tr key={t.id} className="hover:bg-gray-900">
-                    <td className="px-3 py-2 font-semibold">{t.long_name || t.name}</td>
+                    <td className="px-3 py-2 font-semibold">
+                      <button onClick={() => onNavigateToTeam?.(t.id, t.org_id)} className="text-field-300 hover:text-field-100 hover:underline text-left">
+                        {t.long_name || t.name}
+                      </button>
+                    </td>
                     <td className="px-3 py-2">{t.age_group || '—'}</td>
                     <td className="px-3 py-2">{t.level || '—'}</td>
                     <td className="px-3 py-2">{t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : (t.division || '—')}</td>
@@ -450,7 +536,9 @@ function OrgTeams({ org, allTeams, onChanged }) {
             {orgTeams.map((t) => (
               <div key={t.id} className="bg-gray-800 rounded-lg border border-gray-700 p-3 flex items-center justify-between text-gray-200">
                 <div>
-                  <div className="font-semibold text-sm">{t.long_name || t.name}</div>
+                  <button onClick={() => onNavigateToTeam?.(t.id, t.org_id)} className="font-semibold text-sm text-field-300 hover:text-field-100 hover:underline text-left">
+                    {t.long_name || t.name}
+                  </button>
                   <div className="text-xs text-gray-400">{[t.age_group, t.level, t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : t.division].filter(Boolean).join(' · ') || '—'}</div>
                 </div>
                 {isAdmin && <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>}
@@ -460,6 +548,45 @@ function OrgTeams({ org, allTeams, onChanged }) {
         </>
       ) : (
         <div className="py-4 text-center text-gray-400 text-sm">No teams assigned yet.</div>
+      )}
+
+      {showCreate && canManage && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200 border border-gray-700">
+            <h4 className="text-lg font-bold text-gray-100 mb-3">Add Team to {org.name}</h4>
+            <form onSubmit={handleCreateTeam} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="new-team-city" className={labelCls}>City *</label>
+                  <input id="new-team-city" name="team_city" value={newTeam.team_city} onChange={handleCreateChange} required className={inputCls} placeholder="Lake City" />
+                </div>
+                <div>
+                  <label htmlFor="new-team-mascot" className={labelCls}>Mascot</label>
+                  <input id="new-team-mascot" name="team_mascot" value={newTeam.team_mascot} onChange={handleCreateChange} className={inputCls} placeholder="Tigers" />
+                </div>
+                <div>
+                  <label htmlFor="new-team-color" className={labelCls}>Color</label>
+                  <input id="new-team-color" name="team_color" value={newTeam.team_color} onChange={handleCreateChange} className={inputCls} placeholder="Blue" />
+                </div>
+                <div>
+                  <label htmlFor="new-team-age" className={labelCls}>Age Group</label>
+                  <input id="new-team-age" name="age_group" value={newTeam.age_group} onChange={handleCreateChange} className={inputCls} placeholder="12U" />
+                </div>
+                <div>
+                  <label htmlFor="new-team-level" className={labelCls}>Level</label>
+                  <input id="new-team-level" name="level" value={newTeam.level} onChange={handleCreateChange} className={inputCls} placeholder="A" />
+                </div>
+              </div>
+
+              {createError && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{createError}</div>}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowCreate(false)} className={btnSecondary}>Cancel</button>
+                <button type="submit" disabled={creating} className={btnPrimary}>{creating ? 'Adding…' : 'Add Team'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {isAdmin && unassignedTeams.length > 0 && (
