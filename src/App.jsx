@@ -106,7 +106,7 @@ export default function App() {
             default:
                 return (
                     <div className="flex flex-col lg:flex-row gap-4 -m-4 lg:-m-6">
-                        <aside className="w-full lg:w-64 bg-white rounded-xl shadow-card p-4 shrink-0 lg:m-6 lg:mr-0 lg:self-start lg:sticky lg:top-20">
+                        <aside className="w-full lg:w-64 bg-gray-800 border border-gray-700 rounded-xl shadow-card p-4 shrink-0 lg:m-6 lg:mr-0 lg:self-start lg:sticky lg:top-20">
                             <TeamSelector selectedTeam={selectedTeam} onSelectTeam={(id, orgId) => { setSelectedTeam(id); setSelectedTeamOrgId(orgId); }} onTeamsChanged={() => setRefreshKey((k) => k + 1)} />
                         </aside>
                         <div className="flex-1 p-4 lg:p-6 overflow-x-auto">
