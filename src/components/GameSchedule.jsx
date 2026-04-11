@@ -23,7 +23,7 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_COLORS = {
-  scheduled: 'bg-blue-100 text-blue-300',
+  scheduled: 'bg-blue-900/40 text-blue-200',
   in_progress: 'bg-yellow-100 text-yellow-800',
   completed: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-400',
@@ -195,7 +195,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
           {isAdmin && (
             <>
               <br />
-              <button onClick={() => setShowForm(true)} className="text-blue-400 underline mt-1 inline-block">Schedule the first game</button>
+              <button onClick={() => setShowForm(true)} className="text-blue-300 underline mt-1 inline-block">Schedule the first game</button>
             </>
           )}
         </div>
@@ -205,7 +205,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
             <div key={div.key}>
               {/* Division header — only show if there are named divisions */}
               {(divisions.length > 1 || div.name) && (
-                <h2 className="text-base font-bold text-blue-900 mb-3 border-b-2 border-blue-200 pb-1">
+                <h2 className="text-base font-bold text-blue-200 mb-3 border-b-2 border-blue-700 pb-1">
                   {div.name || 'Other Games'}
                 </h2>
               )}
@@ -231,7 +231,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                             {/* Matchup */}
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-blue-400 hover:text-blue-200 hover:underline">{game.home_team_name}</button>
+                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-blue-300 hover:text-blue-100 hover:underline">{game.home_team_name}</button>
                                 <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                               </div>
                               <div className="px-2 shrink-0">
@@ -243,7 +243,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                               </div>
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
-                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-blue-400 hover:text-blue-200 hover:underline">{game.away_team_name}</button>
+                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-blue-300 hover:text-blue-100 hover:underline">{game.away_team_name}</button>
                               </div>
                             </div>
 
@@ -288,12 +288,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                           </div>
                           <div className="flex items-center gap-2 mb-1">
                             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-400 hover:text-blue-200 hover:underline text-left">{game.home_team_name}</button>
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-300 hover:text-blue-100 hover:underline text-left">{game.home_team_name}</button>
                             {game.status === 'completed' && <span className="font-bold text-sm">{game.home_score ?? '—'}</span>}
                           </div>
                           <div className="flex items-center gap-2 mb-2">
                             <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-400 hover:text-blue-200 hover:underline text-left">{game.away_team_name}</button>
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-300 hover:text-blue-100 hover:underline text-left">{game.away_team_name}</button>
                             {game.status === 'completed' && <span className="font-bold text-sm">{game.away_score ?? '—'}</span>}
                           </div>
                           {game.location_name && (

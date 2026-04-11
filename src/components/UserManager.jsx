@@ -20,7 +20,7 @@ const ROLE_LABELS = {
 
 const ROLE_COLORS = {
   super_admin: 'bg-purple-100 text-purple-800',
-  org_admin: 'bg-blue-100 text-blue-300',
+  org_admin: 'bg-blue-900/40 text-blue-200',
   team_manager: 'bg-green-100 text-green-800',
   score_reporter: 'bg-gray-800 text-gray-300',
 };
@@ -85,7 +85,7 @@ export default function UserManager({ onBack }) {
         <div className="py-12 text-center text-gray-400">
           No user accounts.
           <br />
-          <button onClick={() => setShowForm(true)} className="text-blue-400 underline mt-1 inline-block">Add the first user</button>
+          <button onClick={() => setShowForm(true)} className="text-blue-300 underline mt-1 inline-block">Add the first user</button>
         </div>
       ) : (
         <>
@@ -127,7 +127,7 @@ export default function UserManager({ onBack }) {
                       <div className="flex gap-1">
                         <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>
                         {u.role !== 'super_admin' && (
-                          <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-100 text-blue-300 hover:bg-blue-200`}>Perms</button>
+                          <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-900/40 text-blue-200 hover:bg-blue-800/60`}>Perms</button>
                         )}
                         {u.email && (
                           <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
@@ -169,7 +169,7 @@ export default function UserManager({ onBack }) {
                 <div className="flex gap-1.5 pt-2 border-t border-gray-700">
                   <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>
                   {u.role !== 'super_admin' && (
-                    <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-100 text-blue-300 hover:bg-blue-200`}>Perms</button>
+                    <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-900/40 text-blue-200 hover:bg-blue-800/60`}>Perms</button>
                   )}
                   {u.email && (
                     <button onClick={() => handleInvite(u)} disabled={inviting === u.id}

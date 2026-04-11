@@ -51,7 +51,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
         <h2 className="text-lg font-bold">Standings</h2>
         <div className="flex gap-2 items-center">
           <select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm bg-gray-800 min-w-[160px]">
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
             <option value="">Select Season</option>
             {seasons.map(s => (
               <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
@@ -72,7 +72,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
           {divisions.map(div => (
             <div key={div.key}>
               {(divisions.length > 1 || div.name) && (
-                <h3 className="text-base font-bold text-blue-900 mb-3 border-b-2 border-blue-200 pb-1">
+                <h3 className="text-base font-bold text-blue-200 mb-3 border-b-2 border-blue-700 pb-1">
                   {div.name || 'Other'}
                 </h3>
               )}
@@ -82,16 +82,16 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b-2 border-gray-700">
-                      <th className="text-left py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-8">#</th>
-                      <th className="text-left py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide">Team</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-12">W</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-12">L</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-12">T</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-14">GP</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-14">PTS</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-12">RF</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-12">RA</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-14">DIFF</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-8">#</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide">Team</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-12">W</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-12">L</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-12">T</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-14">GP</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-14">PTS</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-12">RF</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-12">RA</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-14">DIFF</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -104,7 +104,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                             <div className="flex items-center gap-2">
                               <TeamLogo src={team.logo} name={team.team_name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} />
                               <div>
-                                <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-blue-400 hover:text-blue-200 hover:underline text-left">{team.team_name}</button>
+                                <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-blue-300 hover:text-blue-100 hover:underline text-left">{team.team_name}</button>
                                 {team.org_name && <span className="text-xs text-gray-400 ml-1.5">({team.org_name})</span>}
                               </div>
                             </div>
@@ -116,7 +116,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                           <td className="py-2.5 px-2 text-center font-bold text-blue-300 tabular-nums">{team.points}</td>
                           <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{team.runs_for}</td>
                           <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{team.runs_against}</td>
-                          <td className={`py-2.5 px-2 text-center font-semibold tabular-nums ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                          <td className={`py-2.5 px-2 text-center font-semibold tabular-nums ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-gray-400'}`}>
                             {diff > 0 ? '+' : ''}{diff}
                           </td>
                         </tr>
@@ -136,7 +136,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                         <span className="text-xs font-mono text-gray-400 w-5">{idx + 1}</span>
                         <TeamLogo src={team.logo} name={team.team_name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-8 h-8" />
                         <div className="flex-1 min-w-0">
-                          <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-sm truncate text-blue-400 hover:text-blue-200 hover:underline text-left block max-w-full">{team.team_name}</button>
+                          <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-sm truncate text-blue-300 hover:text-blue-100 hover:underline text-left block max-w-full">{team.team_name}</button>
                           {team.org_name && <div className="text-xs text-gray-400">{team.org_name}</div>}
                         </div>
                         <div className="text-right shrink-0">
@@ -148,7 +148,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                         <span>GP: {team.gp}</span>
                         <span>PTS: {team.points}</span>
                         <span>RA: {team.runs_against}</span>
-                        <span className={`font-semibold ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-600' : ''}`}>
+                        <span className={`font-semibold ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : ''}`}>
                           DIFF: {diff > 0 ? '+' : ''}{diff}
                         </span>
                       </div>

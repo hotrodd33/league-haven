@@ -87,7 +87,7 @@ export default function Directory({ onEditTeam }) {
               })}>
                 <OrgLogo src={org.logo_url} name={org.name} />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-heading text-lg font-semibold tracking-wide text-blue-900 truncate">{org.name}</h3>
+                  <h3 className="font-heading text-lg font-semibold tracking-wide text-blue-200 truncate">{org.name}</h3>
                   <div className="text-xs text-gray-400">
                     {org.teams.length} team{org.teams.length !== 1 ? 's' : ''}
                     {org.city && ` · ${org.city}${org.state ? ', ' + org.state : ''}`}

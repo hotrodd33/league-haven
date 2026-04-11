@@ -157,9 +157,9 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
           {editable && (
             <>
               <br />
-              <button onClick={onAddPlayer} className="text-blue-400 underline mt-1 inline-block">Add a new player</button>
+              <button onClick={onAddPlayer} className="text-blue-300 underline mt-1 inline-block">Add a new player</button>
               {' or '}
-              <button onClick={() => setShowAddExisting(true)} className="text-blue-400 underline mt-1 inline-block">add an existing one</button>
+              <button onClick={() => setShowAddExisting(true)} className="text-blue-300 underline mt-1 inline-block">add an existing one</button>
             </>
           )}
         </div>

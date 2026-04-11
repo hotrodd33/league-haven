@@ -6,7 +6,7 @@ import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 
 const STATUS_COLORS = {
-  scheduled: 'bg-blue-100 text-blue-300',
+  scheduled: 'bg-blue-900/40 text-blue-200',
   in_progress: 'bg-yellow-100 text-yellow-800',
   completed: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-400',

@@ -156,7 +156,7 @@ function MatchSummaryPill({ label, count, color }) {
   const colors = {
     field: 'bg-field-100 text-field-800',
     dirt:  'bg-dirt-100 text-dirt-800',
-    blue:  'bg-blue-100 text-blue-300',
+    blue:  'bg-blue-900/40 text-blue-200',
   };
 
   return (

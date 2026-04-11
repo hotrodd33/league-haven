@@ -565,7 +565,7 @@ function DivisionNode({
             <div className="flex gap-1 shrink-0">
               <button onClick={() => { setAddingTo(node.id); setNewName(''); }}
                 title="Add sub-division"
-                className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-300 rounded hover:bg-blue-200">
+                className="px-2 py-1 text-xs font-semibold bg-blue-900/40 text-blue-200 rounded hover:bg-blue-800/60">
                 + Sub
               </button>
               <button onClick={() => startEdit(node)}
