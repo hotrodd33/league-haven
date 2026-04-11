@@ -515,3 +515,23 @@ export async function updateUserPermissions(userId, permissions) {
     body: JSON.stringify(permissions),
   });
 }
+
+// ── Data Manager ──
+
+export async function clearData(entities) {
+  return apiFetch('/data-manager/clear', {
+    method: 'POST',
+    body: JSON.stringify({ entities }),
+  });
+}
+
+export function exportDataUrl(entity) {
+  return `${API_BASE}/data-manager/export/${entity}`;
+}
+
+export async function importData(entity, csv, mode, seasonId) {
+  return apiFetch(`/data-manager/import/${entity}`, {
+    method: 'POST',
+    body: JSON.stringify({ csv, mode, season_id: seasonId }),
+  });
+}

@@ -16,6 +16,7 @@ import TeamSchedule from "./components/TeamSchedule.jsx";
 import PitcherRest from "./components/PitcherRest.jsx";
 import PitchLog from "./components/PitchLog.jsx";
 import Directory from "./components/Directory.jsx";
+import DataManager from "./components/DataManager.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, user, logout } = useAuth();
@@ -120,6 +121,14 @@ export default function App() {
                                 Users
                             </button>
                         )}
+                        {isAdmin && (
+                            <button
+                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "data" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+                                onClick={() => setPage("data")}
+                            >
+                                Data
+                            </button>
+                        )}
                     </nav>
                     <div className="hidden sm:flex items-center gap-3">
                         <span className="text-sm opacity-90">{user?.name || user?.username}</span>
@@ -149,7 +158,7 @@ export default function App() {
                             { key: "schedule", label: "Schedule" },
                             { key: "standings", label: "Standings" },
                             { key: "directory", label: "Directory" },
-                            ...(isAdmin ? [{ key: "league", label: "League" }, { key: "users", label: "Users" }] : []),
+                            ...(isAdmin ? [{ key: "league", label: "League" }, { key: "users", label: "Users" }, { key: "data", label: "Data" }] : []),
                         ].map((item) => (
                             <button
                                 key={item.key}
@@ -198,6 +207,10 @@ export default function App() {
             ) : page === "directory" ? (
                 <main className="p-4 max-w-7xl mx-auto">
                     <Directory onEditTeam={navigateToTeam} />
+                </main>
+            ) : page === "data" && isAdmin ? (
+                <main className="p-4 max-w-7xl mx-auto">
+                    <DataManager />
                 </main>
             ) : (
                 <main className="flex flex-col md:flex-row min-h-[calc(100vh-56px)]">

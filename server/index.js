@@ -19,6 +19,7 @@ const leagueConfigRoutes = require('./routes/league-config');
 const gamesRoutes = require('./routes/games');
 const pitchRulesRoutes = require('./routes/pitch-rules');
 const seedRoutes = require('./routes/seed');
+const dataManagerRoutes = require('./routes/data-manager');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -48,6 +49,7 @@ app.use('/api/league-config', leagueConfigRoutes);
 app.use('/api/games', gamesRoutes);
 app.use('/api/pitch-rules', pitchRulesRoutes);
 app.use('/api/seed', seedRoutes);
+app.use('/api/data-manager', dataManagerRoutes);
 
 // ── Serve React build in local dev only (Vercel serves static files itself) ──
 if (!process.env.VERCEL) {
