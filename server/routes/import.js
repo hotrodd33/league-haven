@@ -1,13 +1,13 @@
 /* ═══════════════════════════════════════════════════════
    Import Routes — /api/import/*
-   Handles GameChanger file uploads (PDF box scores, CSV).
+   Handles GameChanger imports: PDF, pasted text, URL.
    ═══════════════════════════════════════════════════════ */
 
 const express = require('express');
 const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin } = require('../auth');
-const { parseBoxScorePDF } = require('../parsers/boxscore-pdf');
+const { parseBoxScorePDF, parseBoxScoreText } = require('../parsers/boxscore-pdf');
 
 const router = express.Router();
 
@@ -121,8 +121,122 @@ function matchPlayer(name, playerLookup) {
 }
 
 /* ═══════════════════════════════════════════════════════
+   Shared: parse box score from any input source
+   ═══════════════════════════════════════════════════════ */
+async function parseBoxScoreInput(req) {
+  const pastedText = req.body.pastedText;
+
+  // Mode 1: Pasted text from GC web page
+  if (pastedText && pastedText.trim().length > 10) {
+    return parseBoxScoreText(pastedText);
+  }
+
+  // Mode 2: Uploaded file (PDF or text file)
+  if (req.file) {
+    const fileName = req.file.originalname || '';
+    const isPDF = fileName.toLowerCase().endsWith('.pdf') ||
+                  req.file.mimetype === 'application/pdf';
+
+    if (isPDF) {
+      return await parseBoxScorePDF(req.file.buffer);
+    }
+
+    // Plain text file (.txt, .csv, etc.)
+    const text = req.file.buffer.toString('utf8');
+    if (text.trim().length > 10) {
+      return parseBoxScoreText(text);
+    }
+    throw new Error('File appears to be empty or unreadable');
+  }
+
+  throw new Error('No data provided. Upload a file or paste box score text.');
+}
+
+/**
+ * Build preview response from parsed box score data.
+ */
+async function buildBoxScorePreview(parsed) {
+  const { gameInfo, batting, pitching } = parsed;
+
+  // Check which teams match our database
+  const teamLookup = await buildTeamLookup();
+  const detectedTeams = [gameInfo.awayTeam, gameInfo.homeTeam].filter(Boolean);
+  const unmatchedTeams = detectedTeams.filter(t => !teamLookup[t.toLowerCase()]);
+  const matchedTeamMap = {};
+  for (const t of detectedTeams) {
+    const id = teamLookup[t.toLowerCase()];
+    if (id) matchedTeamMap[t] = id;
+  }
+
+  const headers = ['type', 'team', 'player', 'stat_line'];
+  const rows = [];
+
+  // Game info row
+  rows.push({
+    type: 'Game',
+    team: `${gameInfo.awayTeam || '?'} @ ${gameInfo.homeTeam || '?'}`,
+    player: gameInfo.date || '—',
+    stat_line: gameInfo.finalScore
+      ? `${gameInfo.finalScore.away} - ${gameInfo.finalScore.home}`
+      : '—',
+  });
+
+  // Batting rows
+  for (const side of ['away', 'home']) {
+    const teamName = side === 'away' ? gameInfo.awayTeam : gameInfo.homeTeam;
+    for (const b of batting[side]) {
+      rows.push({
+        type: 'Batting',
+        team: teamName || side,
+        player: b.name,
+        stat_line: [
+          b.ab != null ? `${b.ab} AB` : null,
+          b.h != null ? `${b.h} H` : null,
+          b.r != null ? `${b.r} R` : null,
+          b.rbi != null ? `${b.rbi} RBI` : null,
+          b.bb != null ? `${b.bb} BB` : null,
+          b.so != null ? `${b.so} SO` : null,
+        ].filter(Boolean).join(', '),
+      });
+    }
+  }
+
+  // Pitching rows
+  for (const side of ['away', 'home']) {
+    const teamName = side === 'away' ? gameInfo.awayTeam : gameInfo.homeTeam;
+    for (const p of pitching[side]) {
+      rows.push({
+        type: 'Pitching',
+        team: teamName || side,
+        player: `${p.name}${p.decision ? ` (${p.decision})` : ''}`,
+        stat_line: [
+          p.ip != null ? `${p.ip} IP` : null,
+          p.k != null ? `${p.k} K` : null,
+          p.bb != null ? `${p.bb} BB` : null,
+          p.er != null ? `${p.er} ER` : null,
+          p.pitches != null ? `${p.pitches} pitches` : null,
+        ].filter(Boolean).join(', '),
+      });
+    }
+  }
+
+  const teamsListForMapping = unmatchedTeams.length > 0 ? await getTeamsList() : [];
+
+  return {
+    headers,
+    rows,
+    detectedType: 'boxscore',
+    gameInfo,
+    teams: { away: gameInfo.awayTeam, home: gameInfo.homeTeam },
+    unmatchedTeams,
+    matchedTeams: matchedTeamMap,
+    teamsList: teamsListForMapping,
+  };
+}
+
+/* ═══════════════════════════════════════════════════════
    POST /api/import/gamechanger/preview
-   Parse the file and return preview rows + detected type.
+   Parse file OR pasted text, return preview rows.
    ═══════════════════════════════════════════════════════ */
 router.post(
   '/gamechanger/preview',
@@ -130,105 +244,25 @@ router.post(
   upload.single('gamechangerFile'),
   async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
+      const importType = req.body.importType || 'boxscore';
+      const pastedText = req.body.pastedText;
+
+      // Must have either a file or pasted text
+      if (!req.file && (!pastedText || pastedText.trim().length < 10)) {
+        return res.status(400).json({ error: 'Upload a file or paste box score text' });
       }
 
-      const importType = req.body.importType || 'boxscore';
-      const fileName = req.file.originalname || '';
-      const isPDF = fileName.toLowerCase().endsWith('.pdf') ||
-                    req.file.mimetype === 'application/pdf';
-
       if (importType === 'boxscore') {
-        if (!isPDF) {
-          return res.status(400).json({ error: 'Box score import requires a PDF file' });
-        }
-
-        const parsed = await parseBoxScorePDF(req.file.buffer);
-        const { gameInfo, linescore, batting, pitching } = parsed;
-
-        // Check which teams from the PDF match our database
-        const teamLookup = await buildTeamLookup();
-        const detectedTeams = [gameInfo.awayTeam, gameInfo.homeTeam].filter(Boolean);
-        const unmatchedTeams = detectedTeams.filter(t => !teamLookup[t.toLowerCase()]);
-        const matchedTeamMap = {};
-        for (const t of detectedTeams) {
-          const id = teamLookup[t.toLowerCase()];
-          if (id) matchedTeamMap[t] = id;
-        }
-
-        // Build preview rows from the parsed data
-        const headers = ['type', 'team', 'player', 'stat_line'];
-        const rows = [];
-
-        // Game info row
-        rows.push({
-          type: 'Game',
-          team: `${gameInfo.awayTeam || '?'} @ ${gameInfo.homeTeam || '?'}`,
-          player: gameInfo.date || '—',
-          stat_line: gameInfo.finalScore
-            ? `${gameInfo.finalScore.away} - ${gameInfo.finalScore.home}`
-            : '—',
-        });
-
-        // Batting rows
-        for (const side of ['away', 'home']) {
-          const teamName = side === 'away' ? gameInfo.awayTeam : gameInfo.homeTeam;
-          for (const b of batting[side]) {
-            rows.push({
-              type: 'Batting',
-              team: teamName || side,
-              player: b.name,
-              stat_line: [
-                b.ab != null ? `${b.ab} AB` : null,
-                b.h != null ? `${b.h} H` : null,
-                b.r != null ? `${b.r} R` : null,
-                b.rbi != null ? `${b.rbi} RBI` : null,
-                b.bb != null ? `${b.bb} BB` : null,
-                b.so != null ? `${b.so} SO` : null,
-              ].filter(Boolean).join(', '),
-            });
-          }
-        }
-
-        // Pitching rows
-        for (const side of ['away', 'home']) {
-          const teamName = side === 'away' ? gameInfo.awayTeam : gameInfo.homeTeam;
-          for (const p of pitching[side]) {
-            rows.push({
-              type: 'Pitching',
-              team: teamName || side,
-              player: `${p.name}${p.decision ? ` (${p.decision})` : ''}`,
-              stat_line: [
-                p.ip != null ? `${p.ip} IP` : null,
-                p.k != null ? `${p.k} K` : null,
-                p.bb != null ? `${p.bb} BB` : null,
-                p.er != null ? `${p.er} ER` : null,
-                p.pitches != null ? `${p.pitches} pitches` : null,
-              ].filter(Boolean).join(', '),
-            });
-          }
-        }
-
-        // Include teams list if there are unmatched teams (for the mapping UI)
-        const teamsListForMapping = unmatchedTeams.length > 0 ? await getTeamsList() : [];
-
-        return res.json({
-          headers,
-          rows,
-          detectedType: 'boxscore',
-          gameInfo,
-          teams: {
-            away: gameInfo.awayTeam,
-            home: gameInfo.homeTeam,
-          },
-          unmatchedTeams,
-          matchedTeams: matchedTeamMap,
-          teamsList: teamsListForMapping,
-        });
+        const parsed = await parseBoxScoreInput(req);
+        const preview = await buildBoxScorePreview(parsed);
+        return res.json(preview);
       }
 
       // CSV-based import types (schedule, stats, roster)
+      if (!req.file) {
+        return res.status(400).json({ error: 'CSV import requires a file upload' });
+      }
+
       const text = req.file.buffer.toString('utf8');
       const lines = text.split(/\r?\n/).filter(l => l.trim());
       if (lines.length < 2) {
@@ -251,7 +285,7 @@ router.post(
 
     } catch (err) {
       console.error('Preview error:', err);
-      res.status(500).json({ error: 'Failed to parse file', detail: err.message });
+      res.status(400).json({ error: err.message || 'Failed to parse input' });
     }
   }
 );
@@ -259,6 +293,7 @@ router.post(
 /* ═══════════════════════════════════════════════════════
    POST /api/import/gamechanger
    Full import — parse, match, and insert into DB.
+   Accepts file upload OR pastedText.
    ═══════════════════════════════════════════════════════ */
 router.post(
   '/gamechanger',
@@ -266,17 +301,15 @@ router.post(
   upload.single('gamechangerFile'),
   async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-      }
-
       const importType = req.body.importType || 'boxscore';
       const teamId = req.body.teamId ? parseInt(req.body.teamId) : null;
       const seasonId = req.body.seasonId ? parseInt(req.body.seasonId) : null;
       const overwrite = req.body.overwrite === 'true';
-      const fileName = req.file.originalname || '';
-      const isPDF = fileName.toLowerCase().endsWith('.pdf') ||
-                    req.file.mimetype === 'application/pdf';
+      const pastedText = req.body.pastedText;
+
+      if (!req.file && (!pastedText || pastedText.trim().length < 10)) {
+        return res.status(400).json({ error: 'Upload a file or paste box score text' });
+      }
 
       // Parse team mappings from frontend (JSON string: { "GC Name": teamId, ... })
       let teamMappings = {};
@@ -285,9 +318,9 @@ router.post(
       }
 
       if (importType === 'boxscore') {
+        const parsed = await parseBoxScoreInput(req);
         return await importBoxScore(req, res, {
-          buffer: req.file.buffer,
-          isPDF,
+          parsed,
           teamId,
           seasonId,
           overwrite,
@@ -300,20 +333,14 @@ router.post(
 
     } catch (err) {
       console.error('Import error:', err);
-      res.status(500).json({ error: 'Import failed', detail: err.message });
+      res.status(400).json({ error: err.message || 'Import failed' });
     }
   }
 );
 
 /* ── Box Score Import Logic ── */
 async function importBoxScore(req, res, opts) {
-  const { buffer, isPDF, teamId, seasonId, overwrite, teamMappings } = opts;
-
-  if (!isPDF) {
-    return res.status(400).json({ error: 'Box score import requires a PDF file' });
-  }
-
-  const parsed = await parseBoxScorePDF(buffer);
+  const { parsed, teamId, seasonId, overwrite, teamMappings } = opts;
   const { gameInfo, linescore, batting, pitching } = parsed;
 
   const results = {

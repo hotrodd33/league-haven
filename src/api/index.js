@@ -526,9 +526,24 @@ export async function importData(entity, csv, mode, seasonId) {
 }
 
 /* ── GameChanger Import ── */
-export async function importGameChanger(file, importType, options = {}) {
+export async function importGameChanger(fileOrText, importType, options = {}) {
+  if (typeof fileOrText === 'string') {
+    // Pasted text mode — send as JSON
+    return apiFetch('/import/gamechanger', {
+      method: 'POST',
+      body: JSON.stringify({
+        pastedText: fileOrText,
+        importType,
+        teamId: options.teamId || undefined,
+        seasonId: options.seasonId || undefined,
+        overwrite: options.overwrite ?? undefined,
+        onlyNew: options.onlyNew ?? undefined,
+        teamMappings: options.teamMappings || undefined,
+      }),
+    });
+  }
   const fd = new FormData();
-  fd.append('gamechangerFile', file);
+  fd.append('gamechangerFile', fileOrText);
   fd.append('importType', importType);
   if (options.teamId) fd.append('teamId', options.teamId);
   if (options.seasonId) fd.append('seasonId', options.seasonId);
@@ -538,9 +553,16 @@ export async function importGameChanger(file, importType, options = {}) {
   return apiFetch('/import/gamechanger', { method: 'POST', body: fd });
 }
 
-export async function previewGameChanger(file, importType) {
+export async function previewGameChanger(fileOrText, importType) {
+  if (typeof fileOrText === 'string') {
+    // Pasted text mode — send as JSON
+    return apiFetch('/import/gamechanger/preview', {
+      method: 'POST',
+      body: JSON.stringify({ pastedText: fileOrText, importType, preview: 'true' }),
+    });
+  }
   const fd = new FormData();
-  fd.append('gamechangerFile', file);
+  fd.append('gamechangerFile', fileOrText);
   fd.append('importType', importType);
   fd.append('preview', 'true');
   return apiFetch('/import/gamechanger/preview', { method: 'POST', body: fd });

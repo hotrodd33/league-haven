@@ -1,29 +1,28 @@
 /* ═══════════════════════════════════════════════════════
-   GameChanger Box Score PDF Parser
+   GameChanger Box Score Parser
    ═══════════════════════════════════════════════════════
-   Extracts game data from a GameChanger PDF box score.
+   Parses box score data from:
+   - PDF files (via pdf-parse text extraction)
+   - Raw text (pasted from the GC box score web page)
+   - HTML (fetched from a GC URL, text extracted)
    
-   GameChanger box score PDFs typically contain:
+   GameChanger box scores typically contain:
    - Game header: Teams, date, location, final score
    - Linescore: Runs per inning
    - Batting stats per team (AB, R, H, RBI, BB, SO, etc.)
    - Pitching stats per team (IP, H, R, ER, BB, K, etc.)
    - Sometimes pitch counts per pitcher
-   
-   pdf-parse gives us raw text; we use regex-based section
-   detection to split and parse each section.
    ═══════════════════════════════════════════════════════ */
 
 const pdfParse = require('pdf-parse');
 
 /**
- * Parse a GameChanger box score PDF buffer.
- * @param {Buffer} buffer — PDF file contents
- * @returns {Promise<Object>} Parsed box score data
+ * Parse box score from raw text (pasted from GC web page, or extracted from PDF).
+ * This is the core parser — all other entry points call this.
+ * @param {string} text — raw text content of a box score
+ * @returns {Object} Parsed box score data
  */
-async function parseBoxScorePDF(buffer) {
-  const data = await pdfParse(buffer);
-  const text = data.text;
+function parseBoxScoreText(text) {
   const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
 
   const result = {
@@ -34,12 +33,10 @@ async function parseBoxScorePDF(buffer) {
     raw: text,
   };
 
-  // Detect team names from game info or linescore
   const teams = detectTeams(lines, result.linescore);
   result.gameInfo.awayTeam = teams.away;
   result.gameInfo.homeTeam = teams.home;
 
-  // Extract batting and pitching sections
   const sections = splitSections(lines, teams);
   result.batting.away = parseBattingSection(sections.awayBatting);
   result.batting.home = parseBattingSection(sections.homeBatting);
@@ -47,6 +44,34 @@ async function parseBoxScorePDF(buffer) {
   result.pitching.home = parsePitchingSection(sections.homePitching);
 
   return result;
+}
+
+/**
+ * Parse a GameChanger box score PDF buffer.
+ * @param {Buffer} buffer — PDF file contents
+ * @returns {Promise<Object>} Parsed box score data
+ */
+async function parseBoxScorePDF(buffer) {
+  let text;
+  try {
+    const data = await pdfParse(buffer);
+    text = data.text;
+  } catch (err) {
+    throw new Error(
+      'Could not extract text from this PDF. GameChanger PDFs often use encoded content ' +
+      'that cannot be read. Try pasting the box score text from the GameChanger web page instead. ' +
+      `(${err.message})`
+    );
+  }
+
+  if (!text || text.trim().length < 20) {
+    throw new Error(
+      'The PDF appears to be empty or its text is encoded/embedded as images. ' +
+      'Try pasting the box score text from the GameChanger web page instead.'
+    );
+  }
+
+  return parseBoxScoreText(text);
 }
 
 /* ── Game Info ── */
@@ -531,4 +556,4 @@ function normalizeTime(str) {
   return `${String(h).padStart(2, '0')}:${m}`;
 }
 
-module.exports = { parseBoxScorePDF };
+module.exports = { parseBoxScorePDF, parseBoxScoreText };

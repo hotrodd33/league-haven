@@ -57,6 +57,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
   const [step, setStep] = useState(0);
   const [importType, setImportType] = useState(null);
   const [file, setFile] = useState(null);
+  const [pastedText, setPastedText] = useState('');
 
   // Preview data (client-parsed or from server)
   const [previewHeaders, setPreviewHeaders] = useState([]);
@@ -103,6 +104,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
       setStep(0);
       setImportType(null);
       setFile(null);
+      setPastedText('');
       setPreviewHeaders([]);
       setPreviewRows([]);
       setMatchedRows(null);
@@ -132,14 +134,15 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
   }, [importType]);
 
   const parseFile = useCallback(async () => {
-    if (!file) return;
+    const input = pastedText?.trim() ? pastedText.trim() : file;
+    if (!input) return;
     setParsing(true);
     setParseError(null);
 
     try {
       // Try server-side preview first
       try {
-        const serverResult = await previewGameChanger(file, importType);
+        const serverResult = await previewGameChanger(input, importType);
         if (serverResult?.headers?.length > 0) {
           setPreviewHeaders(serverResult.headers);
           setPreviewRows(serverResult.rows || []);
@@ -192,7 +195,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
     } finally {
       setParsing(false);
     }
-  }, [file, importType]);
+  }, [file, pastedText, importType]);
 
   const matchPlayersFromPreview = async (rows) => {
     try {
@@ -227,7 +230,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
   const canAdvance = () => {
     switch (step) {
       case 0: return !!importType;
-      case 1: return !!file;
+      case 1: return !!file || (pastedText && pastedText.trim().length > 20);
       case 2: return previewRows.length > 0;
       case 3: // Map Teams — all unmatched teams must have a mapping
         return unmatchedTeams.length === 0 ||
@@ -300,7 +303,8 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
     }, 500);
 
     try {
-      const result = await importGameChanger(file, importType, {
+      const input = pastedText?.trim() ? pastedText.trim() : file;
+      const result = await importGameChanger(input, importType, {
         teamId: settings.teamId,
         seasonId: settings.seasonId,
         overwrite: settings.overwrite,
@@ -329,6 +333,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
     setStep(0);
     setImportType(null);
     setFile(null);
+    setPastedText('');
     setPreviewHeaders([]);
     setPreviewRows([]);
     setMatchedRows(null);
@@ -365,6 +370,8 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
             file={file}
             onFileSelect={handleFileSelect}
             onFileClear={() => setFile(null)}
+            pastedText={pastedText}
+            onPastedTextChange={setPastedText}
           />
         );
 
