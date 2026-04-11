@@ -72,7 +72,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
           {divisions.map(div => (
             <div key={div.key}>
               {(divisions.length > 1 || div.name) && (
-                <h3 className="text-base font-bold text-blue-200 mb-3 border-b-2 border-blue-700 pb-1">
+                <h3 className="text-base font-bold text-field-300 mb-3 border-b-2 border-field-700 pb-1">
                   {div.name || 'Other'}
                 </h3>
               )}
@@ -104,7 +104,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                             <div className="flex items-center gap-2">
                               <TeamLogo src={team.logo} name={team.team_name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} />
                               <div>
-                                <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-blue-300 hover:text-blue-100 hover:underline text-left">{team.team_name}</button>
+                                <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-field-300 hover:text-field-100 hover:underline text-left">{team.team_name}</button>
                                 {team.org_name && <span className="text-xs text-gray-400 ml-1.5">({team.org_name})</span>}
                               </div>
                             </div>
@@ -113,7 +113,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                           <td className="py-2.5 px-2 text-center font-bold">{team.losses}</td>
                           <td className="py-2.5 px-2 text-center text-gray-400">{team.ties || '—'}</td>
                           <td className="py-2.5 px-2 text-center text-gray-400">{team.gp}</td>
-                          <td className="py-2.5 px-2 text-center font-bold text-blue-300 tabular-nums">{team.points}</td>
+                          <td className="py-2.5 px-2 text-center font-bold text-field-300 tabular-nums">{team.points}</td>
                           <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{team.runs_for}</td>
                           <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{team.runs_against}</td>
                           <td className={`py-2.5 px-2 text-center font-semibold tabular-nums ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-gray-400'}`}>
@@ -136,12 +136,12 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                         <span className="text-xs font-mono text-gray-400 w-5">{idx + 1}</span>
                         <TeamLogo src={team.logo} name={team.team_name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-8 h-8" />
                         <div className="flex-1 min-w-0">
-                          <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-sm truncate text-blue-300 hover:text-blue-100 hover:underline text-left block max-w-full">{team.team_name}</button>
+                          <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline text-left block max-w-full">{team.team_name}</button>
                           {team.org_name && <div className="text-xs text-gray-400">{team.org_name}</div>}
                         </div>
                         <div className="text-right shrink-0">
                           <div className="font-bold text-sm">{team.wins}-{team.losses}{team.ties ? `-${team.ties}` : ''}</div>
-                          <div className="text-xs font-bold text-blue-300">{team.points} pts</div>
+                          <div className="text-xs font-bold text-field-300">{team.points} pts</div>
                         </div>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 border-t border-gray-700 pt-1.5">

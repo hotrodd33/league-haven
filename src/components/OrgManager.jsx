@@ -65,7 +65,7 @@ export default function OrgManager({ onBack }) {
           {isAdmin && (
             <>
               <br />
-              <button onClick={() => setShowForm(true)} className="text-blue-300 underline mt-1 inline-block">Add the first organization</button>
+              <button onClick={() => setShowForm(true)} className="text-field-300 underline mt-1 inline-block">Add the first organization</button>
             </>
           )}
         </div>

@@ -236,7 +236,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         <div className="flex items-center justify-center gap-3 sm:gap-6 mb-3">
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-12 h-12" />
-            <button onClick={() => onNavigateToTeam?.(game.home_team_id, game.home_org_id)} className="font-bold text-sm text-center truncate w-full text-blue-300 hover:text-blue-100 hover:underline">{game.home_team_name}</button>
+            <button onClick={() => onNavigateToTeam?.(game.home_team_id, game.home_org_id)} className="font-bold text-sm text-center truncate w-full text-field-300 hover:text-field-100 hover:underline">{game.home_team_name}</button>
             <div className="w-12 h-1 rounded-full" style={{ background: game.home_primary_color || '#ccc' }} />
             <span className="text-xs text-gray-400 uppercase">Home</span>
           </div>
@@ -250,7 +250,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
           </div>
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
             <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-12 h-12" />
-            <button onClick={() => onNavigateToTeam?.(game.away_team_id, game.away_org_id)} className="font-bold text-sm text-center truncate w-full text-blue-300 hover:text-blue-100 hover:underline">{game.away_team_name}</button>
+            <button onClick={() => onNavigateToTeam?.(game.away_team_id, game.away_org_id)} className="font-bold text-sm text-center truncate w-full text-field-300 hover:text-field-100 hover:underline">{game.away_team_name}</button>
             <div className="w-12 h-1 rounded-full" style={{ background: game.away_primary_color || '#ccc' }} />
             <span className="text-xs text-gray-400 uppercase">Away</span>
           </div>

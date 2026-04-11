@@ -85,7 +85,7 @@ export default function UserManager({ onBack }) {
         <div className="py-12 text-center text-gray-400">
           No user accounts.
           <br />
-          <button onClick={() => setShowForm(true)} className="text-blue-300 underline mt-1 inline-block">Add the first user</button>
+          <button onClick={() => setShowForm(true)} className="text-field-300 underline mt-1 inline-block">Add the first user</button>
         </div>
       ) : (
         <>
