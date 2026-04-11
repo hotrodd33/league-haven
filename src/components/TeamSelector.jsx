@@ -15,7 +15,8 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [collapsed, setCollapsed] = useState({});
+  const [collapsed, setCollapsed] = useState(null); // null = not yet initialized
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const loadTeams = useCallback(async () => {
     setLoading(true);
@@ -57,6 +58,12 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
     if (onTeamsChanged) onTeamsChanged();
   }
 
+  function handleSelectTeam(id, orgId) {
+    onSelectTeam(id, orgId);
+    // Auto-collapse on mobile after selection
+    if (window.innerWidth < 1024) setMobileOpen(false);
+  }
+
   function toggleOrg(orgName) {
     setCollapsed(prev => ({ ...prev, [orgName]: !prev[orgName] }));
   }
@@ -77,14 +84,27 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
   }
   const orgNames = Object.keys(grouped).sort();
 
-  return (
-    <div className="space-y-1">
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1">Teams</p>
+  // Initialize collapsed state: all collapsed, auto-expand the org with the selected team
+  if (collapsed === null && orgNames.length > 0) {
+    const init = {};
+    for (const name of orgNames) init[name] = true;
+    // Expand the org that contains the selected team
+    if (selectedTeam) {
+      const selTeam = teams.find(t => t.id === selectedTeam);
+      if (selTeam?.org_name) init[selTeam.org_name] = false;
+    }
+    setCollapsed(init);
+  }
 
+  // Effective collapsed state (treat null as all-expanded fallback)
+  const col = collapsed || {};
+
+  const teamList = (
+    <>
       {/* Hierarchical org → team tree */}
       {orgNames.map((orgName) => {
         const org = grouped[orgName];
-        const isCollapsed = collapsed[orgName];
+        const isCollapsed = col[orgName];
         const hasSelected = org.teams.some(t => t.id === selectedTeam);
 
         return (
@@ -112,7 +132,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                     key={team.id}
                     team={team}
                     isSelected={team.id === selectedTeam}
-                    onSelect={() => onSelectTeam(team.id, team.org_id || null)}
+                    onSelect={() => handleSelectTeam(team.id, team.org_id || null)}
                   />
                 ))}
               </div>
@@ -131,7 +151,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 key={team.id}
                 team={team}
                 isSelected={team.id === selectedTeam}
-                onSelect={() => onSelectTeam(team.id, team.org_id || null)}
+                onSelect={() => handleSelectTeam(team.id, team.org_id || null)}
               />
             ))}
           </div>
@@ -144,7 +164,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
               key={team.id}
               team={team}
               isSelected={team.id === selectedTeam}
-              onSelect={() => onSelectTeam(team.id, team.org_id || null)}
+              onSelect={() => handleSelectTeam(team.id, team.org_id || null)}
             />
           ))}
         </div>
@@ -177,6 +197,53 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
           >+ Add Team</button>
         </div>
       )}
+    </>
+  );
+
+  return (
+    <div className="space-y-1">
+      {/* Mobile: compact toggle bar */}
+      <div className="lg:hidden">
+        <button
+          onClick={() => setMobileOpen(prev => !prev)}
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200 text-left"
+        >
+          {selected ? (
+            <>
+              {(selected.logo_url || selected.org_logo_url) ? (
+                <img src={selected.logo_url || selected.org_logo_url} alt="" className="w-7 h-7 object-contain rounded shrink-0" />
+              ) : (
+                <HomePlate
+                  cityAbbr={selected.city_abbr || selected.abbreviation?.slice(0, 3) || ''}
+                  primaryColor={selected.primary_color || '#003366'}
+                  secondaryColor={selected.secondary_color || '#CC0000'}
+                  size="w-7 h-7"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">{selected.name}</p>
+                {selected.age_group && <p className="text-[10px] text-gray-400">{selected.age_group}{selected.level ? ` · ${selected.level}` : ''}</p>}
+              </div>
+            </>
+          ) : (
+            <span className="flex-1 text-sm text-gray-500">Select a team…</span>
+          )}
+          <svg className={cn('w-4 h-4 text-gray-400 shrink-0 transition-transform', mobileOpen ? 'rotate-180' : '')} viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+          </svg>
+        </button>
+        {mobileOpen && (
+          <div className="mt-2 max-h-80 overflow-y-auto">
+            {teamList}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: always visible */}
+      <div className="hidden lg:block">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1">Teams</p>
+        {teamList}
+      </div>
 
       {showForm && (
         <TeamForm
