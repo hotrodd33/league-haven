@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, fetchSeasons, createTeam, updateTeam, deleteTeam, uploadTeamLogo, removeTeamLogo } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo, { HomePlate } from './TeamLogo.jsx';
+import { cn } from '../lib/cn.js';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
 const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
@@ -14,6 +15,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [collapsed, setCollapsed] = useState({});
 
   const loadTeams = useCallback(async () => {
     setLoading(true);
@@ -55,15 +57,20 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
     if (onTeamsChanged) onTeamsChanged();
   }
 
+  function toggleOrg(orgName) {
+    setCollapsed(prev => ({ ...prev, [orgName]: !prev[orgName] }));
+  }
+
   if (loading) return <div className="p-4 text-center text-gray-500">Loading teams…</div>;
   if (error) return <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>;
 
+  // Group teams by organization
   const grouped = {};
   const ungrouped = [];
   for (const team of teams) {
     if (team.org_name) {
-      if (!grouped[team.org_name]) grouped[team.org_name] = [];
-      grouped[team.org_name].push(team);
+      if (!grouped[team.org_name]) grouped[team.org_name] = { orgId: team.org_id, logo: team.org_logo_url, teams: [] };
+      grouped[team.org_name].teams.push(team);
     } else {
       ungrouped.push(team);
     }
@@ -71,91 +78,104 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
   const orgNames = Object.keys(grouped).sort();
 
   return (
-    <div>
-      <label htmlFor="team-select" className={labelCls}>Select Team</label>
-      <select
-        id="team-select"
-        value={selectedTeam || ''}
-        onChange={(e) => {
-          const id = e.target.value ? Number(e.target.value) : null;
-          const team = id ? teams.find(t => t.id === id) : null;
-          onSelectTeam(id, team?.org_id || null);
-        }}
-        className={inputCls}
-      >
-        <option value="">— Choose a team —</option>
-        {orgNames.map((orgName) => (
-          <optgroup key={orgName} label={orgName}>
-            {grouped[orgName].map((team) => (
-              <option key={team.id} value={team.id}>{team.name}</option>
-            ))}
-          </optgroup>
-        ))}
-        {ungrouped.length > 0 && orgNames.length > 0 && (
-          <optgroup label="Unassigned">
-            {ungrouped.map((team) => (
-              <option key={team.id} value={team.id}>{team.name}</option>
-            ))}
-          </optgroup>
-        )}
-        {ungrouped.length > 0 && orgNames.length === 0 && ungrouped.map((team) => (
-          <option key={team.id} value={team.id}>{team.name}</option>
-        ))}
-      </select>
+    <div className="space-y-1">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1">Teams</p>
 
-      {/* Selected team details */}
-      {selected && (
-        <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
-          <div className="text-sm space-y-1">
-            <div className="flex items-center gap-2">
-              {(selected.logo_url || selected.org_logo_url) && (
-                <img src={selected.logo_url || selected.org_logo_url} alt="" className="w-10 h-10 object-contain rounded shrink-0" />
+      {/* Hierarchical org → team tree */}
+      {orgNames.map((orgName) => {
+        const org = grouped[orgName];
+        const isCollapsed = collapsed[orgName];
+        const hasSelected = org.teams.some(t => t.id === selectedTeam);
+
+        return (
+          <div key={orgName} className="mb-1">
+            <button
+              onClick={() => toggleOrg(orgName)}
+              className={cn(
+                'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs font-bold uppercase tracking-wide transition-colors',
+                hasSelected ? 'text-field-800 bg-field-50' : 'text-gray-500 hover:bg-gray-50'
               )}
-              <div>
-                <div className="font-semibold text-gray-800">{selected.name}</div>
-                {selected.logo_url ? null : selected.org_logo_url ? <span className="text-[10px] text-gray-400">Org logo</span> : null}
+            >
+              {org.logo && (
+                <img src={org.logo} alt="" className="w-4 h-4 object-contain rounded shrink-0" />
+              )}
+              <span className="flex-1 truncate">{orgName}</span>
+              <svg className={cn('w-3.5 h-3.5 shrink-0 transition-transform', isCollapsed ? '-rotate-90' : '')} viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+              </svg>
+            </button>
+
+            {!isCollapsed && (
+              <div className="ml-2 border-l border-gray-200 pl-1 mt-0.5 space-y-0.5">
+                {org.teams.map((team) => (
+                  <TeamItem
+                    key={team.id}
+                    team={team}
+                    isSelected={team.id === selectedTeam}
+                    onSelect={() => onSelectTeam(team.id, team.org_id || null)}
+                  />
+                ))}
               </div>
-            </div>
-            {selected.age_group && <div className="text-gray-500"><span className="font-medium text-gray-600">Age Group:</span> {selected.age_group}</div>}
-            {selected.level && <div className="text-gray-500"><span className="font-medium text-gray-600">Level:</span> {selected.level}</div>}
-            {selected.divisions && selected.divisions.length > 0 && (
-              <div className="text-gray-500"><span className="font-medium text-gray-600">Division{selected.divisions.length > 1 ? 's' : ''}:</span> {selected.divisions.map(d => d.name).join(', ')}</div>
             )}
-            {!selected.divisions?.length && selected.division && (
-              <div className="text-gray-500"><span className="font-medium text-gray-600">Division:</span> {selected.division}</div>
-            )}
-            <div className="text-gray-500">
-              <span className="font-medium text-gray-600">Org:</span> {selected.org_name || 'Unassigned'}
-            </div>
           </div>
-          {isAdmin && (
-            <div className="flex gap-2 mt-3 pt-2 border-t border-gray-200">
-              <button
-                onClick={() => { setEditing(true); setShowForm(true); }}
-                className="flex-1 px-2 py-1.5 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-              >Edit</button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 px-2 py-1.5 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
-              >{deleting ? '…' : 'Delete'}</button>
-            </div>
-          )}
+        );
+      })}
+
+      {/* Ungrouped teams */}
+      {ungrouped.length > 0 && orgNames.length > 0 && (
+        <div className="mb-1">
+          <p className="px-2 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Unassigned</p>
+          <div className="space-y-0.5">
+            {ungrouped.map((team) => (
+              <TeamItem
+                key={team.id}
+                team={team}
+                isSelected={team.id === selectedTeam}
+                onSelect={() => onSelectTeam(team.id, team.org_id || null)}
+              />
+            ))}
+          </div>
         </div>
       )}
-
-      {/* Add Team / Import buttons for admins */}
-      {isAdmin && (
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={() => { setEditing(false); setShowForm(true); }}
-            className="flex-1 px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors"
-          >+ Add Team</button>
+      {ungrouped.length > 0 && orgNames.length === 0 && (
+        <div className="space-y-0.5">
+          {ungrouped.map((team) => (
+            <TeamItem
+              key={team.id}
+              team={team}
+              isSelected={team.id === selectedTeam}
+              onSelect={() => onSelectTeam(team.id, team.org_id || null)}
+            />
+          ))}
         </div>
       )}
 
       {teams.length === 0 && !isAdmin && (
-        <div className="p-4 text-center text-gray-500">No teams found.</div>
+        <div className="p-4 text-center text-gray-500 text-sm">No teams found.</div>
+      )}
+
+      {/* Admin actions */}
+      {isAdmin && selected && (
+        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
+          <button
+            onClick={() => { setEditing(true); setShowForm(true); }}
+            className="flex-1 px-2 py-1.5 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+          >Edit</button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex-1 px-2 py-1.5 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
+          >{deleting ? '…' : 'Delete'}</button>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="mt-2">
+          <button
+            onClick={() => { setEditing(false); setShowForm(true); }}
+            className="w-full px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors"
+          >+ Add Team</button>
+        </div>
       )}
 
       {showForm && (
@@ -165,8 +185,39 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
           onCancel={() => { setShowForm(false); setEditing(false); }}
         />
       )}
-
     </div>
+  );
+}
+
+function TeamItem({ team, isSelected, onSelect }) {
+  return (
+    <button
+      onClick={onSelect}
+      className={cn(
+        'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors text-sm',
+        isSelected
+          ? 'bg-field-100 text-field-900 font-semibold shadow-sm ring-1 ring-field-300'
+          : 'text-gray-700 hover:bg-gray-50'
+      )}
+    >
+      {(team.logo_url || team.org_logo_url) ? (
+        <img src={team.logo_url || team.org_logo_url} alt="" className="w-6 h-6 object-contain rounded shrink-0" />
+      ) : (
+        <HomePlate
+          cityAbbr={team.city_abbr || team.abbreviation?.slice(0, 3) || ''}
+          primaryColor={team.primary_color || '#003366'}
+          secondaryColor={team.secondary_color || '#CC0000'}
+          size="w-6 h-6"
+          textSize="text-[5px]"
+        />
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="truncate leading-tight">{team.name}</p>
+        {team.age_group && (
+          <p className="text-[10px] text-gray-400 leading-tight">{team.age_group}{team.level ? ` · ${team.level}` : ''}</p>
+        )}
+      </div>
+    </button>
   );
 }
 

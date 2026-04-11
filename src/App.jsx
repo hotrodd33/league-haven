@@ -4,17 +4,13 @@ import Login from "./components/Login.jsx";
 import ResetPassword from "./components/ResetPassword.jsx";
 import ChangePassword from "./components/ChangePassword.jsx";
 import TeamSelector from "./components/TeamSelector.jsx";
-import RosterList from "./components/RosterList.jsx";
+import TeamPage from "./components/TeamPage.jsx";
 import PlayerForm from "./components/PlayerForm.jsx";
-import StaffList from "./components/StaffList.jsx";
 import OrgManager from "./components/OrgManager.jsx";
 import UserManager from "./components/UserManager.jsx";
 import LeagueConfig from "./components/LeagueConfig.jsx";
 import GameSchedule from "./components/GameSchedule.jsx";
 import Standings from "./components/Standings.jsx";
-import TeamSchedule from "./components/TeamSchedule.jsx";
-import PitcherRest from "./components/PitcherRest.jsx";
-import PitchLog from "./components/PitchLog.jsx";
 import Directory from "./components/Directory.jsx";
 import DataManager from "./components/DataManager.jsx";
 import Dashboard from "./components/Dashboard.jsx";
@@ -104,12 +100,8 @@ export default function App() {
                         <aside className="w-full lg:w-64 bg-white rounded-xl shadow-card p-4 shrink-0 lg:m-6 lg:mr-0 lg:self-start lg:sticky lg:top-20">
                             <TeamSelector selectedTeam={selectedTeam} onSelectTeam={(id, orgId) => { setSelectedTeam(id); setSelectedTeamOrgId(orgId); }} onTeamsChanged={() => setRefreshKey((k) => k + 1)} />
                         </aside>
-                        <div className="flex-1 p-4 lg:p-6 overflow-x-auto space-y-4">
-                            <RosterList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} />
-                            <StaffList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} refreshKey={refreshKey} />
-                            <PitcherRest teamId={selectedTeam} />
-                            <PitchLog teamId={selectedTeam} />
-                            <TeamSchedule teamId={selectedTeam} onNavigateToTeam={navigateToTeam} />
+                        <div className="flex-1 p-4 lg:p-6 overflow-x-auto">
+                            <TeamPage teamId={selectedTeam} teamOrgId={selectedTeamOrgId} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} onNavigateToTeam={navigateToTeam} />
                         </div>
                     </div>
                 );
