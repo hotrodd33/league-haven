@@ -6,15 +6,23 @@ const { authMiddleware, requireAdmin, canEditOrg } = require('../auth');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
 
+function computeTeamFields(t) {
+  t.long_name = t.team_city
+    ? [t.team_city, t.team_mascot, t.team_color, t.age_group, t.level].filter(Boolean).join(' ')
+    : t.name;
+  if (t.team_city) {
+    const words = t.team_city.trim().split(/\s+/);
+    t.city_abbr = (words.length > 1 ? words.map(w => w[0]).join('') : t.team_city.substring(0, 3)).toUpperCase();
+  } else {
+    t.city_abbr = (t.name || '?')[0];
+  }
+}
+
 async function enrich(org) {
   if (!org) return null;
   const { rows: locations } = await pool.query('SELECT * FROM field_locations WHERE org_id = $1 ORDER BY name', [org.id]);
   const { rows: teams } = await pool.query('SELECT * FROM teams WHERE org_id = $1 ORDER BY name', [org.id]);
-  for (const t of teams) {
-    t.long_name = t.team_city
-      ? [t.team_city, t.team_mascot, t.team_color, t.age_group, t.level].filter(Boolean).join(' ')
-      : t.name;
-  }
+  for (const t of teams) computeTeamFields(t);
   return { ...org, locations, teams, team_count: teams.length };
 }
 
@@ -59,9 +67,7 @@ router.get('/directory', async (req, res) => {
     // Group teams by org
     const teamsByOrg = {};
     for (const t of teams) {
-      t.long_name = t.team_city
-        ? [t.team_city, t.team_mascot, t.team_color, t.age_group, t.level].filter(Boolean).join(' ')
-        : t.name;
+      computeTeamFields(t);
       if (!teamsByOrg[t.org_id]) teamsByOrg[t.org_id] = [];
       teamsByOrg[t.org_id].push({ ...t, staff: staffByTeam[t.id] || [] });
     }

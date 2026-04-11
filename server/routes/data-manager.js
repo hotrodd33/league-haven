@@ -192,7 +192,7 @@ router.get('/export/:entity', async (req, res) => {
       }
       case 'teams': {
         const { rows } = await pool.query(
-          `SELECT t.id, t.name, t.abbreviation, t.team_city, t.team_color, t.team_mascot, o.name AS org_name, t.age_group, t.level
+          `SELECT t.id, t.name, t.abbreviation, t.team_city, t.team_color, t.team_mascot, t.primary_color, t.secondary_color, o.name AS org_name, t.age_group, t.level
            FROM teams t LEFT JOIN organizations o ON o.id = t.org_id ORDER BY o.name, t.name`
         );
         const { rows: divRows } = await pool.query(
@@ -204,10 +204,10 @@ router.get('/export/:entity', async (req, res) => {
         );
         const divMap = {};
         for (const r of divRows) { if (!divMap[r.team_id]) divMap[r.team_id] = []; divMap[r.team_id].push(r.name); }
-        csvLines = ['abbreviation,team_city,team_mascot,team_color,team_name,org_name,age_group,level,division'];
+        csvLines = ['abbreviation,team_city,team_mascot,team_color,primary_color,secondary_color,team_name,org_name,age_group,level,division'];
         for (const t of rows) {
           const divs = divMap[t.id] ? divMap[t.id].join('; ') : '';
-          csvLines.push([t.abbreviation, t.team_city, t.team_mascot, t.team_color, t.name, t.org_name, t.age_group, t.level, divs].map(csvEsc).join(','));
+          csvLines.push([t.abbreviation, t.team_city, t.team_mascot, t.team_color, t.primary_color, t.secondary_color, t.name, t.org_name, t.age_group, t.level, divs].map(csvEsc).join(','));
         }
         break;
       }
@@ -441,6 +441,8 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const ageCol = findCol(headers, 'age_group', 'age', 'agegroup');
         const lvlCol = findCol(headers, 'level', 'lvl');
         const divCol = findCol(headers, 'division', 'divisions', 'div');
+        const primaryCol = findCol(headers, 'primary_color');
+        const secondaryCol = findCol(headers, 'secondary_color');
 
         if (!cityCol && !nameCol) return res.status(400).json({ error: 'CSV must have a "team_city" or "team_name" column' });
 
@@ -474,6 +476,8 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
           const mascot = mascotCol ? r[mascotCol] : '';
           const ageGroup = ageCol ? r[ageCol] : '';
           const level = lvlCol ? r[lvlCol] : '';
+          const primaryColor = primaryCol ? r[primaryCol] : '';
+          const secondaryColor = secondaryCol ? r[secondaryCol] : '';
           const name = city ? [city, color, ageGroup, level].filter(Boolean).join(' ') : (nameCol ? r[nameCol] : '');
           if (!name) { results.skipped++; continue; }
           const orgName = orgCol ? r[orgCol] : '';
@@ -508,8 +512,9 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
               await pool.query(
                 `UPDATE teams SET name = $1, abbreviation = $2, team_city = COALESCE(NULLIF($3,''), team_city), team_color = COALESCE(NULLIF($4,''), team_color),
                  team_mascot = COALESCE(NULLIF($5,''), team_mascot), age_group = COALESCE(NULLIF($6,''), age_group),
-                 level = COALESCE(NULLIF($7,''), level), org_id = COALESCE($8, org_id) WHERE id = $9`,
-                [name, abbr || null, city, color, mascot, ageGroup, level, orgId, exId]
+                 level = COALESCE(NULLIF($7,''), level), org_id = COALESCE($8, org_id),
+                 primary_color = COALESCE(NULLIF($10,''), primary_color), secondary_color = COALESCE(NULLIF($11,''), secondary_color) WHERE id = $9`,
+                [name, abbr || null, city, color, mascot, ageGroup, level, orgId, exId, primaryColor, secondaryColor]
               );
               if (divisionIds.length) {
                 await pool.query('DELETE FROM team_divisions WHERE team_id = $1', [exId]);
@@ -520,8 +525,8 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
               results.updated++;
             } else if (!exId) {
               const { rows: nr } = await pool.query(
-                'INSERT INTO teams (name, abbreviation, team_city, team_color, team_mascot, age_group, level, org_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
-                [name, abbr || null, city || null, color || null, mascot || null, ageGroup || null, level || null, orgId]
+                'INSERT INTO teams (name, abbreviation, team_city, team_color, team_mascot, age_group, level, org_id, primary_color, secondary_color) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id',
+                [name, abbr || null, city || null, color || null, mascot || null, ageGroup || null, level || null, orgId, primaryColor || null, secondaryColor || null]
               );
               teamLookup[name.toLowerCase()] = nr[0].id;
               if (divisionIds.length) {

@@ -5,6 +5,7 @@ import {
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
+import TeamLogo from './TeamLogo.jsx';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
 const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
@@ -40,11 +41,6 @@ function formatTime(timeStr) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-}
-
-function TeamLogo({ src, name, size = 'w-8 h-8' }) {
-  if (!src) return <div className={`${size} bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-500 shrink-0`}>{(name || '?')[0]}</div>;
-  return <img src={src} alt="" className={`${size} object-contain rounded shrink-0`} />;
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam }) {
@@ -230,7 +226,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                                 <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-blue-700 hover:text-blue-900 hover:underline">{game.home_team_name}</button>
-                                <TeamLogo src={game.home_logo} name={game.home_team_name} />
+                                <TeamLogo src={game.home_logo} name={game.home_team_name} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                               </div>
                               <div className="px-2 shrink-0">
                                 {game.status === 'completed' ? (
@@ -240,7 +236,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                                 )}
                               </div>
                               <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <TeamLogo src={game.away_logo} name={game.away_team_name} />
+                                <TeamLogo src={game.away_logo} name={game.away_team_name} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
                                 <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-blue-700 hover:text-blue-900 hover:underline">{game.away_team_name}</button>
                               </div>
                             </div>
@@ -281,12 +277,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                             </span>
                           </div>
                           <div className="flex items-center gap-2 mb-1">
-                            <TeamLogo src={game.home_logo} name={game.home_team_name} size="w-6 h-6" />
+                            <TeamLogo src={game.home_logo} name={game.home_team_name} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
                             <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-700 hover:text-blue-900 hover:underline text-left">{game.home_team_name}</button>
                             {game.status === 'completed' && <span className="font-bold text-sm">{game.home_score ?? '—'}</span>}
                           </div>
                           <div className="flex items-center gap-2 mb-2">
-                            <TeamLogo src={game.away_logo} name={game.away_team_name} size="w-6 h-6" />
+                            <TeamLogo src={game.away_logo} name={game.away_team_name} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
                             <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-700 hover:text-blue-900 hover:underline text-left">{game.away_team_name}</button>
                             {game.status === 'completed' && <span className="font-bold text-sm">{game.away_score ?? '—'}</span>}
                           </div>

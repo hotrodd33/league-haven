@@ -1,12 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchStandings, fetchSeasons } from '../api/index.js';
+import TeamLogo from './TeamLogo.jsx';
 
 const btnSecondary = "px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors";
-
-function TeamLogo({ src, name, size = 'w-7 h-7' }) {
-  if (!src) return <div className={`${size} bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-500 shrink-0`}>{(name || '?')[0]}</div>;
-  return <img src={src} alt="" className={`${size} object-contain rounded shrink-0`} />;
-}
 
 export default function Standings({ onBack, onNavigateToTeam }) {
   const [seasons, setSeasons] = useState([]);
@@ -102,11 +98,11 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                     {div.teams.map((team, idx) => {
                       const diff = team.runs_for - team.runs_against;
                       return (
-                        <tr key={team.team_id} className={`border-b border-gray-100 ${idx === 0 ? 'bg-yellow-50/50' : 'hover:bg-gray-50'}`}>
+                        <tr key={team.team_id} className={`border-b border-gray-100 ${idx === 0 ? 'bg-yellow-50/50' : 'hover:bg-gray-50'}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
                           <td className="py-2.5 px-2 text-gray-400 font-mono text-xs">{idx + 1}</td>
                           <td className="py-2.5 px-2">
                             <div className="flex items-center gap-2">
-                              <TeamLogo src={team.logo} name={team.team_name} />
+                              <TeamLogo src={team.logo} name={team.team_name} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} />
                               <div>
                                 <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-blue-700 hover:text-blue-900 hover:underline text-left">{team.team_name}</button>
                                 {team.org_name && <span className="text-xs text-gray-400 ml-1.5">({team.org_name})</span>}
@@ -135,10 +131,10 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                 {div.teams.map((team, idx) => {
                   const diff = team.runs_for - team.runs_against;
                   return (
-                    <div key={team.team_id} className={`bg-white border border-gray-200 rounded-lg p-3 ${idx === 0 ? 'ring-1 ring-yellow-300' : ''}`}>
+                    <div key={team.team_id} className={`bg-white border border-gray-200 rounded-lg p-3 ${idx === 0 ? 'ring-1 ring-yellow-300' : ''}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-mono text-gray-400 w-5">{idx + 1}</span>
-                        <TeamLogo src={team.logo} name={team.team_name} size="w-8 h-8" />
+                        <TeamLogo src={team.logo} name={team.team_name} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-8 h-8" />
                         <div className="flex-1 min-w-0">
                           <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-sm truncate text-blue-700 hover:text-blue-900 hover:underline text-left block max-w-full">{team.team_name}</button>
                           {team.org_name && <div className="text-xs text-gray-400">{team.org_name}</div>}

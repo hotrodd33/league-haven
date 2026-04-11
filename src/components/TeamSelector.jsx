@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, fetchSeasons, createTeam, updateTeam, deleteTeam, uploadTeamLogo, removeTeamLogo } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import TeamLogo, { HomePlate } from './TeamLogo.jsx';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
 const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
@@ -189,6 +190,8 @@ function TeamForm({ team, onDone, onCancel }) {
     age_group: team?.age_group || '',
     level: team?.level || '',
     org_id: team?.org_id || '',
+    primary_color: team?.primary_color || '#003366',
+    secondary_color: team?.secondary_color || '#CC0000',
     division_ids: team?.divisions ? team.divisions.map(d => d.id) : [],
   });
 
@@ -206,6 +209,11 @@ function TeamForm({ team, onDone, onCancel }) {
     if (form.age_group) abbr += form.age_group.replace(/\s+/g, '');
     if (form.level) abbr += form.level.replace(/\s+/g, '');
     return abbr.toUpperCase();
+  })();
+  const cityAbbr = (() => {
+    if (!form.team_city) return '';
+    const words = form.team_city.trim().split(/\s+/);
+    return (words.length > 1 ? words.map(w => w[0]).join('') : form.team_city.substring(0, 3)).toUpperCase();
   })();
 
   function handleLogoChange(e) {
@@ -277,6 +285,8 @@ function TeamForm({ team, onDone, onCancel }) {
       team_mascot: form.team_mascot.trim(),
       age_group: form.age_group || null,
       level: form.level || null,
+      primary_color: form.primary_color || null,
+      secondary_color: form.secondary_color || null,
       division_ids: form.division_ids,
       org_id: form.org_id ? Number(form.org_id) : null,
     };
@@ -320,11 +330,32 @@ function TeamForm({ team, onDone, onCancel }) {
               <input id="team-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" className={inputCls} />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="primary-color" className={labelCls}>Primary Color</label>
+              <div className="flex items-center gap-2">
+                <input id="primary-color" type="color" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-300 cursor-pointer p-0.5" />
+                <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="secondary-color" className={labelCls}>Secondary Color</label>
+              <div className="flex items-center gap-2">
+                <input id="secondary-color" type="color" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-300 cursor-pointer p-0.5" />
+                <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+              </div>
+            </div>
+          </div>
           {shortName && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1 text-sm">
-              <div><span className="text-xs font-semibold text-gray-400 uppercase">Long Name:</span> <span className="font-semibold text-gray-800">{longName}</span></div>
-              <div><span className="text-xs font-semibold text-gray-400 uppercase">Short Name:</span> <span className="font-semibold text-gray-800">{shortName}</span></div>
-              <div><span className="text-xs font-semibold text-gray-400 uppercase">Abbreviation:</span> <span className="font-mono font-semibold text-gray-800">{abbreviation}</span></div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2 text-sm">
+              <div className="flex items-center gap-3">
+                <HomePlate cityAbbr={cityAbbr} primaryColor={form.primary_color} secondaryColor={form.secondary_color} size="w-12 h-12" />
+                <div className="space-y-1">
+                  <div><span className="text-xs font-semibold text-gray-400 uppercase">Long Name:</span> <span className="font-semibold text-gray-800">{longName}</span></div>
+                  <div><span className="text-xs font-semibold text-gray-400 uppercase">Short Name:</span> <span className="font-semibold text-gray-800">{shortName}</span></div>
+                  <div><span className="text-xs font-semibold text-gray-400 uppercase">Abbreviation:</span> <span className="font-mono font-semibold text-gray-800">{abbreviation}</span></div>
+                </div>
+              </div>
             </div>
           )}
           <div>

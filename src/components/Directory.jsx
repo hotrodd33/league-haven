@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { fetchDirectory } from '../api/index.js';
+import TeamLogo from './TeamLogo.jsx';
 
 const ROLE_LABELS = {
   head_coach: 'Head Coach',
@@ -114,8 +115,9 @@ export default function Directory({ onEditTeam }) {
                       <div className="flex items-center">
                         <button
                           onClick={() => setExpanded(isExpanded ? null : team.id)}
-                          className="flex-1 text-left px-4 sm:px-6 py-3 hover:bg-gray-50 transition-colors flex items-center gap-4"
+                          className="flex-1 text-left px-4 sm:px-6 py-3 hover:bg-gray-50 transition-colors flex items-center gap-3"
                         >
+                          <TeamLogo src={team.logo_url} name={team.long_name || team.name} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-7 h-7" />
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-sm">{team.long_name || team.name}</div>
                             <div className="text-xs text-gray-500">

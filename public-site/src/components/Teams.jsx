@@ -1,14 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchTeams, fetchOrganizations } from '../api/index.js';
-
-function TeamLogo({ src, name, size = 'w-12 h-12' }) {
-  if (!src) return (
-    <div className={`${size} bg-gray-200 rounded-full flex items-center justify-center text-lg font-bold text-gray-500 shrink-0`}>
-      {(name || '?')[0]}
-    </div>
-  );
-  return <img src={src} alt={name} className={`${size} object-contain rounded shrink-0`} />;
-}
+import TeamLogo from './TeamLogo.jsx';
 
 export default function Teams() {
   const [teams, setTeams] = useState([]);
@@ -59,8 +51,8 @@ export default function Teams() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {group.teams.map(team => (
-              <div key={team.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
-                <TeamLogo src={team.logo_url || group.org.logo} name={team.long_name || team.name} />
+              <div key={team.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow" style={{ borderLeft: `4px solid ${team.primary_color || '#ccc'}` }}>
+                <TeamLogo src={team.logo_url || group.org.logo} name={team.long_name || team.name} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-12 h-12" />
                 <div className="min-w-0">
                   <div className="font-semibold truncate">{team.long_name || team.name}</div>
                   <div className="text-xs text-gray-500">

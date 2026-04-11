@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchGames } from '../api/index.js';
 import GameDetail from './GameDetail.jsx';
+import TeamLogo from './TeamLogo.jsx';
 
 const STATUS_COLORS = {
   scheduled: 'bg-blue-100 text-blue-800',
@@ -22,11 +23,6 @@ function formatTime(timeStr) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-}
-
-function TeamLogo({ src, name }) {
-  if (!src) return <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">{(name || '?')[0]}</div>;
-  return <img src={src} alt="" className="w-6 h-6 object-contain rounded shrink-0" />;
 }
 
 export default function TeamSchedule({ teamId, onNavigateToTeam }) {
@@ -70,6 +66,9 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
           const isHome = game.home_team_id === teamId;
           const opponent = isHome ? game.away_team_name : game.home_team_name;
           const opponentLogo = isHome ? game.away_logo : game.home_logo;
+          const oppCityAbbr = isHome ? game.away_city_abbr : game.home_city_abbr;
+          const oppPrimary = isHome ? game.away_primary_color : game.home_primary_color;
+          const oppSecondary = isHome ? game.away_secondary_color : game.home_secondary_color;
           const prefix = isHome ? 'vs' : '@';
           const teamScore = isHome ? game.home_score : game.away_score;
           const oppScore = isHome ? game.away_score : game.home_score;
@@ -94,7 +93,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
               {/* Opponent */}
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <span className="text-xs text-gray-400 font-semibold w-5 shrink-0">{prefix}</span>
-                <TeamLogo src={opponentLogo} name={opponent} />
+                <TeamLogo src={opponentLogo} name={opponent} cityAbbr={oppCityAbbr} primaryColor={oppPrimary} secondaryColor={oppSecondary} size="w-6 h-6" />
                 <span className="font-semibold truncate">{opponent}</span>
               </div>
 

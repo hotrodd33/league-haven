@@ -19,11 +19,13 @@ const BASE_SELECT = `
     ht.org_id AS home_org_id,
     ht.team_city AS home_team_city, ht.team_mascot AS home_team_mascot,
     ht.team_color AS home_team_color, ht.age_group AS home_age_group, ht.level AS home_level,
+    ht.primary_color AS home_primary_color, ht.secondary_color AS home_secondary_color,
     ho.logo_url AS home_org_logo,
     at.name AS away_team_name, at.logo_url AS away_team_logo,
     at.org_id AS away_org_id,
     at.team_city AS away_team_city, at.team_mascot AS away_team_mascot,
     at.team_color AS away_team_color, at.age_group AS away_age_group, at.level AS away_level,
+    at.primary_color AS away_primary_color, at.secondary_color AS away_secondary_color,
     ao.logo_url AS away_org_logo,
     fl.name AS location_name, fl.address AS location_address,
     fl.city AS location_city, fl.state AS location_state,
@@ -61,6 +63,12 @@ function enrichGame(row) {
   const awayLong = row.away_team_city
     ? [row.away_team_city, row.away_team_mascot, row.away_team_color, row.away_age_group, row.away_level].filter(Boolean).join(' ')
     : null;
+  // City abbreviation for fallback logos
+  function cityAbbr(city) {
+    if (!city) return '?';
+    const words = city.trim().split(/\s+/);
+    return (words.length > 1 ? words.map(w => w[0]).join('') : city.substring(0, 3)).toUpperCase();
+  }
   return {
     ...row,
     game_date: gameDate,
@@ -69,6 +77,12 @@ function enrichGame(row) {
     away_team_name: awayLong || row.away_team_name || '(Deleted Team)',
     home_logo: row.home_team_logo || row.home_org_logo || null,
     away_logo: row.away_team_logo || row.away_org_logo || null,
+    home_primary_color: row.home_primary_color || null,
+    home_secondary_color: row.home_secondary_color || null,
+    home_city_abbr: cityAbbr(row.home_team_city),
+    away_primary_color: row.away_primary_color || null,
+    away_secondary_color: row.away_secondary_color || null,
+    away_city_abbr: cityAbbr(row.away_team_city),
   };
 }
 
@@ -195,6 +209,7 @@ router.get('/standings', async (req, res) => {
         COALESCE(s.runs_against, 0) AS runs_against,
         t.name AS team_name, t.logo_url AS team_logo, t.org_id,
         t.team_city, t.team_mascot, t.team_color,
+        t.primary_color, t.secondary_color,
         o.name AS org_name, o.logo_url AS org_logo,
         td.division_id
       FROM team_divisions td
@@ -215,10 +230,15 @@ router.get('/standings', async (req, res) => {
       const longName = r.team_city
         ? [r.team_city, r.team_mascot, r.team_color, r.age_group, r.level].filter(Boolean).join(' ')
         : null;
+      const cityWords = (r.team_city || '').trim().split(/\s+/);
+      const cityAbbr = r.team_city
+        ? (cityWords.length > 1 ? cityWords.map(w => w[0]).join('') : r.team_city.substring(0, 3)).toUpperCase()
+        : null;
       return {
         ...r,
         points,
         team_name: longName || r.team_name,
+        city_abbr: cityAbbr,
         logo: r.team_logo || r.org_logo || null,
         division_id: div?.division_id || null,
         division_name: div?.division_name || null,

@@ -1,14 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchStandings, fetchSeasons } from '../api/index.js';
-
-function TeamLogo({ src, name, size = 'w-7 h-7' }) {
-  if (!src) return (
-    <div className={`${size} bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-500 shrink-0`}>
-      {(name || '?')[0]}
-    </div>
-  );
-  return <img src={src} alt="" className={`${size} object-contain rounded shrink-0`} />;
-}
+import TeamLogo from './TeamLogo.jsx';
 
 export default function Standings() {
   const [seasons, setSeasons] = useState([]);
@@ -106,9 +98,9 @@ export default function Standings() {
                 {div.teams.map((t, idx) => {
                   const diff = t.runs_for - t.runs_against;
                   return (
-                    <tr key={t.team_id} className={idx === 0 && t.gp > 0 ? 'bg-yellow-50/50' : 'hover:bg-gray-50'}>
+                    <tr key={t.team_id} className={idx === 0 && t.gp > 0 ? 'bg-yellow-50/50' : 'hover:bg-gray-50'} style={{ borderLeft: `3px solid ${t.primary_color || '#ccc'}` }}>
                       <td className="px-3 py-2">
-                        <TeamLogo src={t.logo} name={t.team_name} />
+                        <TeamLogo src={t.logo} name={t.team_name} cityAbbr={t.city_abbr} primaryColor={t.primary_color} secondaryColor={t.secondary_color} />
                       </td>
                       <td className="px-3 py-2">
                         <div className="font-semibold">{t.team_name}</div>
@@ -136,8 +128,8 @@ export default function Standings() {
             {div.teams.map((t, idx) => {
               const diff = t.runs_for - t.runs_against;
               return (
-                <div key={t.team_id} className={`bg-white border rounded-lg p-3 flex items-center gap-3 ${idx === 0 && t.gp > 0 ? 'border-yellow-300 ring-1 ring-yellow-200' : 'border-gray-200'}`}>
-                  <TeamLogo src={t.logo} name={t.team_name} />
+                <div key={t.team_id} className={`bg-white border rounded-lg p-3 flex items-center gap-3 ${idx === 0 && t.gp > 0 ? 'border-yellow-300 ring-1 ring-yellow-200' : 'border-gray-200'}`} style={{ borderLeft: `3px solid ${t.primary_color || '#ccc'}` }}>
+                  <TeamLogo src={t.logo} name={t.team_name} cityAbbr={t.city_abbr} primaryColor={t.primary_color} secondaryColor={t.secondary_color} />
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-sm truncate">{t.team_name}</div>
                     <div className="text-xs text-gray-400">{t.org_name}</div>
