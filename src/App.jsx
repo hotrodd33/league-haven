@@ -117,6 +117,7 @@ export default function App() {
                 user={user}
                 onChangePassword={() => setShowChangePassword(true)}
                 onLogout={logout}
+                onNavigateToTeam={navigateToTeam}
             >
                 {renderPage()}
             </AppShell>

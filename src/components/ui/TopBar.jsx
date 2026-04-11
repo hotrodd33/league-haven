@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '../../lib/cn.js';
 import { Bars3Icon, LockIcon, ArrowRightStartOnRectangleIcon } from './icons.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { fetchTeams } from '../../api/index.js';
+import TeamLogo from '../TeamLogo.jsx';
 
 export default function TopBar({
   title,
@@ -9,9 +12,12 @@ export default function TopBar({
   onMenuToggle,
   onChangePassword,
   onLogout,
+  onNavigateToTeam,
   children,
 }) {
+  const { isSuperAdmin, permissions } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [myTeams, setMyTeams] = useState([]);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -24,6 +30,18 @@ export default function TopBar({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [userMenuOpen]);
+
+  // Load teams the user has access to
+  useEffect(() => {
+    if (isSuperAdmin) { setMyTeams([]); return; }
+    if (!permissions.org_ids.length && !permissions.team_ids.length) { setMyTeams([]); return; }
+    fetchTeams().then(all => {
+      const teamIds = new Set(permissions.team_ids.map(Number));
+      const orgIds = new Set(permissions.org_ids.map(Number));
+      const mine = all.filter(t => teamIds.has(t.id) || (t.org_id && orgIds.has(t.org_id)));
+      setMyTeams(mine);
+    }).catch(() => setMyTeams([]));
+  }, [isSuperAdmin, permissions.org_ids, permissions.team_ids]);
 
   const initials = (user?.name || user?.username || '?')
     .split(' ')
@@ -57,6 +75,21 @@ export default function TopBar({
 
       {/* Actions slot — pass extra buttons, search, etc. */}
       {children}
+
+      {/* My teams quick-nav */}
+      {myTeams.length > 0 && (
+        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+          {myTeams.map(t => (
+            <button key={t.id} onClick={() => onNavigateToTeam?.(t.id, t.org_id)}
+              title={t.name}
+              className="rounded-md hover:ring-2 hover:ring-blue-400 transition-all">
+              <TeamLogo src={t.logo_url} name={t.name} ageGroup={t.age_group} level={t.level}
+                cityAbbr={t.city_abbr} primaryColor={t.primary_color} secondaryColor={t.secondary_color}
+                size="w-8 h-8" />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* User avatar + dropdown */}
       <div className="relative shrink-0" ref={menuRef}>

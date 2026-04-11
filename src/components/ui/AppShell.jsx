@@ -20,6 +20,7 @@ export default function AppShell({
   user,
   onChangePassword,
   onLogout,
+  onNavigateToTeam,
   children,
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -65,6 +66,7 @@ export default function AppShell({
           onMenuToggle={() => setMobileMenuOpen((v) => !v)}
           onChangePassword={onChangePassword}
           onLogout={onLogout}
+          onNavigateToTeam={onNavigateToTeam}
         />
 
         {/* Page content */}
