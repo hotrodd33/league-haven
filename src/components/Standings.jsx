@@ -98,7 +98,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                     {div.teams.map((team, idx) => {
                       const diff = team.runs_for - team.runs_against;
                       return (
-                        <tr key={team.team_id} className={`border-b border-gray-700 ${idx === 0 ? 'bg-yellow-900/35' : 'hover:bg-gray-900'}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
+                        <tr key={team.team_id} className={`border-b border-gray-700 ${idx === 0 ? 'bg-field-900/20' : 'hover:bg-gray-900'}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
                           <td className="py-2.5 px-2 text-gray-400 font-mono text-xs">{idx + 1}</td>
                           <td className="py-2.5 px-2">
                             <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                 {div.teams.map((team, idx) => {
                   const diff = team.runs_for - team.runs_against;
                   return (
-                    <div key={team.team_id} className={`bg-gray-800 border border-gray-700 rounded-lg p-3 ${idx === 0 ? 'ring-1 ring-yellow-300' : ''}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
+                    <div key={team.team_id} className={`bg-gray-800 border border-gray-700 rounded-lg p-3 ${idx === 0 ? 'ring-1 ring-field-500/50' : ''}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-mono text-gray-400 w-5">{idx + 1}</span>
                         <TeamLogo src={team.logo} name={team.team_name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-8 h-8" />
