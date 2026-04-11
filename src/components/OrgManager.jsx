@@ -15,7 +15,7 @@ const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold 
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 const btnSm = "px-3 py-1.5 text-xs font-semibold rounded";
 
-function summarizeOrgTeams(org, upcomingByTeam = {}) {
+function summarizeOrgTeams(org) {
   const teams = org.teams || [];
   const ageGroups = Object.values(
     teams.reduce((acc, team) => {
@@ -32,36 +32,12 @@ function summarizeOrgTeams(org, upcomingByTeam = {}) {
     .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name))
     .map((entry) => entry.name);
   const levels = [...new Set(teams.map((team) => team.level).filter(Boolean))].sort();
-  const featuredTeams = teams
-    .slice()
-    .sort((left, right) => {
-      const leftUpcoming = upcomingByTeam[left.id]?.count || 0;
-      const rightUpcoming = upcomingByTeam[right.id]?.count || 0;
-      if (rightUpcoming !== leftUpcoming) return rightUpcoming - leftUpcoming;
-      const leftNext = upcomingByTeam[left.id]?.nextDate || '9999-12-31';
-      const rightNext = upcomingByTeam[right.id]?.nextDate || '9999-12-31';
-      if (leftNext !== rightNext) return leftNext.localeCompare(rightNext);
-      return (left.long_name || left.name).localeCompare(right.long_name || right.name);
-    })
-    .slice(0, 3)
-    .map((team) => ({
-      id: team.id,
-      orgId: team.org_id,
-      name: team.long_name || team.name,
-      upcomingCount: upcomingByTeam[team.id]?.count || 0,
-    }));
-
-  return {
-    ageGroups,
-    levels,
-    featuredTeams,
-    remainingTeams: Math.max(teams.length - featuredTeams.length, 0),
-  };
+  return { ageGroups, levels };
 }
 export default function OrgManager({ onBack, onNavigateToTeam }) {
   const { isAdmin, canEditOrg } = useAuth();
   const [orgs, setOrgs] = useState([]);
-  const [upcomingByTeam, setUpcomingByTeam] = useState({});
+  const [orgStats, setOrgStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -77,20 +53,32 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayStr = today.toISOString().slice(0, 10);
-      const upcomingStatuses = new Set(['scheduled', 'in_progress', 'postponed']);
-      const map = {};
+      // Build team → org map
+      const teamToOrg = {};
+      for (const org of orgData) {
+        for (const team of org.teams || []) teamToOrg[team.id] = org.id;
+      }
+      // Build per-org game stats
+      const stats = {};
+      for (const org of orgData) stats[org.id] = { scheduled: 0, played: 0, missingScores: 0 };
       for (const g of games || []) {
-        if (!g?.game_date || !upcomingStatuses.has(g.status)) continue;
-        if (g.game_date < todayStr) continue;
+        if (!g?.game_date) continue;
+        const involvedOrgs = new Set();
         for (const teamId of [g.home_team_id, g.away_team_id]) {
-          if (!teamId) continue;
-          const current = map[teamId] || { count: 0, nextDate: null };
-          current.count += 1;
-          if (!current.nextDate || g.game_date < current.nextDate) current.nextDate = g.game_date;
-          map[teamId] = current;
+          if (teamId && teamToOrg[teamId]) involvedOrgs.add(teamToOrg[teamId]);
+        }
+        for (const orgId of involvedOrgs) {
+          if (!stats[orgId]) continue;
+          if (g.status === 'final') {
+            stats[orgId].played += 1;
+          } else if (g.game_date < todayStr && g.status !== 'cancelled') {
+            stats[orgId].missingScores += 1;
+          } else if (g.game_date >= todayStr && ['scheduled', 'in_progress', 'postponed'].includes(g.status)) {
+            stats[orgId].scheduled += 1;
+          }
         }
       }
-      setUpcomingByTeam(map);
+      setOrgStats(stats);
     }
     catch (err) { setError(err.message); }
     finally { setLoading(false); }
@@ -141,7 +129,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
             <OrgListCard
               key={org.id}
               org={org}
-              upcomingByTeam={upcomingByTeam}
+              orgStats={orgStats[org.id]}
               canEdit={canEditOrg(org.id)}
               deleting={deleting === org.id}
               isAdmin={isAdmin}
@@ -158,8 +146,9 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   );
 }
 
-function OrgListCard({ org, upcomingByTeam, canEdit, deleting, isAdmin, onOpen, onEdit, onDelete }) {
-  const { ageGroups, levels, featuredTeams, remainingTeams } = summarizeOrgTeams(org, upcomingByTeam);
+function OrgListCard({ org, orgStats, canEdit, deleting, isAdmin, onOpen, onEdit, onDelete }) {
+  const { ageGroups, levels } = summarizeOrgTeams(org);
+  const { scheduled = 0, played = 0, missingScores = 0 } = orgStats || {};
 
   return (
     <div
@@ -179,14 +168,18 @@ function OrgListCard({ org, upcomingByTeam, canEdit, deleting, isAdmin, onOpen, 
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-        <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
-          <div className="text-gray-400 uppercase tracking-wide font-semibold">Fields</div>
-          <div className="text-gray-100 font-bold mt-0.5">{org.locations.length}</div>
+      <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
+        <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
+          <div className="text-gray-400 uppercase tracking-wide font-semibold">Scheduled</div>
+          <div className="text-blue-300 font-bold text-sm mt-0.5">{scheduled}</div>
         </div>
-        <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
-          <div className="text-gray-400 uppercase tracking-wide font-semibold">Programs</div>
-          <div className="text-gray-100 font-bold mt-0.5">{ageGroups.length || 0} age group{ageGroups.length === 1 ? '' : 's'}</div>
+        <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
+          <div className="text-gray-400 uppercase tracking-wide font-semibold">Played</div>
+          <div className="text-green-400 font-bold text-sm mt-0.5">{played}</div>
+        </div>
+        <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
+          <div className="text-gray-400 uppercase tracking-wide font-semibold">Missing</div>
+          <div className={`font-bold text-sm mt-0.5 ${missingScores > 0 ? 'text-red-400' : 'text-gray-500'}`}>{missingScores}</div>
         </div>
       </div>
 
@@ -226,20 +219,7 @@ function OrgListCard({ org, upcomingByTeam, canEdit, deleting, isAdmin, onOpen, 
         </div>
       )}
 
-      {featuredTeams.length > 0 && (
-        <div>
-          <div className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-1.5">Featured Teams</div>
-          <div className="space-y-1 text-sm text-gray-300">
-            {featuredTeams.map((team) => (
-              <div key={team.id} className="truncate">
-                {team.name}
-                {team.upcomingCount > 0 && <span className="text-[11px] text-gray-400 ml-1">({team.upcomingCount} upcoming)</span>}
-              </div>
-            ))}
-            {remainingTeams > 0 && <div className="text-gray-400 text-xs">+ {remainingTeams} more team{remainingTeams === 1 ? '' : 's'}</div>}
-          </div>
-        </div>
-      )}
+
 
       <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
         {canEdit && <button onClick={onEdit} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>}
