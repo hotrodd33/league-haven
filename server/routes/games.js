@@ -222,8 +222,34 @@ router.get('/standings', async (req, res) => {
       ORDER BY t.name
     `, [season_id]);
 
+    // Keep only one division row per team: the deepest assigned division in this season.
+    const bestRowByTeam = {};
+    function divisionDepth(divisionId) {
+      const sortPath = divLookup[divisionId]?.sort_path;
+      if (!sortPath) return 0;
+      return String(sortPath).split('.').length;
+    }
+    for (const row of rows) {
+      const existing = bestRowByTeam[row.team_id];
+      if (!existing) {
+        bestRowByTeam[row.team_id] = row;
+        continue;
+      }
+      const rowDepth = divisionDepth(row.division_id);
+      const existingDepth = divisionDepth(existing.division_id);
+      if (rowDepth > existingDepth) {
+        bestRowByTeam[row.team_id] = row;
+        continue;
+      }
+      if (rowDepth === existingDepth) {
+        const rowSort = divLookup[row.division_id]?.sort_path || 'zzz';
+        const existingSort = divLookup[existing.division_id]?.sort_path || 'zzz';
+        if (rowSort < existingSort) bestRowByTeam[row.team_id] = row;
+      }
+    }
+
     // Enrich with division path and points (W=3, T=2, L=1)
-    const result = rows.map(r => {
+    const result = Object.values(bestRowByTeam).map(r => {
       let div = null;
       if (r.division_id && divLookup[r.division_id]) {
         div = divLookup[r.division_id];

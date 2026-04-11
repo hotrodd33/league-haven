@@ -10,6 +10,7 @@ function winPct(team) {
 export default function Standings() {
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
+  const [divisionFilter, setDivisionFilter] = useState('');
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -36,10 +37,33 @@ export default function Standings() {
 
   useEffect(() => { loadStandings(); }, [loadStandings]);
 
+  useEffect(() => {
+    setDivisionFilter('');
+  }, [seasonId]);
+
+  const divisionOptions = Object.values(
+    standings.reduce((acc, row) => {
+      if (!row.division_id) return acc;
+      const key = String(row.division_id);
+      if (!acc[key]) {
+        acc[key] = {
+          id: key,
+          name: row.division_name || 'Other',
+          sort: row.division_sort || 'zzz',
+        };
+      }
+      return acc;
+    }, {})
+  ).sort((a, b) => a.sort.localeCompare(b.sort) || a.name.localeCompare(b.name));
+
+  const filteredStandings = divisionFilter
+    ? standings.filter((row) => String(row.division_id) === divisionFilter)
+    : standings;
+
   // Group by division
   const divisions = [];
   const divMap = {};
-  for (const row of standings) {
+  for (const row of filteredStandings) {
     const key = row.division_id ? String(row.division_id) : '__none__';
     if (!divMap[key]) {
       divMap[key] = { key, name: row.division_name || null, teams: [] };
@@ -54,18 +78,31 @@ export default function Standings() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h2 className="font-heading text-2xl font-bold tracking-wide text-blue-800">Standings</h2>
-        {seasons.length > 1 && (
+        <div className="flex gap-2 items-center">
+          {seasons.length > 1 && (
+            <select
+              value={seasonId}
+              onChange={e => setSeasonId(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+            >
+              <option value="">Select Season</option>
+              {seasons.map(s => (
+                <option key={s.id} value={s.id}>{s.name} {s.year}{s.is_active ? ' (Current)' : ''}</option>
+              ))}
+            </select>
+          )}
           <select
-            value={seasonId}
-            onChange={e => setSeasonId(e.target.value)}
+            value={divisionFilter}
+            onChange={(e) => setDivisionFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+            disabled={!seasonId || divisionOptions.length === 0}
           >
-            <option value="">Select Season</option>
-            {seasons.map(s => (
-              <option key={s.id} value={s.id}>{s.name} {s.year}{s.is_active ? ' (Current)' : ''}</option>
+            <option value="">All Divisions</option>
+            {divisionOptions.map((div) => (
+              <option key={div.id} value={div.id}>{div.name}</option>
             ))}
           </select>
-        )}
+        </div>
       </div>
 
       {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}

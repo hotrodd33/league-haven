@@ -12,6 +12,7 @@ function winPct(team) {
 export default function Standings({ onBack, onNavigateToTeam }) {
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
+  const [divisionFilter, setDivisionFilter] = useState('');
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -36,10 +37,33 @@ export default function Standings({ onBack, onNavigateToTeam }) {
 
   useEffect(() => { loadStandings(); }, [loadStandings]);
 
+  useEffect(() => {
+    setDivisionFilter('');
+  }, [seasonId]);
+
+  const divisionOptions = Object.values(
+    standings.reduce((acc, row) => {
+      if (!row.division_id) return acc;
+      const key = String(row.division_id);
+      if (!acc[key]) {
+        acc[key] = {
+          id: key,
+          name: row.division_name || 'Other',
+          sort: row.division_sort || 'zzz',
+        };
+      }
+      return acc;
+    }, {})
+  ).sort((a, b) => a.sort.localeCompare(b.sort) || a.name.localeCompare(b.name));
+
+  const filteredStandings = divisionFilter
+    ? standings.filter((row) => String(row.division_id) === divisionFilter)
+    : standings;
+
   // Group by division
   const divisions = [];
   const divMap = {};
-  for (const row of standings) {
+  for (const row of filteredStandings) {
     const key = row.division_id ? String(row.division_id) : '__none__';
     if (!divMap[key]) {
       divMap[key] = { key, name: row.division_name || null, teams: [] };
@@ -60,6 +84,17 @@ export default function Standings({ onBack, onNavigateToTeam }) {
             <option value="">Select Season</option>
             {seasons.map(s => (
               <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
+            ))}
+          </select>
+          <select
+            value={divisionFilter}
+            onChange={(e) => setDivisionFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+            disabled={!seasonId || divisionOptions.length === 0}
+          >
+            <option value="">All Divisions</option>
+            {divisionOptions.map((div) => (
+              <option key={div.id} value={div.id}>{div.name}</option>
             ))}
           </select>
           {onBack && <button onClick={onBack} className={btnSecondary}>← Back</button>}
