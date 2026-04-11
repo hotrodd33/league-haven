@@ -79,15 +79,26 @@ router.get('/', async (req, res) => {
     let result;
     if (org_id) {
       result = await pool.query(
-        `SELECT t.*, o.name as org_name, o.logo_url as org_logo_url FROM teams t
+        `SELECT t.*, o.name as org_name, o.logo_url as org_logo_url,
+                ag.sort_order AS age_group_sort_order,
+                ll.sort_order AS level_sort_order
+         FROM teams t
          LEFT JOIN organizations o ON o.id = t.org_id
-         WHERE t.org_id = $1 ORDER BY t.name`, [org_id]
+         LEFT JOIN league_age_groups ag ON LOWER(TRIM(ag.name)) = LOWER(TRIM(t.age_group))
+         LEFT JOIN league_levels ll ON LOWER(TRIM(ll.name)) = LOWER(TRIM(t.level))
+         WHERE t.org_id = $1
+         ORDER BY COALESCE(ag.sort_order, 2147483647), LOWER(COALESCE(t.age_group, '')), COALESCE(ll.sort_order, 2147483647), LOWER(COALESCE(t.level, '')), t.name`, [org_id]
       );
     } else {
       result = await pool.query(
-        `SELECT t.*, o.name as org_name, o.logo_url as org_logo_url FROM teams t
+        `SELECT t.*, o.name as org_name, o.logo_url as org_logo_url,
+                ag.sort_order AS age_group_sort_order,
+                ll.sort_order AS level_sort_order
+         FROM teams t
          LEFT JOIN organizations o ON o.id = t.org_id
-         ORDER BY o.name, t.name`
+         LEFT JOIN league_age_groups ag ON LOWER(TRIM(ag.name)) = LOWER(TRIM(t.age_group))
+         LEFT JOIN league_levels ll ON LOWER(TRIM(ll.name)) = LOWER(TRIM(t.level))
+         ORDER BY o.name, COALESCE(ag.sort_order, 2147483647), LOWER(COALESCE(t.age_group, '')), COALESCE(ll.sort_order, 2147483647), LOWER(COALESCE(t.level, '')), t.name`
       );
     }
     const teams = await attachDivisions(result.rows);

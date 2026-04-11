@@ -15,7 +15,20 @@ const btnSm = "px-3 py-1.5 text-xs font-semibold rounded";
 
 function summarizeOrgTeams(org) {
   const teams = org.teams || [];
-  const ageGroups = [...new Set(teams.map((team) => team.age_group).filter(Boolean))].sort();
+  const ageGroups = Object.values(
+    teams.reduce((acc, team) => {
+      if (!team.age_group) return acc;
+      const key = team.age_group;
+      const parsedOrder = Number(team.age_group_sort_order);
+      const incomingOrder = Number.isFinite(parsedOrder) ? parsedOrder : Number.MAX_SAFE_INTEGER;
+      if (!acc[key] || incomingOrder < acc[key].sortOrder) {
+        acc[key] = { name: key, sortOrder: incomingOrder };
+      }
+      return acc;
+    }, {})
+  )
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name))
+    .map((entry) => entry.name);
   const levels = [...new Set(teams.map((team) => team.level).filter(Boolean))].sort();
   const featuredTeams = teams
     .slice()
