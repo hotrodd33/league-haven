@@ -5,6 +5,7 @@ import {
   fetchDivisions, createDivision, updateDivision, deleteDivision,
   fetchSeasons, createSeason, updateSeason, deleteSeason,
   fetchBranding, updateBranding, uploadBrandingLogo, deleteBrandingLogo,
+  fetchScheduleSettings, updateScheduleSettings,
 } from '../api/index.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
@@ -30,12 +31,14 @@ export default function LeagueConfig({ onBack }) {
       </p>
       <div className="flex gap-2 mb-5 flex-wrap">
         <button className={tabCls('branding')} onClick={() => setTab('branding')}>Branding</button>
+        <button className={tabCls('scheduling')} onClick={() => setTab('scheduling')}>Scheduling</button>
         <button className={tabCls('seasons')} onClick={() => setTab('seasons')}>Seasons</button>
         <button className={tabCls('age_groups')} onClick={() => setTab('age_groups')}>Age Groups</button>
         <button className={tabCls('levels')} onClick={() => setTab('levels')}>Levels</button>
         <button className={tabCls('divisions')} onClick={() => setTab('divisions')}>Divisions</button>
       </div>
       {tab === 'branding' && <BrandingConfig />}
+      {tab === 'scheduling' && <SchedulingConfig />}
       {tab === 'seasons' && <SeasonList />}
       {tab === 'age_groups' && (
         <ConfigList
@@ -189,6 +192,112 @@ function BrandingConfig() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SchedulingConfig() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [form, setForm] = useState({
+    game_start_time: '08:00',
+    game_end_time: '20:00',
+    game_time_increment_minutes: 30,
+  });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchScheduleSettings();
+      setForm({
+        game_start_time: data?.game_start_time || '08:00',
+        game_end_time: data?.game_end_time || '20:00',
+        game_time_increment_minutes: Number(data?.game_time_increment_minutes) || 30,
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateScheduleSettings({
+        game_start_time: form.game_start_time,
+        game_end_time: form.game_end_time,
+        game_time_increment_minutes: Number(form.game_time_increment_minutes),
+      });
+      setForm({
+        game_start_time: updated?.game_start_time || form.game_start_time,
+        game_end_time: updated?.game_end_time || form.game_end_time,
+        game_time_increment_minutes: Number(updated?.game_time_increment_minutes) || Number(form.game_time_increment_minutes),
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading scheduling settings…</div>;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-base font-bold">Game Time Window</h3>
+      <p className="text-xs text-gray-400">
+        Controls available game start times in schedule forms.
+      </p>
+
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+
+      <form onSubmit={handleSave} className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className={labelCls}>Start Time</label>
+            <input
+              type="time"
+              value={form.game_start_time}
+              onChange={(e) => setForm((prev) => ({ ...prev, game_start_time: e.target.value }))}
+              className={inputCls}
+              required
+            />
+          </div>
+          <div>
+            <label className={labelCls}>End Time</label>
+            <input
+              type="time"
+              value={form.game_end_time}
+              onChange={(e) => setForm((prev) => ({ ...prev, game_end_time: e.target.value }))}
+              className={inputCls}
+              required
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Increment</label>
+            <select
+              value={form.game_time_increment_minutes}
+              onChange={(e) => setForm((prev) => ({ ...prev, game_time_increment_minutes: Number(e.target.value) }))}
+              className={inputCls}
+            >
+              {[5, 10, 15, 20, 30, 45, 60].map((n) => (
+                <option key={n} value={n}>{n} min</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" disabled={saving} className={btnPrimary}>
+          {saving ? 'Saving…' : 'Save Scheduling'}
+        </button>
+      </form>
     </div>
   );
 }

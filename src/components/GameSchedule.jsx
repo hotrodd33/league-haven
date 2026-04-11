@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchGames, createGame, updateGame, deleteGame,
-  fetchTeams, fetchSeasons, fetchLocations,
+  fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
@@ -42,6 +42,29 @@ function formatTime(timeStr) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function toMinutes(hhmm) {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return (h * 60) + m;
+}
+
+function toHHMM(totalMinutes) {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function buildTimeSlots(startTime, endTime, increment) {
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) return [];
+  const step = Number(increment) || 30;
+  const slots = [];
+  for (let cur = start; cur <= end; cur += step) {
+    slots.push(toHHMM(cur));
+  }
+  return slots;
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam }) {
@@ -344,6 +367,11 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [locations, setLocations] = useState([]);
+  const [scheduleSettings, setScheduleSettings] = useState({
+    game_start_time: '08:00',
+    game_end_time: '20:00',
+    game_time_increment_minutes: 30,
+  });
   const [form, setForm] = useState({
     season_id: game?.season_id || defaultSeasonId || '',
     home_team_id: game?.home_team_id || '',
@@ -360,7 +388,21 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
 
   useEffect(() => {
     fetchLocations().then(setLocations).catch(() => {});
+    fetchScheduleSettings().then((data) => {
+      setScheduleSettings({
+        game_start_time: data?.game_start_time || '08:00',
+        game_end_time: data?.game_end_time || '20:00',
+        game_time_increment_minutes: Number(data?.game_time_increment_minutes) || 30,
+      });
+    }).catch(() => {});
   }, []);
+
+  const timeSlots = buildTimeSlots(
+    scheduleSettings.game_start_time,
+    scheduleSettings.game_end_time,
+    scheduleSettings.game_time_increment_minutes,
+  );
+  const currentTimeIncluded = form.game_time && !timeSlots.includes(form.game_time);
 
   function handleChange(e) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -469,7 +511,15 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
             </div>
             <div>
               <label htmlFor="game-time" className={labelCls}>Time</label>
-              <input id="game-time" name="game_time" type="time" value={form.game_time} onChange={handleChange} className={inputCls} />
+              <select id="game-time" name="game_time" value={form.game_time} onChange={handleChange} className={inputCls}>
+                <option value="">— Select Time —</option>
+                {timeSlots.map((slot) => (
+                  <option key={slot} value={slot}>{formatTime(slot)}</option>
+                ))}
+                {currentTimeIncluded && (
+                  <option value={form.game_time}>{formatTime(form.game_time)} (custom)</option>
+                )}
+              </select>
             </div>
           </div>
 

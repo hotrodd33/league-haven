@@ -472,6 +472,17 @@ export async function deleteBrandingLogo() {
   return apiFetch('/league-config/branding/logo', { method: 'DELETE' });
 }
 
+export async function fetchScheduleSettings() {
+  return apiFetch('/league-config/schedule-settings');
+}
+
+export async function updateScheduleSettings(data) {
+  return apiFetch('/league-config/schedule-settings', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function createSeason(data) {
   return apiFetch('/league-config/seasons', {
     method: 'POST',

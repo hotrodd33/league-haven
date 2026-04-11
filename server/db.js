@@ -36,6 +36,9 @@ async function migrate() {
       id INTEGER PRIMARY KEY,
       app_name TEXT NOT NULL DEFAULT 'ZVBL',
       logo_url TEXT,
+      game_start_time TIME NOT NULL DEFAULT '08:00',
+      game_end_time TIME NOT NULL DEFAULT '20:00',
+      game_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -197,6 +200,11 @@ async function migrate() {
     VALUES (1, 'ZVBL')
     ON CONFLICT (id) DO NOTHING;
   `);
+
+  // Ensure schedule time settings exist for older databases
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS game_start_time TIME NOT NULL DEFAULT '08:00';`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS game_end_time TIME NOT NULL DEFAULT '20:00';`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS game_time_increment_minutes INTEGER NOT NULL DEFAULT 30;`);
 
   // Add parent_id to league_divisions if missing (hierarchy support)
   await pool.query(`

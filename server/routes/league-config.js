@@ -7,8 +7,22 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
 
 async function getBranding() {
-  const { rows } = await pool.query('SELECT app_name, logo_url FROM app_branding WHERE id = 1');
+  const { rows } = await pool.query(
+    `SELECT app_name, logo_url, game_start_time, game_end_time, game_time_increment_minutes
+     FROM app_branding WHERE id = 1`
+  );
   return rows[0] || { app_name: 'ZVBL', logo_url: null };
+}
+
+function toMinutes(hhmm) {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return (h * 60) + m;
+}
+
+function formatTime(value) {
+  if (!value) return null;
+  const parts = String(value).split(':');
+  return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
 }
 
 // ── App Branding ──
@@ -66,6 +80,63 @@ router.delete('/branding/logo', authMiddleware, requireAdmin, async (req, res) =
   try {
     await pool.query('UPDATE app_branding SET logo_url = NULL, updated_at = NOW() WHERE id = 1');
     res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Scheduling Settings ──
+
+router.get('/schedule-settings', async (req, res) => {
+  try {
+    const branding = await getBranding();
+    res.json({
+      game_start_time: formatTime(branding.game_start_time) || '08:00',
+      game_end_time: formatTime(branding.game_end_time) || '20:00',
+      game_time_increment_minutes: Number(branding.game_time_increment_minutes) || 30,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const start = String(req.body?.game_start_time || '').trim();
+    const end = String(req.body?.game_end_time || '').trim();
+    const increment = Number(req.body?.game_time_increment_minutes);
+
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(start)) {
+      return res.status(400).json({ error: 'Start time must be HH:MM (24-hour)' });
+    }
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(end)) {
+      return res.status(400).json({ error: 'End time must be HH:MM (24-hour)' });
+    }
+    if (!Number.isInteger(increment) || increment < 5 || increment > 120) {
+      return res.status(400).json({ error: 'Increment must be between 5 and 120 minutes' });
+    }
+    if (toMinutes(start) >= toMinutes(end)) {
+      return res.status(400).json({ error: 'End time must be later than start time' });
+    }
+
+    await pool.query(
+      `UPDATE app_branding
+       SET game_start_time = $1,
+           game_end_time = $2,
+           game_time_increment_minutes = $3,
+           updated_at = NOW()
+       WHERE id = 1`,
+      [start, end, increment]
+    );
+
+    const branding = await getBranding();
+    res.json({
+      game_start_time: formatTime(branding.game_start_time),
+      game_end_time: formatTime(branding.game_end_time),
+      game_time_increment_minutes: Number(branding.game_time_increment_minutes),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
