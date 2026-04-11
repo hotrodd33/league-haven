@@ -345,7 +345,7 @@ async function migrate() {
   `);
 
   // ── Game import audit log ──
-  await client.query(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS game_import_log (
       id SERIAL PRIMARY KEY,
       game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
