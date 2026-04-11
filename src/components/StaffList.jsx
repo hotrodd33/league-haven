@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchStaffByTeam, createStaff, updateStaff, deleteStaff, searchStaff, assignStaffToTeam, unassignStaffFromTeam } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import ContactModal from './ContactModal.jsx';
 
 const ROLE_OPTIONS = [
   { value: 'head_coach', label: 'Head Coach' },
@@ -26,6 +27,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
   const [searching, setSearching] = useState(false);
   const [assigning, setAssigning] = useState(null);
   const [assignRole, setAssignRole] = useState('assistant_coach');
+  const [contactModal, setContactModal] = useState(null);
 
   const loadStaff = useCallback(async () => {
     if (!teamId) return;
@@ -174,7 +176,19 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
                   <tr key={m.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2">{m.role_label}</td>
                     <td className="px-3 py-2 font-semibold">{m.name}</td>
-                    <td className="px-3 py-2 break-all">{m.email || '—'}</td>
+                    <td className="px-3 py-2 break-all">
+                      <div className="flex items-center gap-1.5">
+                        <span>{m.email || '—'}</span>
+                        {m.email && (
+                          <button onClick={() => setContactModal({ scope: 'individual', scopeId: m.id, scopeLabel: m.name })}
+                            className="p-1 text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors" title="Email">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2">{m.phone || '—'}</td>
                     {editable && (
                       <td className="px-3 py-2 whitespace-nowrap">
@@ -223,7 +237,17 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
                   )}
                 </div>
                 <div className="text-sm text-gray-600 space-y-0.5">
-                  {m.email && <div className="truncate">{m.email}</div>}
+                  {m.email && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate">{m.email}</span>
+                      <button onClick={() => setContactModal({ scope: 'individual', scopeId: m.id, scopeLabel: m.name })}
+                        className="p-1 text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors shrink-0" title="Email">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                   {m.phone && <div>{m.phone}</div>}
                 </div>
               </div>
@@ -237,6 +261,15 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
           teamId={teamId} staff={editing}
           onDone={() => { setShowForm(false); setEditing(null); loadStaff(); }}
           onCancel={() => { setShowForm(false); setEditing(null); }}
+        />
+      )}
+
+      {contactModal && (
+        <ContactModal
+          scope={contactModal.scope}
+          scopeId={contactModal.scopeId}
+          scopeLabel={contactModal.scopeLabel}
+          onClose={() => setContactModal(null)}
         />
       )}
     </div>

@@ -585,3 +585,17 @@ export async function createTeamAlias(externalName, teamId, source = 'gamechange
 export async function deleteTeamAlias(id) {
   return apiFetch(`/import/team-aliases/${id}`, { method: 'DELETE' });
 }
+
+/* ── Contact / Email ── */
+export async function fetchContactRecipients(scope, scopeId) {
+  const params = new URLSearchParams({ scope });
+  if (scopeId) params.set('scopeId', scopeId);
+  return apiFetch(`/contact/recipients?${params}`);
+}
+
+export async function sendContactEmail({ scope, scopeId, subject, body }) {
+  return apiFetch('/contact', {
+    method: 'POST',
+    body: JSON.stringify({ scope, scopeId, subject, body }),
+  });
+}

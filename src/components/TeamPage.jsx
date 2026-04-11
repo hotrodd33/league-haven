@@ -8,6 +8,7 @@ import PitcherRest from './PitcherRest.jsx';
 import PitchLog from './PitchLog.jsx';
 import TeamSchedule from './TeamSchedule.jsx';
 import { CalendarIcon, ClipboardIcon, UsersIcon, UserGroupIcon } from './ui/icons.jsx';
+import ContactModal from './ContactModal.jsx';
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: null },
@@ -21,6 +22,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
   const [activeTab, setActiveTab] = useState('overview');
   const [team, setTeam] = useState(null);
   const [recentGames, setRecentGames] = useState([]);
+  const [contactModal, setContactModal] = useState(null);
 
   // Load team info
   useEffect(() => {
@@ -65,7 +67,16 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
   return (
     <div className="space-y-0">
       {/* Team header */}
-      {team && <TeamHeader team={team} recentGames={recentGames} />}
+      {team && <TeamHeader team={team} recentGames={recentGames} onContactTeam={() => setContactModal({ scope: 'team', scopeId: teamId, scopeLabel: team.name })} />}
+
+      {contactModal && (
+        <ContactModal
+          scope={contactModal.scope}
+          scopeId={contactModal.scopeId}
+          scopeLabel={contactModal.scopeLabel}
+          onClose={() => setContactModal(null)}
+        />
+      )}
 
       {/* Tab bar */}
       <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
@@ -118,7 +129,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
 }
 
 /* ── Team Header ── */
-function TeamHeader({ team, recentGames }) {
+function TeamHeader({ team, recentGames, onContactTeam }) {
   const record = computeRecord(recentGames, team.id);
 
   return (
@@ -168,14 +179,25 @@ function TeamHeader({ team, recentGames }) {
           )}
         </div>
       </div>
-      {(record.w > 0 || record.l > 0 || record.t > 0) && (
-        <div className="text-right shrink-0">
-          <p className="text-lg font-bold text-gray-800 font-display">
-            {record.w}-{record.l}{record.t > 0 ? `-${record.t}` : ''}
-          </p>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Record</p>
-        </div>
-      )}
+      <div className="flex items-center gap-3 shrink-0">
+        <button
+          onClick={onContactTeam}
+          className="p-2 text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+          title="Email team"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </button>
+        {(record.w > 0 || record.l > 0 || record.t > 0) && (
+          <div className="text-right">
+            <p className="text-lg font-bold text-gray-800 font-display">
+              {record.w}-{record.l}{record.t > 0 ? `-${record.t}` : ''}
+            </p>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Record</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

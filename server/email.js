@@ -7,13 +7,15 @@ if (process.env.SENDGRID_API_KEY) {
 const FROM_EMAIL = process.env.FROM_EMAIL || 'ZVBL <noreply@zvbl.org>';
 const APP_URL = process.env.APP_URL || 'https://portal.zvbl.org';
 
-async function sendEmail({ to, subject, html }) {
+async function sendEmail({ to, bcc, subject, html }) {
   if (!process.env.SENDGRID_API_KEY) {
     console.warn('[EMAIL] SENDGRID_API_KEY not set — email not sent:', { to, subject });
     return null;
   }
   try {
-    const result = await sgMail.send({ from: FROM_EMAIL, to, subject, html });
+    const msg = { from: FROM_EMAIL, to, subject, html };
+    if (bcc) msg.bcc = bcc;
+    const result = await sgMail.send(msg);
     return result;
   } catch (err) {
     console.error('[EMAIL] Send failed:', err?.response?.body || err);
