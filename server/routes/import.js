@@ -418,8 +418,18 @@ router.post(
 
 /* ── Box Score Import Logic ── */
 async function importBoxScore(req, res, opts) {
-  const { parsed, teamId, seasonId, overwrite, teamMappings, playerMappings } = opts;
+  let { parsed, teamId, seasonId, overwrite, teamMappings, playerMappings } = opts;
   const { gameInfo, linescore, batting, pitching } = parsed;
+
+  // Auto-detect active season if none provided
+  if (!seasonId) {
+    const { rows: activeSeason } = await pool.query(
+      'SELECT id FROM league_seasons WHERE is_active = true LIMIT 1'
+    );
+    if (activeSeason.length > 0) {
+      seasonId = activeSeason[0].id;
+    }
+  }
 
   const results = {
     success: true,

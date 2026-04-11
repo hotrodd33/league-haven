@@ -52,7 +52,7 @@ export default function ImportSettings({ importType, settings, onChange }) {
       </SettingGroup>
 
       {/* Season assignment */}
-      {(importType === 'stats' || importType === 'schedule') && (
+      {(importType === 'boxscore' || importType === 'stats' || importType === 'schedule') && (
         <SettingGroup label="Season">
           <select
             value={settings.seasonId || ''}
