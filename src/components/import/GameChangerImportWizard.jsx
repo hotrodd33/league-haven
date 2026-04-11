@@ -279,6 +279,53 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
       next = 5;
     }
 
+    // When entering "Map Players", resolve team IDs from mappings and fetch player lists
+    if (next === 4 && pitcherMappings.length > 0) {
+      // Build resolved team IDs: merge auto-matched teams + user-mapped teams
+      const resolvedTeamIds = new Set();
+      for (const pm of pitcherMappings) {
+        // If already matched during preview, use that
+        if (pm.teamId) {
+          resolvedTeamIds.add(pm.teamId);
+        } else if (pm.teamName && teamMappings[pm.teamName]) {
+          // User mapped this team in step 3
+          resolvedTeamIds.add(parseInt(teamMappings[pm.teamName]));
+        }
+      }
+
+      // Fetch player lists for any team IDs we don't already have
+      const updatedPlayersByTeam = { ...playersByTeam };
+      const updatedPitcherMappings = [...pitcherMappings];
+
+      for (const tid of resolvedTeamIds) {
+        if (!updatedPlayersByTeam[tid]) {
+          try {
+            const players = await fetchPlayersByTeam(tid);
+            updatedPlayersByTeam[tid] = players.map(p => ({
+              id: p.id,
+              first_name: p.first_name,
+              last_name: p.last_name,
+              jersey_number: p.jersey_number,
+            }));
+          } catch { /* ignore */ }
+        }
+      }
+
+      // Update pitcher mappings with resolved team IDs from team mappings
+      for (let i = 0; i < updatedPitcherMappings.length; i++) {
+        const pm = updatedPitcherMappings[i];
+        if (!pm.teamId && pm.teamName && teamMappings[pm.teamName]) {
+          updatedPitcherMappings[i] = {
+            ...pm,
+            teamId: parseInt(teamMappings[pm.teamName]),
+          };
+        }
+      }
+
+      setPlayersByTeam(updatedPlayersByTeam);
+      setPitcherMappings(updatedPitcherMappings);
+    }
+
     // Execute import when moving from Settings → Progress
     if (step === 5 && next === 6) {
       executeImport();
