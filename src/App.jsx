@@ -19,6 +19,7 @@ import Directory from "./components/Directory.jsx";
 import DataManager from "./components/DataManager.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import AppShell from "./components/ui/AppShell.jsx";
+import GameChangerImportWizard from "./components/import/GameChangerImportWizard.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, user, logout } = useAuth();
@@ -29,6 +30,7 @@ export default function App() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [page, setPage] = useState("dashboard");
     const [showChangePassword, setShowChangePassword] = useState(false);
+    const [showImportWizard, setShowImportWizard] = useState(false);
 
     function navigateToTeam(teamId, orgId) {
         setSelectedTeam(teamId);
@@ -72,7 +74,7 @@ export default function App() {
     function renderPage() {
         switch (page) {
             case 'dashboard':
-                return <Dashboard onNavigate={setPage} />;
+                return <Dashboard onNavigate={setPage} onOpenImport={() => setShowImportWizard(true)} />;
 
             case 'organizations':
                 return <OrgManager onBack={() => setPage("dashboard")} />;
@@ -129,6 +131,11 @@ export default function App() {
 
             {showForm && selectedTeam && <PlayerForm teamId={selectedTeam} player={editingPlayer} onSaved={handleFormSaved} onCancel={handleFormCancel} />}
             {showChangePassword && <ChangePassword onClose={() => setShowChangePassword(false)} />}
+            <GameChangerImportWizard
+                open={showImportWizard}
+                onClose={() => setShowImportWizard(false)}
+                onNavigate={setPage}
+            />
         </>
     );
 }

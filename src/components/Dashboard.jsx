@@ -44,7 +44,7 @@ function cityAbbr(city) {
    Dashboard
    ═══════════════════════════════════════════════════════ */
 
-export default function Dashboard({ onNavigate }) {
+export default function Dashboard({ onNavigate, onOpenImport }) {
   const { user } = useAuth();
   const [teams, setTeams] = useState([]);
   const [games, setGames] = useState([]);
@@ -147,10 +147,10 @@ export default function Dashboard({ onNavigate }) {
                 variant="primary"
                 size="sm"
                 icon={<ArrowUpTrayIcon className="w-4 h-4" />}
-                onClick={() => onNavigate?.('data')}
+                onClick={() => onOpenImport?.()}
                 className="bg-field-600/80 hover:bg-field-600 backdrop-blur-sm border border-white/10"
               >
-                Import Data
+                Import from GameChanger
               </Button>
             </div>
           </div>
@@ -279,8 +279,8 @@ export default function Dashboard({ onNavigate }) {
               />
               <QuickAction
                 icon={<ArrowUpTrayIcon className="w-4 h-4" />}
-                label="Import from CSV"
-                onClick={() => onNavigate?.('data')}
+                label="Import from GameChanger"
+                onClick={() => onOpenImport?.()}
                 color="dirt"
               />
               <QuickAction
@@ -381,20 +381,20 @@ export default function Dashboard({ onNavigate }) {
             </div>
             <div className="flex-1 text-center sm:text-left">
               <h3 className="font-heading text-lg font-bold text-gray-900">
-                Import Your Data
+                Import from GameChanger
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                Bulk import teams, rosters, players, and game data from CSV files.
-                Get your league set up in minutes.
+                Bring your stats, rosters, schedules, and box scores over from GameChanger in minutes.
+                The easiest migration in youth sports.
               </p>
             </div>
             <Button
               variant="dirt"
               size="md"
               icon={<ArrowUpTrayIcon className="w-4 h-4" />}
-              onClick={() => onNavigate?.('data')}
+              onClick={() => onOpenImport?.()}
             >
-              Open Data Manager
+              Start Import
             </Button>
           </div>
         </Card>
