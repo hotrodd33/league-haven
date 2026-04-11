@@ -8,6 +8,7 @@ import {
 import ImportTypeSelector, { IMPORT_TYPES } from './ImportTypeSelector.jsx';
 import FileUpload from './FileUpload.jsx';
 import PreviewTable from './PreviewTable.jsx';
+import TeamMapper from './TeamMapper.jsx';
 import ImportSettings from './ImportSettings.jsx';
 import ImportProgress from './ImportProgress.jsx';
 import SuccessScreen from './SuccessScreen.jsx';
@@ -24,13 +25,15 @@ import { importGameChanger, previewGameChanger, fetchPlayersByTeam, fetchTeams }
      1. Choose Import Type
      2. Upload File
      3. Preview & Match
-     4. Import Settings
-     5. Importing (progress)
-     6. Success
+     4. Map Teams (shown when unmatched teams detected)
+     5. Import Settings
+     6. Importing (progress)
+     7. Success
 
    Backend expectations:
    - POST /api/import/gamechanger/preview
-     → { headers: string[], rows: object[], detectedType: string }
+     → { headers: string[], rows: object[], detectedType: string,
+         unmatchedTeams: string[], matchedTeams: object, teamsList: object[] }
    - POST /api/import/gamechanger
      → { success: true, players: number, games: number,
          stats: number, created: number, updated: number,
@@ -41,6 +44,7 @@ const STEPS = [
   { key: 'type',     label: 'Import Type' },
   { key: 'upload',   label: 'Upload File' },
   { key: 'preview',  label: 'Preview' },
+  { key: 'teams',    label: 'Map Teams' },
   { key: 'settings', label: 'Settings' },
   { key: 'progress', label: 'Importing' },
   { key: 'success',  label: 'Done' },
@@ -69,6 +73,12 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
     onlyNew: true,
   });
 
+  // Team mapping (for unmatched GameChanger team names)
+  const [unmatchedTeams, setUnmatchedTeams] = useState([]);
+  const [matchedTeams, setMatchedTeams] = useState({});
+  const [teamMappings, setTeamMappings] = useState({});
+  const [teamsList, setTeamsList] = useState([]);
+
   // Import progress
   const [progress, setProgress] = useState(0);
   const [progressStatus, setProgressStatus] = useState('uploading');
@@ -78,7 +88,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
   /* ── Escape to close ── */
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => { if (e.key === 'Escape' && step < 4) onClose?.(); };
+    const handler = (e) => { if (e.key === 'Escape' && step < 5) onClose?.(); };
     document.addEventListener('keydown', handler);
     document.body.style.overflow = 'hidden';
     return () => {
@@ -99,6 +109,10 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
       setParsing(false);
       setParseError(null);
       setSettings({ teamId: null, seasonId: null, overwrite: false, onlyNew: true });
+      setUnmatchedTeams([]);
+      setMatchedTeams({});
+      setTeamMappings({});
+      setTeamsList([]);
       setProgress(0);
       setProgressStatus('uploading');
       setImportResult(null);
@@ -132,6 +146,11 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
           if (serverResult.detectedType && !importType) {
             setImportType(serverResult.detectedType);
           }
+
+          // Capture team matching info from the preview
+          if (serverResult.unmatchedTeams) setUnmatchedTeams(serverResult.unmatchedTeams);
+          if (serverResult.matchedTeams) setMatchedTeams(serverResult.matchedTeams);
+          if (serverResult.teamsList) setTeamsList(serverResult.teamsList);
 
           // Match players if applicable
           if ((importType === 'stats' || importType === 'roster') && serverResult.rows?.length > 0) {
@@ -210,30 +229,45 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
       case 0: return !!importType;
       case 1: return !!file;
       case 2: return previewRows.length > 0;
-      case 3: return true;
+      case 3: // Map Teams — all unmatched teams must have a mapping
+        return unmatchedTeams.length === 0 ||
+          unmatchedTeams.every(t => teamMappings[t]);
+      case 4: return true;
       default: return false;
     }
   };
 
   const nextStep = useCallback(async () => {
-    const next = step + 1;
+    let next = step + 1;
 
     // Parse file when moving from Upload → Preview
     if (step === 1 && next === 2) {
       await parseFile();
     }
 
+    // Auto-skip "Map Teams" step if no unmatched teams
+    if (next === 3 && unmatchedTeams.length === 0) {
+      next = 4; // skip to Settings
+    }
+
     // Execute import when moving from Settings → Progress
-    if (step === 3 && next === 4) {
+    if (step === 4 && next === 5) {
       executeImport();
     }
 
     setStep(next);
-  }, [step, parseFile]);
+  }, [step, parseFile, unmatchedTeams]);
 
   const prevStep = useCallback(() => {
-    if (step > 0 && step < 4) setStep(step - 1);
-  }, [step]);
+    if (step > 0 && step < 5) {
+      let prev = step - 1;
+      // Skip back over "Map Teams" if it was skipped going forward
+      if (prev === 3 && unmatchedTeams.length === 0) {
+        prev = 2;
+      }
+      setStep(prev);
+    }
+  }, [step, unmatchedTeams]);
 
   /* ── Accept all matches ── */
   const handleAcceptAll = () => {
@@ -271,6 +305,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
         seasonId: settings.seasonId,
         overwrite: settings.overwrite,
         onlyNew: settings.onlyNew,
+        teamMappings: Object.keys(teamMappings).length > 0 ? teamMappings : undefined,
       });
 
       clearInterval(progressInterval);
@@ -280,7 +315,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
       // Short delay for UX satisfaction
       setTimeout(() => {
         setImportResult(result);
-        setStep(5); // Success step
+        setStep(6); // Success step
       }, 600);
     } catch (err) {
       clearInterval(progressInterval);
@@ -300,6 +335,10 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
     setParsing(false);
     setParseError(null);
     setSettings({ teamId: null, seasonId: null, overwrite: false, onlyNew: true });
+    setUnmatchedTeams([]);
+    setMatchedTeams({});
+    setTeamMappings({});
+    setTeamsList([]);
     setProgress(0);
     setProgressStatus('uploading');
     setImportResult(null);
@@ -368,6 +407,17 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
 
       case 3:
         return (
+          <TeamMapper
+            unmatchedTeams={unmatchedTeams}
+            matchedTeams={matchedTeams}
+            teamsList={teamsList}
+            mappings={teamMappings}
+            onChange={setTeamMappings}
+          />
+        );
+
+      case 4:
+        return (
           <ImportSettings
             importType={importType}
             settings={settings}
@@ -375,7 +425,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
           />
         );
 
-      case 4:
+      case 5:
         return (
           <>
             <ImportProgress progress={progress} status={progressStatus} />
@@ -386,7 +436,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
                   size="sm"
                   variant="danger"
                   className="mt-3"
-                  onClick={() => { setStep(3); setImportError(null); }}
+                  onClick={() => { setStep(4); setImportError(null); }}
                 >
                   Go Back & Try Again
                 </Button>
@@ -395,7 +445,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
           </>
         );
 
-      case 5:
+      case 6:
         return (
           <SuccessScreen
             result={importResult}
@@ -411,8 +461,8 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
   }
 
   const typeMeta = IMPORT_TYPES.find(t => t.key === importType);
-  const isImporting = step === 4;
-  const isDone = step === 5;
+  const isImporting = step === 5;
+  const isDone = step === 6;
   const showFooter = !isImporting && !isDone;
 
   return (

@@ -534,6 +534,7 @@ export async function importGameChanger(file, importType, options = {}) {
   if (options.seasonId) fd.append('seasonId', options.seasonId);
   if (options.overwrite != null) fd.append('overwrite', String(options.overwrite));
   if (options.onlyNew != null) fd.append('onlyNew', String(options.onlyNew));
+  if (options.teamMappings) fd.append('teamMappings', JSON.stringify(options.teamMappings));
   return apiFetch('/import/gamechanger', { method: 'POST', body: fd });
 }
 
@@ -543,4 +544,20 @@ export async function previewGameChanger(file, importType) {
   fd.append('importType', importType);
   fd.append('preview', 'true');
   return apiFetch('/import/gamechanger/preview', { method: 'POST', body: fd });
+}
+
+/* ── Team Name Aliases ── */
+export async function fetchTeamAliases() {
+  return apiFetch('/import/team-aliases');
+}
+
+export async function createTeamAlias(externalName, teamId, source = 'gamechanger') {
+  return apiFetch('/import/team-aliases', {
+    method: 'POST',
+    body: JSON.stringify({ externalName, teamId, source }),
+  });
+}
+
+export async function deleteTeamAlias(id) {
+  return apiFetch(`/import/team-aliases/${id}`, { method: 'DELETE' });
 }

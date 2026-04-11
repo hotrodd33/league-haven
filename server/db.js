@@ -331,6 +331,18 @@ async function migrate() {
     UPDATE users SET role = 'super_admin' WHERE role = 'admin';
     UPDATE users SET role = 'team_manager' WHERE role IN ('user', 'manager');
   `);
+
+  // ── Team name aliases (for GameChanger / external imports) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS team_name_aliases (
+      id SERIAL PRIMARY KEY,
+      external_name TEXT NOT NULL,
+      team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      source TEXT DEFAULT 'gamechanger',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (external_name, source)
+    );
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds

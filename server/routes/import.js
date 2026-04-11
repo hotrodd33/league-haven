@@ -19,6 +19,10 @@ const upload = multer({
 
 /* ── Team + Player lookups (shared helpers) ── */
 
+/**
+ * Build a lookup map: lowercased-name → team_id
+ * Includes: team.name, team.abbreviation, "Name (Org)", and all team_name_aliases.
+ */
 async function buildTeamLookup() {
   const { rows } = await pool.query(
     'SELECT t.id, t.name, t.abbreviation, o.name AS org_name FROM teams t LEFT JOIN organizations o ON o.id = t.org_id'
@@ -35,7 +39,28 @@ async function buildTeamLookup() {
   for (const [name, ids] of Object.entries(byName)) {
     if (ids.length === 1) lookup[name] = ids[0];
   }
+
+  // Layer in saved aliases (these take priority for external names)
+  const { rows: aliases } = await pool.query(
+    'SELECT external_name, team_id FROM team_name_aliases'
+  );
+  for (const a of aliases) {
+    lookup[a.external_name.toLowerCase()] = a.team_id;
+  }
+
   return lookup;
+}
+
+/**
+ * Get the full teams list for the frontend mapping UI.
+ */
+async function getTeamsList() {
+  const { rows } = await pool.query(
+    `SELECT t.id, t.name, t.abbreviation, t.age_group, o.name AS org_name
+     FROM teams t LEFT JOIN organizations o ON o.id = t.org_id
+     ORDER BY t.name`
+  );
+  return rows;
 }
 
 async function buildPlayerLookup(teamId) {
@@ -122,6 +147,16 @@ router.post(
         const parsed = await parseBoxScorePDF(req.file.buffer);
         const { gameInfo, linescore, batting, pitching } = parsed;
 
+        // Check which teams from the PDF match our database
+        const teamLookup = await buildTeamLookup();
+        const detectedTeams = [gameInfo.awayTeam, gameInfo.homeTeam].filter(Boolean);
+        const unmatchedTeams = detectedTeams.filter(t => !teamLookup[t.toLowerCase()]);
+        const matchedTeamMap = {};
+        for (const t of detectedTeams) {
+          const id = teamLookup[t.toLowerCase()];
+          if (id) matchedTeamMap[t] = id;
+        }
+
         // Build preview rows from the parsed data
         const headers = ['type', 'team', 'player', 'stat_line'];
         const rows = [];
@@ -175,6 +210,9 @@ router.post(
           }
         }
 
+        // Include teams list if there are unmatched teams (for the mapping UI)
+        const teamsListForMapping = unmatchedTeams.length > 0 ? await getTeamsList() : [];
+
         return res.json({
           headers,
           rows,
@@ -184,6 +222,9 @@ router.post(
             away: gameInfo.awayTeam,
             home: gameInfo.homeTeam,
           },
+          unmatchedTeams,
+          matchedTeams: matchedTeamMap,
+          teamsList: teamsListForMapping,
         });
       }
 
@@ -237,6 +278,12 @@ router.post(
       const isPDF = fileName.toLowerCase().endsWith('.pdf') ||
                     req.file.mimetype === 'application/pdf';
 
+      // Parse team mappings from frontend (JSON string: { "GC Name": teamId, ... })
+      let teamMappings = {};
+      if (req.body.teamMappings) {
+        try { teamMappings = JSON.parse(req.body.teamMappings); } catch { /* ignore */ }
+      }
+
       if (importType === 'boxscore') {
         return await importBoxScore(req, res, {
           buffer: req.file.buffer,
@@ -244,6 +291,7 @@ router.post(
           teamId,
           seasonId,
           overwrite,
+          teamMappings,
         });
       }
 
@@ -259,7 +307,7 @@ router.post(
 
 /* ── Box Score Import Logic ── */
 async function importBoxScore(req, res, opts) {
-  const { buffer, isPDF, teamId, seasonId, overwrite } = opts;
+  const { buffer, isPDF, teamId, seasonId, overwrite, teamMappings } = opts;
 
   if (!isPDF) {
     return res.status(400).json({ error: 'Box score import requires a PDF file' });
@@ -280,8 +328,36 @@ async function importBoxScore(req, res, opts) {
     message: '',
   };
 
-  // ── Resolve teams ──
+  // ── Save any new team mappings as aliases for future imports ──
+  if (teamMappings && typeof teamMappings === 'object') {
+    for (const [externalName, mappedTeamId] of Object.entries(teamMappings)) {
+      if (externalName && mappedTeamId) {
+        try {
+          await pool.query(
+            `INSERT INTO team_name_aliases (external_name, team_id, source)
+             VALUES ($1, $2, 'gamechanger')
+             ON CONFLICT (external_name, source) DO UPDATE SET team_id = $2`,
+            [externalName, parseInt(mappedTeamId)]
+          );
+        } catch (err) {
+          results.errors.push(`Could not save alias for "${externalName}": ${err.message}`);
+        }
+      }
+    }
+  }
+
+  // ── Resolve teams (includes saved aliases + any just-saved ones) ──
   const teamLookup = await buildTeamLookup();
+
+  // Also overlay the ad-hoc mappings passed in this request
+  if (teamMappings) {
+    for (const [externalName, mappedTeamId] of Object.entries(teamMappings)) {
+      if (externalName && mappedTeamId) {
+        teamLookup[externalName.toLowerCase()] = parseInt(mappedTeamId);
+      }
+    }
+  }
+
   const awayTeamId = gameInfo.awayTeam ? teamLookup[gameInfo.awayTeam.toLowerCase()] : null;
   const homeTeamId = gameInfo.homeTeam ? teamLookup[gameInfo.homeTeam.toLowerCase()] : null;
 
@@ -443,5 +519,55 @@ async function upsertPitchCount(gameId, playerId, teamId, pitchCount, inningsPit
     );
   }
 }
+
+/* ═══════════════════════════════════════════════════════
+   Team Name Aliases — CRUD endpoints
+   ═══════════════════════════════════════════════════════ */
+
+// GET /api/import/team-aliases — list all saved aliases
+router.get('/team-aliases', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT a.id, a.external_name, a.team_id, a.source, a.created_at,
+              t.name AS team_name, t.abbreviation AS team_abbreviation
+       FROM team_name_aliases a
+       JOIN teams t ON t.id = a.team_id
+       ORDER BY a.external_name`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/import/team-aliases — create or update an alias
+router.post('/team-aliases', authMiddleware, async (req, res) => {
+  try {
+    const { externalName, teamId, source } = req.body;
+    if (!externalName || !teamId) {
+      return res.status(400).json({ error: 'externalName and teamId are required' });
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO team_name_aliases (external_name, team_id, source)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (external_name, source) DO UPDATE SET team_id = $2
+       RETURNING *`,
+      [externalName, parseInt(teamId), source || 'gamechanger']
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/import/team-aliases/:id — remove an alias
+router.delete('/team-aliases/:id', authMiddleware, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM team_name_aliases WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;
