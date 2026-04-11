@@ -120,7 +120,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                   </div>
                 ) : (
                   <>
-                    {canScoreGame(game.home_team_id, game.away_team_id) && (
+                    {canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
                         className="text-xs font-semibold px-2 py-1 rounded bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"

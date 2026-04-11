@@ -85,13 +85,14 @@ export function AuthProvider({ children }) {
     return false;
   }, [isSuperAdmin, role, permissions.org_ids, permissions.team_ids]);
 
-  const canScoreGame = useCallback((homeTeamId, awayTeamId) => {
+  const canScoreGame = useCallback((homeTeamId, awayTeamId, homeOrgId, awayOrgId) => {
     if (isSuperAdmin) return true;
-    const ids = [Number(homeTeamId), Number(awayTeamId)];
-    if (ids.some(id => permissions.team_ids.includes(id))) return true;
-    if (role !== 'score_reporter' && ids.some(id => permissions.org_ids.includes(id))) return true;
+    const teamIds = [Number(homeTeamId), Number(awayTeamId)];
+    if (teamIds.some(id => permissions.team_ids.includes(id))) return true;
+    const orgIds = [homeOrgId, awayOrgId].filter(Boolean).map(Number);
+    if (orgIds.some(id => permissions.org_ids.includes(id))) return true;
     return false;
-  }, [isSuperAdmin, role, permissions.org_ids, permissions.team_ids]);
+  }, [isSuperAdmin, permissions.org_ids, permissions.team_ids]);
 
   const value = {
     token: auth?.token,

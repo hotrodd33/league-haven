@@ -201,7 +201,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   }
 
   const userCanEdit = canEdit(game);
-  const userCanScore = canScoreGame(game.home_team_id, game.away_team_id);
+  const userCanScore = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
   const homePC = pitchCounts.filter(pc => pc.team_id === game.home_team_id);
   const awayPC = pitchCounts.filter(pc => pc.team_id === game.away_team_id);
 

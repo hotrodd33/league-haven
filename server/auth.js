@@ -76,12 +76,10 @@ async function canScoreGame(user, gameHomeTeamId, gameAwayTeamId) {
   // Direct team permission
   if (teamIds.some(id => perms.team_ids.includes(id))) return true;
 
-  // Org-level permission (org_admin or team_manager with org access)
-  if (user.role !== 'score_reporter') {
-    for (const tid of teamIds) {
-      const { rows } = await pool.query('SELECT org_id FROM teams WHERE id = $1', [tid]);
-      if (rows[0]?.org_id && perms.org_ids.includes(rows[0].org_id)) return true;
-    }
+  // Org-level permission (any role with org access can score)
+  for (const tid of teamIds) {
+    const { rows } = await pool.query('SELECT org_id FROM teams WHERE id = $1', [tid]);
+    if (rows[0]?.org_id && perms.org_ids.includes(rows[0].org_id)) return true;
   }
 
   return false;
