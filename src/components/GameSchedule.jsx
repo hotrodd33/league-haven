@@ -362,7 +362,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
   );
 }
 
-function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
+export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, onDone, onCancel }) {
   const isEditing = !!game;
   const [saving, setSaving] = useState(false);
   const [addingLocation, setAddingLocation] = useState(false);
@@ -376,7 +376,7 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
   });
   const [form, setForm] = useState({
     season_id: game?.season_id || defaultSeasonId || '',
-    home_team_id: game?.home_team_id || '',
+    home_team_id: game?.home_team_id || defaultHomeTeamId || '',
     away_team_id: game?.away_team_id || '',
     location_id: game?.location_id || '',
     game_date: game?.game_date || '',

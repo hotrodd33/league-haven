@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchGames } from '../api/index.js';
+import { fetchGames, fetchTeams, fetchSeasons } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
+import { GameForm } from './GameSchedule.jsx';
 
 const STATUS_COLORS = {
   scheduled: 'bg-blue-900/40 text-blue-200',
@@ -28,9 +29,12 @@ function formatTime(timeStr) {
 }
 
 export default function TeamSchedule({ teamId, onNavigateToTeam }) {
-  const { canScoreGame } = useAuth();
+  const { isAdmin, canScoreGame } = useAuth();
   const [games, setGames] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [seasons, setSeasons] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [trackingGameId, setTrackingGameId] = useState(null);
 
@@ -44,6 +48,23 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   }, [teamId]);
 
   useEffect(() => { loadGames(); }, [loadGames]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    Promise.all([fetchTeams(), fetchSeasons()])
+      .then(([teamsData, seasonsData]) => {
+        if (cancelled) return;
+        setTeams(teamsData || []);
+        setSeasons(seasonsData || []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setTeams([]);
+        setSeasons([]);
+      });
+    return () => { cancelled = true; };
+  }, [isAdmin]);
 
   if (trackingGameId) {
     return (
@@ -63,18 +84,43 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
 
   if (!teamId) return null;
   if (loading) return <div className="py-4 text-center text-gray-400 text-sm">Loading schedule…</div>;
-  if (!games.length) return (
-    <div className="mt-6">
-      <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-2">Schedule</h3>
-      <div className="text-sm text-gray-400">No games scheduled.</div>
-    </div>
-  );
+
+  const activeSeason = seasons.find((season) => season.is_active);
+  const defaultSeasonId = activeSeason ? String(activeSeason.id) : '';
 
   return (
     <div className="mt-6">
-      <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-2">Schedule ({games.length})</h3>
-      <div className="space-y-2">
-        {games.map(game => {
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide">Schedule ({games.length})</h3>
+        {isAdmin && (
+          <button
+            onClick={() => setShowForm((prev) => !prev)}
+            className="px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >
+            {showForm ? 'Cancel' : '+ Add Game'}
+          </button>
+        )}
+      </div>
+
+      {showForm && isAdmin && (
+        <div className="mb-3 bg-gray-800 border border-gray-700 rounded-lg p-3">
+          <GameForm
+            game={null}
+            teams={teams}
+            seasons={seasons}
+            defaultSeasonId={defaultSeasonId}
+            defaultHomeTeamId={teamId}
+            onDone={() => { setShowForm(false); loadGames(); }}
+            onCancel={() => setShowForm(false)}
+          />
+        </div>
+      )}
+
+      {!games.length ? (
+        <div className="text-sm text-gray-400">No games scheduled.</div>
+      ) : (
+        <div className="space-y-2">
+          {games.map(game => {
           const isHome = game.home_team_id === teamId;
           const opponent = isHome ? game.away_team_name : game.home_team_name;
           const opponentLogo = isHome ? game.away_logo : game.home_logo;
@@ -95,9 +141,9 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
           }
           const resultColor = result === 'W' ? 'text-green-400' : result === 'L' ? 'text-red-600' : result === 'T' ? 'text-gray-400' : '';
 
-          return (
-            <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 flex items-center gap-3 text-sm cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+            return (
+              <div key={game.id} onClick={() => setSelectedGameId(game.id)}
+                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 flex items-center gap-3 text-sm cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
               {/* Date + Time */}
               <div className="w-24 shrink-0">
                 <div className="font-semibold text-gray-300 text-xs">{formatDate(game.game_date)}</div>
@@ -135,10 +181,11 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                   </>
                 )}
               </div>
-            </div>
-          );
-        })}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
