@@ -87,17 +87,25 @@ async function buildPlayerLookup(teamId) {
   for (const p of rows) {
     const fullName = `${p.first_name} ${p.last_name}`.toLowerCase();
     const lastName = p.last_name.toLowerCase();
+    const firstName = p.first_name.toLowerCase();
     const firstInitialLast = `${p.first_name[0]}. ${p.last_name}`.toLowerCase();
-    lookup[fullName] = { id: p.id, jersey: p.jersey_number };
+    // "FirstName L" — first name + last initial (GC format)
+    const firstNameLastInitial = `${p.first_name} ${p.last_name[0]}`.toLowerCase();
+    const entry = { id: p.id, jersey: p.jersey_number, first_name: p.first_name, last_name: p.last_name };
+    lookup[fullName] = entry;
     // Store last name only if unambiguous
-    if (!lookup[lastName]) lookup[lastName] = { id: p.id, jersey: p.jersey_number };
+    if (!lookup[lastName]) lookup[lastName] = entry;
     else lookup[lastName] = null; // Ambiguous
-    lookup[firstInitialLast] = { id: p.id, jersey: p.jersey_number };
+    // Store first name only if unambiguous
+    if (!lookup[firstName]) lookup[firstName] = entry;
+    else lookup[firstName] = null; // Ambiguous
+    lookup[firstInitialLast] = entry;
+    lookup[firstNameLastInitial] = entry;
     if (p.jersey_number) {
-      lookup[`#${p.jersey_number}`] = { id: p.id, jersey: p.jersey_number };
+      lookup[`#${p.jersey_number}`] = entry;
     }
   }
-  return lookup;
+  return { lookup, list: rows };
 }
 
 function matchPlayer(name, jersey, playerLookup) {
@@ -116,6 +124,12 @@ function matchPlayer(name, jersey, playerLookup) {
     // Try "F. LastName" format in lookup
     const initialDot = `${parts[0]}. ${parts.slice(1).join(' ')}`;
     if (playerLookup[initialDot]) return playerLookup[initialDot];
+  }
+
+  // GC sometimes uses "FirstName L" — first name + last initial
+  if (parts.length === 2 && parts[1].length === 1) {
+    // Already indexed in buildPlayerLookup as firstNameLastInitial
+    if (playerLookup[clean]) return playerLookup[clean];
   }
 
   // Try "Last, First" → "First Last"
@@ -214,10 +228,24 @@ async function buildBoxScorePreview(parsed) {
   }
 
   // Pitching rows — show jersey, pitch count, match status
+  // Also build pitcher mapping data for the player mapping UI
+  const pitcherMappings = [];
+  const playersByTeam = {};
+
   for (const side of ['away', 'home']) {
     const teamName = side === 'away' ? gameInfo.awayTeam : gameInfo.homeTeam;
     const teamId = side === 'away' ? teamLookup[(gameInfo.awayTeam || '').toLowerCase()] : teamLookup[(gameInfo.homeTeam || '').toLowerCase()];
-    const playerLookup = teamId ? await buildPlayerLookup(teamId) : {};
+    const { lookup: playerLookup, list: playerList } = teamId ? await buildPlayerLookup(teamId) : { lookup: {}, list: [] };
+
+    // Store player list for this team (for mapping dropdowns)
+    if (teamId && playerList.length > 0) {
+      playersByTeam[teamId] = playerList.map(p => ({
+        id: p.id,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        jersey_number: p.jersey_number,
+      }));
+    }
 
     for (const p of pitching[side]) {
       const matched = matchPlayer(p.name, p.jersey, playerLookup);
@@ -238,6 +266,24 @@ async function buildBoxScorePreview(parsed) {
           matchLabel,
         ].filter(Boolean).join(', '),
       });
+
+      // Build pitcher mapping entry
+      pitcherMappings.push({
+        gcName: p.name,
+        jersey: p.jersey || null,
+        firstName: p.firstName || null,
+        lastName: p.lastName || null,
+        pitches: p.pitches ?? null,
+        strikes: p.strikes ?? null,
+        ip: p.ip ?? null,
+        side,
+        teamName: teamName || side,
+        teamId: teamId || null,
+        suggestedPlayerId: matched ? matched.id : null,
+        suggestedPlayerName: matched
+          ? `${matched.first_name} ${matched.last_name}`
+          : null,
+      });
     }
   }
 
@@ -252,6 +298,8 @@ async function buildBoxScorePreview(parsed) {
     unmatchedTeams,
     matchedTeams: matchedTeamMap,
     teamsList: teamsListForMapping,
+    pitcherMappings,
+    playersByTeam,
     _debug: parsed._debug || null,
     _rawText: (parsed.raw || '').slice(0, 5000),
   };
@@ -340,6 +388,12 @@ router.post(
         try { teamMappings = JSON.parse(req.body.teamMappings); } catch { /* ignore */ }
       }
 
+      // Parse player mappings from frontend (JSON string: { "GC Name": playerId|"__new__", ... })
+      let playerMappings = {};
+      if (req.body.playerMappings) {
+        try { playerMappings = JSON.parse(req.body.playerMappings); } catch { /* ignore */ }
+      }
+
       if (importType === 'boxscore') {
         const parsed = await parseBoxScoreInput(req);
         return await importBoxScore(req, res, {
@@ -348,6 +402,7 @@ router.post(
           seasonId,
           overwrite,
           teamMappings,
+          playerMappings,
         });
       }
 
@@ -363,7 +418,7 @@ router.post(
 
 /* ── Box Score Import Logic ── */
 async function importBoxScore(req, res, opts) {
-  const { parsed, teamId, seasonId, overwrite, teamMappings } = opts;
+  const { parsed, teamId, seasonId, overwrite, teamMappings, playerMappings } = opts;
   const { gameInfo, linescore, batting, pitching } = parsed;
 
   const results = {
@@ -492,12 +547,25 @@ async function importBoxScore(req, res, opts) {
     for (const side of sides) {
       if (!side.teamId) continue;
       // Rebuild lookup each iteration so newly-created players are visible
-      let playerLookup = await buildPlayerLookup(side.teamId);
+      let { lookup: playerLookup, list: playerList } = await buildPlayerLookup(side.teamId);
 
       for (const pitcher of side.pitchers) {
-        let player = matchPlayer(pitcher.name, pitcher.jersey, playerLookup);
+        let player = null;
 
-        // Auto-create player if not found
+        // Check user-supplied player mappings first
+        const userMapping = playerMappings && pitcher.name ? playerMappings[pitcher.name] : null;
+        if (userMapping && userMapping !== '__new__') {
+          // User explicitly mapped to an existing player ID
+          const mappedId = parseInt(userMapping);
+          if (!isNaN(mappedId)) {
+            player = { id: mappedId };
+          }
+        } else if (userMapping !== '__new__') {
+          // No explicit "create new" — try auto-matching
+          player = matchPlayer(pitcher.name, pitcher.jersey, playerLookup);
+        }
+
+        // Auto-create player if not found (or user chose "__new__")
         if (!player && pitcher.name) {
           const firstName = pitcher.firstName || pitcher.name.split(' ')[0] || '';
           const lastName = pitcher.lastName || pitcher.name.split(' ').slice(1).join(' ') || '';
@@ -517,7 +585,7 @@ async function importBoxScore(req, res, opts) {
             player = { id: newId, jersey: jerseyNum };
             results.created++;
             // Refresh lookup so jersey/name is available for subsequent pitchers
-            playerLookup = await buildPlayerLookup(side.teamId);
+            ({ lookup: playerLookup, list: playerList } = await buildPlayerLookup(side.teamId));
           } catch (err) {
             results.errors.push(`Could not create player "${pitcher.name}": ${err.message}`);
             results.skipped++;
