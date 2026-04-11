@@ -52,7 +52,7 @@ export default function OrgManager({ onBack }) {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-lg font-bold">Organizations ({orgs.length})</h2>
+        <h2 className="text-lg font-bold text-gray-100">Organizations ({orgs.length})</h2>
         <div className="flex gap-2">
           {isAdmin && <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Organization</button>}
           {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
@@ -73,11 +73,11 @@ export default function OrgManager({ onBack }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {orgs.map((org) => (
             <div key={org.id} onClick={() => setSelectedOrg(org)}
-              className="bg-gray-800 border border-gray-700 rounded-xl p-4 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
+              className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-gray-200 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 min-w-0">
                   {org.logo_url && <img src={org.logo_url} alt="" className="w-8 h-8 object-contain rounded shrink-0" />}
-                  <h3 className="font-bold text-base truncate">{org.name}</h3>
+                  <h3 className="font-bold text-base text-gray-100 truncate">{org.name}</h3>
                 </div>
                 <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ml-2">
                   {org.team_count} team{org.team_count !== 1 ? 's' : ''}
@@ -108,10 +108,10 @@ export default function OrgManager({ onBack }) {
 
 function OrgCard({ org }) {
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-4">
+    <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-4 text-gray-200">
       <div className="flex items-center gap-3 mb-3">
         {org.logo_url && <img src={org.logo_url} alt="" className="w-12 h-12 object-contain rounded" />}
-        <h2 className="text-xl font-bold">{org.name}</h2>
+        <h2 className="text-xl font-bold text-gray-100">{org.name}</h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
         {org.contact_name && <div><span className="font-semibold">Contact:</span> {org.contact_name}</div>}
@@ -178,8 +178,8 @@ function OrgForm({ org, onDone, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit Organization' : 'Add Organization'}</h2>
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200">
+        <h2 className="text-xl font-bold text-gray-100 mb-4">{isEditing ? 'Edit Organization' : 'Add Organization'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="org-name" className={labelCls}>Organization Name *</label>
@@ -309,13 +309,13 @@ function OrgTeams({ org, allTeams, onChanged }) {
 
   return (
     <div className="mt-6">
-      <h3 className="text-base font-bold mb-2">Teams ({orgTeams.length})</h3>
+      <h3 className="text-base font-bold text-gray-100 mb-2">Teams ({orgTeams.length})</h3>
 
       {orgTeams.length > 0 ? (
         <>
           {/* Desktop */}
           <div className="hidden sm:block">
-            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm">
+            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Team Name</th>
@@ -341,7 +341,7 @@ function OrgTeams({ org, allTeams, onChanged }) {
           {/* Mobile */}
           <div className="sm:hidden space-y-2">
             {orgTeams.map((t) => (
-              <div key={t.id} className="bg-gray-800 rounded-lg border border-gray-700 p-3 flex items-center justify-between">
+              <div key={t.id} className="bg-gray-800 rounded-lg border border-gray-700 p-3 flex items-center justify-between text-gray-200">
                 <div>
                   <div className="font-semibold text-sm">{t.long_name || t.name}</div>
                   <div className="text-xs text-gray-400">{[t.age_group, t.level, t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : t.division].filter(Boolean).join(' · ') || '—'}</div>
@@ -358,7 +358,7 @@ function OrgTeams({ org, allTeams, onChanged }) {
       {isAdmin && unassignedTeams.length > 0 && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
           <select value={selectedTeamId} onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="flex-1 sm:flex-none sm:min-w-[220px] px-3 py-2 border border-gray-600 rounded-lg text-sm bg-gray-800">
+            className="flex-1 sm:flex-none sm:min-w-[220px] px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800">
             <option value="">— Assign a team —</option>
             {unassignedTeams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>

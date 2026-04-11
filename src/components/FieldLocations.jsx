@@ -81,7 +81,7 @@ export default function FieldLocations({ orgId, orgName }) {
   return (
     <div className="mt-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-        <h3 className="text-base font-bold">Field Locations{orgName ? ` — ${orgName}` : ''}</h3>
+        <h3 className="text-base font-bold text-gray-100">Field Locations{orgName ? ` — ${orgName}` : ''}</h3>
         {editable && <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Field</button>}
       </div>
 
@@ -129,7 +129,7 @@ export default function FieldLocations({ orgId, orgName }) {
         <>
           {/* Desktop table */}
           <div className="hidden md:block mt-3">
-            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm">
+            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
@@ -192,7 +192,7 @@ export default function FieldLocations({ orgId, orgName }) {
                   key={loc.id}
                   onClick={() => handleRowClick(loc)}
                   className={`
-                    bg-gray-800 rounded-lg border p-4
+                    bg-gray-800 rounded-lg border p-4 text-gray-200
                     ${hasPin ? 'cursor-pointer' : ''}
                     ${isHighlighted ? 'border-blue-400 bg-blue-900/30 shadow-card' : 'border-gray-700'}
                   `}
@@ -276,8 +276,8 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit Field Location' : 'Add Field Location'}</h2>
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200">
+        <h2 className="text-xl font-bold text-gray-100 mb-4">{isEditing ? 'Edit Field Location' : 'Add Field Location'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="loc-name" className={labelCls}>Field Name *</label>

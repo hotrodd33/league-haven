@@ -74,7 +74,7 @@ export default function UserManager({ onBack }) {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-lg font-bold">User Accounts ({users.length})</h2>
+        <h2 className="text-lg font-bold text-gray-100">User Accounts ({users.length})</h2>
         <div className="flex gap-2">
           <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add User</button>
           {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
@@ -91,7 +91,7 @@ export default function UserManager({ onBack }) {
         <>
           {/* Desktop table */}
           <div className="hidden md:block">
-            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm">
+            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Username</th>
@@ -149,7 +149,7 @@ export default function UserManager({ onBack }) {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {users.map((u) => (
-              <div key={u.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4">
+              <div key={u.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4 text-gray-200">
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <div className="font-semibold">{u.name}</div>
@@ -236,8 +236,8 @@ function UserForm({ user, onDone, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit User' : 'Add User'}</h2>
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4 text-gray-200">
+        <h2 className="text-xl font-bold text-gray-100 mb-4">{isEditing ? 'Edit User' : 'Add User'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -360,8 +360,8 @@ function PermissionsEditor({ user, onBack }) {
         ← Back to Users
       </button>
 
-      <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-4">
-        <h2 className="text-xl font-bold mb-1">Permissions for {user.name}</h2>
+      <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-4 text-gray-200">
+        <h2 className="text-xl font-bold text-gray-100 mb-1">Permissions for {user.name}</h2>
         <p className="text-sm text-gray-400 mb-4">
           Select which organizations and teams this user can edit. Granting org access automatically includes all teams under that org.
         </p>
