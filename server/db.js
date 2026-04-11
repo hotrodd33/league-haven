@@ -28,6 +28,7 @@ async function migrate() {
       city TEXT,
       state TEXT,
       zip TEXT,
+      officials_enabled BOOLEAN NOT NULL DEFAULT FALSE,
       notes TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -187,11 +188,40 @@ async function migrate() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS officials (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE SET NULL,
+      name TEXT NOT NULL,
+      email TEXT,
+      phone TEXT,
+      address TEXT,
+      city TEXT,
+      state TEXT,
+      zip TEXT,
+      venmo_id TEXT,
+      rate_per_game NUMERIC(10, 2) NOT NULL DEFAULT 50,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS game_official_assignments (
+      game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      official_id INTEGER NOT NULL REFERENCES officials(id) ON DELETE CASCADE,
+      added_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (game_id, official_id)
+    );
   `);
 
   // Add level column to teams if missing
   await pool.query(`
     ALTER TABLE teams ADD COLUMN IF NOT EXISTS level TEXT;
+  `);
+
+  // Officials feature toggle on organizations
+  await pool.query(`
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS officials_enabled BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
   // Ensure app branding defaults exist

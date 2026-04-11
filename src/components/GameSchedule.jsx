@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchGames, createGame, updateGame, deleteGame,
   fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
+  fetchOrganizations, fetchAssignableOfficials,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
@@ -369,6 +370,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const [showAddLocationForm, setShowAddLocationForm] = useState(false);
   const [error, setError] = useState(null);
   const [locations, setLocations] = useState([]);
+  const [orgSettings, setOrgSettings] = useState({});
+  const [officials, setOfficials] = useState([]);
   const [scheduleSettings, setScheduleSettings] = useState({
     game_start_time: '08:00',
     game_end_time: '20:00',
@@ -385,6 +388,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     home_score: game?.home_score ?? '',
     away_score: game?.away_score ?? '',
     innings_played: game?.innings_played ?? '',
+    official_ids: game?.official_ids || [],
     notes: game?.notes || '',
   });
 
@@ -399,6 +403,17 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
   const selectedHomeTeam = teams.find((t) => String(t.id) === String(form.home_team_id));
   const homeOrgId = selectedHomeTeam?.org_id || null;
+  const officialsEnabled = homeOrgId ? !!orgSettings[homeOrgId]?.officials_enabled : false;
+
+  useEffect(() => {
+    fetchOrganizations().then((orgs) => {
+      const map = {};
+      for (const org of orgs || []) map[org.id] = org;
+      setOrgSettings(map);
+    }).catch(() => {
+      setOrgSettings({});
+    });
+  }, []);
 
   useEffect(() => {
     fetchScheduleSettings().then((data) => {
@@ -413,6 +428,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   useEffect(() => {
     if (!homeOrgId) {
       setLocations([]);
+      setOfficials([]);
       if (form.location_id) {
         setForm((prev) => ({ ...prev, location_id: '' }));
       }
@@ -425,6 +441,18 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       }
     }).catch(() => {
       setLocations([]);
+    });
+
+    fetchAssignableOfficials(homeOrgId).then((rows) => {
+      const list = rows || [];
+      setOfficials(list);
+      setForm((prev) => ({
+        ...prev,
+        official_ids: (prev.official_ids || []).filter((id) => list.some((o) => String(o.id) === String(id))),
+      }));
+    }).catch(() => {
+      setOfficials([]);
+      setForm((prev) => ({ ...prev, official_ids: [] }));
     });
   }, [homeOrgId]);
 
@@ -454,6 +482,18 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   function handleNewLocationChange(e) {
     const { name, value } = e.target;
     setNewLocation((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function toggleOfficial(officialId) {
+    setForm((prev) => {
+      const has = (prev.official_ids || []).some((id) => String(id) === String(officialId));
+      return {
+        ...prev,
+        official_ids: has
+          ? prev.official_ids.filter((id) => String(id) !== String(officialId))
+          : [...(prev.official_ids || []), Number(officialId)],
+      };
+    });
   }
 
   async function handleAddLocation(e) {
@@ -504,6 +544,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       home_score: form.home_score !== '' ? Number(form.home_score) : null,
       away_score: form.away_score !== '' ? Number(form.away_score) : null,
       innings_played: form.innings_played !== '' ? Number(form.innings_played) : null,
+      official_ids: form.official_ids || [],
       notes: form.notes.trim() || null,
     };
     try {
@@ -618,6 +659,30 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               <p className="text-xs text-gray-400 mt-1">No fields found for {selectedHomeTeam?.org_name || 'this organization'}.</p>
             ) : null}
           </div>
+
+          {officialsEnabled && (
+            <div>
+              <label className={labelCls}>Assigned Officials</label>
+              {officials.length === 0 ? (
+                <p className="text-xs text-gray-400">No officials available. Add officials in the Officials module.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-900 border border-gray-700 rounded-lg p-3 max-h-44 overflow-y-auto">
+                  {officials.map((official) => {
+                    const checked = (form.official_ids || []).some((id) => String(id) === String(official.id));
+                    return (
+                      <label key={official.id} className="flex items-center justify-between gap-2 text-sm text-gray-200">
+                        <span className="truncate">
+                          {official.name}
+                          <span className="text-xs text-gray-400 ml-1">({official.scope === 'league' ? 'League' : (official.org_name || 'Org')})</span>
+                        </span>
+                        <input type="checkbox" checked={checked} onChange={() => toggleOfficial(official.id)} />
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Status + Score + Innings */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

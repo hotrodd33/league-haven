@@ -15,6 +15,7 @@ import Standings from "./components/Standings.jsx";
 import Directory from "./components/Directory.jsx";
 import DataManager from "./components/DataManager.jsx";
 import Dashboard from "./components/Dashboard.jsx";
+import OfficialsManager from "./components/OfficialsManager.jsx";
 import AppShell from "./components/ui/AppShell.jsx";
 import GameChangerImportWizard from "./components/import/GameChangerImportWizard.jsx";
 
@@ -101,6 +102,9 @@ export default function App() {
 
             case 'data':
                 return isAdmin ? <DataManager /> : null;
+
+            case 'officials':
+                return <OfficialsManager onBack={() => setPage("dashboard")} />;
 
             case 'rosters':
             default:

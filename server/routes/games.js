@@ -31,7 +31,8 @@ const BASE_SELECT = `
     fl.name AS location_name, fl.address AS location_address,
     fl.city AS location_city, fl.state AS location_state,
     ls.name AS season_name, ls.year AS season_year,
-    gd.division_id, gd.division_name, gd.division_sort
+    gd.division_id, gd.division_name, gd.division_sort,
+    goa.official_ids, goa.official_names, goa.officials
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
@@ -48,6 +49,28 @@ const BASE_SELECT = `
     ORDER BY ld.sort_order
     LIMIT 1
   ) gd ON true
+  LEFT JOIN LATERAL (
+    SELECT
+      COALESCE(array_agg(o.id ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::INTEGER[]) AS official_ids,
+      COALESCE(array_agg(o.name ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::TEXT[]) AS official_names,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', o.id,
+            'name', o.name,
+            'org_id', o.org_id,
+            'org_name', org.name,
+            'rate_per_game', o.rate_per_game
+          )
+          ORDER BY o.name
+        ) FILTER (WHERE o.id IS NOT NULL),
+        '[]'::json
+      ) AS officials
+    FROM game_official_assignments go
+    JOIN officials o ON o.id = go.official_id
+    LEFT JOIN organizations org ON org.id = o.org_id
+    WHERE go.game_id = g.id
+  ) goa ON true
 `;
 
 function enrichGame(row) {
@@ -84,7 +107,42 @@ function enrichGame(row) {
     away_primary_color: row.away_primary_color || null,
     away_secondary_color: row.away_secondary_color || null,
     away_city_abbr: cityAbbr(row.away_team_city),
+    official_ids: row.official_ids || [],
+    official_names: row.official_names || [],
+    officials: row.officials || [],
   };
+}
+
+async function replaceGameOfficials(client, gameId, officialIds = []) {
+  await client.query('DELETE FROM game_official_assignments WHERE game_id = $1', [gameId]);
+  if (!officialIds.length) return;
+
+  const uniqueIds = [...new Set(officialIds.map((id) => Number(id)).filter(Number.isFinite))];
+  if (!uniqueIds.length) return;
+
+  const { rows } = await client.query('SELECT id FROM officials WHERE id = ANY($1)', [uniqueIds]);
+  const validSet = new Set(rows.map((r) => Number(r.id)));
+  const validIds = uniqueIds.filter((id) => validSet.has(id));
+  if (!validIds.length) return;
+
+  for (const officialId of validIds) {
+    await client.query(
+      'INSERT INTO game_official_assignments (game_id, official_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [gameId, officialId]
+    );
+  }
+}
+
+async function canAssignOfficialsForTeam(client, teamId) {
+  if (!teamId) return false;
+  const { rows } = await client.query(
+    `SELECT COALESCE(o.officials_enabled, false) AS officials_enabled
+     FROM teams t
+     LEFT JOIN organizations o ON o.id = t.org_id
+     WHERE t.id = $1`,
+    [teamId]
+  );
+  return !!rows[0]?.officials_enabled;
 }
 
 // GET games — supports filters: ?team_id=, ?season_id=, ?status=, ?from=, ?to=
@@ -305,8 +363,9 @@ router.get('/:id', async (req, res) => {
 
 // CREATE game
 router.post('/', authMiddleware, requireAdmin, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes } = req.body;
+    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes, official_ids } = req.body;
     if (!home_team_id || !away_team_id || !game_date) {
       return res.status(400).json({ error: 'home_team_id, away_team_id, and game_date are required' });
     }
@@ -317,26 +376,42 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    const { rows } = await pool.query(
+    await client.query('BEGIN');
+    const { rows } = await client.query(
       `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [season_id || null, home_team_id, away_team_id, location_id || null,
        game_date, game_time || null, status || 'scheduled', notes || null]
     );
     const gameId = rows[0].id;
+    const officialIds = Array.isArray(official_ids) ? official_ids : [];
+    if (officialIds.length) {
+      const allowed = await canAssignOfficialsForTeam(client, home_team_id);
+      if (!allowed) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Officials are not enabled for the home organization' });
+      }
+    }
+    await replaceGameOfficials(client, gameId, officialIds);
+    await client.query('COMMIT');
+
     const { rows: gameRows } = await pool.query(BASE_SELECT + ' WHERE g.id = $1', [gameId]);
     res.status(201).json(enrichGame(gameRows[0]));
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
 // UPDATE game (admin or manager of either team)
 router.put('/:id', authMiddleware, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { rows: existing } = await pool.query(
+    const { rows: existing } = await client.query(
       'SELECT id, home_team_id, away_team_id, game_date, game_time FROM games WHERE id = $1', [id]
     );
     if (!existing.length) return res.status(404).json({ error: 'Game not found' });
@@ -345,7 +420,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const allowed = await canScoreGame(req.user, game.home_team_id, game.away_team_id);
     if (!allowed) return res.status(403).json({ error: 'Not authorized to update this game' });
 
-    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, home_score, away_score, innings_played, notes } = req.body;
+    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, home_score, away_score, innings_played, notes, official_ids } = req.body;
     if (home_team_id && away_team_id && Number(home_team_id) === Number(away_team_id)) {
       return res.status(400).json({ error: 'Home and away teams must be different' });
     }
@@ -357,7 +432,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const oldDate = normalizeDate(game.game_date);
     const oldTime = game.game_time || null;
 
-    await pool.query(
+    await client.query('BEGIN');
+    await client.query(
       `UPDATE games SET
         season_id = COALESCE($1, season_id),
         home_team_id = COALESCE($2, home_team_id),
@@ -377,6 +453,21 @@ router.put('/:id', authMiddleware, async (req, res) => {
        innings_played ?? null, notes ?? null, id]
     );
 
+    if (official_ids !== undefined) {
+      const officialIds = Array.isArray(official_ids) ? official_ids : [];
+      if (officialIds.length) {
+        const effectiveHomeTeamId = home_team_id || game.home_team_id;
+        const allowed = await canAssignOfficialsForTeam(client, effectiveHomeTeamId);
+        if (!allowed) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Officials are not enabled for the home organization' });
+        }
+      }
+      await replaceGameOfficials(client, id, officialIds);
+    }
+
+    await client.query('COMMIT');
+
     const { rows } = await pool.query(BASE_SELECT + ' WHERE g.id = $1', [id]);
     const updated = enrichGame(rows[0]);
 
@@ -389,8 +480,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     res.json(updated);
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 

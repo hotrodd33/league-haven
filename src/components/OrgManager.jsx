@@ -263,9 +263,13 @@ function OrgForm({ org, onDone, onCancel }) {
     contact_email: org?.contact_email || '', contact_phone: org?.contact_phone || '',
     address: org?.address || '', city: org?.city || '',
     state: org?.state || '', zip: org?.zip || '', notes: org?.notes || '',
+    officials_enabled: !!org?.officials_enabled,
   });
 
-  function handleChange(e) { setForm((prev) => ({ ...prev, [e.target.name]: e.target.value })); }
+  function handleChange(e) {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  }
 
   function handleLogoChange(e) {
     const file = e.target.files?.[0];
@@ -284,7 +288,10 @@ function OrgForm({ org, onDone, onCancel }) {
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true); setError(null);
     const data = {};
-    for (const [key, value] of Object.entries(form)) data[key] = value.trim() || null;
+    for (const [key, value] of Object.entries(form)) {
+      if (typeof value === 'boolean') data[key] = value;
+      else data[key] = value.trim() || null;
+    }
     try {
       let savedOrg;
       if (isEditing) {
@@ -369,6 +376,20 @@ function OrgForm({ org, onDone, onCancel }) {
             <textarea id="org-notes" name="notes" value={form.notes} onChange={handleChange} rows={3} placeholder="Any additional info…"
               className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
           </div>
+
+          <label className="flex items-start gap-2 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="officials_enabled"
+              checked={!!form.officials_enabled}
+              onChange={handleChange}
+              className="mt-0.5"
+            />
+            <div>
+              <p className="text-sm font-semibold text-gray-200">Enable Officials For This Organization</p>
+              <p className="text-xs text-gray-400">When enabled, game forms can assign officials to games for this org.</p>
+            </div>
+          </label>
 
           {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
 

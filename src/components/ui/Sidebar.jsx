@@ -15,6 +15,7 @@ const mainNav = [
 ];
 
 const adminNav = [
+  { key: 'officials', label: 'Officials', icon: UserGroupIcon },
   { key: 'league', label: 'League Config', icon: CogIcon },
   { key: 'users',  label: 'Users',         icon: UserGroupIcon },
   { key: 'data',   label: 'Data Manager',  icon: DatabaseIcon },

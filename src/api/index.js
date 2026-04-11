@@ -340,6 +340,41 @@ export async function removeOrgLogo(orgId) {
   return apiFetch(`/organizations/${orgId}/logo`, { method: 'DELETE' });
 }
 
+// ── Officials ──
+
+export async function fetchOfficials(filters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, val] of Object.entries(filters)) {
+    if (val != null && val !== '') params.append(key, val);
+  }
+  const qs = params.toString();
+  return apiFetch(`/officials${qs ? '?' + qs : ''}`);
+}
+
+export async function fetchAssignableOfficials(orgId) {
+  return apiFetch(`/officials/assignable?org_id=${orgId}`);
+}
+
+export async function createOfficial(data) {
+  return apiFetch('/officials', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateOfficial(id, data) {
+  return apiFetch(`/officials/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteOfficial(id) {
+  return apiFetch(`/officials/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 // ── Field Locations ──
 
 export async function fetchLocations(orgId) {

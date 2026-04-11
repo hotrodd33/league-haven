@@ -37,6 +37,7 @@ export default function AppShell({
     league: 'League Config',
     users: 'User Management',
     data: 'Data Manager',
+    officials: 'Officials',
   }[page] || 'Dashboard';
 
   return (
