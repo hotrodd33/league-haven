@@ -1,8 +1,76 @@
 const express = require('express');
+const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin } = require('../auth');
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
+
+async function getBranding() {
+  const { rows } = await pool.query('SELECT app_name, logo_url FROM app_branding WHERE id = 1');
+  return rows[0] || { app_name: 'ZVBL', logo_url: null };
+}
+
+// ── App Branding ──
+
+router.get('/branding', async (req, res) => {
+  try {
+    res.json(await getBranding());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/branding', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const appName = String(req.body?.app_name || '').trim();
+    if (!appName) return res.status(400).json({ error: 'App name is required' });
+
+    await pool.query(
+      `UPDATE app_branding
+       SET app_name = $1, updated_at = NOW()
+       WHERE id = 1`,
+      [appName.slice(0, 48)]
+    );
+
+    res.json(await getBranding());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/branding/logo', authMiddleware, requireAdmin, upload.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const mime = req.file.mimetype;
+    if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'].includes(mime)) {
+      return res.status(400).json({ error: 'File must be an image (PNG, JPEG, GIF, WebP, SVG)' });
+    }
+
+    const dataUrl = `data:${mime};base64,${req.file.buffer.toString('base64')}`;
+    await pool.query(
+      'UPDATE app_branding SET logo_url = $1, updated_at = NOW() WHERE id = 1',
+      [dataUrl]
+    );
+    res.json({ logo_url: dataUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/branding/logo', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('UPDATE app_branding SET logo_url = NULL, updated_at = NOW() WHERE id = 1');
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // ── Age Groups ──
 

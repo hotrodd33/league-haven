@@ -24,6 +24,7 @@ export default function Sidebar({
   page,
   onNavigate,
   isAdmin = false,
+  branding,
   collapsed = false,
   onToggleCollapse,
   mobileOpen = false,
@@ -54,10 +55,18 @@ export default function Sidebar({
           'flex items-center h-16 shrink-0 border-b border-white/10',
           collapsed ? 'justify-center px-2' : 'px-5',
         )}>
-          <span className="text-2xl" aria-hidden="true">⚾</span>
+          {branding?.logo_url ? (
+            <img
+              src={branding.logo_url}
+              alt="App logo"
+              className="w-8 h-8 rounded-md object-cover bg-white/10"
+            />
+          ) : (
+            <span className="text-2xl" aria-hidden="true">⚾</span>
+          )}
           {!collapsed && (
             <span className="ml-3 font-heading text-xl font-bold tracking-wide">
-              ZVBL
+              {branding?.app_name || 'ZVBL'}
             </span>
           )}
         </div>

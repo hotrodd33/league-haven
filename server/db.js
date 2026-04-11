@@ -32,6 +32,13 @@ async function migrate() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS app_branding (
+      id INTEGER PRIMARY KEY,
+      app_name TEXT NOT NULL DEFAULT 'ZVBL',
+      logo_url TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS field_locations (
       id SERIAL PRIMARY KEY,
       org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -182,6 +189,13 @@ async function migrate() {
   // Add level column to teams if missing
   await pool.query(`
     ALTER TABLE teams ADD COLUMN IF NOT EXISTS level TEXT;
+  `);
+
+  // Ensure app branding defaults exist
+  await pool.query(`
+    INSERT INTO app_branding (id, app_name)
+    VALUES (1, 'ZVBL')
+    ON CONFLICT (id) DO NOTHING;
   `);
 
   // Add parent_id to league_divisions if missing (hierarchy support)

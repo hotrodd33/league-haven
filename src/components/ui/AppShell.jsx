@@ -18,6 +18,7 @@ export default function AppShell({
   onNavigate,
   isAdmin,
   user,
+  branding,
   onChangePassword,
   onLogout,
   onNavigateToTeam,
@@ -45,6 +46,7 @@ export default function AppShell({
         page={page}
         onNavigate={onNavigate}
         isAdmin={isAdmin}
+        branding={branding}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         mobileOpen={mobileMenuOpen}
@@ -61,7 +63,7 @@ export default function AppShell({
         {/* Top bar */}
         <TopBar
           title={pageTitle}
-          breadcrumb="ZVBL Roster Manager"
+          breadcrumb={`${branding?.app_name || 'ZVBL'} Roster Manager`}
           user={user}
           onMenuToggle={() => setMobileMenuOpen((v) => !v)}
           onChangePassword={onChangePassword}

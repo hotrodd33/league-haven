@@ -448,6 +448,30 @@ export async function fetchSeasons() {
   return apiFetch('/league-config/seasons');
 }
 
+export async function fetchBranding() {
+  return apiFetch('/league-config/branding');
+}
+
+export async function updateBranding(data) {
+  return apiFetch('/league-config/branding', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function uploadBrandingLogo(file) {
+  const fd = new FormData();
+  fd.append('logo', file);
+  return apiFetch('/league-config/branding/logo', {
+    method: 'POST',
+    body: fd,
+  });
+}
+
+export async function deleteBrandingLogo() {
+  return apiFetch('/league-config/branding/logo', { method: 'DELETE' });
+}
+
 export async function createSeason(data) {
   return apiFetch('/league-config/seasons', {
     method: 'POST',

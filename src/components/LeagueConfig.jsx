@@ -4,6 +4,7 @@ import {
   fetchLevels, createLevel, updateLevel, deleteLevel,
   fetchDivisions, createDivision, updateDivision, deleteDivision,
   fetchSeasons, createSeason, updateSeason, deleteSeason,
+  fetchBranding, updateBranding, uploadBrandingLogo, deleteBrandingLogo,
 } from '../api/index.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
@@ -28,11 +29,13 @@ export default function LeagueConfig({ onBack }) {
         Configure age groups, levels, and divisions for the league. These populate dropdowns when creating or editing teams.
       </p>
       <div className="flex gap-2 mb-5 flex-wrap">
+        <button className={tabCls('branding')} onClick={() => setTab('branding')}>Branding</button>
         <button className={tabCls('seasons')} onClick={() => setTab('seasons')}>Seasons</button>
         <button className={tabCls('age_groups')} onClick={() => setTab('age_groups')}>Age Groups</button>
         <button className={tabCls('levels')} onClick={() => setTab('levels')}>Levels</button>
         <button className={tabCls('divisions')} onClick={() => setTab('divisions')}>Divisions</button>
       </div>
+      {tab === 'branding' && <BrandingConfig />}
       {tab === 'seasons' && <SeasonList />}
       {tab === 'age_groups' && (
         <ConfigList
@@ -49,6 +52,143 @@ export default function LeagueConfig({ onBack }) {
         />
       )}
       {tab === 'divisions' && <DivisionTree />}
+    </div>
+  );
+}
+
+function BrandingConfig() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [savingName, setSavingName] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [removingLogo, setRemovingLogo] = useState(false);
+  const [form, setForm] = useState({ app_name: 'ZVBL', logo_url: null });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchBranding();
+      setForm({
+        app_name: data?.app_name || 'ZVBL',
+        logo_url: data?.logo_url || null,
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleSaveName(e) {
+    e.preventDefault();
+    const appName = (form.app_name || '').trim();
+    if (!appName) return;
+    setSavingName(true);
+    setError(null);
+    try {
+      const updated = await updateBranding({ app_name: appName });
+      setForm((prev) => ({
+        ...prev,
+        app_name: updated?.app_name || appName,
+        logo_url: updated?.logo_url ?? prev.logo_url,
+      }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+  async function handleLogoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    setError(null);
+    try {
+      const result = await uploadBrandingLogo(file);
+      setForm((prev) => ({ ...prev, logo_url: result?.logo_url || prev.logo_url }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  }
+
+  async function handleRemoveLogo() {
+    if (!window.confirm('Remove the current app logo?')) return;
+    setRemovingLogo(true);
+    setError(null);
+    try {
+      await deleteBrandingLogo();
+      setForm((prev) => ({ ...prev, logo_url: null }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRemovingLogo(false);
+    }
+  }
+
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading branding…</div>;
+
+  return (
+    <div className="space-y-5">
+      <h3 className="text-base font-bold">App Branding</h3>
+      <p className="text-xs text-gray-400">
+        Set the app name and logo shown in the main sidebar header.
+      </p>
+
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+
+      <form onSubmit={handleSaveName} className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
+        <div>
+          <label className={labelCls}>Application Name</label>
+          <input
+            type="text"
+            maxLength={48}
+            value={form.app_name}
+            onChange={(e) => setForm((prev) => ({ ...prev, app_name: e.target.value }))}
+            className={inputCls}
+            placeholder="League app name"
+          />
+        </div>
+        <button type="submit" disabled={savingName || !(form.app_name || '').trim()} className={btnPrimary}>
+          {savingName ? 'Saving…' : 'Save Name'}
+        </button>
+      </form>
+
+      <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
+        <label className={labelCls}>Application Logo</label>
+        <div className="flex items-center gap-3">
+          {form.logo_url ? (
+            <img src={form.logo_url} alt="App logo preview" className="w-14 h-14 rounded-lg object-cover bg-gray-800" />
+          ) : (
+            <div className="w-14 h-14 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-2xl">
+              ⚾
+            </div>
+          )}
+          <div className="text-xs text-gray-400">
+            Recommended: square image, up to 512KB.
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <label className={`${btnPrimary} cursor-pointer ${uploadingLogo ? 'opacity-60 pointer-events-none' : ''}`}>
+            {uploadingLogo ? 'Uploading…' : 'Upload Logo'}
+            <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+          </label>
+          <button
+            type="button"
+            onClick={handleRemoveLogo}
+            disabled={!form.logo_url || removingLogo}
+            className="px-4 py-2 bg-red-700 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition-colors disabled:opacity-60"
+          >
+            {removingLogo ? 'Removing…' : 'Remove Logo'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

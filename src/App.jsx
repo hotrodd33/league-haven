@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "./context/AuthContext.jsx";
+import { fetchBranding } from "./api/index.js";
 import Login from "./components/Login.jsx";
 import ResetPassword from "./components/ResetPassword.jsx";
 import ChangePassword from "./components/ChangePassword.jsx";
@@ -27,6 +28,14 @@ export default function App() {
     const [page, setPage] = useState("dashboard");
     const [showChangePassword, setShowChangePassword] = useState(false);
     const [showImportWizard, setShowImportWizard] = useState(false);
+    const [branding, setBranding] = useState({ app_name: 'ZVBL', logo_url: null });
+
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        fetchBranding()
+            .then((data) => setBranding({ app_name: data?.app_name || 'ZVBL', logo_url: data?.logo_url || null }))
+            .catch(() => { /* non-blocking */ });
+    }, [isAuthenticated]);
 
     function navigateToTeam(teamId, orgId) {
         setSelectedTeam(teamId);
@@ -115,6 +124,7 @@ export default function App() {
                 onNavigate={setPage}
                 isAdmin={isAdmin}
                 user={user}
+                branding={branding}
                 onChangePassword={() => setShowChangePassword(true)}
                 onLogout={logout}
                 onNavigateToTeam={navigateToTeam}
