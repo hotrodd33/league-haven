@@ -8,7 +8,7 @@ import {
 const mainNav = [
   { key: 'dashboard',     label: 'Dashboard',     icon: HomeIcon },
   { key: 'organizations', label: 'Organizations', icon: BuildingIcon },
-  { key: 'rosters',       label: 'Rosters',       icon: UsersIcon },
+  { key: 'rosters',       label: 'Teams',         icon: UsersIcon },
   { key: 'schedule',      label: 'Schedule',      icon: CalendarIcon },
   { key: 'standings',     label: 'Standings',      icon: TrophyIcon },
   { key: 'directory',     label: 'Directory',      icon: ClipboardIcon },

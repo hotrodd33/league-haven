@@ -28,7 +28,7 @@ export default function AppShell({
   const pageTitle = {
     dashboard: 'Dashboard',
     organizations: 'Organizations',
-    rosters: 'Rosters',
+    rosters: 'Teams',
     schedule: 'Schedule',
     standings: 'Standings',
     directory: 'Directory',
