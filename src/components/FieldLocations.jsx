@@ -20,6 +20,7 @@ const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-w
 const btnPrimary = "px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60";
 const btnSecondary = "px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600";
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
+const DEFAULT_MAP_CENTER = [44.4497, -92.2663]; // Lake City, MN
 
 function directionsUrl(loc) {
   const addr = [loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ');
@@ -94,7 +95,7 @@ export default function FieldLocations({ orgId, orgName }) {
   const pins = locations.filter((l) => l.latitude && l.longitude);
   const defaultCenter = pins.length > 0
     ? [pins[0].latitude, pins[0].longitude]
-    : [39.8283, -98.5795];
+    : DEFAULT_MAP_CENTER;
 
   return (
     <div className="mt-6">
@@ -276,7 +277,7 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
   const parsedLat = Number(form.latitude);
   const parsedLng = Number(form.longitude);
   const hasValidPin = Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
-  const mapCenter = hasValidPin ? [parsedLat, parsedLng] : [39.8283, -98.5795];
+  const mapCenter = hasValidPin ? [parsedLat, parsedLng] : DEFAULT_MAP_CENTER;
 
   function setCoordinates(lat, lng) {
     setForm((prev) => ({
