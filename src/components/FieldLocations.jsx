@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -35,6 +35,24 @@ function FitBounds({ locations }) {
     const bounds = L.latLngBounds(pts.map((l) => [l.latitude, l.longitude]));
     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
   }, [locations, map]);
+  return null;
+}
+
+function MapClickPicker({ onPick }) {
+  useMapEvents({
+    click(event) {
+      onPick(event.latlng.lat, event.latlng.lng);
+    },
+  });
+  return null;
+}
+
+function MapRecenter({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!center) return;
+    map.setView(center, Math.max(map.getZoom(), 14), { animate: true });
+  }, [center, map]);
   return null;
 }
 
@@ -245,6 +263,8 @@ export default function FieldLocations({ orgId, orgName }) {
 function LocationForm({ orgId, location, onDone, onCancel }) {
   const isEditing = !!location;
   const [saving, setSaving] = useState(false);
+  const [locatingByAddress, setLocatingByAddress] = useState(false);
+  const [locatingByDevice, setLocatingByDevice] = useState(false);
   const [error, setError] = useState(null);
   const [form, setForm] = useState({
     name: location?.name || '', address: location?.address || '',
@@ -253,17 +273,90 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
     longitude: location?.longitude ?? '', comments: location?.comments || '',
   });
 
+  const parsedLat = Number(form.latitude);
+  const parsedLng = Number(form.longitude);
+  const hasValidPin = Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
+  const mapCenter = hasValidPin ? [parsedLat, parsedLng] : [39.8283, -98.5795];
+
+  function setCoordinates(lat, lng) {
+    setForm((prev) => ({
+      ...prev,
+      latitude: Number(lat).toFixed(6),
+      longitude: Number(lng).toFixed(6),
+    }));
+  }
+
   function handleChange(e) { setForm((prev) => ({ ...prev, [e.target.name]: e.target.value })); }
+
+  async function handleLocateByAddress() {
+    const q = [form.address, form.city, form.state, form.zip].filter(Boolean).join(', ').trim();
+    if (!q) {
+      setError('Enter an address, city/state, or ZIP, then click Find on map.');
+      return;
+    }
+    setLocatingByAddress(true);
+    setError(null);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      if (!res.ok) throw new Error('Address lookup failed');
+      const results = await res.json();
+      if (!Array.isArray(results) || !results.length) {
+        throw new Error('No map result found for that address');
+      }
+      setCoordinates(results[0].lat, results[0].lon);
+    } catch (err) {
+      setError(err.message || 'Failed to find that address on the map');
+    } finally {
+      setLocatingByAddress(false);
+    }
+  }
+
+  function handleUseMyLocation() {
+    if (!navigator.geolocation) {
+      setError('Geolocation is not available in this browser.');
+      return;
+    }
+    setLocatingByDevice(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoordinates(position.coords.latitude, position.coords.longitude);
+        setLocatingByDevice(false);
+      },
+      (geoErr) => {
+        setError(geoErr.message || 'Unable to retrieve your current location');
+        setLocatingByDevice(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true); setError(null);
+    const latitude = form.latitude !== '' ? parseFloat(form.latitude) : null;
+    const longitude = form.longitude !== '' ? parseFloat(form.longitude) : null;
+    if (latitude != null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
+      setSaving(false);
+      setError('Latitude must be a number between -90 and 90.');
+      return;
+    }
+    if (longitude != null && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+      setSaving(false);
+      setError('Longitude must be a number between -180 and 180.');
+      return;
+    }
     const data = {
       org_id: orgId,
       name: form.name.trim() || null, address: form.address.trim() || null,
       city: form.city.trim() || null, state: form.state.trim() || null,
       zip: form.zip.trim() || null,
-      latitude: form.latitude !== '' ? parseFloat(form.latitude) : null,
-      longitude: form.longitude !== '' ? parseFloat(form.longitude) : null,
+      latitude,
+      longitude,
       comments: form.comments.trim() || null,
     };
     try {
@@ -300,6 +393,66 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
             <div>
               <label htmlFor="loc-zip" className={labelCls}>ZIP</label>
               <input id="loc-zip" name="zip" type="text" value={form.zip} onChange={handleChange} maxLength={10} className={inputCls} />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-700 bg-gray-900/40 p-3 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-gray-100">Pin this field on map</p>
+                <p className="text-xs text-gray-400">Click anywhere on the map to drop a pin, then drag it for exact placement.</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleLocateByAddress}
+                  disabled={locatingByAddress}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {locatingByAddress ? 'Finding…' : 'Find on map'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUseMyLocation}
+                  disabled={locatingByDevice}
+                  className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600 disabled:opacity-60"
+                >
+                  {locatingByDevice ? 'Locating…' : 'Use my location'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, latitude: '', longitude: '' }))}
+                  className="px-3 py-1.5 bg-gray-800 text-gray-200 text-xs font-semibold rounded border border-gray-600 hover:bg-gray-700"
+                >
+                  Clear pin
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-lg overflow-hidden border border-gray-700">
+              <MapContainer center={mapCenter} zoom={hasValidPin ? 14 : 4} scrollWheelZoom style={{ height: '260px', width: '100%' }}>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <MapRecenter center={mapCenter} />
+                <MapClickPicker onPick={setCoordinates} />
+                {hasValidPin && (
+                  <Marker
+                    position={mapCenter}
+                    draggable
+                    eventHandlers={{
+                      dragend: (event) => {
+                        const marker = event.target;
+                        const pos = marker.getLatLng();
+                        setCoordinates(pos.lat, pos.lng);
+                      },
+                    }}
+                  >
+                    <Popup>Drag to fine-tune field location</Popup>
+                  </Marker>
+                )}
+              </MapContainer>
             </div>
           </div>
 
