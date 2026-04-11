@@ -143,6 +143,12 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
       // Try server-side preview first
       try {
         const serverResult = await previewGameChanger(input, importType);
+        // DEBUG: temporary — inspect raw PDF text extraction in browser console
+        if (serverResult?._debug || serverResult?._rawText) {
+          console.log('=== BOX SCORE DEBUG ===');
+          console.log('Raw text:', serverResult._rawText);
+          console.log('Debug:', JSON.stringify(serverResult._debug, null, 2));
+        }
         if (serverResult?.headers?.length > 0) {
           setPreviewHeaders(serverResult.headers);
           setPreviewRows(serverResult.rows || []);
