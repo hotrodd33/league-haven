@@ -8,7 +8,7 @@ import { ArrowUpTrayIcon, XMarkIcon } from '../ui/icons.jsx';
    Drag-and-drop + file input with export instructions.
    ═══════════════════════════════════════════════════════ */
 
-const ACCEPTED = '.csv,.ics,.txt,.tsv';
+const ACCEPTED = '.csv,.ics,.txt,.tsv,.pdf';
 
 const INSTRUCTIONS = {
   stats: {
@@ -26,8 +26,8 @@ const INSTRUCTIONS = {
     steps: [
       'Open any completed game in GameChanger',
       'Click "Box Score" to view the full box score',
-      'Use "Export" or "Share" to download as CSV',
-      'You can upload multiple games at once',
+      'Tap "Share" or "Print" and save as PDF',
+      'Upload the PDF here — we\'ll parse it automatically',
     ],
   },
   schedule: {
@@ -143,7 +143,7 @@ export default function FileUpload({ importType, file, onFileSelect, onFileClear
             or <span className="text-field-700 font-medium underline">browse files</span>
           </p>
           <p className="mt-3 text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
-            CSV · ICS · TXT · TSV
+            CSV · ICS · TXT · TSV · PDF
           </p>
         </div>
       ) : (

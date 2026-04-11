@@ -24,8 +24,8 @@ const IMPORT_TYPES = [
   {
     key: 'boxscore',
     label: 'Box Score',
-    desc: 'Individual game box scores — single or multiple games. CSV or pasted text.',
-    howTo: 'In GameChanger → Game → Box Score → Export',
+    desc: 'Individual game box scores — single or multiple games. Upload the PDF export directly.',
+    howTo: 'In GameChanger → Game → Box Score → Share → Save as PDF',
     icon: ClipboardIcon,
     color: 'blue',
   },
