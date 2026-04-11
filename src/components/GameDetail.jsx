@@ -55,7 +55,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
 
   // Pitch count add form
   const [addingFor, setAddingFor] = useState(null); // 'home' | 'away'
-  const [pcForm, setPcForm] = useState({ player_id: '', pitch_count: '', innings_pitched: '' });
+  const [pcForm, setPcForm] = useState({ player_id: '', pitch_count: '' });
   const [editingPc, setEditingPc] = useState(null);
 
   // Quick-add new player
@@ -132,10 +132,9 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         player_id: Number(pcForm.player_id),
         team_id: teamId,
         pitch_count: Number(pcForm.pitch_count),
-        innings_pitched: pcForm.innings_pitched || null,
       });
       setPitchCounts(await fetchPitchCounts(gameId));
-      setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' });
+      setPcForm({ player_id: '', pitch_count: '' });
       setAddingFor(null);
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -148,11 +147,10 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
     try {
       await updatePitchCount(gameId, editingPc.id, {
         pitch_count: Number(pcForm.pitch_count),
-        innings_pitched: pcForm.innings_pitched || null,
       });
       setPitchCounts(await fetchPitchCounts(gameId));
       setEditingPc(null);
-      setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' });
+      setPcForm({ player_id: '', pitch_count: '' });
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   }
@@ -168,7 +166,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   function startEditPc(pc) {
     setEditingPc(pc);
     setAddingFor(null);
-    setPcForm({ player_id: String(pc.player_id), pitch_count: String(pc.pitch_count), innings_pitched: pc.innings_pitched || '' });
+    setPcForm({ player_id: String(pc.player_id), pitch_count: String(pc.pitch_count) });
   }
 
   async function handleQuickAddPlayer(side) {
@@ -324,7 +322,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         availablePlayers={availableHome}
         canEdit={userCanEdit}
         isAdding={addingFor === 'home'}
-        onStartAdd={() => { setAddingFor('home'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' }); setAddingNewPlayerFor(null); }}
+        onStartAdd={() => { setAddingFor('home'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); setAddingNewPlayerFor(null); }}
         onCancelAdd={() => { setAddingFor(null); setAddingNewPlayerFor(null); }}
         onAdd={handleAddPitchCount}
         pcForm={pcForm}
@@ -333,7 +331,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         editingPc={editingPc}
         onStartEdit={startEditPc}
         onSaveEdit={handleUpdatePitchCount}
-        onCancelEdit={() => { setEditingPc(null); setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' }); }}
+        onCancelEdit={() => { setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); }}
         onDelete={handleDeletePitchCount}
         addingNewPlayer={addingNewPlayerFor === 'home'}
         onStartAddNewPlayer={() => setAddingNewPlayerFor('home')}
@@ -355,7 +353,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         availablePlayers={availableAway}
         canEdit={userCanEdit}
         isAdding={addingFor === 'away'}
-        onStartAdd={() => { setAddingFor('away'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' }); setAddingNewPlayerFor(null); }}
+        onStartAdd={() => { setAddingFor('away'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); setAddingNewPlayerFor(null); }}
         onCancelAdd={() => { setAddingFor(null); setAddingNewPlayerFor(null); }}
         onAdd={handleAddPitchCount}
         pcForm={pcForm}
@@ -364,7 +362,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         editingPc={editingPc}
         onStartEdit={startEditPc}
         onSaveEdit={handleUpdatePitchCount}
-        onCancelEdit={() => { setEditingPc(null); setPcForm({ player_id: '', pitch_count: '', innings_pitched: '' }); }}
+        onCancelEdit={() => { setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); }}
         onDelete={handleDeletePitchCount}
         addingNewPlayer={addingNewPlayerFor === 'away'}
         onStartAddNewPlayer={() => setAddingNewPlayerFor('away')}
@@ -465,12 +463,6 @@ function PitchCountSection({
                       <div className="mt-1 text-xs text-red-600 font-semibold">Exceeds daily limit of {dailyLimit}</div>
                     )}
                   </div>
-                  <div>
-                    <label className={labelCls}>Innings Pitched</label>
-                    <input type="text" value={pcForm.innings_pitched} placeholder="e.g. 3.1"
-                      onChange={(e) => setPcForm(prev => ({ ...prev, innings_pitched: e.target.value }))}
-                      className={inputCls} />
-                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Saving…' : 'Save'}</button>
@@ -482,7 +474,6 @@ function PitchCountSection({
                 <div className="w-8 text-xs text-gray-400 font-mono">{pc.jersey_number || '—'}</div>
                 <div className="flex-1 text-sm font-medium truncate">{pc.first_name} {pc.last_name}</div>
                 <div className={`w-16 text-sm font-bold text-right tabular-nums ${overLimit ? 'text-red-600' : ''}`}>{pc.pitch_count}</div>
-                <div className="w-12 text-sm text-gray-500 text-right tabular-nums">{pc.innings_pitched || '—'}</div>
                 <div className="w-16 text-right">
                   {restDays != null && (() => {
                     const availDate = availableDate(restDays);
@@ -629,12 +620,6 @@ function PitchCountSection({
                       </div>
                     );
                   })()}
-                </div>
-                <div>
-                  <label className={labelCls}>Innings Pitched</label>
-                  <input type="text" value={pcForm.innings_pitched} placeholder="e.g. 3.1"
-                    onChange={(e) => setPcForm(prev => ({ ...prev, innings_pitched: e.target.value }))}
-                    className={inputCls} />
                 </div>
               </div>
             </>

@@ -168,7 +168,7 @@ export default function PitcherRest({ teamId }) {
                                   {day.games.map((g, i) => (
                                     <span key={i}>
                                       {i > 0 && ', '}
-                                      {g.home_away} {g.opponent_name} ({g.pitch_count}p{g.innings_pitched ? `, ${g.innings_pitched} IP` : ''})
+                                      {g.home_away} {g.opponent_name} ({g.pitch_count}p)
                                     </span>
                                   ))}
                                 </span>

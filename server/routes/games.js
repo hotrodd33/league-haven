@@ -454,14 +454,14 @@ router.post('/:gameId/pitch-counts', authMiddleware, async (req, res) => {
     if (!(await canEditGame(req.user, gameId))) {
       return res.status(403).json({ error: 'Not authorized' });
     }
-    const { player_id, team_id, pitch_count, innings_pitched } = req.body;
+    const { player_id, team_id, pitch_count } = req.body;
     if (!player_id || !team_id || pitch_count == null) {
       return res.status(400).json({ error: 'player_id, team_id, and pitch_count are required' });
     }
     const { rows } = await pool.query(
-      `INSERT INTO game_pitch_counts (game_id, player_id, team_id, pitch_count, innings_pitched)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [gameId, player_id, team_id, pitch_count, innings_pitched || null]
+      `INSERT INTO game_pitch_counts (game_id, player_id, team_id, pitch_count)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [gameId, player_id, team_id, pitch_count]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -477,10 +477,10 @@ router.put('/:gameId/pitch-counts/:id', authMiddleware, async (req, res) => {
     if (!(await canEditGame(req.user, gameId))) {
       return res.status(403).json({ error: 'Not authorized' });
     }
-    const { pitch_count, innings_pitched } = req.body;
+    const { pitch_count } = req.body;
     const { rows } = await pool.query(
-      `UPDATE game_pitch_counts SET pitch_count = $1, innings_pitched = $2 WHERE id = $3 AND game_id = $4 RETURNING *`,
-      [pitch_count, innings_pitched ?? null, id, gameId]
+      `UPDATE game_pitch_counts SET pitch_count = $1 WHERE id = $2 AND game_id = $3 RETURNING *`,
+      [pitch_count, id, gameId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Pitch count entry not found' });
     res.json(rows[0]);

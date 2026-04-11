@@ -231,7 +231,7 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
 
     // Last 7 days pitch counts
     const { rows: recent7 } = await pool.query(
-      `SELECT gpc.player_id, gpc.pitch_count, gpc.innings_pitched,
+      `SELECT gpc.player_id, gpc.pitch_count,
               g.game_date::text AS game_date, g.id AS game_id, g.game_time::text AS game_time,
               COALESCE(opp.name, '?') AS opponent_name,
               CASE WHEN g.home_team_id = $2 THEN 'vs' ELSE '@' END AS home_away
@@ -280,7 +280,6 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
       byPlayer7[pc.player_id][pc.game_date].games.push({
         game_id: pc.game_id,
         pitch_count: pc.pitch_count,
-        innings_pitched: pc.innings_pitched,
         opponent_name: pc.opponent_name,
         home_away: pc.home_away,
       });

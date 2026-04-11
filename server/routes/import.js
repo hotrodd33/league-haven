@@ -625,14 +625,13 @@ async function importBoxScore(req, res, opts) {
         }
 
         const pitchCount = pitcher.pitches ?? null;
-        const ip = pitcher.ip != null ? String(pitcher.ip) : null;
 
-        if (pitchCount == null && ip == null) {
+        if (pitchCount == null) {
           results.skipped++;
           continue;
         }
 
-        await upsertPitchCount(gameId, player.id, side.teamId, pitchCount, ip, overwrite);
+        await upsertPitchCount(gameId, player.id, side.teamId, pitchCount, overwrite);
         results.stats++;
         results.players++;
       }
@@ -698,7 +697,7 @@ async function importBoxScore(req, res, opts) {
 }
 
 /* ── Upsert pitch count ── */
-async function upsertPitchCount(gameId, playerId, teamId, pitchCount, inningsPitched, overwrite) {
+async function upsertPitchCount(gameId, playerId, teamId, pitchCount, overwrite) {
   const { rows: existing } = await pool.query(
     'SELECT id FROM game_pitch_counts WHERE game_id = $1 AND player_id = $2',
     [gameId, playerId]
@@ -706,15 +705,15 @@ async function upsertPitchCount(gameId, playerId, teamId, pitchCount, inningsPit
 
   if (existing.length > 0 && overwrite) {
     await pool.query(
-      `UPDATE game_pitch_counts SET pitch_count = $1, innings_pitched = $2, team_id = $3
-       WHERE game_id = $4 AND player_id = $5`,
-      [pitchCount || 0, inningsPitched, teamId, gameId, playerId]
+      `UPDATE game_pitch_counts SET pitch_count = $1, team_id = $2
+       WHERE game_id = $3 AND player_id = $4`,
+      [pitchCount || 0, teamId, gameId, playerId]
     );
   } else if (existing.length === 0) {
     await pool.query(
-      `INSERT INTO game_pitch_counts (game_id, player_id, team_id, pitch_count, innings_pitched)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [gameId, playerId, teamId, pitchCount || 0, inningsPitched]
+      `INSERT INTO game_pitch_counts (game_id, player_id, team_id, pitch_count)
+       VALUES ($1, $2, $3, $4)`,
+      [gameId, playerId, teamId, pitchCount || 0]
     );
   }
 }
