@@ -109,8 +109,8 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                               </div>
                             </div>
                           </td>
-                          <td className="py-2.5 px-2 text-center font-bold">{team.wins}</td>
-                          <td className="py-2.5 px-2 text-center font-bold">{team.losses}</td>
+                          <td className="py-2.5 px-2 text-center font-bold text-gray-100">{team.wins}</td>
+                          <td className="py-2.5 px-2 text-center font-bold text-gray-100">{team.losses}</td>
                           <td className="py-2.5 px-2 text-center text-gray-400">{team.ties || '—'}</td>
                           <td className="py-2.5 px-2 text-center text-gray-400">{team.gp}</td>
                           <td className="py-2.5 px-2 text-center font-bold text-field-300 tabular-nums">{team.points}</td>
@@ -140,7 +140,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                           {team.org_name && <div className="text-xs text-gray-400">{team.org_name}</div>}
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="font-bold text-sm">{team.wins}-{team.losses}{team.ties ? `-${team.ties}` : ''}</div>
+                          <div className="font-bold text-sm text-gray-100">{team.wins}-{team.losses}{team.ties ? `-${team.ties}` : ''}</div>
                           <div className="text-xs font-bold text-field-300">{team.points} pts</div>
                         </div>
                       </div>
