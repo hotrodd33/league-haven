@@ -45,17 +45,17 @@ export default function Modal({
     >
       <div
         className={cn(
-          'w-full bg-white rounded-xl shadow-2xl animate-scale-in',
+          'w-full bg-gray-800 rounded-xl shadow-2xl animate-scale-in',
           sizes[size],
           className,
         )}
       >
         {title && (
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h2 className="font-heading text-lg font-bold text-gray-900">{title}</h2>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
+            <h2 className="font-heading text-lg font-bold text-gray-100">{title}</h2>
             <button
               onClick={onClose}
-              className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-1.5 text-gray-400 hover:text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
               aria-label="Close"
             >
               <XMarkIcon className="w-5 h-5" />
@@ -66,7 +66,7 @@ export default function Modal({
           {children}
         </div>
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-5 py-3 bg-gray-50 border-t border-gray-100 rounded-b-xl">
+          <div className="flex items-center justify-end gap-3 px-5 py-3 bg-gray-900 border-t border-gray-700 rounded-b-xl">
             {footer}
           </div>
         )}

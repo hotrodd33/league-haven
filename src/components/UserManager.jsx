@@ -4,10 +4,10 @@ import {
   fetchOrganizations, fetchTeams, inviteUser,
 } from '../api/index.js';
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
-const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
-const btnPrimary = "px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-60";
-const btnSecondary = "px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors";
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+const btnPrimary = "px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60";
+const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors";
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 const btnSm = "px-3 py-1.5 text-xs font-semibold rounded";
 
@@ -20,9 +20,9 @@ const ROLE_LABELS = {
 
 const ROLE_COLORS = {
   super_admin: 'bg-purple-100 text-purple-800',
-  org_admin: 'bg-blue-100 text-blue-800',
+  org_admin: 'bg-blue-100 text-blue-300',
   team_manager: 'bg-green-100 text-green-800',
-  score_reporter: 'bg-gray-100 text-gray-700',
+  score_reporter: 'bg-gray-800 text-gray-300',
 };
 
 export default function UserManager({ onBack }) {
@@ -64,8 +64,8 @@ export default function UserManager({ onBack }) {
     finally { setInviting(null); }
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Loading users…</div>;
-  if (error) return <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading users…</div>;
+  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
 
   if (editingPerms) {
     return <PermissionsEditor user={editingPerms} onBack={() => { setEditingPerms(null); loadUsers(); }} />;
@@ -82,38 +82,38 @@ export default function UserManager({ onBack }) {
       </div>
 
       {users.length === 0 ? (
-        <div className="py-12 text-center text-gray-500">
+        <div className="py-12 text-center text-gray-400">
           No user accounts.
           <br />
-          <button onClick={() => setShowForm(true)} className="text-blue-700 underline mt-1 inline-block">Add the first user</button>
+          <button onClick={() => setShowForm(true)} className="text-blue-400 underline mt-1 inline-block">Add the first user</button>
         </div>
       ) : (
         <>
           {/* Desktop table */}
           <div className="hidden md:block">
-            <table className="w-full bg-white rounded-lg shadow-sm overflow-hidden text-sm">
+            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm">
               <thead>
-                <tr className="bg-gray-100 border-b-2 border-gray-200">
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Username</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Name</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Email</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Role</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Permissions</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Actions</th>
+                <tr className="bg-gray-800 border-b-2 border-gray-700">
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Username</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Email</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Role</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Permissions</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-700">
                 {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-gray-50">
+                  <tr key={u.id} className="hover:bg-gray-900">
                     <td className="px-3 py-2 font-mono text-sm">{u.username}</td>
                     <td className="px-3 py-2 font-semibold">{u.name}</td>
-                    <td className="px-3 py-2 text-sm text-gray-500">{u.email || <span className="text-gray-300">—</span>}</td>
+                    <td className="px-3 py-2 text-sm text-gray-400">{u.email || <span className="text-gray-300">—</span>}</td>
                     <td className="px-3 py-2">
-                      <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-700'}`}>
+                      <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full ${ROLE_COLORS[u.role] || 'bg-gray-800 text-gray-300'}`}>
                         {ROLE_LABELS[u.role] || u.role}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-600">
+                    <td className="px-3 py-2 text-sm text-gray-300">
                       {u.role === 'super_admin' ? (
                         <span className="text-purple-600 font-medium">Full access</span>
                       ) : (
@@ -125,9 +125,9 @@ export default function UserManager({ onBack }) {
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex gap-1">
-                        <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} bg-gray-200 text-gray-800 hover:bg-gray-300`}>Edit</button>
+                        <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>
                         {u.role !== 'super_admin' && (
-                          <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-100 text-blue-800 hover:bg-blue-200`}>Perms</button>
+                          <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-100 text-blue-300 hover:bg-blue-200`}>Perms</button>
                         )}
                         {u.email && (
                           <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
@@ -149,27 +149,27 @@ export default function UserManager({ onBack }) {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {users.map((u) => (
-              <div key={u.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div key={u.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <div className="font-semibold">{u.name}</div>
-                    <div className="text-sm text-gray-500 font-mono">{u.username}</div>
+                    <div className="text-sm text-gray-400 font-mono">{u.username}</div>
                     {u.email && <div className="text-xs text-gray-400">{u.email}</div>}
                   </div>
-                  <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full shrink-0 ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-700'}`}>
+                  <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full shrink-0 ${ROLE_COLORS[u.role] || 'bg-gray-800 text-gray-300'}`}>
                     {ROLE_LABELS[u.role] || u.role}
                   </span>
                 </div>
                 {u.role !== 'super_admin' && (
-                  <div className="text-sm text-gray-600 mb-2">
+                  <div className="text-sm text-gray-300 mb-2">
                     {u.permissions.org_ids.length} org{u.permissions.org_ids.length !== 1 ? 's' : ''},
                     {' '}{u.permissions.team_ids.length} team{u.permissions.team_ids.length !== 1 ? 's' : ''}
                   </div>
                 )}
-                <div className="flex gap-1.5 pt-2 border-t border-gray-100">
-                  <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} bg-gray-200 text-gray-800 hover:bg-gray-300`}>Edit</button>
+                <div className="flex gap-1.5 pt-2 border-t border-gray-700">
+                  <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>
                   {u.role !== 'super_admin' && (
-                    <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-100 text-blue-800 hover:bg-blue-200`}>Perms</button>
+                    <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-100 text-blue-300 hover:bg-blue-200`}>Perms</button>
                   )}
                   {u.email && (
                     <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
@@ -236,7 +236,7 @@ function UserForm({ user, onDone, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
         <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit User' : 'Add User'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -244,7 +244,7 @@ function UserForm({ user, onDone, onCancel }) {
               <label htmlFor="user-username" className={labelCls}>Username *</label>
               <input id="user-username" name="username" type="text" value={form.username}
                 onChange={handleChange} required placeholder="username" disabled={isEditing}
-                className={`${inputCls} ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
+                className={`${inputCls} ${isEditing ? 'bg-gray-800 cursor-not-allowed' : ''}`} />
             </div>
             <div>
               <label htmlFor="user-name" className={labelCls}>Full Name *</label>
@@ -276,7 +276,7 @@ function UserForm({ user, onDone, onCancel }) {
                 className={inputCls} />
             </div>
           </div>
-          {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
             <button type="submit" disabled={saving} className={btnPrimary}>
@@ -340,7 +340,7 @@ function PermissionsEditor({ user, onBack }) {
     finally { setSaving(false); }
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Loading…</div>;
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading…</div>;
 
   // Group teams by org for display
   const teamsByOrg = {};
@@ -356,27 +356,27 @@ function PermissionsEditor({ user, onBack }) {
 
   return (
     <div>
-      <button onClick={onBack} className="px-3 py-1.5 text-sm font-semibold bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 mb-4">
+      <button onClick={onBack} className="px-3 py-1.5 text-sm font-semibold bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 mb-4">
         ← Back to Users
       </button>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
+      <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-4">
         <h2 className="text-xl font-bold mb-1">Permissions for {user.name}</h2>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-400 mb-4">
           Select which organizations and teams this user can edit. Granting org access automatically includes all teams under that org.
         </p>
 
         {/* Organizations */}
-        <h3 className="text-sm font-bold uppercase text-gray-500 tracking-wide mb-2">Organizations</h3>
+        <h3 className="text-sm font-bold uppercase text-gray-400 tracking-wide mb-2">Organizations</h3>
         {orgs.length === 0 ? (
           <p className="text-sm text-gray-400 mb-4">No organizations created yet.</p>
         ) : (
           <div className="space-y-2 mb-6">
             {orgs.map((org) => (
-              <label key={org.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <label key={org.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-900 cursor-pointer">
                 <input type="checkbox" checked={selectedOrgs.has(org.id)}
                   onChange={() => toggleOrg(org.id)}
-                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
+                  className="w-4 h-4 text-blue-600 rounded border-gray-600 focus:ring-blue-500" />
                 <div>
                   <span className="font-semibold text-sm">{org.name}</span>
                   {org.team_count > 0 && (
@@ -392,7 +392,7 @@ function PermissionsEditor({ user, onBack }) {
         )}
 
         {/* Individual Teams */}
-        <h3 className="text-sm font-bold uppercase text-gray-500 tracking-wide mb-2">Individual Teams</h3>
+        <h3 className="text-sm font-bold uppercase text-gray-400 tracking-wide mb-2">Individual Teams</h3>
         <p className="text-xs text-gray-400 mb-2">Grant access to specific teams without full org access. Teams under a selected org above are already included.</p>
         {teams.length === 0 ? (
           <p className="text-sm text-gray-400 mb-4">No teams created yet.</p>
@@ -407,12 +407,12 @@ function PermissionsEditor({ user, onBack }) {
                   <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{org.name}</div>
                   <div className="space-y-1 ml-2">
                     {orgTeams.map((t) => (
-                      <label key={t.id} className={`flex items-center gap-3 p-1.5 rounded-lg cursor-pointer ${orgSelected ? 'opacity-50' : 'hover:bg-gray-50'}`}>
+                      <label key={t.id} className={`flex items-center gap-3 p-1.5 rounded-lg cursor-pointer ${orgSelected ? 'opacity-50' : 'hover:bg-gray-900'}`}>
                         <input type="checkbox"
                           checked={orgSelected || selectedTeams.has(t.id)}
                           disabled={orgSelected}
                           onChange={() => toggleTeam(t.id)}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
+                          className="w-4 h-4 text-blue-600 rounded border-gray-600 focus:ring-blue-500" />
                         <span className="text-sm">{t.name}</span>
                         {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
                       </label>
@@ -426,11 +426,11 @@ function PermissionsEditor({ user, onBack }) {
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Unassigned</div>
                 <div className="space-y-1 ml-2">
                   {unassignedTeams.map((t) => (
-                    <label key={t.id} className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <label key={t.id} className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-900 cursor-pointer">
                       <input type="checkbox"
                         checked={selectedTeams.has(t.id)}
                         onChange={() => toggleTeam(t.id)}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
+                        className="w-4 h-4 text-blue-600 rounded border-gray-600 focus:ring-blue-500" />
                       <span className="text-sm">{t.name}</span>
                       {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
                     </label>
@@ -441,9 +441,9 @@ function PermissionsEditor({ user, onBack }) {
           </div>
         )}
 
-        {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+        {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
 
-        <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+        <div className="flex justify-end gap-3 pt-3 border-t border-gray-700">
           <button onClick={onBack} className={btnSecondary}>Cancel</button>
           <button onClick={handleSave} disabled={saving} className={btnPrimary}>
             {saving ? 'Saving…' : 'Save Permissions'}

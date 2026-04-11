@@ -15,10 +15,10 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
-const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
-const btnPrimary = "px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-60";
-const btnSecondary = "px-3 py-1.5 bg-gray-200 text-gray-800 text-xs font-semibold rounded hover:bg-gray-300";
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+const btnPrimary = "px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60";
+const btnSecondary = "px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600";
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 
 function directionsUrl(loc) {
@@ -122,24 +122,24 @@ export default function FieldLocations({ orgId, orgName }) {
 
       {/* Locations list */}
       {loading ? (
-        <div className="py-6 text-center text-gray-500">Loading locations…</div>
+        <div className="py-6 text-center text-gray-400">Loading locations…</div>
       ) : locations.length === 0 ? (
-        <div className="py-8 text-center text-gray-500">No field locations yet.</div>
+        <div className="py-8 text-center text-gray-400">No field locations yet.</div>
       ) : (
         <>
           {/* Desktop table */}
           <div className="hidden md:block mt-3">
-            <table className="w-full bg-white rounded-lg shadow-sm overflow-hidden text-sm">
+            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm">
               <thead>
-                <tr className="bg-gray-100 border-b-2 border-gray-200">
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Name</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Address</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Lat / Lng</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Comments</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide w-44">{editable ? 'Actions' : 'Directions'}</th>
+                <tr className="bg-gray-800 border-b-2 border-gray-700">
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Address</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Lat / Lng</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Comments</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide w-44">{editable ? 'Actions' : 'Directions'}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-700">
                 {locations.map((loc) => {
                   const hasPin = loc.latitude && loc.longitude;
                   const isHighlighted = highlightedId === loc.id;
@@ -148,7 +148,7 @@ export default function FieldLocations({ orgId, orgName }) {
                       key={loc.id}
                       onClick={() => handleRowClick(loc)}
                       className={`
-                        ${hasPin ? 'cursor-pointer hover:bg-blue-50' : ''}
+                        ${hasPin ? 'cursor-pointer hover:bg-blue-900/30' : ''}
                         ${isHighlighted ? 'bg-blue-100 shadow-[inset_3px_0_0] shadow-blue-600' : ''}
                         transition-colors
                       `}
@@ -156,12 +156,12 @@ export default function FieldLocations({ orgId, orgName }) {
                       <td className="px-3 py-2 font-semibold">{loc.name}</td>
                       <td className="px-3 py-2">{[loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ') || '—'}</td>
                       <td className="px-3 py-2 font-mono text-xs">{hasPin ? `${Number(loc.latitude).toFixed(4)}, ${Number(loc.longitude).toFixed(4)}` : '—'}</td>
-                      <td className="px-3 py-2 text-gray-600">{loc.comments || '—'}</td>
+                      <td className="px-3 py-2 text-gray-300">{loc.comments || '—'}</td>
                       <td className="px-3 py-2">
                         <div className="flex gap-1.5 flex-wrap">
                           {hasPin && (
                             <a href={directionsUrl(loc)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                              className="px-2.5 py-1 bg-blue-800 text-white text-xs font-semibold rounded hover:bg-blue-900 no-underline">
+                              className="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 no-underline">
                               Directions
                             </a>
                           )}
@@ -192,9 +192,9 @@ export default function FieldLocations({ orgId, orgName }) {
                   key={loc.id}
                   onClick={() => handleRowClick(loc)}
                   className={`
-                    bg-white rounded-lg border p-4
+                    bg-gray-800 rounded-lg border p-4
                     ${hasPin ? 'cursor-pointer' : ''}
-                    ${isHighlighted ? 'border-blue-400 bg-blue-50 shadow-md' : 'border-gray-200'}
+                    ${isHighlighted ? 'border-blue-400 bg-blue-900/30 shadow-card' : 'border-gray-700'}
                   `}
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -206,13 +206,13 @@ export default function FieldLocations({ orgId, orgName }) {
                     )}
                   </div>
                   {(loc.address || loc.city) && (
-                    <p className="text-sm text-gray-600 mb-1">{[loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ')}</p>
+                    <p className="text-sm text-gray-300 mb-1">{[loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ')}</p>
                   )}
-                  {loc.comments && <p className="text-xs text-gray-500 mb-2">{loc.comments}</p>}
-                  <div className="flex gap-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+                  {loc.comments && <p className="text-xs text-gray-400 mb-2">{loc.comments}</p>}
+                  <div className="flex gap-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
                     {hasPin && (
                       <a href={directionsUrl(loc)} target="_blank" rel="noopener noreferrer"
-                        className="px-3 py-1.5 bg-blue-800 text-white text-xs font-semibold rounded hover:bg-blue-900 no-underline">
+                        className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 no-underline">
                         Directions
                       </a>
                     )}
@@ -276,7 +276,7 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4">
         <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit Field Location' : 'Add Field Location'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -318,13 +318,13 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
             <label htmlFor="loc-comments" className={labelCls}>Comments</label>
             <textarea id="loc-comments" name="comments" value={form.comments} onChange={handleChange} rows={3}
               placeholder="Parking info, field condition notes, etc."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600" />
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
           </div>
 
-          {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300">Cancel</button>
+            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
             <button type="submit" disabled={saving} className={btnPrimary}>
               {saving ? 'Saving…' : isEditing ? 'Update' : 'Add Location'}
             </button>

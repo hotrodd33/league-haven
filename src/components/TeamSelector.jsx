@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo, { HomePlate, plateLabel } from './TeamLogo.jsx';
 import { cn } from '../lib/cn.js';
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
-const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
 
 export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChanged }) {
   const { isAdmin } = useAuth();
@@ -68,8 +68,8 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
     setCollapsed(prev => ({ ...prev, [orgName]: !prev[orgName] }));
   }
 
-  if (loading) return <div className="p-4 text-center text-gray-500">Loading teams…</div>;
-  if (error) return <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>;
+  if (loading) return <div className="p-4 text-center text-gray-400">Loading teams…</div>;
+  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>;
 
   // Group teams by organization
   const grouped = {};
@@ -113,7 +113,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
               onClick={() => toggleOrg(orgName)}
               className={cn(
                 'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs font-bold uppercase tracking-wide transition-colors',
-                hasSelected ? 'text-field-800 bg-field-50' : 'text-gray-500 hover:bg-gray-50'
+                hasSelected ? 'text-field-800 bg-field-50' : 'text-gray-400 hover:bg-gray-900'
               )}
             >
               {org.logo && (
@@ -126,7 +126,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
             </button>
 
             {!isCollapsed && (
-              <div className="ml-2 border-l border-gray-200 pl-1 mt-0.5 space-y-0.5">
+              <div className="ml-2 border-l border-gray-700 pl-1 mt-0.5 space-y-0.5">
                 {org.teams.map((team) => (
                   <TeamItem
                     key={team.id}
@@ -171,15 +171,15 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
       )}
 
       {teams.length === 0 && !isAdmin && (
-        <div className="p-4 text-center text-gray-500 text-sm">No teams found.</div>
+        <div className="p-4 text-center text-gray-400 text-sm">No teams found.</div>
       )}
 
       {/* Admin actions */}
       {isAdmin && selected && (
-        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
+        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700">
           <button
             onClick={() => { setEditing(true); setShowForm(true); }}
-            className="flex-1 px-2 py-1.5 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            className="flex-1 px-2 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
           >Edit</button>
           <button
             onClick={handleDelete}
@@ -193,7 +193,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
         <div className="mt-2">
           <button
             onClick={() => { setEditing(false); setShowForm(true); }}
-            className="w-full px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors"
+            className="w-full px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
           >+ Add Team</button>
         </div>
       )}
@@ -206,7 +206,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
       <div className="lg:hidden">
         <button
           onClick={() => setMobileOpen(prev => !prev)}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200 text-left"
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-gray-900 rounded-lg border border-gray-700 text-left"
         >
           {selected ? (
             <>
@@ -222,12 +222,12 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 />
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-800 truncate">{selected.name}</p>
+                <p className="text-sm font-semibold text-gray-200 truncate">{selected.name}</p>
                 {selected.age_group && <p className="text-[10px] text-gray-400">{selected.age_group}{selected.level ? ` · ${selected.level}` : ''}</p>}
               </div>
             </>
           ) : (
-            <span className="flex-1 text-sm text-gray-500">Select a team…</span>
+            <span className="flex-1 text-sm text-gray-400">Select a team…</span>
           )}
           <svg className={cn('w-4 h-4 text-gray-400 shrink-0 transition-transform', mobileOpen ? 'rotate-180' : '')} viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
@@ -265,7 +265,7 @@ function TeamItem({ team, isSelected, onSelect }) {
         'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors text-sm',
         isSelected
           ? 'bg-field-100 text-field-900 font-semibold shadow-sm ring-1 ring-field-300'
-          : 'text-gray-700 hover:bg-gray-50'
+          : 'text-gray-300 hover:bg-gray-900'
       )}
     >
       {(team.logo_url || team.org_logo_url) ? (
@@ -432,7 +432,7 @@ function TeamForm({ team, onDone, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 my-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 my-4">
         <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit Team' : 'Add Team'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
@@ -453,26 +453,26 @@ function TeamForm({ team, onDone, onCancel }) {
             <div>
               <label htmlFor="primary-color" className={labelCls}>Primary Color</label>
               <div className="flex items-center gap-2">
-                <input id="primary-color" type="color" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-300 cursor-pointer p-0.5" />
+                <input id="primary-color" type="color" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
                 <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
               </div>
             </div>
             <div>
               <label htmlFor="secondary-color" className={labelCls}>Secondary Color</label>
               <div className="flex items-center gap-2">
-                <input id="secondary-color" type="color" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-300 cursor-pointer p-0.5" />
+                <input id="secondary-color" type="color" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
                 <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
               </div>
             </div>
           </div>
           {shortName && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2 text-sm">
+            <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 space-y-2 text-sm">
               <div className="flex items-center gap-3">
                 <HomePlate cityAbbr={cityAbbr} label={plateLabel(form.age_group, form.level)} primaryColor={form.primary_color} secondaryColor={form.secondary_color} size="w-12 h-12" />
                 <div className="space-y-1">
-                  <div><span className="text-xs font-semibold text-gray-400 uppercase">Long Name:</span> <span className="font-semibold text-gray-800">{longName}</span></div>
-                  <div><span className="text-xs font-semibold text-gray-400 uppercase">Short Name:</span> <span className="font-semibold text-gray-800">{shortName}</span></div>
-                  <div><span className="text-xs font-semibold text-gray-400 uppercase">Abbreviation:</span> <span className="font-mono font-semibold text-gray-800">{abbreviation}</span></div>
+                  <div><span className="text-xs font-semibold text-gray-400 uppercase">Long Name:</span> <span className="font-semibold text-gray-200">{longName}</span></div>
+                  <div><span className="text-xs font-semibold text-gray-400 uppercase">Short Name:</span> <span className="font-semibold text-gray-200">{shortName}</span></div>
+                  <div><span className="text-xs font-semibold text-gray-400 uppercase">Abbreviation:</span> <span className="font-mono font-semibold text-gray-200">{abbreviation}</span></div>
                 </div>
               </div>
             </div>
@@ -480,14 +480,14 @@ function TeamForm({ team, onDone, onCancel }) {
           <div>
             <label className={labelCls}>Team Logo</label>
             <div className="flex items-center gap-3">
-              {logoPreview && <img src={logoPreview} alt="Logo preview" className="w-14 h-14 object-contain rounded border border-gray-200" />}
+              {logoPreview && <img src={logoPreview} alt="Logo preview" className="w-14 h-14 object-contain rounded border border-gray-700" />}
               <div className="flex flex-col gap-1">
-                <label className="px-3 py-1.5 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 cursor-pointer inline-block w-fit">
+                <label className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600 cursor-pointer inline-block w-fit">
                   {logoPreview ? 'Change' : 'Upload'}
                   <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                 </label>
                 {logoPreview && (
-                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-700 rounded hover:bg-red-200 w-fit">Remove</button>
+                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-400 rounded hover:bg-red-200 w-fit">Remove</button>
                 )}
                 <p className="text-xs text-gray-400">Max 500 KB. If none, uses org logo.</p>
               </div>
@@ -527,15 +527,15 @@ function TeamForm({ team, onDone, onCancel }) {
                   ))}
                 </select>
                 {divisions.length > 0 ? (
-                  <div className="border border-gray-300 rounded-lg p-2 max-h-40 overflow-y-auto space-y-1">
+                  <div className="border border-gray-600 rounded-lg p-2 max-h-40 overflow-y-auto space-y-1">
                     {divisions.map(dv => (
-                      <label key={dv.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer text-sm"
+                      <label key={dv.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-900 cursor-pointer text-sm"
                         style={{ paddingLeft: `${(dv.depth || 0) * 16 + 8}px` }}>
                         <input
                           type="checkbox"
                           checked={form.division_ids.includes(dv.id)}
                           onChange={() => toggleDivision(dv.id)}
-                          className="rounded border-gray-300"
+                          className="rounded border-gray-600"
                         />
                         <span className="truncate">{dv.name}</span>
                         {dv.depth > 0 && <span className="text-xs text-gray-400 shrink-0">({dv.path})</span>}
@@ -550,7 +550,7 @@ function TeamForm({ team, onDone, onCancel }) {
               <p className="text-xs text-gray-400">No seasons configured. Add them in League Config.</p>
             )}
             {form.division_ids.length > 0 && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 {form.division_ids.length} selected: {divisions.filter(d => form.division_ids.includes(d.id)).map(d => d.path || d.name).join(', ')}
               </p>
             )}
@@ -562,10 +562,10 @@ function TeamForm({ team, onDone, onCancel }) {
               {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </div>
-          {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-60">
+            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
+            <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
               {saving ? 'Saving…' : isEditing ? 'Update' : 'Add Team'}
             </button>
           </div>

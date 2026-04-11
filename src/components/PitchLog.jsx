@@ -96,9 +96,9 @@ export default function PitchLog({ teamId }) {
 
   return (
     <div className="mt-6">
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="px-4 sm:px-6 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
+      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-300">
             Pitch Log
           </h3>
         </div>
@@ -106,7 +106,7 @@ export default function PitchLog({ teamId }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100">
+              <tr className="border-b border-gray-700">
                 <th className="text-left px-4 sm:px-6 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                   Player
                 </th>
@@ -116,7 +116,7 @@ export default function PitchLog({ teamId }) {
                   return (
                     <th
                       key={d}
-                      className={`text-center px-2 py-2 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${isToday ? 'text-blue-700 bg-blue-50/50' : isFuture ? 'text-gray-400 bg-gray-50/50' : 'text-gray-400'}`}
+                      className={`text-center px-2 py-2 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${isToday ? 'text-blue-300 bg-blue-900/40' : isFuture ? 'text-gray-400 bg-gray-900/50' : 'text-gray-400'}`}
                     >
                       {dayLabel(d)}
                     </th>
@@ -127,9 +127,9 @@ export default function PitchLog({ teamId }) {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-700">
               {pitchers.map(p => (
-                <tr key={p.player_id} className="hover:bg-gray-50 transition-colors">
+                <tr key={p.player_id} className="hover:bg-gray-900 transition-colors">
                   <td className="px-4 sm:px-6 py-2.5 whitespace-nowrap font-medium">
                     {p.jersey_number != null && (
                       <span className="text-xs text-gray-400 font-mono mr-2">#{p.jersey_number}</span>
@@ -147,17 +147,17 @@ export default function PitchLog({ teamId }) {
                     let cls = 'text-center px-2 py-2.5 tabular-nums';
                     if (isViolation) {
                       // Pitched on a rest day — dark red outline + background
-                      cls += ' bg-red-200 text-red-900 font-bold ring-2 ring-inset ring-red-700';
+                      cls += ' bg-red-900/45 text-red-300 font-bold ring-2 ring-inset ring-red-500';
                     } else if (isFutureRest) {
                       // Future rest day — red background
-                      cls += ' bg-red-100 text-red-600 font-semibold';
+                      cls += ' bg-red-900/25 text-red-400 font-semibold';
                     } else if (isRest && !count) {
                       // Past rest day, correctly rested — light highlight
-                      cls += ' bg-red-50 text-red-400';
+                      cls += ' bg-red-900/30 text-red-400';
                     } else if (isToday) {
-                      cls += ' bg-blue-50/50 font-semibold';
+                      cls += ' bg-blue-900/40 font-semibold';
                     } else if (isFuture) {
-                      cls += ' bg-gray-50/50';
+                      cls += ' bg-gray-900/50';
                     } else {
                       cls += count ? ' font-semibold' : ' text-gray-300';
                     }
@@ -167,7 +167,7 @@ export default function PitchLog({ teamId }) {
                       </td>
                     );
                   })}
-                  <td className="text-center px-3 py-2.5 tabular-nums font-bold text-blue-800">
+                  <td className="text-center px-3 py-2.5 tabular-nums font-bold text-blue-300">
                     {p.pitches_last_7}
                   </td>
                 </tr>

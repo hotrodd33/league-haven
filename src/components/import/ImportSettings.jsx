@@ -27,10 +27,10 @@ export default function ImportSettings({ importType, settings, onChange }) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="font-heading text-lg font-bold text-gray-900">
+        <h3 className="font-heading text-lg font-bold text-gray-100">
           Import Settings
         </h3>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-400">
           Configure how the data should be imported.
         </p>
       </div>
@@ -40,7 +40,7 @@ export default function ImportSettings({ importType, settings, onChange }) {
         <select
           value={settings.teamId || ''}
           onChange={(e) => set('teamId', e.target.value || null)}
-          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500"
+          className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500"
         >
           <option value="">Auto-detect from file</option>
           {teams.map((t) => (
@@ -57,7 +57,7 @@ export default function ImportSettings({ importType, settings, onChange }) {
           <select
             value={settings.seasonId || ''}
             onChange={(e) => set('seasonId', e.target.value || null)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500"
+            className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500"
           >
             <option value="">Current Season</option>
             {seasons.map((s) => (
@@ -91,8 +91,8 @@ export default function ImportSettings({ importType, settings, onChange }) {
 
       {/* Info box */}
       <div className="bg-cream-200 rounded-xl p-4 border border-cream-400">
-        <p className="text-xs text-gray-600 leading-relaxed">
-          <span className="font-semibold text-gray-700">Tip:</span>{' '}
+        <p className="text-xs text-gray-300 leading-relaxed">
+          <span className="font-semibold text-gray-300">Tip:</span>{' '}
           {importType === 'stats'
             ? 'Stats will be matched to players by jersey number first, then by name. Review the preview on the previous step to verify matches.'
             : importType === 'schedule'
@@ -110,7 +110,7 @@ export default function ImportSettings({ importType, settings, onChange }) {
 function SettingGroup({ label, children }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-semibold text-gray-700">{label}</label>
+      <label className="block text-sm font-semibold text-gray-300">{label}</label>
       {children}
     </div>
   );
@@ -125,7 +125,7 @@ function SettingToggle({ label, description, checked, onChange }) {
         'w-full flex items-start gap-3 p-4 rounded-xl border text-left transition-all duration-150',
         checked
           ? 'border-field-200 bg-field-50/50'
-          : 'border-gray-200 bg-white hover:bg-gray-50',
+          : 'border-gray-700 bg-gray-800 hover:bg-gray-900',
       )}
     >
       <div className={cn(
@@ -133,13 +133,13 @@ function SettingToggle({ label, description, checked, onChange }) {
         checked ? 'bg-field-600' : 'bg-gray-300',
       )}>
         <div className={cn(
-          'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200',
+          'absolute top-0.5 w-4 h-4 rounded-full bg-gray-800 shadow-sm transition-transform duration-200',
           checked ? 'translate-x-4' : 'translate-x-0.5',
         )} />
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-gray-900">{label}</p>
-        <p className="mt-0.5 text-xs text-gray-500 leading-relaxed">{description}</p>
+        <p className="text-sm font-semibold text-gray-100">{label}</p>
+        <p className="mt-0.5 text-xs text-gray-400 leading-relaxed">{description}</p>
       </div>
     </button>
   );

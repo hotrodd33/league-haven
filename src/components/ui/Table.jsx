@@ -2,7 +2,7 @@ import { cn } from '../../lib/cn.js';
 
 export function Table({ className, children }) {
   return (
-    <div className={cn('overflow-x-auto rounded-xl border border-gray-200 bg-white', className)}>
+    <div className={cn('overflow-x-auto rounded-xl border border-gray-700 bg-gray-800', className)}>
       <table className="w-full text-sm">{children}</table>
     </div>
   );
@@ -10,7 +10,7 @@ export function Table({ className, children }) {
 
 export function TableHead({ className, children }) {
   return (
-    <thead className={cn('bg-gray-50 text-left', className)}>
+    <thead className={cn('bg-gray-900 text-left', className)}>
       {children}
     </thead>
   );
@@ -20,8 +20,8 @@ export function TableHeaderCell({ className, children, sortable, sorted, sortDir
   return (
     <th
       className={cn(
-        'px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap',
-        sortable && 'cursor-pointer select-none hover:text-gray-700 transition-colors',
+        'px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap',
+        sortable && 'cursor-pointer select-none hover:text-gray-300 transition-colors',
         className,
       )}
       onClick={sortable ? onClick : undefined}
@@ -41,14 +41,14 @@ export function TableHeaderCell({ className, children, sortable, sorted, sortDir
 }
 
 export function TableBody({ className, children }) {
-  return <tbody className={cn('divide-y divide-gray-100', className)}>{children}</tbody>;
+  return <tbody className={cn('divide-y divide-gray-700', className)}>{children}</tbody>;
 }
 
 export function TableRow({ className, highlight, children, ...props }) {
   return (
     <tr
       className={cn(
-        'hover:bg-gray-50/50 transition-colors',
+        'hover:bg-gray-900/50 transition-colors',
         highlight && 'bg-field-50/50',
         className,
       )}
@@ -61,7 +61,7 @@ export function TableRow({ className, highlight, children, ...props }) {
 
 export function TableCell({ className, children, ...props }) {
   return (
-    <td className={cn('px-4 py-3 text-gray-700', className)} {...props}>
+    <td className={cn('px-4 py-3 text-gray-300', className)} {...props}>
       {children}
     </td>
   );

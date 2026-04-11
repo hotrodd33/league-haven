@@ -17,7 +17,7 @@ export default function PlayerCard({
   return (
     <div
       className={cn(
-        'bg-white rounded-xl shadow-card overflow-hidden group',
+        'bg-gray-800 rounded-xl shadow-card overflow-hidden group',
         'hover:shadow-elevated transition-all duration-200',
         className,
       )}
@@ -38,7 +38,7 @@ export default function PlayerCard({
           <img
             src={photo}
             alt={name}
-            className="w-16 h-16 rounded-full object-cover border-3 border-white/80 shadow-md group-hover:scale-105 transition-transform"
+            className="w-16 h-16 rounded-full object-cover border-3 border-white/80 shadow-card group-hover:scale-105 transition-transform"
           />
         ) : (
           <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-2xl font-heading font-bold border-2 border-white/30">
@@ -49,14 +49,14 @@ export default function PlayerCard({
 
       {/* Info section */}
       <div className="px-4 py-3 text-center">
-        <h3 className="font-semibold text-gray-900 truncate text-sm">{name}</h3>
+        <h3 className="font-semibold text-gray-100 truncate text-sm">{name}</h3>
         {position && (
-          <p className="text-xs text-gray-500 mt-0.5 font-medium">{position}</p>
+          <p className="text-xs text-gray-400 mt-0.5 font-medium">{position}</p>
         )}
         {(battingHand || throwingHand) && (
           <div className="flex justify-center gap-3 mt-2 text-[11px] text-gray-400">
-            {battingHand && <span>B: <strong className="text-gray-600">{battingHand}</strong></span>}
-            {throwingHand && <span>T: <strong className="text-gray-600">{throwingHand}</strong></span>}
+            {battingHand && <span>B: <strong className="text-gray-300">{battingHand}</strong></span>}
+            {throwingHand && <span>T: <strong className="text-gray-300">{throwingHand}</strong></span>}
           </div>
         )}
       </div>

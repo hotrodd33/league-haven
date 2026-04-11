@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { forgotPassword } from '../api/index.js';
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
-const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
 
 export default function Login({ onResetPassword }) {
   const { login, register, loading, error } = useAuth();
@@ -37,10 +37,10 @@ export default function Login({ onResetPassword }) {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-      <div className="bg-white rounded-lg shadow-md p-8 w-full max-w-md border-t-4 border-baseball-600">
-        <h1 className="font-heading text-3xl font-bold mb-1 tracking-wide text-blue-800">⚾ ZVBL</h1>
-        <p className="text-gray-500 mb-6 text-sm">
+    <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
+      <div className="bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md border-t-4 border-baseball-600">
+        <h1 className="font-heading text-3xl font-bold mb-1 tracking-wide text-blue-300">⚾ ZVBL</h1>
+        <p className="text-gray-400 mb-6 text-sm">
           {mode === 'login' ? 'Sign in to manage your team' : mode === 'register' ? 'Create your account' : 'Reset your password'}
         </p>
 
@@ -60,16 +60,16 @@ export default function Login({ onResetPassword }) {
                 placeholder="Your password" required autoComplete="current-password"
                 className={inputCls} />
             </div>
-            {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+            {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
             <button type="submit" disabled={loading}
-              className="w-full py-2.5 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm">
+              className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm">
               {loading ? 'Signing in…' : 'Sign In'}
             </button>
             <div className="flex justify-between text-sm">
-              <button type="button" onClick={() => { setMode('forgot'); setForgotMsg(''); }} className="text-blue-700 hover:underline">
+              <button type="button" onClick={() => { setMode('forgot'); setForgotMsg(''); }} className="text-blue-400 hover:underline">
                 Forgot password?
               </button>
-              <button type="button" onClick={() => setMode('register')} className="text-blue-700 hover:underline">
+              <button type="button" onClick={() => setMode('register')} className="text-blue-400 hover:underline">
                 Create account
               </button>
             </div>
@@ -106,15 +106,15 @@ export default function Login({ onResetPassword }) {
                 placeholder="At least 6 characters" required minLength={6} autoComplete="new-password"
                 className={inputCls} />
             </div>
-            {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+            {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
             <button type="submit" disabled={loading}
-              className="w-full py-2.5 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm">
+              className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm">
               {loading ? 'Creating account…' : 'Register'}
             </button>
             <p className="text-xs text-gray-400 text-center">
               You'll start as a Score Reporter. An admin will assign your team permissions.
             </p>
-            <button type="button" onClick={() => setMode('login')} className="w-full text-center text-sm text-blue-700 hover:underline">
+            <button type="button" onClick={() => setMode('login')} className="w-full text-center text-sm text-blue-400 hover:underline">
               Already have an account? Sign in
             </button>
           </form>
@@ -129,13 +129,13 @@ export default function Login({ onResetPassword }) {
                 placeholder="you@example.com" required className={inputCls} />
             </div>
             {forgotMsg && (
-              <div className="bg-blue-50 text-blue-700 text-sm px-3 py-2 rounded-lg">{forgotMsg}</div>
+              <div className="bg-blue-900/30 text-blue-400 text-sm px-3 py-2 rounded-lg">{forgotMsg}</div>
             )}
             <button type="submit" disabled={forgotLoading}
-              className="w-full py-2.5 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm">
+              className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm">
               {forgotLoading ? 'Sending…' : 'Send Reset Link'}
             </button>
-            <button type="button" onClick={() => setMode('login')} className="w-full text-center text-sm text-blue-700 hover:underline">
+            <button type="button" onClick={() => setMode('login')} className="w-full text-center text-sm text-blue-400 hover:underline">
               Back to sign in
             </button>
           </form>

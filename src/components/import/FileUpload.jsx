@@ -121,14 +121,14 @@ export default function FileUpload({
     <div className="space-y-5">
       {/* Mode tabs for box score */}
       {isBoxScore && (
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
           <button
             onClick={() => switchMode('upload')}
             className={cn(
               'flex-1 px-3 py-2 rounded-md text-xs font-semibold transition-all',
               mode === 'upload'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-gray-800 text-gray-100 shadow-sm'
+                : 'text-gray-400 hover:text-gray-300'
             )}
           >
             📄 Upload File
@@ -138,8 +138,8 @@ export default function FileUpload({
             className={cn(
               'flex-1 px-3 py-2 rounded-md text-xs font-semibold transition-all',
               mode === 'paste'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-gray-800 text-gray-100 shadow-sm'
+                : 'text-gray-400 hover:text-gray-300'
             )}
           >
             📋 Paste Text
@@ -148,11 +148,11 @@ export default function FileUpload({
       )}
 
       {/* Export instructions */}
-      <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+      <div className="bg-blue-900/30 rounded-xl p-4 border border-blue-100">
         <h4 className="text-sm font-semibold text-blue-900 mb-2">{info.title}</h4>
         <ol className="space-y-1.5">
           {info.steps.map((step, i) => (
-            <li key={i} className="flex items-start gap-2 text-xs text-blue-800">
+            <li key={i} className="flex items-start gap-2 text-xs text-blue-300">
               <span className="shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-900 flex items-center justify-center text-[10px] font-bold mt-0.5">
                 {i + 1}
               </span>
@@ -170,13 +170,13 @@ export default function FileUpload({
             onChange={(e) => onPastedTextChange?.(e.target.value)}
             placeholder="Paste the full box score text here...&#10;&#10;Select everything on the GameChanger box score page (Ctrl+A), copy it (Ctrl+C), then paste here (Ctrl+V)."
             className={cn(
-              'w-full h-48 rounded-xl border bg-white px-4 py-3 text-sm text-gray-900 resize-y',
+              'w-full h-48 rounded-xl border bg-gray-800 px-4 py-3 text-sm text-gray-100 resize-y',
               'font-mono leading-relaxed',
               'placeholder:text-gray-400',
               'focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500',
               pastedText && pastedText.trim().length > 20
                 ? 'border-field-400'
-                : 'border-gray-300',
+                : 'border-gray-600',
             )}
           />
           {pastedText && pastedText.trim().length > 20 && (
@@ -186,7 +186,7 @@ export default function FileUpload({
               </Badge>
               <button
                 onClick={() => onPastedTextChange?.('')}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-xs text-gray-400 hover:text-gray-300 transition-colors"
               >
                 Clear
               </button>
@@ -206,7 +206,7 @@ export default function FileUpload({
                 'relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer',
                 dragActive
                   ? 'border-field-500 bg-field-50 shadow-glow-green'
-                  : 'border-gray-300 bg-white hover:border-field-400 hover:bg-gray-50',
+                  : 'border-gray-600 bg-gray-800 hover:border-field-400 hover:bg-gray-900',
               )}
               onClick={() => inputRef.current?.click()}
               role="button"
@@ -225,12 +225,12 @@ export default function FileUpload({
 
               <div className={cn(
                 'w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center transition-colors',
-                dragActive ? 'bg-field-100 text-field-600' : 'bg-gray-100 text-gray-400',
+                dragActive ? 'bg-field-100 text-field-600' : 'bg-gray-800 text-gray-400',
               )}>
                 <ArrowUpTrayIcon className="w-7 h-7" />
               </div>
 
-              <p className="text-sm font-semibold text-gray-700">
+              <p className="text-sm font-semibold text-gray-300">
                 {dragActive ? 'Drop your file here' : 'Drag & drop your file here'}
               </p>
               <p className="mt-1 text-xs text-gray-400">
@@ -241,19 +241,19 @@ export default function FileUpload({
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4">
+            <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-card p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-field-50 flex items-center justify-center shrink-0">
                   <ArrowUpTrayIcon className="w-5 h-5 text-field-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{file.name}</p>
+                  <p className="text-sm font-semibold text-gray-100 truncate">{file.name}</p>
                   <p className="text-xs text-gray-400">{formatSize(file.size)}</p>
                 </div>
                 <Badge variant="success" dot>Ready</Badge>
                 <button
                   onClick={onFileClear}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="p-1.5 text-gray-400 hover:text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
                   aria-label="Remove file"
                 >
                   <XMarkIcon className="w-4 h-4" />

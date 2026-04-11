@@ -2,11 +2,11 @@ import { cn } from '../../lib/cn.js';
 
 const variants = {
   primary:   'bg-field-700 text-white hover:bg-field-800 focus-visible:ring-field-500/40',
-  secondary: 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 focus-visible:ring-field-500/30',
-  ghost:     'text-gray-700 hover:bg-gray-100 focus-visible:ring-gray-400/30',
+  secondary: 'bg-gray-800 text-gray-200 border border-gray-600 hover:bg-gray-700 focus-visible:ring-field-500/30',
+  ghost:     'text-gray-300 hover:bg-gray-700 focus-visible:ring-gray-400/30',
   danger:    'bg-baseball-600 text-white hover:bg-baseball-700 focus-visible:ring-baseball-500/40',
   dirt:      'bg-dirt-800 text-white hover:bg-dirt-900 focus-visible:ring-dirt-500/40',
-  navy:      'bg-blue-800 text-white hover:bg-blue-900 focus-visible:ring-blue-500/40',
+  navy:      'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500/40',
 };
 
 const sizes = {

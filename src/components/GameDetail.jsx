@@ -8,18 +8,18 @@ import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
-const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
-const btnPrimary = "px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-60";
-const btnSecondary = "px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors";
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+const btnPrimary = "px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60";
+const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors";
 const btnDanger = "px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 
 const STATUS_COLORS = {
-  scheduled: 'bg-blue-100 text-blue-800',
+  scheduled: 'bg-blue-100 text-blue-300',
   in_progress: 'bg-yellow-100 text-yellow-800',
   completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-700',
-  postponed: 'bg-gray-200 text-gray-700',
+  cancelled: 'bg-red-100 text-red-400',
+  postponed: 'bg-gray-700 text-gray-300',
 };
 
 function formatDate(dateStr) {
@@ -193,7 +193,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
     finally { setSavingNewPlayer(false); }
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Loading game…</div>;
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading game…</div>;
   if (!game) return <div className="py-8 text-center text-red-600">Game not found</div>;
 
   if (showTracker) {
@@ -224,10 +224,10 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       </div>
 
       {/* Game header */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 mb-4">
+      <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-sm text-gray-500">{formatDate(game.game_date)}{game.game_time ? ` · ${formatTime(game.game_time)}` : ''}</div>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
+          <div className="text-sm text-gray-400">{formatDate(game.game_date)}{game.game_time ? ` · ${formatTime(game.game_time)}` : ''}</div>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
             {game.status_label}
           </span>
         </div>
@@ -236,7 +236,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         <div className="flex items-center justify-center gap-3 sm:gap-6 mb-3">
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-12 h-12" />
-            <button onClick={() => onNavigateToTeam?.(game.home_team_id, game.home_org_id)} className="font-bold text-sm text-center truncate w-full text-blue-700 hover:text-blue-900 hover:underline">{game.home_team_name}</button>
+            <button onClick={() => onNavigateToTeam?.(game.home_team_id, game.home_org_id)} className="font-bold text-sm text-center truncate w-full text-blue-400 hover:text-blue-200 hover:underline">{game.home_team_name}</button>
             <div className="w-12 h-1 rounded-full" style={{ background: game.home_primary_color || '#ccc' }} />
             <span className="text-xs text-gray-400 uppercase">Home</span>
           </div>
@@ -245,30 +245,30 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
               {game.home_score ?? '—'} <span className="text-gray-300 mx-1">–</span> {game.away_score ?? '—'}
             </div>
             {game.innings_played && (
-              <div className="text-xs text-gray-500 mt-1">{game.innings_played} innings</div>
+              <div className="text-xs text-gray-400 mt-1">{game.innings_played} innings</div>
             )}
           </div>
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
             <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-12 h-12" />
-            <button onClick={() => onNavigateToTeam?.(game.away_team_id, game.away_org_id)} className="font-bold text-sm text-center truncate w-full text-blue-700 hover:text-blue-900 hover:underline">{game.away_team_name}</button>
+            <button onClick={() => onNavigateToTeam?.(game.away_team_id, game.away_org_id)} className="font-bold text-sm text-center truncate w-full text-blue-400 hover:text-blue-200 hover:underline">{game.away_team_name}</button>
             <div className="w-12 h-1 rounded-full" style={{ background: game.away_primary_color || '#ccc' }} />
             <span className="text-xs text-gray-400 uppercase">Away</span>
           </div>
         </div>
 
         {game.location_name && (
-          <div className="text-xs text-gray-500 text-center">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
+          <div className="text-xs text-gray-400 text-center">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
         )}
         {game.notes && <div className="text-xs text-gray-400 italic text-center mt-1">{game.notes}</div>}
       </div>
 
       {/* Score reporting */}
       {userCanScore && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 mb-4">
+        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">Report Score</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-300">Report Score</h3>
             {!editingScore && (
-              <button onClick={() => setEditingScore(true)} className="text-xs text-blue-700 font-semibold hover:underline">Edit</button>
+              <button onClick={() => setEditingScore(true)} className="text-xs text-blue-400 font-semibold hover:underline">Edit</button>
             )}
           </div>
 
@@ -303,7 +303,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
               </div>
             </form>
           ) : (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-300">
               {game.home_score != null && game.away_score != null
                 ? `${game.home_team_name} ${game.home_score} — ${game.away_team_name} ${game.away_score}${game.innings_played ? ` (${game.innings_played} innings)` : ''}`
                 : 'No score reported yet. Click Edit to report the score.'}
@@ -312,7 +312,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         </div>
       )}
 
-      {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}
 
       {/* Pitch Counts — Home */}
       <PitchCountSection
@@ -419,14 +419,14 @@ function PitchCountSection({
   const selectedElig = pcForm.player_id ? eligMap[Number(pcForm.player_id)] : null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 mb-4">
+    <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">{label}</h3>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-300">{label}</h3>
           {dailyLimit && <span className="text-xs text-gray-400">Limit: {dailyLimit}/day</span>}
         </div>
         {canEdit && !isAdding && !editingPc && (
-          <button onClick={onStartAdd} className="text-xs text-blue-700 font-semibold hover:underline">+ Add Pitcher</button>
+          <button onClick={onStartAdd} className="text-xs text-blue-400 font-semibold hover:underline">+ Add Pitcher</button>
         )}
       </div>
 
@@ -452,7 +452,7 @@ function PitchCountSection({
             const overLimit = dailyLimit && totalToday > dailyLimit;
 
             return editingPc?.id === pc.id ? (
-              <form key={pc.id} onSubmit={onSaveEdit} className="bg-gray-50 rounded-lg p-3 space-y-2">
+              <form key={pc.id} onSubmit={onSaveEdit} className="bg-gray-900 rounded-lg p-3 space-y-2">
                 <div className="text-sm font-semibold">{pc.first_name} {pc.last_name} {pc.jersey_number ? `#${pc.jersey_number}` : ''}</div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -471,7 +471,7 @@ function PitchCountSection({
                 </div>
               </form>
             ) : (
-              <div key={pc.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 group">
+              <div key={pc.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-900 group">
                 <div className="w-8 text-xs text-gray-400 font-mono">{pc.jersey_number || '—'}</div>
                 <div className="flex-1 text-sm font-medium truncate">{pc.first_name} {pc.last_name}</div>
                 <div className={`w-16 text-sm font-bold text-right tabular-nums ${overLimit ? 'text-red-600' : ''}`}>{pc.pitch_count}</div>
@@ -480,10 +480,10 @@ function PitchCountSection({
                     const availDate = availableDate(restDays);
                     return (
                       <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
-                        restDays >= 3 ? 'bg-red-100 text-red-700' :
+                        restDays >= 3 ? 'bg-red-100 text-red-400' :
                         restDays >= 2 ? 'bg-orange-100 text-orange-700' :
                         restDays >= 1 ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-green-100 text-green-700'
+                        'bg-green-100 text-green-400'
                       }`}
                         title={availDate ? `Available ${availDate}` : 'No rest required'}
                       >
@@ -494,7 +494,7 @@ function PitchCountSection({
                 </div>
                 {canEdit && (
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                    <button onClick={() => onStartEdit(pc)} className="px-2 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300">Edit</button>
+                    <button onClick={() => onStartEdit(pc)} className="px-2 py-0.5 text-xs bg-gray-700 rounded hover:bg-gray-600">Edit</button>
                     <button onClick={() => onDelete(pc)} className={btnDanger}>×</button>
                   </div>
                 )}
@@ -505,14 +505,14 @@ function PitchCountSection({
       )}
 
       {entries.length > 0 && (
-        <div className="mt-3 pt-2 border-t border-gray-100 flex justify-end text-xs text-gray-500 font-semibold">
+        <div className="mt-3 pt-2 border-t border-gray-700 flex justify-end text-xs text-gray-400 font-semibold">
           Total: {totalPitches} pitches from {entries.length} pitcher{entries.length !== 1 ? 's' : ''}
         </div>
       )}
 
       {/* Add form */}
       {isAdding && (
-        <form onSubmit={onAdd} className="mt-3 bg-blue-50 rounded-lg p-3 space-y-2">
+        <form onSubmit={onAdd} className="mt-3 bg-blue-900/30 rounded-lg p-3 space-y-2">
           <div>
             <label className={labelCls}>Player *</label>
             {availablePlayers.length > 0 ? (
@@ -532,12 +532,12 @@ function PitchCountSection({
                 })}
               </select>
             ) : (
-              <div className="text-sm text-gray-500 italic">All rostered players already added. Use "New Player" below to add one.</div>
+              <div className="text-sm text-gray-400 italic">All rostered players already added. Use "New Player" below to add one.</div>
             )}
 
             {/* Eligibility warning for selected player */}
             {selectedElig && !selectedElig.eligible && (
-              <div className="mt-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">
+              <div className="mt-2 bg-red-900/30 border border-red-200 text-red-400 text-xs rounded-lg px-3 py-2">
                 <strong>⚠ Ineligible to pitch:</strong>
                 <ul className="mt-1 list-disc list-inside">
                   {selectedElig.reasons.map((r, i) => <li key={i}>{r}</li>)}
@@ -547,21 +547,21 @@ function PitchCountSection({
 
             {/* Eligibility info for eligible player */}
             {selectedElig && selectedElig.eligible && selectedElig.today_pitches > 0 && (
-              <div className="mt-2 bg-yellow-50 border border-yellow-200 text-yellow-800 text-xs rounded-lg px-3 py-2">
+              <div className="mt-2 bg-yellow-900/30 border border-yellow-200 text-yellow-800 text-xs rounded-lg px-3 py-2">
                 Already threw {selectedElig.today_pitches} pitches today in another game. Remaining: {selectedElig.remaining_today}
               </div>
             )}
 
             {!addingNewPlayer && (
               <button type="button" onClick={onStartAddNewPlayer}
-                className="mt-1 text-xs text-green-700 font-semibold hover:underline">+ New Player</button>
+                className="mt-1 text-xs text-green-400 font-semibold hover:underline">+ New Player</button>
             )}
           </div>
 
           {/* Inline new player form */}
           {addingNewPlayer && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
-              <div className="text-xs font-bold uppercase tracking-wide text-green-700 mb-1">Quick Add Player</div>
+            <div className="bg-green-900/30 border border-green-200 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-bold uppercase tracking-wide text-green-400 mb-1">Quick Add Player</div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className={labelCls}>First Name *</label>
@@ -588,7 +588,7 @@ function PitchCountSection({
                   {savingNewPlayer ? 'Adding…' : 'Add Player'}
                 </button>
                 <button type="button" onClick={onCancelAddNewPlayer}
-                  className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-300">Cancel</button>
+                  className="px-3 py-1.5 bg-gray-700 text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
               </div>
             </div>
           )}
@@ -613,7 +613,7 @@ function PitchCountSection({
                           <div className="text-xs text-red-600 font-semibold">⚠ Exceeds daily limit of {dailyLimit}</div>
                         )}
                         {rest != null && rest > 0 && (
-                          <div className="text-xs text-gray-500">→ Will require <strong>{rest} rest day{rest !== 1 ? 's' : ''}</strong></div>
+                          <div className="text-xs text-gray-400">→ Will require <strong>{rest} rest day{rest !== 1 ? 's' : ''}</strong></div>
                         )}
                         {otherToday > 0 && (
                           <div className="text-xs text-gray-400">({otherToday} from other games + {entered} = {total} total today)</div>

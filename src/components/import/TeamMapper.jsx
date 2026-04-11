@@ -36,7 +36,7 @@ export default function TeamMapper({
   if (unmatchedTeams.length === 0 && Object.keys(matchedTeams).length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-sm text-gray-500">No team names detected in the file.</p>
+        <p className="text-sm text-gray-400">No team names detected in the file.</p>
       </div>
     );
   }
@@ -46,10 +46,10 @@ export default function TeamMapper({
     return (
       <div className="space-y-5">
         <div>
-          <h3 className="font-heading text-lg font-bold text-gray-900">
+          <h3 className="font-heading text-lg font-bold text-gray-100">
             Team Matching
           </h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-gray-400">
             All teams from the file were matched automatically.
           </p>
         </div>
@@ -59,7 +59,7 @@ export default function TeamMapper({
             const team = teams.find(t => t.id === teamId);
             return (
               <div key={name} className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">{name}</span>
+                <span className="text-sm font-medium text-gray-300">{name}</span>
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-field-700 bg-field-100 px-2.5 py-1 rounded-full">
                   <span className="w-1.5 h-1.5 rounded-full bg-field-500" />
                   {team ? team.name : `Team #${teamId}`}
@@ -75,10 +75,10 @@ export default function TeamMapper({
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="font-heading text-lg font-bold text-gray-900">
+        <h3 className="font-heading text-lg font-bold text-gray-100">
           Map Team Names
         </h3>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-400">
           These team names from GameChanger don't match any teams in your system.
           Select the correct team for each, and we'll remember it for future imports.
         </p>
@@ -104,10 +104,10 @@ export default function TeamMapper({
                 {mappings[name] ? '✓' : '?'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-gray-100">
                   "{name}"
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-400 mt-0.5">
                   GameChanger team name — select the matching team below
                 </p>
                 <select
@@ -117,7 +117,7 @@ export default function TeamMapper({
                     onChange({ ...mappings, [name]: val ? parseInt(val) : null });
                   }}
                   className={cn(
-                    'mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm text-gray-900',
+                    'mt-2 w-full rounded-lg border bg-gray-800 px-3 py-2 text-sm text-gray-100',
                     'focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500',
                     !mappings[name] && 'border-amber-300'
                   )}
@@ -145,7 +145,7 @@ export default function TeamMapper({
             const team = teams.find(t => t.id === teamId);
             return (
               <div key={name} className="flex items-center justify-between py-1">
-                <span className="text-sm text-gray-600">{name}</span>
+                <span className="text-sm text-gray-300">{name}</span>
                 <span className="text-xs font-medium text-field-700">
                   → {team ? team.name : `Team #${teamId}`}
                 </span>
@@ -157,8 +157,8 @@ export default function TeamMapper({
 
       {/* Reminder */}
       <div className="bg-cream-50 rounded-lg border border-cream-200 px-4 py-3">
-        <p className="text-xs text-gray-500">
-          <span className="font-semibold text-gray-700">Tip:</span>{' '}
+        <p className="text-xs text-gray-400">
+          <span className="font-semibold text-gray-300">Tip:</span>{' '}
           These mappings are saved automatically. Next time you import a box score
           with the same team names, they'll match right away.
         </p>

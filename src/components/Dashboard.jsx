@@ -113,7 +113,7 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* ── Hero Welcome ── */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-900 via-blue-800 to-field-800 text-white p-6 sm:p-8 shadow-elevated">
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-800 via-blue-700 to-field-700 text-white p-6 sm:p-8 shadow-elevated border border-blue-600/30">
         {/* Decorative diamond pattern */}
         <div className="absolute inset-0 bg-diamond-pattern opacity-20 pointer-events-none" aria-hidden="true" />
         <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-field-600/20 rounded-full blur-3xl" aria-hidden="true" />
@@ -197,7 +197,7 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
         {/* Upcoming Games — 2/3 width */}
         <section className="lg:col-span-2 space-y-4" aria-label="Upcoming games">
           <div className="flex items-center justify-between">
-            <h3 className="font-heading text-lg font-bold text-gray-900 flex items-center gap-2">
+            <h3 className="font-heading text-lg font-bold text-gray-100 flex items-center gap-2">
               <CalendarIcon className="w-5 h-5 text-field-600" />
               Upcoming Games
             </h3>
@@ -263,7 +263,7 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
           {/* Quick Actions */}
           <Card variant="field">
             <CardHeader>
-              <h3 className="font-heading text-base font-bold text-gray-900 flex items-center gap-2">
+              <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
                 <SparklesIcon className="w-4 h-4 text-field-600" />
                 Quick Actions
               </h3>
@@ -302,7 +302,7 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
               <CardBody className="space-y-3">
                 <div className="flex items-center gap-2">
                   <ChartBarIcon className="w-4 h-4 text-field-600 shrink-0" />
-                  <h4 className="text-sm font-bold text-gray-900">Season Overview</h4>
+                  <h4 className="text-sm font-bold text-gray-100">Season Overview</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <MiniStat label="Total games" value={games.length} />
@@ -311,14 +311,14 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
                   <MiniStat label="This week" value={gamesThisWeek.length} />
                 </div>
                 {games.length > 0 && (
-                  <div className="pt-2 border-t border-gray-100">
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                  <div className="pt-2 border-t border-gray-700">
+                    <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
                       <span>Season progress</span>
-                      <span className="font-semibold text-gray-700">
+                      <span className="font-semibold text-gray-300">
                         {games.length > 0 ? Math.round((completedGames.length / games.length) * 100) : 0}%
                       </span>
                     </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-field-500 to-field-600 rounded-full transition-all duration-500"
                         style={{ width: `${games.length > 0 ? (completedGames.length / games.length) * 100 : 0}%` }}
@@ -336,7 +336,7 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
       {recentResults.length > 0 && (
         <section aria-label="Recent results">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-heading text-lg font-bold text-gray-900 flex items-center gap-2">
+            <h3 className="font-heading text-lg font-bold text-gray-100 flex items-center gap-2">
               <TrophyIcon className="w-5 h-5 text-dirt-600" />
               Recent Results
             </h3>
@@ -388,10 +388,10 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
               <ArrowUpTrayIcon className="w-8 h-8 text-dirt-700" />
             </div>
             <div className="flex-1 text-center sm:text-left">
-              <h3 className="font-heading text-lg font-bold text-gray-900">
+              <h3 className="font-heading text-lg font-bold text-gray-100">
                 Import from GameChanger
               </h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-400">
                 Bring your stats, rosters, schedules, and box scores over from GameChanger in minutes.
                 The easiest migration in youth sports.
               </p>
@@ -409,7 +409,7 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="pt-4 pb-2 border-t border-gray-200/50">
+      <footer className="pt-4 pb-2 border-t border-gray-700/50">
         <p className="text-center text-xs text-gray-400">
           ZVBL Roster Manager · Built by DigiSeeIt Design · {new Date().getFullYear()}
         </p>
@@ -424,10 +424,10 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
 
 function QuickAction({ icon, label, onClick, color = 'field' }) {
   const colors = {
-    field:    'bg-field-50 text-field-700 hover:bg-field-100',
-    blue:     'bg-blue-50 text-blue-700 hover:bg-blue-100',
-    dirt:     'bg-dirt-50 text-dirt-700 hover:bg-dirt-100',
-    baseball: 'bg-baseball-50 text-baseball-700 hover:bg-baseball-100',
+    field:    'bg-field-900/35 text-field-300 hover:bg-field-900/50',
+    blue:     'bg-blue-900/35 text-blue-300 hover:bg-blue-900/55',
+    dirt:     'bg-dirt-900/35 text-dirt-300 hover:bg-dirt-900/50',
+    baseball: 'bg-baseball-900/35 text-baseball-300 hover:bg-baseball-900/50',
   };
 
   return (
@@ -447,8 +447,8 @@ function QuickAction({ icon, label, onClick, color = 'field' }) {
 
 function MiniStat({ label, value }) {
   return (
-    <div className="text-center p-2 bg-gray-50 rounded-lg">
-      <p className="text-xl font-heading font-bold text-gray-900 tabular-nums">{value}</p>
+    <div className="text-center p-2 bg-gray-900 rounded-lg">
+      <p className="text-xl font-heading font-bold text-gray-100 tabular-nums">{value}</p>
       <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mt-0.5">{label}</p>
     </div>
   );
@@ -459,7 +459,7 @@ function EmptyState({ icon, title, description, action }) {
     <Card variant="bordered" className="bg-stitch-pattern">
       <CardBody className="py-12 text-center">
         {icon && <div className="text-4xl mb-3 opacity-40">{icon}</div>}
-        <h4 className="text-sm font-semibold text-gray-700">{title}</h4>
+        <h4 className="text-sm font-semibold text-gray-300">{title}</h4>
         {description && <p className="mt-1 text-xs text-gray-400 max-w-xs mx-auto">{description}</p>}
         {action && <div className="mt-4">{action}</div>}
       </CardBody>

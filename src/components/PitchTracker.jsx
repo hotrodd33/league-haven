@@ -7,9 +7,9 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 
-const btnPrimary = 'px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-60';
-const btnSecondary = 'px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors';
-const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600';
+const btnPrimary = 'px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60';
+const btnSecondary = 'px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors';
+const inputCls = 'w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500';
 
 export default function PitchTracker({ gameId, onBack }) {
   const { isAdmin, canEditTeam } = useAuth();
@@ -239,18 +239,18 @@ export default function PitchTracker({ gameId, onBack }) {
     finally { setSaving(false); }
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Loading game…</div>;
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading game…</div>;
   if (!game) return <div className="py-8 text-center text-red-600">Game not found</div>;
 
   if (finalized) {
     return (
       <div className="max-w-lg mx-auto py-12 text-center">
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+        <div className="bg-green-900/30 border border-green-200 rounded-xl p-6">
           <svg className="w-12 h-12 text-green-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
           <h2 className="text-xl font-bold text-green-800 mb-2">Game Finalized</h2>
-          <p className="text-sm text-green-700 mb-1">
+          <p className="text-sm text-green-400 mb-1">
             {game.home_team_name} {homeScore} – {awayScore} {game.away_team_name}
           </p>
           <p className="text-xs text-green-600 mb-4">{inning} innings · {activePitchers.length} pitchers tracked</p>
@@ -300,7 +300,7 @@ export default function PitchTracker({ gameId, onBack }) {
               <div className="text-3xl font-bold tabular-nums w-8 text-center">{homeScore}</div>
               <button onClick={() => setHomeScore(s => Math.max(0, s - 1))} className="w-8 h-6 rounded-b bg-gray-700 text-white text-xs font-bold hover:bg-gray-600">−</button>
             </div>
-            <span className="text-gray-500 text-xl mx-1">–</span>
+            <span className="text-gray-400 text-xl mx-1">–</span>
             <div className="flex flex-col items-center">
               <button onClick={() => setAwayScore(s => s + 1)} className="w-8 h-6 rounded-t bg-gray-700 text-white text-xs font-bold hover:bg-gray-600">+</button>
               <div className="text-3xl font-bold tabular-nums w-8 text-center">{awayScore}</div>
@@ -346,14 +346,14 @@ export default function PitchTracker({ gameId, onBack }) {
       {/* Add pitcher modal */}
       {addingSide && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6">
+          <div className="bg-gray-800 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6">
             <h3 className="text-lg font-bold mb-3">
               Add {addingSide === 'home' ? 'Home' : 'Away'} Pitcher
             </h3>
 
             {!addingNewPlayer ? (
               <>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Select Player</label>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Select Player</label>
                 <select className={inputCls} value={selectedPlayerId} onChange={e => setSelectedPlayerId(e.target.value)}>
                   <option value="">Choose a player…</option>
                   {(addingSide === 'home' ? availableHome : availableAway).map(p => (
@@ -368,8 +368,8 @@ export default function PitchTracker({ gameId, onBack }) {
                   <button onClick={() => setAddingSide(null)} className={btnSecondary}>Cancel</button>
                 </div>
 
-                <div className="border-t border-gray-200 mt-4 pt-3">
-                  <button onClick={() => setAddingNewPlayer(true)} className="text-sm text-blue-700 hover:text-blue-900 font-medium">
+                <div className="border-t border-gray-700 mt-4 pt-3">
+                  <button onClick={() => setAddingNewPlayer(true)} className="text-sm text-blue-400 hover:text-blue-200 font-medium">
                     + Add new player to roster
                   </button>
                 </div>
@@ -379,16 +379,16 @@ export default function PitchTracker({ gameId, onBack }) {
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">First Name *</label>
+                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">First Name *</label>
                       <input className={inputCls} value={newFirst} onChange={e => setNewFirst(e.target.value)} placeholder="First" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Last Name *</label>
+                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Last Name *</label>
                       <input className={inputCls} value={newLast} onChange={e => setNewLast(e.target.value)} placeholder="Last" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Jersey #</label>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Jersey #</label>
                     <input className={inputCls} value={newJersey} onChange={e => setNewJersey(e.target.value)} placeholder="Optional" />
                   </div>
                 </div>
@@ -405,7 +405,7 @@ export default function PitchTracker({ gameId, onBack }) {
         </div>
       )}
 
-      {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}
 
       {/* Action buttons */}
       <div className="flex flex-col gap-2 mt-6 mb-8">
@@ -426,13 +426,13 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: teamColor || '#333' }}>{label}</h3>
-        <button onClick={onAddPitcher} className="text-xs font-semibold text-blue-700 hover:text-blue-900">
+        <button onClick={onAddPitcher} className="text-xs font-semibold text-blue-400 hover:text-blue-200">
           + Add Pitcher
         </button>
       </div>
 
       {pitchers.length === 0 ? (
-        <div className="bg-gray-50 rounded-lg p-4 text-center text-sm text-gray-400">
+        <div className="bg-gray-900 rounded-lg p-4 text-center text-sm text-gray-400">
           No pitchers tracked yet. Tap "+ Add Pitcher" to start.
         </div>
       ) : (
@@ -441,7 +441,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
             const count = getCount(p.side, p.playerId);
             return (
               <div key={`${p.side}-${p.playerId}`}
-                className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+                className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3">
                 {/* Player info */}
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm truncate">
@@ -454,16 +454,16 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                 <div className="flex items-center gap-0 shrink-0">
                   <button
                     onClick={() => adjustCount(p.side, p.playerId, -1)}
-                    className="w-10 h-10 rounded-l-lg bg-red-100 text-red-700 text-lg font-bold hover:bg-red-200 active:bg-red-300 transition-colors select-none"
+                    className="w-10 h-10 rounded-l-lg bg-red-100 text-red-400 text-lg font-bold hover:bg-red-200 active:bg-red-300 transition-colors select-none"
                   >
                     −
                   </button>
-                  <div className="w-14 h-10 bg-gray-100 flex items-center justify-center text-lg font-bold tabular-nums">
+                  <div className="w-14 h-10 bg-gray-800 flex items-center justify-center text-lg font-bold tabular-nums">
                     {count}
                   </div>
                   <button
                     onClick={() => adjustCount(p.side, p.playerId, 1)}
-                    className="w-10 h-10 rounded-r-lg bg-green-100 text-green-700 text-lg font-bold hover:bg-green-200 active:bg-green-300 transition-colors select-none"
+                    className="w-10 h-10 rounded-r-lg bg-green-100 text-green-400 text-lg font-bold hover:bg-green-200 active:bg-green-300 transition-colors select-none"
                   >
                     +
                   </button>

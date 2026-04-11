@@ -5,8 +5,8 @@ const BATTING_OPTIONS = ['R', 'L', 'S'];
 const THROWING_OPTIONS = ['R', 'L'];
 const GRADE_OPTIONS = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
-const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
 
 export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
   const isEditing = !!player;
@@ -76,7 +76,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
         <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit Player' : 'Add Player'}</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -104,7 +104,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
                 <span className="text-xs text-gray-400">No positions available</span>
               ) : positions.map((pos) => (
                 <button key={pos.id} type="button" onClick={() => handlePositionToggle(pos.id)}
-                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${form.selectedPositions.includes(pos.id) ? 'bg-blue-800 text-white border-blue-800' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-600'}`}>
+                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${form.selectedPositions.includes(pos.id) ? 'bg-blue-600 text-white border-blue-800' : 'bg-gray-800 text-gray-300 border-gray-600 hover:border-blue-600'}`}>
                   {pos.abbreviation || pos.name}
                 </button>
               ))}
@@ -152,11 +152,11 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
             </div>
           </div>
 
-          {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-60">
+            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
+            <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
               {saving ? 'Saving…' : isEditing ? 'Update Player' : 'Add Player'}
             </button>
           </div>

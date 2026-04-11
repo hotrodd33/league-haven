@@ -42,7 +42,7 @@ export default function ImportProgress({ progress = 0, status = 'uploading' }) {
         {/* Baseball in center */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className={cn(
-            'w-10 h-10 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center shadow-card',
+            'w-10 h-10 rounded-full bg-gray-800 border-2 border-gray-700 flex items-center justify-center shadow-card',
             progress > 0 && 'animate-spin-slow',
           )}>
             <span className="text-lg" aria-hidden="true">⚾</span>
@@ -52,12 +52,12 @@ export default function ImportProgress({ progress = 0, status = 'uploading' }) {
 
       {/* Progress info */}
       <div className="text-center space-y-3 max-w-xs">
-        <p className="text-sm font-semibold text-gray-900">
+        <p className="text-sm font-semibold text-gray-100">
           {messages[status] || 'Processing…'}
         </p>
 
         {/* Progress bar */}
-        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-field-500 to-field-600 rounded-full transition-all duration-500 ease-out"
             style={{ width: `${Math.max(progress, 3)}%` }}

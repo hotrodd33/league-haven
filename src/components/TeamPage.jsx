@@ -79,7 +79,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
       )}
 
       {/* Tab bar */}
-      <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
+      <div className="border-b border-gray-700 bg-gray-800 sticky top-0 z-10">
         <nav className="flex -mb-px overflow-x-auto" aria-label="Team tabs">
           {TABS.map(tab => {
             const Icon = tab.icon;
@@ -91,8 +91,8 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
                 className={cn(
                   'flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors',
                   isActive
-                    ? 'border-blue-600 text-blue-700'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-600 text-blue-400'
+                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
                 )}
               >
                 {Icon && <Icon className="w-4 h-4" />}
@@ -156,8 +156,8 @@ function TeamHeader({ team, recentGames, onContactTeam }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <h2 className="text-xl font-bold text-gray-900 truncate font-display">{team.name}</h2>
-        <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5 flex-wrap">
+        <h2 className="text-xl font-bold text-gray-100 truncate font-display">{team.name}</h2>
+        <div className="flex items-center gap-3 text-sm text-gray-400 mt-0.5 flex-wrap">
           {team.org_name && <span>{team.org_name}</span>}
           {team.age_group && (
             <span className="inline-flex items-center gap-1">
@@ -182,7 +182,7 @@ function TeamHeader({ team, recentGames, onContactTeam }) {
       <div className="flex items-center gap-3 shrink-0">
         <button
           onClick={onContactTeam}
-          className="p-2 text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+          className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded-lg transition-colors"
           title="Email team"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -191,7 +191,7 @@ function TeamHeader({ team, recentGames, onContactTeam }) {
         </button>
         {(record.w > 0 || record.l > 0 || record.t > 0) && (
           <div className="text-right">
-            <p className="text-lg font-bold text-gray-800 font-display">
+            <p className="text-lg font-bold text-gray-200 font-display">
               {record.w}-{record.l}{record.t > 0 ? `-${record.t}` : ''}
             </p>
             <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Record</p>
@@ -207,8 +207,8 @@ function OverviewTab({ team, recentGames }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Team Info */}
-      <div className="bg-white rounded-xl shadow-card p-4">
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Team Info</h3>
+      <div className="bg-gray-800 rounded-xl shadow-card p-4">
+        <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wide mb-3">Team Info</h3>
         <dl className="space-y-2 text-sm">
           {team?.org_name && <InfoRow label="Organization" value={team.org_name} />}
           {team?.age_group && <InfoRow label="Age Group" value={team.age_group} />}
@@ -218,11 +218,11 @@ function OverviewTab({ team, recentGames }) {
           )}
           {team?.primary_color && (
             <div className="flex items-center justify-between">
-              <dt className="text-gray-500 font-medium">Colors</dt>
+              <dt className="text-gray-400 font-medium">Colors</dt>
               <dd className="flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full border border-gray-200" style={{ backgroundColor: team.primary_color }} />
+                <span className="w-5 h-5 rounded-full border border-gray-700" style={{ backgroundColor: team.primary_color }} />
                 {team.secondary_color && (
-                  <span className="w-5 h-5 rounded-full border border-gray-200" style={{ backgroundColor: team.secondary_color }} />
+                  <span className="w-5 h-5 rounded-full border border-gray-700" style={{ backgroundColor: team.secondary_color }} />
                 )}
               </dd>
             </div>
@@ -231,8 +231,8 @@ function OverviewTab({ team, recentGames }) {
       </div>
 
       {/* Recent Games */}
-      <div className="bg-white rounded-xl shadow-card p-4">
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Recent Games</h3>
+      <div className="bg-gray-800 rounded-xl shadow-card p-4">
+        <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wide mb-3">Recent Games</h3>
         {recentGames.length === 0 ? (
           <p className="text-sm text-gray-400 py-4 text-center">No completed games yet</p>
         ) : (
@@ -250,8 +250,8 @@ function OverviewTab({ team, recentGames }) {
 function InfoRow({ label, value }) {
   return (
     <div className="flex items-center justify-between">
-      <dt className="text-gray-500 font-medium">{label}</dt>
-      <dd className="text-gray-800">{value}</dd>
+      <dt className="text-gray-400 font-medium">{label}</dt>
+      <dd className="text-gray-200">{value}</dd>
     </div>
   );
 }
@@ -270,13 +270,13 @@ function RecentGameRow({ game, teamId }) {
     else result = 'T';
   }
 
-  const resultColors = { W: 'text-green-700 bg-green-50', L: 'text-red-700 bg-red-50', T: 'text-gray-600 bg-gray-100' };
+  const resultColors = { W: 'text-green-400 bg-green-900/30', L: 'text-red-400 bg-red-900/30', T: 'text-gray-300 bg-gray-800' };
 
   const d = game.date ? new Date(game.date + 'T00:00:00') : null;
   const dateStr = d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
 
   return (
-    <div className="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0">
+    <div className="flex items-center gap-2 py-1.5 border-b border-gray-700 last:border-0">
       <span className="text-xs text-gray-400 w-12 shrink-0">{dateStr}</span>
       {result && (
         <span className={cn('text-xs font-bold w-5 text-center rounded px-1', resultColors[result])}>
@@ -285,12 +285,12 @@ function RecentGameRow({ game, teamId }) {
       )}
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
         {opponentLogo && <img src={opponentLogo} alt="" className="w-5 h-5 object-contain rounded shrink-0" />}
-        <span className="text-sm text-gray-700 truncate">
+        <span className="text-sm text-gray-300 truncate">
           {isHome ? 'vs' : '@'} {opponentName || 'TBD'}
         </span>
       </div>
       {ownScore != null && oppScore != null && (
-        <span className="text-sm font-semibold text-gray-800 shrink-0">{ownScore}–{oppScore}</span>
+        <span className="text-sm font-semibold text-gray-200 shrink-0">{ownScore}–{oppScore}</span>
       )}
     </div>
   );

@@ -17,7 +17,7 @@ export default function Select({
       {label && (
         <label
           htmlFor={selectId}
-          className="block text-xs font-semibold text-gray-500 uppercase tracking-wide"
+          className="block text-xs font-semibold text-gray-400 uppercase tracking-wide"
         >
           {label}
         </label>
@@ -31,7 +31,7 @@ export default function Select({
           'pr-10 focus:outline-none focus:ring-2',
           error
             ? 'border-baseball-400 focus:ring-baseball-500/30 focus:border-baseball-500'
-            : 'border-gray-300 focus:ring-field-500/30 focus:border-field-600',
+            : 'border-gray-600 focus:ring-field-500/30 focus:border-field-600',
           className,
         )}
         aria-invalid={error ? 'true' : undefined}

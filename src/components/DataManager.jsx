@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { clearData, exportDataUrl, importData, fetchSeasons } from '../api/index.js';
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
-const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
 
 const ENTITIES = [
   { key: 'organizations', label: 'Organizations', icon: '🏢', cols: 'name, contact_name, contact_email, contact_phone, address, city, state, zip, notes' },
@@ -92,12 +92,12 @@ export default function DataManager() {
   const rowCount = csv.trim() ? csv.trim().split(/\r?\n/).length - 1 : 0;
   const needsSeason = ['teams', 'divisions'].includes(selectedEntity);
 
-  const tabCls = (t) => `px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${tab === t ? 'bg-white text-gray-900 border border-b-0 border-gray-200' : 'bg-gray-100 text-gray-500 hover:text-gray-700'}`;
+  const tabCls = (t) => `px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${tab === t ? 'bg-gray-800 text-gray-100 border border-b-0 border-gray-700' : 'bg-gray-800 text-gray-400 hover:text-gray-300'}`;
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Data Manager</h1>
-      <p className="text-sm text-gray-500 mb-4">Import, export, and manage all league data via CSV.</p>
+      <h1 className="text-2xl font-bold text-gray-100 mb-1">Data Manager</h1>
+      <p className="text-sm text-gray-400 mb-4">Import, export, and manage all league data via CSV.</p>
 
       {/* Tabs */}
       <div className="flex gap-1 mb-0">
@@ -106,7 +106,7 @@ export default function DataManager() {
         <button className={tabCls('clear')} onClick={() => setTab('clear')}>Clear Data</button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-b-xl rounded-tr-xl p-5">
+      <div className="bg-gray-800 border border-gray-700 rounded-b-xl rounded-tr-xl p-5">
 
         {/* ── IMPORT TAB ── */}
         {tab === 'import' && (
@@ -118,7 +118,7 @@ export default function DataManager() {
                 {ENTITIES.map(ent => (
                   <button key={ent.key}
                     onClick={() => { setSelectedEntity(ent.key); setResult(null); setError(null); }}
-                    className={`text-left px-3 py-2 rounded-lg border text-sm transition-colors ${selectedEntity === ent.key ? 'border-blue-600 bg-blue-50 text-blue-800 font-semibold' : 'border-gray-200 hover:border-gray-300 text-gray-600'}`}
+                    className={`text-left px-3 py-2 rounded-lg border text-sm transition-colors ${selectedEntity === ent.key ? 'border-blue-600 bg-blue-900/30 text-blue-300 font-semibold' : 'border-gray-700 hover:border-gray-600 text-gray-300'}`}
                   >
                     <span className="mr-1">{ent.icon}</span> {ent.label}
                   </button>
@@ -132,20 +132,20 @@ export default function DataManager() {
                 <div>
                   <label className={labelCls}>CSV File or Paste</label>
                   <div className="flex gap-2 mb-2">
-                    <label className="px-3 py-1.5 text-xs font-semibold bg-blue-800 text-white rounded cursor-pointer hover:bg-blue-900 inline-block">
+                    <label className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700 inline-block">
                       Choose File
                       <input type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" key={selectedEntity} />
                     </label>
                     <a href={exportDataUrl(selectedEntity)} download={`${selectedEntity}.csv`}
-                      className="px-3 py-1.5 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 inline-block"
+                      className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600 inline-block"
                     >Export Current {entity?.label}</a>
                   </div>
-                  {fileName && <p className="text-xs text-gray-500 mb-1">Loaded: {fileName}</p>}
+                  {fileName && <p className="text-xs text-gray-400 mb-1">Loaded: {fileName}</p>}
                   <textarea value={csv} onChange={(e) => setCsv(e.target.value)} rows={8}
                     placeholder={`Paste ${entity?.label} CSV here...\n\nExpected columns:\n${entity?.cols}`}
                     className={inputCls + ' font-mono text-xs'}
                   />
-                  {rowCount > 0 && <p className="text-xs text-gray-500 mt-1">{rowCount} data row{rowCount !== 1 ? 's' : ''} detected</p>}
+                  {rowCount > 0 && <p className="text-xs text-gray-400 mt-1">{rowCount} data row{rowCount !== 1 ? 's' : ''} detected</p>}
                 </div>
 
                 {/* Season for division/team matching */}
@@ -174,12 +174,12 @@ export default function DataManager() {
                 </div>
 
                 {/* Column reference */}
-                <details className="text-xs text-gray-500">
-                  <summary className="cursor-pointer font-semibold hover:text-gray-700">Column Reference — {entity?.label}</summary>
+                <details className="text-xs text-gray-400">
+                  <summary className="cursor-pointer font-semibold hover:text-gray-300">Column Reference — {entity?.label}</summary>
                   <p className="mt-1 pl-2">{entity?.cols}</p>
                 </details>
 
-                {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+                {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
 
                 <div className="flex justify-end">
                   <button onClick={handleImport} disabled={importing || !csv.trim()}
@@ -191,21 +191,21 @@ export default function DataManager() {
               /* Import results */
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                    <div className="text-2xl font-bold text-green-700">{result.created}</div>
+                  <div className="bg-green-900/30 border border-green-200 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-green-400">{result.created}</div>
                     <div className="text-xs text-green-600 font-semibold">Created</div>
                   </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <div className="text-2xl font-bold text-blue-700">{result.updated}</div>
+                  <div className="bg-blue-900/30 border border-blue-200 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-blue-400">{result.updated}</div>
                     <div className="text-xs text-blue-600 font-semibold">Updated</div>
                   </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                    <div className="text-2xl font-bold text-gray-500">{result.skipped}</div>
-                    <div className="text-xs text-gray-500 font-semibold">Skipped</div>
+                  <div className="bg-gray-900 border border-gray-700 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-gray-400">{result.skipped}</div>
+                    <div className="text-xs text-gray-400 font-semibold">Skipped</div>
                   </div>
                 </div>
                 {result.errors?.length > 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="bg-yellow-900/30 border border-yellow-200 rounded-lg p-3">
                     <div className="text-xs font-semibold text-yellow-700 mb-1">Warnings ({result.errors.length})</div>
                     <div className="text-xs text-yellow-700 max-h-40 overflow-y-auto space-y-0.5">
                       {result.errors.map((e, i) => <div key={i}>{e}</div>)}
@@ -214,7 +214,7 @@ export default function DataManager() {
                 )}
                 <div className="flex justify-end gap-3">
                   <button onClick={() => { setResult(null); setCsv(''); setFileName(''); }}
-                    className="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300">Import More</button>
+                    className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Import More</button>
                 </div>
               </div>
             )}
@@ -224,15 +224,15 @@ export default function DataManager() {
         {/* ── EXPORT TAB ── */}
         {tab === 'export' && (
           <div className="space-y-3">
-            <p className="text-sm text-gray-600">Download current data as CSV files. Use these as templates for importing.</p>
+            <p className="text-sm text-gray-300">Download current data as CSV files. Use these as templates for importing.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {ENTITIES.map(ent => (
                 <a key={ent.key} href={exportDataUrl(ent.key)} download={`${ent.key}.csv`}
-                  className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-3 px-4 py-3 border border-gray-700 rounded-lg hover:bg-gray-900 transition-colors"
                 >
                   <span className="text-xl">{ent.icon}</span>
                   <div>
-                    <div className="text-sm font-semibold text-gray-800">{ent.label}</div>
+                    <div className="text-sm font-semibold text-gray-200">{ent.label}</div>
                     <div className="text-xs text-gray-400">{ent.key}.csv</div>
                   </div>
                   <svg className="ml-auto w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -245,35 +245,35 @@ export default function DataManager() {
         {/* ── CLEAR TAB ── */}
         {tab === 'clear' && (
           <div className="space-y-4">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            <div className="bg-red-900/30 border border-red-200 rounded-lg p-3 text-sm text-red-400">
               <strong>Warning:</strong> Clearing data is permanent and cannot be undone. Export your data first as a backup.
             </div>
 
             {clearResult && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+              <div className="bg-green-900/30 border border-green-200 rounded-lg p-3 text-sm text-green-400">
                 Cleared: {clearResult.cleared?.join(', ')}
               </div>
             )}
 
             <div className="space-y-2">
               {CLEAR_GROUPS.map((group, idx) => (
-                <div key={idx} className="border border-gray-200 rounded-lg p-3">
+                <div key={idx} className="border border-gray-700 rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm font-semibold text-gray-800">{group.label}</div>
-                      <div className="text-xs text-gray-500">{group.desc}</div>
+                      <div className="text-sm font-semibold text-gray-200">{group.label}</div>
+                      <div className="text-xs text-gray-400">{group.desc}</div>
                     </div>
                     {clearConfirm === idx ? (
                       <div className="flex gap-2">
                         <button onClick={() => setClearConfirm(null)}
-                          className="px-3 py-1.5 text-xs font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Cancel</button>
+                          className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-300 rounded hover:bg-gray-600">Cancel</button>
                         <button onClick={() => handleClear(group)} disabled={clearing}
                           className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
                         >{clearing ? 'Clearing…' : 'Yes, Delete'}</button>
                       </div>
                     ) : (
                       <button onClick={() => { setClearConfirm(idx); setClearResult(null); }}
-                        className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-700 rounded hover:bg-red-200"
+                        className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-400 rounded hover:bg-red-200"
                       >Clear</button>
                     )}
                   </div>

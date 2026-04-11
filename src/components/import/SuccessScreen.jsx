@@ -26,10 +26,10 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
       </div>
 
       <div className="text-center space-y-2 max-w-sm">
-        <h3 className="font-heading text-2xl font-bold text-gray-900">
+        <h3 className="font-heading text-2xl font-bold text-gray-100">
           Import Complete!
         </h3>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-400">
           Your GameChanger data has been successfully imported.
         </p>
       </div>
@@ -111,7 +111,7 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
           />
         </div>
 
-        <div className="pt-4 border-t border-gray-200 mt-4">
+        <div className="pt-4 border-t border-gray-700 mt-4">
           <Button
             variant="secondary"
             size="sm"
@@ -131,8 +131,8 @@ function SummaryStat({ icon, value, label }) {
   return (
     <div className="text-center px-3">
       <span className="text-base" aria-hidden="true">{icon}</span>
-      <p className="text-2xl font-heading font-bold text-gray-900 tabular-nums">{value}</p>
-      <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{label}</p>
+      <p className="text-2xl font-heading font-bold text-gray-100 tabular-nums">{value}</p>
+      <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{label}</p>
     </div>
   );
 }
@@ -141,13 +141,13 @@ function NextAction({ icon, label, description, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all text-left"
+      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-700 bg-gray-800 hover:bg-gray-900 hover:border-gray-600 transition-all text-left"
     >
       <div className="w-8 h-8 rounded-lg bg-field-50 flex items-center justify-center text-field-600 shrink-0">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-900">{label}</p>
+        <p className="text-sm font-semibold text-gray-100">{label}</p>
         <p className="text-xs text-gray-400">{description}</p>
       </div>
       <span className="text-gray-300 text-sm" aria-hidden="true">→</span>

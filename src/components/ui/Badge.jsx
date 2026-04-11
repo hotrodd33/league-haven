@@ -1,11 +1,11 @@
 import { cn } from '../../lib/cn.js';
 
 const variants = {
-  success: 'bg-field-100 text-field-800 border-field-200',
-  warning: 'bg-dirt-100 text-dirt-900 border-dirt-200',
-  danger:  'bg-baseball-50 text-baseball-700 border-baseball-200',
-  info:    'bg-blue-100 text-blue-800 border-blue-200',
-  neutral: 'bg-gray-100 text-gray-700 border-gray-200',
+  success: 'bg-field-900/35 text-field-300 border-field-700',
+  warning: 'bg-dirt-900/35 text-dirt-300 border-dirt-700',
+  danger:  'bg-baseball-900/35 text-baseball-300 border-baseball-700',
+  info:    'bg-blue-900/35 text-blue-300 border-blue-700',
+  neutral: 'bg-gray-800 text-gray-300 border-gray-700',
 };
 
 const sizes = {

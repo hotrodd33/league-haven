@@ -12,7 +12,7 @@ const ROLE_LABELS = {
 
 function OrgLogo({ src, name, size = 'w-10 h-10' }) {
   if (!src) return (
-    <div className={`${size} bg-gray-200 rounded-full flex items-center justify-center text-lg font-bold text-gray-500 shrink-0`}>
+    <div className={`${size} bg-gray-700 rounded-full flex items-center justify-center text-lg font-bold text-gray-400 shrink-0`}>
       {(name || '?')[0]}
     </div>
   );
@@ -46,17 +46,17 @@ export default function Directory({ onEditTeam }) {
     setTimeout(() => printWindow.print(), 300);
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Loading directory…</div>;
-  if (error) return <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>;
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading directory…</div>;
+  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-heading text-2xl font-bold tracking-wide text-blue-800">Team Directory</h2>
+        <h2 className="font-heading text-2xl font-bold tracking-wide text-blue-300">Team Directory</h2>
         <div className="flex gap-2">
           <button
             onClick={() => setContactModal({ scope: 'league', scopeLabel: 'Entire League' })}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -65,7 +65,7 @@ export default function Directory({ onEditTeam }) {
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors print:hidden"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-600 transition-colors print:hidden"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm0-12V3a1 1 0 011-1h4a1 1 0 011 1v4" />
@@ -77,9 +77,9 @@ export default function Directory({ onEditTeam }) {
 
       <div className="space-y-6">
         {orgs.map(org => (
-          <div key={org.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div key={org.id} className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
             {/* Org header — clickable to expand/collapse */}
-            <div className="w-full text-left px-4 sm:px-6 py-4 border-b border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
+            <div className="w-full text-left px-4 sm:px-6 py-4 border-b border-gray-700 bg-gray-900 hover:bg-gray-800 transition-colors cursor-pointer">
               <div className="flex items-center gap-4" onClick={() => setExpandedOrgs(prev => {
                 const next = new Set(prev);
                 next.has(org.id) ? next.delete(org.id) : next.add(org.id);
@@ -88,7 +88,7 @@ export default function Directory({ onEditTeam }) {
                 <OrgLogo src={org.logo_url} name={org.name} />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-heading text-lg font-semibold tracking-wide text-blue-900 truncate">{org.name}</h3>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-400">
                     {org.teams.length} team{org.teams.length !== 1 ? 's' : ''}
                     {org.city && ` · ${org.city}${org.state ? ', ' + org.state : ''}`}
                   </div>
@@ -96,14 +96,14 @@ export default function Directory({ onEditTeam }) {
                 {/* Org contact */}
                 {(org.contact_name || org.contact_email || org.contact_phone) && (
                   <div className="hidden sm:block text-right text-sm shrink-0">
-                    {org.contact_name && <div className="font-semibold text-gray-800">{org.contact_name}</div>}
-                    {org.contact_email && <div className="text-blue-700 text-xs">{org.contact_email}</div>}
-                    {org.contact_phone && <div className="text-gray-500 text-xs">{org.contact_phone}</div>}
+                    {org.contact_name && <div className="font-semibold text-gray-200">{org.contact_name}</div>}
+                    {org.contact_email && <div className="text-blue-400 text-xs">{org.contact_email}</div>}
+                    {org.contact_phone && <div className="text-gray-400 text-xs">{org.contact_phone}</div>}
                   </div>
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); setContactModal({ scope: 'org', scopeId: org.id, scopeLabel: org.name }); }}
-                  className="p-1.5 text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors shrink-0"
+                  className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded transition-colors shrink-0"
                   title={`Email ${org.name}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -115,9 +115,9 @@ export default function Directory({ onEditTeam }) {
               {/* Org contact — mobile */}
               {(org.contact_name || org.contact_email || org.contact_phone) && (
                 <div className="sm:hidden mt-3 text-sm">
-                  {org.contact_name && <div className="font-semibold text-gray-800">{org.contact_name}</div>}
-                  {org.contact_email && <div className="text-blue-700 text-xs">{org.contact_email}</div>}
-                  {org.contact_phone && <div className="text-gray-500 text-xs">{org.contact_phone}</div>}
+                  {org.contact_name && <div className="font-semibold text-gray-200">{org.contact_name}</div>}
+                  {org.contact_email && <div className="text-blue-400 text-xs">{org.contact_email}</div>}
+                  {org.contact_phone && <div className="text-gray-400 text-xs">{org.contact_phone}</div>}
                 </div>
               )}
             </div>
@@ -134,18 +134,18 @@ export default function Directory({ onEditTeam }) {
                       <div className="flex items-center">
                         <button
                           onClick={() => setExpanded(isExpanded ? null : team.id)}
-                          className="flex-1 text-left px-4 sm:px-6 py-3 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                          className="flex-1 text-left px-4 sm:px-6 py-3 hover:bg-gray-900 transition-colors flex items-center gap-3"
                         >
                           <TeamLogo src={team.logo_url} name={team.long_name || team.name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-7 h-7" />
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-sm">{team.long_name || team.name}</div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-400">
                               {[team.age_group, team.level].filter(Boolean).join(' · ')}
                             </div>
                           </div>
                           {headCoach && (
                             <div className="hidden sm:block text-right text-sm shrink-0">
-                              <div className="font-medium text-gray-700">{headCoach.name}</div>
+                              <div className="font-medium text-gray-300">{headCoach.name}</div>
                               <div className="text-xs text-gray-400">Head Coach</div>
                             </div>
                           )}
@@ -154,7 +154,7 @@ export default function Directory({ onEditTeam }) {
                         {editable && (
                           <button
                             onClick={(e) => { e.stopPropagation(); onEditTeam(team.id, org.id); }}
-                            className="mr-1 p-1.5 text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                            className="mr-1 p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded transition-colors"
                             title="Manage team"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -164,7 +164,7 @@ export default function Directory({ onEditTeam }) {
                         )}
                         <button
                           onClick={(e) => { e.stopPropagation(); setContactModal({ scope: 'team', scopeId: team.id, scopeLabel: team.long_name || team.name }); }}
-                          className="mr-3 sm:mr-5 p-1.5 text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                          className="mr-3 sm:mr-5 p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded transition-colors"
                           title={`Email ${team.long_name || team.name}`}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -174,7 +174,7 @@ export default function Directory({ onEditTeam }) {
                       </div>
 
                       {isExpanded && (
-                        <div className="bg-gray-50 px-4 sm:px-6 py-3 border-t border-gray-100">
+                        <div className="bg-gray-900 px-4 sm:px-6 py-3 border-t border-gray-700">
                           {team.staff.length > 0 ? (
                             <div className="space-y-2">
                               {team.staff.map((s, i) => (
@@ -183,11 +183,11 @@ export default function Directory({ onEditTeam }) {
                                     <span className="inline-block w-24 text-xs font-semibold text-gray-400 uppercase tracking-wide shrink-0">
                                       {ROLE_LABELS[s.role] || s.role}
                                     </span>
-                                    <span className="font-semibold text-gray-800">{s.name}</span>
+                                    <span className="font-semibold text-gray-200">{s.name}</span>
                                   </div>
                                   <div className="flex gap-4 text-xs sm:ml-auto">
-                                    {s.email && <span className="text-blue-700">{s.email}</span>}
-                                    {s.phone && <span className="text-gray-500">{s.phone}</span>}
+                                    {s.email && <span className="text-blue-400">{s.email}</span>}
+                                    {s.phone && <span className="text-gray-400">{s.phone}</span>}
                                   </div>
                                 </div>
                               ))}

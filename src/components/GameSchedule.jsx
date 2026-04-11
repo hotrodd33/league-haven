@@ -8,10 +8,10 @@ import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
-const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
-const btnPrimary = "px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-60";
-const btnSecondary = "px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors";
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+const btnPrimary = "px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60";
+const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors";
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 
 const STATUS_OPTIONS = [
@@ -23,11 +23,11 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_COLORS = {
-  scheduled: 'bg-blue-100 text-blue-800',
+  scheduled: 'bg-blue-100 text-blue-300',
   in_progress: 'bg-yellow-100 text-yellow-800',
   completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-700',
-  postponed: 'bg-gray-200 text-gray-700',
+  cancelled: 'bg-red-100 text-red-400',
+  postponed: 'bg-gray-700 text-gray-300',
 };
 
 function formatDate(dateStr) {
@@ -136,8 +136,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
   }
   const orgNames = Object.keys(teamsByOrg).sort();
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Loading schedule…</div>;
-  if (error) return <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading schedule…</div>;
+  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
 
   if (trackingGameId) {
     return <PitchTracker gameId={trackingGameId} onBack={() => { setTrackingGameId(null); loadGames(); }} />;
@@ -162,14 +162,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <select value={filterSeason} onChange={(e) => setFilterSeason(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white min-w-[160px]">
+          className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
           <option value="">All Seasons</option>
           {seasons.map(s => (
             <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
           ))}
         </select>
         <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white min-w-[180px]">
+          className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
           <option value="">All Teams</option>
           {orgNames.map(orgName => (
             <optgroup key={orgName} label={orgName}>
@@ -183,19 +183,19 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
           )}
         </select>
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white min-w-[140px]">
+          className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
           <option value="">All Statuses</option>
           {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
       </div>
 
       {games.length === 0 ? (
-        <div className="py-12 text-center text-gray-500">
+        <div className="py-12 text-center text-gray-400">
           No games found.
           {isAdmin && (
             <>
               <br />
-              <button onClick={() => setShowForm(true)} className="text-blue-700 underline mt-1 inline-block">Schedule the first game</button>
+              <button onClick={() => setShowForm(true)} className="text-blue-400 underline mt-1 inline-block">Schedule the first game</button>
             </>
           )}
         </div>
@@ -213,7 +213,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
               <div className="space-y-6">
                 {div.dateKeys.map(dateKey => (
                   <div key={dateKey}>
-                    <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-2 border-b border-gray-200 pb-1">
+                    <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
                       {formatDate(dateKey)}
                     </h3>
 
@@ -222,16 +222,16 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                       <div className="space-y-2">
                         {div.dateGroups[dateKey].map(game => (
                           <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                            className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                            className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
                             {/* Time */}
                             <div className="w-16 text-center shrink-0">
-                              <span className="text-sm font-semibold text-gray-700">{formatTime(game.game_time) || 'TBD'}</span>
+                              <span className="text-sm font-semibold text-gray-300">{formatTime(game.game_time) || 'TBD'}</span>
                             </div>
 
                             {/* Matchup */}
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-blue-700 hover:text-blue-900 hover:underline">{game.home_team_name}</button>
+                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-blue-400 hover:text-blue-200 hover:underline">{game.home_team_name}</button>
                                 <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                               </div>
                               <div className="px-2 shrink-0">
@@ -243,18 +243,18 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                               </div>
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
-                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-blue-700 hover:text-blue-900 hover:underline">{game.away_team_name}</button>
+                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-blue-400 hover:text-blue-200 hover:underline">{game.away_team_name}</button>
                               </div>
                             </div>
 
                             {/* Location + Status */}
                             <div className="flex items-center gap-3 shrink-0">
                               {game.location_name && (
-                                <span className="text-xs text-gray-500 hidden lg:inline truncate max-w-[180px]">
+                                <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[180px]">
                                   📍 {game.location_name}
                                 </span>
                               )}
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                                 {game.status_label}
                               </span>
                               {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
@@ -264,7 +264,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                               {isAdmin && (
                                 <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                   <button onClick={() => { setEditing(game); setShowForm(true); }}
-                                    className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
+                                    className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
                                   <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
                                     className={btnDanger}>{deleting === game.id ? '…' : 'Del'}</button>
                                 </div>
@@ -279,28 +279,28 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                     <div className="md:hidden space-y-2">
                       {div.dateGroups[dateKey].map(game => (
                         <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                          className="bg-white border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                          className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-gray-500">{formatTime(game.game_time) || 'TBD'}</span>
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
+                            <span className="text-xs font-semibold text-gray-400">{formatTime(game.game_time) || 'TBD'}</span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                               {game.status_label}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 mb-1">
                             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-700 hover:text-blue-900 hover:underline text-left">{game.home_team_name}</button>
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-400 hover:text-blue-200 hover:underline text-left">{game.home_team_name}</button>
                             {game.status === 'completed' && <span className="font-bold text-sm">{game.home_score ?? '—'}</span>}
                           </div>
                           <div className="flex items-center gap-2 mb-2">
                             <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-700 hover:text-blue-900 hover:underline text-left">{game.away_team_name}</button>
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-blue-400 hover:text-blue-200 hover:underline text-left">{game.away_team_name}</button>
                             {game.status === 'completed' && <span className="font-bold text-sm">{game.away_score ?? '—'}</span>}
                           </div>
                           {game.location_name && (
-                            <div className="text-xs text-gray-500 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
+                            <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
                           )}
                           {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
-                          <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
                             {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                               <button onClick={() => setTrackingGameId(game.id)}
                                 className="px-2.5 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">⚾ Track</button>
@@ -308,7 +308,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                             {isAdmin && (
                               <>
                                 <button onClick={() => { setEditing(game); setShowForm(true); }}
-                                  className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
+                                  className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
                                 <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
                                   className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
                               </>
@@ -435,7 +435,7 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
         <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit Game' : 'Schedule Game'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Season */}
@@ -517,10 +517,10 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
           <div>
             <label htmlFor="game-notes" className={labelCls}>Notes</label>
             <textarea id="game-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Any additional info…"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600" />
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
           </div>
 
-          {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>

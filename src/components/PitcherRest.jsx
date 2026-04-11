@@ -14,9 +14,9 @@ function formatDayOfWeek(dateStr) {
 }
 
 const STATUS_BADGE = {
-  available: 'bg-green-100 text-green-700',
+  available: 'bg-green-100 text-green-400',
   resting: 'bg-yellow-100 text-yellow-800',
-  unavailable: 'bg-red-100 text-red-700',
+  unavailable: 'bg-red-100 text-red-400',
 };
 
 export default function PitcherRest({ teamId }) {
@@ -65,11 +65,11 @@ export default function PitcherRest({ teamId }) {
 
   return (
     <div className="mt-6">
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
         {/* Header */}
-        <div className="px-4 sm:px-6 py-4 border-b border-gray-100">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-300">
               Pitcher Rest & Stats
             </h3>
             <div className="flex items-center gap-3 text-xs text-gray-400">
@@ -112,7 +112,7 @@ export default function PitcherRest({ teamId }) {
                   {/* Summary row */}
                   <button
                     onClick={() => setExpanded(isExpanded ? null : p.player_id)}
-                    className="w-full text-left grid grid-cols-12 gap-2 items-center px-4 sm:px-6 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                    className="w-full text-left grid grid-cols-12 gap-2 items-center px-4 sm:px-6 py-2.5 hover:bg-gray-900 transition-colors border-b border-gray-50"
                   >
                     <div className="col-span-1 text-xs text-gray-400 font-mono">{p.jersey_number || '—'}</div>
                     <div className="col-span-3 text-sm font-medium truncate">{p.first_name} {p.last_name}</div>
@@ -123,16 +123,16 @@ export default function PitcherRest({ teamId }) {
                     </div>
                     <div className="col-span-1 text-sm text-right tabular-nums font-semibold">{p.pitches_last_7 || '—'}</div>
                     <div className="col-span-2 text-sm text-right tabular-nums">{p.season_total_pitches || '—'}</div>
-                    <div className="col-span-1 text-sm text-right tabular-nums text-gray-500">{p.season_appearances || '—'}</div>
-                    <div className="col-span-2 text-xs text-right text-gray-500">{p.last_pitched ? formatShortDate(p.last_pitched) : '—'}</div>
+                    <div className="col-span-1 text-sm text-right tabular-nums text-gray-400">{p.season_appearances || '—'}</div>
+                    <div className="col-span-2 text-xs text-right text-gray-400">{p.last_pitched ? formatShortDate(p.last_pitched) : '—'}</div>
                   </button>
 
                   {/* Expanded detail */}
                   {isExpanded && (
-                    <div className="bg-gray-50 px-4 sm:px-6 py-3 border-b border-gray-100">
+                    <div className="bg-gray-900 px-4 sm:px-6 py-3 border-b border-gray-700">
                       {/* Ineligibility reasons */}
                       {!p.eligible_today && p.reasons.length > 0 && (
-                        <div className="mb-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">
+                        <div className="mb-3 bg-red-900/30 border border-red-200 text-red-400 text-xs rounded-lg px-3 py-2">
                           <strong>Ineligible to pitch today:</strong>
                           <ul className="mt-1 list-disc list-inside">
                             {p.reasons.map((r, i) => <li key={i}>{r}</li>)}
@@ -142,7 +142,7 @@ export default function PitcherRest({ teamId }) {
 
                       {/* Today info */}
                       {p.today_pitches > 0 && (
-                        <div className="mb-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg px-3 py-2">
+                        <div className="mb-3 bg-blue-900/30 border border-blue-200 text-blue-300 text-xs rounded-lg px-3 py-2">
                           Threw <strong>{p.today_pitches}</strong> pitches today
                           {p.rest_after_today != null && (
                             <> — needs <strong>{p.rest_after_today} rest day{p.rest_after_today !== 1 ? 's' : ''}</strong>
@@ -158,11 +158,11 @@ export default function PitcherRest({ teamId }) {
                       {/* Recent 7 days */}
                       {p.last_7_days.length > 0 ? (
                         <div>
-                          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Last 7 Days</div>
+                          <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Last 7 Days</div>
                           <div className="space-y-1.5">
                             {p.last_7_days.map(day => (
                               <div key={day.date} className="flex items-center gap-3 text-xs">
-                                <span className="w-16 text-gray-500 font-medium">{formatDayOfWeek(day.date)} {formatShortDate(day.date)}</span>
+                                <span className="w-16 text-gray-400 font-medium">{formatDayOfWeek(day.date)} {formatShortDate(day.date)}</span>
                                 <span className="font-bold tabular-nums w-12">{day.total_pitches} pc</span>
                                 <span className="text-gray-400 truncate">
                                   {day.games.map((g, i) => (
@@ -181,7 +181,7 @@ export default function PitcherRest({ teamId }) {
                       )}
 
                       {/* Season summary */}
-                      <div className="mt-3 pt-2 border-t border-gray-200 grid grid-cols-3 gap-4 text-xs">
+                      <div className="mt-3 pt-2 border-t border-gray-700 grid grid-cols-3 gap-4 text-xs">
                         <div>
                           <span className="text-gray-400 uppercase font-semibold">Season Pitches</span>
                           <div className="text-lg font-bold tabular-nums">{p.season_total_pitches || 0}</div>
@@ -213,13 +213,13 @@ export default function PitcherRest({ teamId }) {
 
         {/* Non-pitchers (available, haven't pitched) */}
         {nonPitchers.length > 0 && pitchers.length > 0 && (
-          <div className="border-t border-gray-100 px-4 sm:px-6 py-3">
+          <div className="border-t border-gray-700 px-4 sm:px-6 py-3">
             <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">
               Have Not Pitched ({nonPitchers.length})
             </div>
             <div className="flex flex-wrap gap-2">
               {nonPitchers.map(p => (
-                <span key={p.player_id} className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full font-medium">
+                <span key={p.player_id} className="text-xs bg-green-900/30 text-green-400 px-2 py-1 rounded-full font-medium">
                   {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.first_name} {p.last_name}
                 </span>
               ))}

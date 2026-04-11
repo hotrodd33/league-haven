@@ -48,20 +48,20 @@ const IMPORT_TYPES = [
 ];
 
 const colorMap = {
-  field:    { bg: 'bg-field-50', icon: 'text-field-600', border: 'border-field-200', ring: 'ring-field-500', hoverBg: 'hover:bg-field-50/80' },
-  blue:     { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'border-blue-200', ring: 'ring-blue-500', hoverBg: 'hover:bg-blue-50/80' },
-  dirt:     { bg: 'bg-dirt-50', icon: 'text-dirt-600', border: 'border-dirt-200', ring: 'ring-dirt-500', hoverBg: 'hover:bg-dirt-50/80' },
-  baseball: { bg: 'bg-baseball-50', icon: 'text-baseball-600', border: 'border-baseball-200', ring: 'ring-baseball-500', hoverBg: 'hover:bg-baseball-50/80' },
+  field:    { bg: 'bg-field-900/35', icon: 'text-field-300', border: 'border-field-700', ring: 'ring-field-500', hoverBg: 'hover:bg-field-900/55' },
+  blue:     { bg: 'bg-blue-900/35', icon: 'text-blue-300', border: 'border-blue-700', ring: 'ring-blue-500', hoverBg: 'hover:bg-blue-900/55' },
+  dirt:     { bg: 'bg-dirt-900/35', icon: 'text-dirt-300', border: 'border-dirt-700', ring: 'ring-dirt-500', hoverBg: 'hover:bg-dirt-900/55' },
+  baseball: { bg: 'bg-baseball-900/35', icon: 'text-baseball-300', border: 'border-baseball-700', ring: 'ring-baseball-500', hoverBg: 'hover:bg-baseball-900/55' },
 };
 
 export default function ImportTypeSelector({ selected, onSelect }) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="font-heading text-lg font-bold text-gray-900">
+        <h3 className="font-heading text-lg font-bold text-gray-100">
           What would you like to import?
         </h3>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-400">
           Choose the type of data you're bringing over from GameChanger.
         </p>
       </div>
@@ -82,7 +82,7 @@ export default function ImportTypeSelector({ selected, onSelect }) {
                 c.hoverBg, `focus-visible:${c.ring}`,
                 isSelected
                   ? cn(c.border, c.bg, 'shadow-card')
-                  : 'border-gray-200 bg-white hover:border-gray-300',
+                  : 'border-gray-700 bg-gray-800 hover:border-gray-600',
               )}
               aria-pressed={isSelected}
             >
@@ -94,23 +94,23 @@ export default function ImportTypeSelector({ selected, onSelect }) {
 
               <div className={cn(
                 'w-10 h-10 rounded-lg flex items-center justify-center mb-3',
-                isSelected ? c.bg : 'bg-gray-100',
+                isSelected ? c.bg : 'bg-gray-800',
               )}>
                 <Icon className={cn('w-5 h-5', isSelected ? c.icon : 'text-gray-400')} />
               </div>
 
               <h4 className={cn(
                 'text-sm font-semibold',
-                isSelected ? 'text-gray-900' : 'text-gray-700'
+                isSelected ? 'text-gray-100' : 'text-gray-300'
               )}>
                 {type.label}
               </h4>
-              <p className="mt-1 text-xs text-gray-500 leading-relaxed">
+              <p className="mt-1 text-xs text-gray-400 leading-relaxed">
                 {type.desc}
               </p>
 
               {isSelected && (
-                <div className="mt-3 pt-3 border-t border-gray-200/60">
+                <div className="mt-3 pt-3 border-t border-gray-700/60">
                   <p className="text-[10px] font-semibold uppercase text-gray-400 tracking-wide mb-1">
                     How to export
                   </p>

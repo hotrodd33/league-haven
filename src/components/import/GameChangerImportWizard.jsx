@@ -473,7 +473,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
             <div className="flex items-center justify-center py-16">
               <div className="text-center space-y-3 animate-pulse-soft">
                 <div className="text-3xl">📄</div>
-                <p className="text-sm text-gray-500 font-medium">Parsing your file…</p>
+                <p className="text-sm text-gray-400 font-medium">Parsing your file…</p>
               </div>
             </div>
           );
@@ -583,15 +583,15 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
       aria-modal="true"
       aria-label="Import from GameChanger"
     >
-      <div className="ml-auto h-full bg-white shadow-2xl flex flex-col w-full max-w-xl animate-slide-right">
+      <div className="ml-auto h-full bg-gray-800 shadow-2xl flex flex-col w-full max-w-xl animate-slide-right">
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0 bg-white">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0 bg-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-field-100 flex items-center justify-center">
               <ArrowUpTrayIcon className="w-4 h-4 text-field-600" />
             </div>
             <div>
-              <h2 className="font-heading text-base font-bold text-gray-900">
+              <h2 className="font-heading text-base font-bold text-gray-100">
                 Import from GameChanger
               </h2>
               {typeMeta && step > 0 && (
@@ -604,7 +604,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
           {!isImporting && (
             <button
               onClick={onClose}
-              className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-1.5 text-gray-400 hover:text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
               aria-label="Close"
             >
               <XMarkIcon className="w-5 h-5" />
@@ -626,7 +626,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
 
         {/* ── Footer ── */}
         {showFooter && (
-          <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-t border-gray-100 shrink-0">
+          <div className="flex items-center justify-between px-5 py-3 bg-gray-900 border-t border-gray-700 shrink-0">
             <div>
               {step > 0 && (
                 <Button
@@ -681,7 +681,7 @@ function StepIndicator({ steps, current }) {
             {i > 0 && (
               <div className={cn(
                 'flex-1 h-0.5 rounded-full transition-colors duration-300',
-                isPast ? 'bg-field-500' : 'bg-gray-200',
+                isPast ? 'bg-field-500' : 'bg-gray-700',
               )} />
             )}
             <div
@@ -694,7 +694,7 @@ function StepIndicator({ steps, current }) {
                 'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-300',
                 isCurrent && 'bg-field-600 text-white shadow-glow-green scale-110',
                 isPast && 'bg-field-100 text-field-700',
-                !isCurrent && !isPast && 'bg-gray-100 text-gray-400',
+                !isCurrent && !isPast && 'bg-gray-800 text-gray-400',
               )}>
                 {isPast ? (
                   <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none">
@@ -706,7 +706,7 @@ function StepIndicator({ steps, current }) {
               </div>
               <span className={cn(
                 'text-[10px] font-semibold hidden sm:inline whitespace-nowrap',
-                isCurrent ? 'text-field-700' : isPast ? 'text-gray-500' : 'text-gray-400',
+                isCurrent ? 'text-field-700' : isPast ? 'text-gray-400' : 'text-gray-400',
               )}>
                 {s.label}
               </span>

@@ -18,7 +18,7 @@ export default function PlayerMapper({
   if (pitcherMappings.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-sm text-gray-500">No pitchers detected in the box score.</p>
+        <p className="text-sm text-gray-400">No pitchers detected in the box score.</p>
       </div>
     );
   }
@@ -39,10 +39,10 @@ export default function PlayerMapper({
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="font-heading text-lg font-bold text-gray-900">
+        <h3 className="font-heading text-lg font-bold text-gray-100">
           Map Pitchers
         </h3>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-400">
           Review how each pitcher from the box score maps to players in your system.
           Change the mapping if needed, or choose "Create new player".
         </p>
@@ -53,7 +53,7 @@ export default function PlayerMapper({
 
         return (
           <div key={teamName} className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+            <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
               {teamName}
             </h4>
 
@@ -97,7 +97,7 @@ export default function PlayerMapper({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-900">
+                        <p className="text-sm font-semibold text-gray-100">
                           {pm.gcName}
                           {pm.jersey && (
                             <span className="ml-1.5 text-xs font-normal text-gray-400">
@@ -123,7 +123,7 @@ export default function PlayerMapper({
                           onChange({ ...mappings, [pm.gcName]: val });
                         }}
                         className={cn(
-                          'mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm text-gray-900',
+                          'mt-2 w-full rounded-lg border bg-gray-800 px-3 py-2 text-sm text-gray-100',
                           'focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500',
                           isNew && 'border-amber-300'
                         )}
@@ -150,8 +150,8 @@ export default function PlayerMapper({
 
       {!allMatched && (
         <div className="bg-cream-50 rounded-lg border border-cream-200 px-4 py-3">
-          <p className="text-xs text-gray-500">
-            <span className="font-semibold text-gray-700">Tip:</span>{' '}
+          <p className="text-xs text-gray-400">
+            <span className="font-semibold text-gray-300">Tip:</span>{' '}
             Pitchers without a match will be created as new players automatically.
           </p>
         </div>

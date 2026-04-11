@@ -6,10 +6,10 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldLocations from './FieldLocations.jsx';
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
-const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
-const btnPrimary = "px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-60";
-const btnSecondary = "px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors";
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+const btnPrimary = "px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60";
+const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors";
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 const btnSm = "px-3 py-1.5 text-xs font-semibold rounded";
 
@@ -42,8 +42,8 @@ export default function OrgManager({ onBack }) {
 
   function handleFormDone() { setShowForm(false); setEditing(null); loadOrgs(); }
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Loading organizations…</div>;
-  if (error) return <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading organizations…</div>;
+  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
 
   if (selectedOrg) {
     return <OrgDetailView org={selectedOrg} onBack={() => { setSelectedOrg(null); loadOrgs(); }} />;
@@ -60,12 +60,12 @@ export default function OrgManager({ onBack }) {
       </div>
 
       {orgs.length === 0 ? (
-        <div className="py-12 text-center text-gray-500">
+        <div className="py-12 text-center text-gray-400">
           No organizations yet.
           {isAdmin && (
             <>
               <br />
-              <button onClick={() => setShowForm(true)} className="text-blue-700 underline mt-1 inline-block">Add the first organization</button>
+              <button onClick={() => setShowForm(true)} className="text-blue-400 underline mt-1 inline-block">Add the first organization</button>
             </>
           )}
         </div>
@@ -73,23 +73,23 @@ export default function OrgManager({ onBack }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {orgs.map((org) => (
             <div key={org.id} onClick={() => setSelectedOrg(org)}
-              className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
+              className="bg-gray-800 border border-gray-700 rounded-xl p-4 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 min-w-0">
                   {org.logo_url && <img src={org.logo_url} alt="" className="w-8 h-8 object-contain rounded shrink-0" />}
                   <h3 className="font-bold text-base truncate">{org.name}</h3>
                 </div>
-                <span className="bg-blue-800 text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ml-2">
+                <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ml-2">
                   {org.team_count} team{org.team_count !== 1 ? 's' : ''}
                 </span>
               </div>
-              {org.contact_name && <p className="text-sm text-gray-600">{org.contact_name}</p>}
-              {org.city && org.state && <p className="text-sm text-gray-500">{org.city}, {org.state}</p>}
+              {org.contact_name && <p className="text-sm text-gray-300">{org.contact_name}</p>}
+              {org.city && org.state && <p className="text-sm text-gray-400">{org.city}, {org.state}</p>}
               {org.locations.length > 0 && (
-                <p className="text-sm text-gray-500">{org.locations.length} field location{org.locations.length !== 1 ? 's' : ''}</p>
+                <p className="text-sm text-gray-400">{org.locations.length} field location{org.locations.length !== 1 ? 's' : ''}</p>
               )}
-              <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
-                {canEditOrg(org.id) && <button onClick={() => { setEditing(org); setShowForm(true); }} className={`${btnSm} bg-gray-200 text-gray-800 hover:bg-gray-300`}>Edit</button>}
+              <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
+                {canEditOrg(org.id) && <button onClick={() => { setEditing(org); setShowForm(true); }} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>}
                 {isAdmin && (
                   <button onClick={() => handleDelete(org)} disabled={deleting === org.id} className={btnDanger}>
                     {deleting === org.id ? '…' : 'Delete'}
@@ -108,7 +108,7 @@ export default function OrgManager({ onBack }) {
 
 function OrgCard({ org }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
+    <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-4">
       <div className="flex items-center gap-3 mb-3">
         {org.logo_url && <img src={org.logo_url} alt="" className="w-12 h-12 object-contain rounded" />}
         <h2 className="text-xl font-bold">{org.name}</h2>
@@ -178,7 +178,7 @@ function OrgForm({ org, onDone, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4">
         <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit Organization' : 'Add Organization'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -189,14 +189,14 @@ function OrgForm({ org, onDone, onCancel }) {
           <div>
             <label className={labelCls}>Logo</label>
             <div className="flex items-center gap-3">
-              {logoPreview && <img src={logoPreview} alt="Logo preview" className="w-16 h-16 object-contain rounded border border-gray-200" />}
+              {logoPreview && <img src={logoPreview} alt="Logo preview" className="w-16 h-16 object-contain rounded border border-gray-700" />}
               <div className="flex flex-col gap-1">
-                <label className="px-3 py-1.5 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 cursor-pointer inline-block w-fit">
+                <label className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600 cursor-pointer inline-block w-fit">
                   {logoPreview ? 'Change' : 'Upload'}
                   <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                 </label>
                 {logoPreview && (
-                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-700 rounded hover:bg-red-200 w-fit">Remove</button>
+                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-400 rounded hover:bg-red-200 w-fit">Remove</button>
                 )}
                 <p className="text-xs text-gray-400">Max 500 KB. PNG, JPEG, GIF, WebP, or SVG.</p>
               </div>
@@ -240,10 +240,10 @@ function OrgForm({ org, onDone, onCancel }) {
           <div>
             <label htmlFor="org-notes" className={labelCls}>Notes</label>
             <textarea id="org-notes" name="notes" value={form.notes} onChange={handleChange} rows={3} placeholder="Any additional info…"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600" />
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
           </div>
 
-          {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
@@ -272,7 +272,7 @@ function OrgDetailView({ org: initialOrg, onBack }) {
 
   return (
     <div>
-      <button onClick={onBack} className="px-3 py-1.5 text-sm font-semibold bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 mb-4">
+      <button onClick={onBack} className="px-3 py-1.5 text-sm font-semibold bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 mb-4">
         ← Back to Organizations
       </button>
       <OrgCard org={org} />
@@ -315,19 +315,19 @@ function OrgTeams({ org, allTeams, onChanged }) {
         <>
           {/* Desktop */}
           <div className="hidden sm:block">
-            <table className="w-full bg-white rounded-lg shadow-sm overflow-hidden text-sm">
+            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm">
               <thead>
-                <tr className="bg-gray-100 border-b-2 border-gray-200">
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500">Team Name</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500">Age Group</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500">Level</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500">Division(s)</th>
-                  {isAdmin && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 w-24">Actions</th>}
+                <tr className="bg-gray-800 border-b-2 border-gray-700">
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Team Name</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Age Group</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Level</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Division(s)</th>
+                  {isAdmin && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 w-24">Actions</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-700">
                 {orgTeams.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50">
+                  <tr key={t.id} className="hover:bg-gray-900">
                     <td className="px-3 py-2 font-semibold">{t.long_name || t.name}</td>
                     <td className="px-3 py-2">{t.age_group || '—'}</td>
                     <td className="px-3 py-2">{t.level || '—'}</td>
@@ -341,10 +341,10 @@ function OrgTeams({ org, allTeams, onChanged }) {
           {/* Mobile */}
           <div className="sm:hidden space-y-2">
             {orgTeams.map((t) => (
-              <div key={t.id} className="bg-white rounded-lg border border-gray-200 p-3 flex items-center justify-between">
+              <div key={t.id} className="bg-gray-800 rounded-lg border border-gray-700 p-3 flex items-center justify-between">
                 <div>
                   <div className="font-semibold text-sm">{t.long_name || t.name}</div>
-                  <div className="text-xs text-gray-500">{[t.age_group, t.level, t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : t.division].filter(Boolean).join(' · ') || '—'}</div>
+                  <div className="text-xs text-gray-400">{[t.age_group, t.level, t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : t.division].filter(Boolean).join(' · ') || '—'}</div>
                 </div>
                 {isAdmin && <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>}
               </div>
@@ -352,18 +352,18 @@ function OrgTeams({ org, allTeams, onChanged }) {
           </div>
         </>
       ) : (
-        <div className="py-4 text-center text-gray-500 text-sm">No teams assigned yet.</div>
+        <div className="py-4 text-center text-gray-400 text-sm">No teams assigned yet.</div>
       )}
 
       {isAdmin && unassignedTeams.length > 0 && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
           <select value={selectedTeamId} onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="flex-1 sm:flex-none sm:min-w-[220px] px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+            className="flex-1 sm:flex-none sm:min-w-[220px] px-3 py-2 border border-gray-600 rounded-lg text-sm bg-gray-800">
             <option value="">— Assign a team —</option>
             {unassignedTeams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           <button onClick={handleAssign} disabled={!selectedTeamId || assigning}
-            className="px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-60">
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
             {assigning ? '…' : 'Assign'}
           </button>
         </div>

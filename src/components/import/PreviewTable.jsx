@@ -46,10 +46,10 @@ export default function PreviewTable({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-heading text-lg font-bold text-gray-900">
+          <h3 className="font-heading text-lg font-bold text-gray-100">
             Preview & Match
           </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5">
             {displayRows.length} row{displayRows.length !== 1 ? 's' : ''} found
             {hasMore && ` · ${headers.length} columns (showing first 8)`}
           </p>
@@ -99,8 +99,8 @@ export default function PreviewTable({
               key={idx}
               highlight={row._confidence === 'exact'}
               className={cn(
-                row._confidence === 'possible' && 'bg-dirt-50/30',
-                row._confidence === 'new' && 'bg-blue-50/30',
+                row._confidence === 'possible' && 'bg-dirt-900/25',
+                row._confidence === 'new' && 'bg-blue-900/25',
               )}
             >
               {isPlayerType && (
@@ -112,7 +112,7 @@ export default function PreviewTable({
                 <TableCell>
                   {row._match ? (
                     <div className="text-xs">
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-gray-100">
                         {row._match.first_name} {row._match.last_name}
                       </p>
                       <p className="text-gray-400">#{row._match.jersey_number}</p>
@@ -140,7 +140,7 @@ export default function PreviewTable({
             <tr>
               <td
                 colSpan={previewHeaders.length + (isPlayerType ? 3 : 0)}
-                className="px-4 py-3 text-center text-xs text-gray-400 bg-gray-50"
+                className="px-4 py-3 text-center text-xs text-gray-400 bg-gray-900"
               >
                 Showing first 50 of {displayRows.length} rows
               </td>
@@ -156,7 +156,7 @@ function MatchSummaryPill({ label, count, color }) {
   const colors = {
     field: 'bg-field-100 text-field-800',
     dirt:  'bg-dirt-100 text-dirt-800',
-    blue:  'bg-blue-100 text-blue-800',
+    blue:  'bg-blue-100 text-blue-300',
   };
 
   return (

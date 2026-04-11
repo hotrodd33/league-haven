@@ -6,16 +6,16 @@ import {
   fetchSeasons, createSeason, updateSeason, deleteSeason,
 } from '../api/index.js';
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
-const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
-const btnPrimary = "px-4 py-2 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-60";
-const btnSecondary = "px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors";
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+const btnPrimary = "px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60";
+const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors";
 
 export default function LeagueConfig({ onBack }) {
   const [tab, setTab] = useState('age_groups');
 
   const tabCls = (t) => `px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-    tab === t ? 'bg-blue-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+    tab === t ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
   }`;
 
   return (
@@ -24,7 +24,7 @@ export default function LeagueConfig({ onBack }) {
         <h2 className="text-lg font-bold">League Configuration</h2>
         {onBack && <button onClick={onBack} className={btnSecondary}>← Back</button>}
       </div>
-      <p className="text-sm text-gray-500 mb-4">
+      <p className="text-sm text-gray-400 mb-4">
         Configure age groups, levels, and divisions for the league. These populate dropdowns when creating or editing teams.
       </p>
       <div className="flex gap-2 mb-5 flex-wrap">
@@ -119,19 +119,19 @@ function SeasonList() {
     } catch (err) { setError(err.message); }
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Loading seasons…</div>;
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading seasons…</div>;
 
   return (
     <div>
       <h3 className="text-base font-bold mb-3">Seasons ({seasons.length})</h3>
-      <p className="text-xs text-gray-500 mb-3">
+      <p className="text-xs text-gray-400 mb-3">
         Manage league seasons. The active season is used as the default when assigning divisions. Deleting a season removes all its divisions.
       </p>
 
-      {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
 
       {showForm ? (
-        <form onSubmit={handleSave} className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 space-y-3">
+        <form onSubmit={handleSave} className="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Year *</label>
@@ -146,7 +146,7 @@ function SeasonList() {
           </div>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={form.is_active} onChange={(e) => setForm(prev => ({ ...prev, is_active: e.target.checked }))}
-              className="rounded border-gray-300" />
+              className="rounded border-gray-600" />
             Set as active season
           </label>
           <div className="flex gap-2">
@@ -161,16 +161,16 @@ function SeasonList() {
       )}
 
       {seasons.length === 0 ? (
-        <div className="py-8 text-center text-gray-500">No seasons configured yet.</div>
+        <div className="py-8 text-center text-gray-400">No seasons configured yet.</div>
       ) : (
         <div className="space-y-2">
           {seasons.map(s => (
-            <div key={s.id} className={`bg-white border rounded-lg p-3 flex items-center gap-3 ${s.is_active ? 'border-green-400 bg-green-50' : 'border-gray-200'}`}>
+            <div key={s.id} className={`bg-gray-800 border rounded-lg p-3 flex items-center gap-3 ${s.is_active ? 'border-green-400 bg-green-900/30' : 'border-gray-700'}`}>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-sm">{s.name}</span>
                   <span className="text-xs text-gray-400">({s.year})</span>
-                  {s.is_active && <span className="text-xs font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded">Active</span>}
+                  {s.is_active && <span className="text-xs font-semibold text-green-400 bg-green-100 px-1.5 py-0.5 rounded">Active</span>}
                 </div>
               </div>
               <div className="flex gap-1 shrink-0">
@@ -181,7 +181,7 @@ function SeasonList() {
                   </button>
                 )}
                 <button onClick={() => openEdit(s)}
-                  className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                  className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
                   Edit
                 </button>
                 <button onClick={() => handleDelete(s)} disabled={deletingId === s.id}
@@ -255,13 +255,13 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
     finally { setDeletingId(null); }
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Loading {title.toLowerCase()}…</div>;
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading {title.toLowerCase()}…</div>;
 
   return (
     <div>
       <h3 className="text-base font-bold mb-3">{title} ({items.length})</h3>
 
-      {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
 
       {/* Add form */}
       <form onSubmit={handleAdd} className="flex gap-2 mb-4">
@@ -275,11 +275,11 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
       </form>
 
       {items.length === 0 ? (
-        <div className="py-8 text-center text-gray-500">No {title.toLowerCase()} configured yet.</div>
+        <div className="py-8 text-center text-gray-400">No {title.toLowerCase()} configured yet.</div>
       ) : (
         <div className="space-y-2">
           {items.map((item) => (
-            <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+            <div key={item.id} className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3">
               {editingId === item.id ? (
                 <div className="flex-1 flex flex-col sm:flex-row gap-2">
                   <input
@@ -288,7 +288,7 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(); } }}
                   />
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-500 whitespace-nowrap">Order:</label>
+                    <label className="text-xs text-gray-400 whitespace-nowrap">Order:</label>
                     <input
                       type="number" value={editOrder} onChange={(e) => setEditOrder(Number(e.target.value))}
                       className={`w-20 ${inputCls}`}
@@ -296,11 +296,11 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
                   </div>
                   <div className="flex gap-1">
                     <button onClick={handleSaveEdit} disabled={savingEdit}
-                      className="px-3 py-1.5 text-xs font-semibold bg-blue-800 text-white rounded hover:bg-blue-900 disabled:opacity-60">
+                      className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60">
                       {savingEdit ? '…' : 'Save'}
                     </button>
                     <button onClick={() => setEditingId(null)}
-                      className="px-3 py-1.5 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                      className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
                       Cancel
                     </button>
                   </div>
@@ -313,7 +313,7 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <button onClick={() => startEdit(item)}
-                      className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                      className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
                       Edit
                     </button>
                     <button onClick={() => handleDelete(item)} disabled={deletingId === item.id}
@@ -431,7 +431,7 @@ function DivisionTree() {
     finally { setDeletingId(null); }
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Loading divisions…</div>;
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading divisions…</div>;
 
   const tree = buildTree(divisions);
   const totalCount = divisions.length;
@@ -457,14 +457,14 @@ function DivisionTree() {
       </div>
 
       {!selectedSeasonId ? (
-        <div className="py-8 text-center text-gray-500">Select a season to manage divisions.</div>
+        <div className="py-8 text-center text-gray-400">Select a season to manage divisions.</div>
       ) : (
         <>
-          <p className="text-xs text-gray-500 mb-3">
+          <p className="text-xs text-gray-400 mb-3">
             Create a hierarchy: League → Division → Sub-division → etc. Use "+ Sub" to nest divisions.
           </p>
 
-      {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
 
       {/* Add root division */}
       {addingTo === 'root' ? (
@@ -486,7 +486,7 @@ function DivisionTree() {
       )}
 
       {tree.length === 0 ? (
-        <div className="py-8 text-center text-gray-500">No divisions configured yet.</div>
+        <div className="py-8 text-center text-gray-400">No divisions configured yet.</div>
       ) : (
         <div className="space-y-1">
           {tree.map(node => (
@@ -525,7 +525,7 @@ function DivisionNode({
   return (
     <div>
       <div
-        className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-2"
+        className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-2"
         style={{ marginLeft: indent }}
       >
         {editingId === node.id ? (
@@ -536,7 +536,7 @@ function DivisionNode({
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(node.parent_id); } }}
             />
             <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500 whitespace-nowrap">Order:</label>
+              <label className="text-xs text-gray-400 whitespace-nowrap">Order:</label>
               <input
                 type="number" value={editOrder} onChange={(e) => setEditOrder(Number(e.target.value))}
                 className={`w-20 ${inputCls}`}
@@ -544,11 +544,11 @@ function DivisionNode({
             </div>
             <div className="flex gap-1">
               <button onClick={() => handleSaveEdit(node.parent_id)} disabled={savingEdit}
-                className="px-3 py-1.5 text-xs font-semibold bg-blue-800 text-white rounded hover:bg-blue-900 disabled:opacity-60">
+                className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60">
                 {savingEdit ? '…' : 'Save'}
               </button>
               <button onClick={() => { cancelEdit(); setEditName(''); setEditOrder(0); }}
-                className="px-3 py-1.5 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
               >Cancel</button>
             </div>
           </div>
@@ -565,11 +565,11 @@ function DivisionNode({
             <div className="flex gap-1 shrink-0">
               <button onClick={() => { setAddingTo(node.id); setNewName(''); }}
                 title="Add sub-division"
-                className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200">
+                className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-300 rounded hover:bg-blue-200">
                 + Sub
               </button>
               <button onClick={() => startEdit(node)}
-                className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
                 Edit
               </button>
               <button onClick={() => handleDelete(node)} disabled={deletingId === node.id}

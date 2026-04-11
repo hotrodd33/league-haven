@@ -2,11 +2,11 @@ import { cn } from '../../lib/cn.js';
 import TeamLogo from '../TeamLogo.jsx';
 
 const statusColors = {
-  scheduled:  'bg-blue-100 text-blue-700',
-  in_progress: 'bg-dirt-100 text-dirt-800',
-  final:      'bg-field-100 text-field-800',
-  cancelled:  'bg-gray-100 text-gray-500',
-  postponed:  'bg-baseball-50 text-baseball-700',
+  scheduled:  'bg-blue-900/35 text-blue-300',
+  in_progress: 'bg-dirt-900/35 text-dirt-300',
+  final:      'bg-field-900/35 text-field-300',
+  cancelled:  'bg-gray-800 text-gray-400',
+  postponed:  'bg-baseball-900/35 text-baseball-300',
 };
 
 export default function Scoreboard({
@@ -33,17 +33,17 @@ export default function Scoreboard({
   const awayWins = isFinal && awayScore > homeScore;
 
   return (
-    <div className={cn('bg-white rounded-xl shadow-card overflow-hidden', className)}>
+    <div className={cn('bg-gray-800 rounded-xl shadow-card overflow-hidden', className)}>
       {/* Status bar */}
       <div className="bg-blue-900 text-white px-4 py-2 flex items-center justify-between">
-        <span className={cn('text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full', statusColors[status] || 'bg-gray-100 text-gray-500')}>
+        <span className={cn('text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full', statusColors[status] || 'bg-gray-800 text-gray-400')}>
           {statusLabel}
         </span>
         {gameTime && <span className="text-xs text-white/70">{gameTime}</span>}
       </div>
 
       {/* Team rows */}
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-gray-700">
         <TeamRow
           team={awayTeam}
           score={awayScore}
@@ -60,7 +60,7 @@ export default function Scoreboard({
 
       {/* Location footer */}
       {location && (
-        <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
+        <div className="px-4 py-2 bg-gray-900 border-t border-gray-700">
           <p className="text-xs text-gray-400 truncate">📍 {location}</p>
         </div>
       )}
@@ -89,7 +89,7 @@ function TeamRow({ team, score, isWinner, label }) {
         size="w-8 h-8"
       />
       <div className="flex-1 min-w-0">
-        <p className={cn('text-sm truncate', isWinner ? 'font-bold text-gray-900' : 'font-medium text-gray-700')}>
+        <p className={cn('text-sm truncate', isWinner ? 'font-bold text-gray-100' : 'font-medium text-gray-300')}>
           {team.name}
         </p>
         <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
@@ -97,7 +97,7 @@ function TeamRow({ team, score, isWinner, label }) {
       <span
         className={cn(
           'font-heading text-2xl tabular-nums',
-          isWinner ? 'font-bold text-gray-900' : 'font-semibold text-gray-400',
+          isWinner ? 'font-bold text-gray-100' : 'font-semibold text-gray-400',
         )}
       >
         {score ?? '-'}

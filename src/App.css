@@ -2,7 +2,7 @@
 
 @theme {
   /* ═══════════════════════════════════════════════════════
-     ZVBL DESIGN SYSTEM · Color Tokens
+     ZVBL DESIGN SYSTEM · Dark Color Tokens
      ═══════════════════════════════════════════════════════ */
 
   /* === Baseball Navy (headers, dark surfaces) === */
@@ -18,18 +18,18 @@
   --color-blue-900: #0f1b33;
   --color-blue-950: #080e1c;
 
-  /* === Warm Neutrals (surfaces, text, borders) === */
-  --color-gray-50: #faf8f5;
-  --color-gray-100: #f2efe9;
-  --color-gray-200: #e4dfd7;
-  --color-gray-300: #cfc8bd;
-  --color-gray-400: #a9a198;
-  --color-gray-500: #837b73;
-  --color-gray-600: #615a54;
-  --color-gray-700: #46413c;
-  --color-gray-800: #2d2925;
-  --color-gray-900: #191715;
-  --color-gray-950: #0d0c0b;
+  /* === Cool Slate (surfaces, text, borders — dark-first) === */
+  --color-gray-50: #f8fafc;
+  --color-gray-100: #f1f5f9;
+  --color-gray-200: #e2e8f0;
+  --color-gray-300: #cbd5e1;
+  --color-gray-400: #94a3b8;
+  --color-gray-500: #64748b;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1e293b;
+  --color-gray-900: #0f172a;
+  --color-gray-950: #020617;
 
   /* === Field Green (primary actions, CTA, success) === */
   --color-field-50: #f0fdf4;
@@ -57,17 +57,17 @@
   --color-dirt-900: #713f12;
   --color-dirt-950: #422006;
 
-  /* === Cream (warm backgrounds, paper feel) === */
-  --color-cream-50: #fefdfb;
-  --color-cream-100: #fdfbf7;
-  --color-cream-200: #faf6ee;
-  --color-cream-300: #f8f1e3;
-  --color-cream-400: #f0e5cf;
-  --color-cream-500: #e5d5b5;
-  --color-cream-600: #d4bf94;
-  --color-cream-700: #b89e6e;
-  --color-cream-800: #96804f;
-  --color-cream-900: #766439;
+  /* === Dark Navy Backgrounds === */
+  --color-cream-50: #020617;
+  --color-cream-100: #060d1e;
+  --color-cream-200: #0c1525;
+  --color-cream-300: #12203a;
+  --color-cream-400: #1a2e50;
+  --color-cream-500: #243c66;
+  --color-cream-600: #2e4d7c;
+  --color-cream-700: #3a6098;
+  --color-cream-800: #4a78b4;
+  --color-cream-900: #6090cc;
 
   /* === Baseball Red / Strike (danger, alerts) === */
   --color-baseball-50: #fef2f3;
@@ -92,11 +92,11 @@
   /* ═══════════════════════════════════════════════════════
      Shadows
      ═══════════════════════════════════════════════════════ */
-  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
-  --shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
-  --shadow-glow-green: 0 0 20px rgb(22 101 52 / 0.15);
-  --shadow-glow-dirt: 0 0 20px rgb(133 77 14 / 0.15);
-  --shadow-inner-field: inset 0 2px 4px 0 rgb(22 101 52 / 0.06);
+  --shadow-card: 0 2px 8px 0 rgb(0 0 0 / 0.25), 0 1px 3px -1px rgb(0 0 0 / 0.15);
+  --shadow-elevated: 0 12px 28px -5px rgb(0 0 0 / 0.35), 0 8px 16px -8px rgb(0 0 0 / 0.2);
+  --shadow-glow-green: 0 0 24px rgb(22 163 74 / 0.25);
+  --shadow-glow-dirt: 0 0 24px rgb(133 77 14 / 0.2);
+  --shadow-inner-field: inset 0 2px 4px 0 rgb(22 101 52 / 0.1);
 
   /* ═══════════════════════════════════════════════════════
      Animations
@@ -146,7 +146,7 @@
    Baseball Background Patterns (decorative)
    ═══════════════════════════════════════════════════════ */
 .bg-diamond-pattern {
-  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20Z' fill='none' stroke='%23166534' stroke-width='0.5' opacity='0.07'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20Z' fill='none' stroke='%2316a34a' stroke-width='0.5' opacity='0.04'/%3E%3C/svg%3E");
 }
 
 .bg-stitch-pattern {
@@ -165,8 +165,8 @@
    ═══════════════════════════════════════════════════════ */
 .scrollbar-thin::-webkit-scrollbar { width: 6px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgb(167 160 152 / 0.4); border-radius: 3px; }
-.scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: rgb(167 160 152 / 0.6); }
+.scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgb(100 116 139 / 0.3); border-radius: 3px; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: rgb(100 116 139 / 0.5); }
 
 /* ═══════════════════════════════════════════════════════
    Leaflet z-index fix

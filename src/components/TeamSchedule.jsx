@@ -6,11 +6,11 @@ import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 
 const STATUS_COLORS = {
-  scheduled: 'bg-blue-100 text-blue-800',
+  scheduled: 'bg-blue-100 text-blue-300',
   in_progress: 'bg-yellow-100 text-yellow-800',
   completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-700',
-  postponed: 'bg-gray-200 text-gray-700',
+  cancelled: 'bg-red-100 text-red-400',
+  postponed: 'bg-gray-700 text-gray-300',
 };
 
 function formatDate(dateStr) {
@@ -65,14 +65,14 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   if (loading) return <div className="py-4 text-center text-gray-400 text-sm">Loading schedule…</div>;
   if (!games.length) return (
     <div className="mt-6">
-      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">Schedule</h3>
+      <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-2">Schedule</h3>
       <div className="text-sm text-gray-400">No games scheduled.</div>
     </div>
   );
 
   return (
     <div className="mt-6">
-      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">Schedule ({games.length})</h3>
+      <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-2">Schedule ({games.length})</h3>
       <div className="space-y-2">
         {games.map(game => {
           const isHome = game.home_team_id === teamId;
@@ -93,14 +93,14 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
             else if (teamScore < oppScore) result = 'L';
             else result = 'T';
           }
-          const resultColor = result === 'W' ? 'text-green-700' : result === 'L' ? 'text-red-600' : result === 'T' ? 'text-gray-500' : '';
+          const resultColor = result === 'W' ? 'text-green-400' : result === 'L' ? 'text-red-600' : result === 'T' ? 'text-gray-400' : '';
 
           return (
             <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-              className="bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-3 text-sm cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 flex items-center gap-3 text-sm cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
               {/* Date + Time */}
               <div className="w-24 shrink-0">
-                <div className="font-semibold text-gray-700 text-xs">{formatDate(game.game_date)}</div>
+                <div className="font-semibold text-gray-300 text-xs">{formatDate(game.game_date)}</div>
                 <div className="text-xs text-gray-400">{formatTime(game.game_time) || 'TBD'}</div>
               </div>
 
@@ -129,7 +129,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                         ⚾ Track
                       </button>
                     )}
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                       {game.status_label}
                     </span>
                   </>

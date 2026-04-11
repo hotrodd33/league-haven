@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchStandings, fetchSeasons } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
 
-const btnSecondary = "px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors";
+const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors";
 
 export default function Standings({ onBack, onNavigateToTeam }) {
   const [seasons, setSeasons] = useState([]);
@@ -43,7 +43,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
     divMap[key].teams.push(row);
   }
 
-  if (loading && !standings.length) return <div className="py-8 text-center text-gray-500">Loading standings…</div>;
+  if (loading && !standings.length) return <div className="py-8 text-center text-gray-400">Loading standings…</div>;
 
   return (
     <div>
@@ -51,7 +51,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
         <h2 className="text-lg font-bold">Standings</h2>
         <div className="flex gap-2 items-center">
           <select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white min-w-[160px]">
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm bg-gray-800 min-w-[160px]">
             <option value="">Select Season</option>
             {seasons.map(s => (
               <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
@@ -61,12 +61,12 @@ export default function Standings({ onBack, onNavigateToTeam }) {
         </div>
       </div>
 
-      {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}
 
       {!seasonId ? (
-        <div className="py-12 text-center text-gray-500">Select a season to view standings.</div>
+        <div className="py-12 text-center text-gray-400">Select a season to view standings.</div>
       ) : standings.length === 0 && !loading ? (
-        <div className="py-12 text-center text-gray-500">No completed games yet this season.</div>
+        <div className="py-12 text-center text-gray-400">No completed games yet this season.</div>
       ) : (
         <div className="space-y-8">
           {divisions.map(div => (
@@ -81,42 +81,42 @@ export default function Standings({ onBack, onNavigateToTeam }) {
               <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b-2 border-gray-200">
-                      <th className="text-left py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-8">#</th>
-                      <th className="text-left py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide">Team</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-12">W</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-12">L</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-12">T</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-14">GP</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-14">PTS</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-12">RF</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-12">RA</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-500 uppercase text-xs tracking-wide w-14">DIFF</th>
+                    <tr className="border-b-2 border-gray-700">
+                      <th className="text-left py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-8">#</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide">Team</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-12">W</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-12">L</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-12">T</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-14">GP</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-14">PTS</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-12">RF</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-12">RA</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-400 uppercase text-xs tracking-wide w-14">DIFF</th>
                     </tr>
                   </thead>
                   <tbody>
                     {div.teams.map((team, idx) => {
                       const diff = team.runs_for - team.runs_against;
                       return (
-                        <tr key={team.team_id} className={`border-b border-gray-100 ${idx === 0 ? 'bg-yellow-50/50' : 'hover:bg-gray-50'}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
+                        <tr key={team.team_id} className={`border-b border-gray-700 ${idx === 0 ? 'bg-yellow-900/35' : 'hover:bg-gray-900'}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
                           <td className="py-2.5 px-2 text-gray-400 font-mono text-xs">{idx + 1}</td>
                           <td className="py-2.5 px-2">
                             <div className="flex items-center gap-2">
                               <TeamLogo src={team.logo} name={team.team_name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} />
                               <div>
-                                <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-blue-700 hover:text-blue-900 hover:underline text-left">{team.team_name}</button>
+                                <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-blue-400 hover:text-blue-200 hover:underline text-left">{team.team_name}</button>
                                 {team.org_name && <span className="text-xs text-gray-400 ml-1.5">({team.org_name})</span>}
                               </div>
                             </div>
                           </td>
                           <td className="py-2.5 px-2 text-center font-bold">{team.wins}</td>
                           <td className="py-2.5 px-2 text-center font-bold">{team.losses}</td>
-                          <td className="py-2.5 px-2 text-center text-gray-500">{team.ties || '—'}</td>
-                          <td className="py-2.5 px-2 text-center text-gray-500">{team.gp}</td>
-                          <td className="py-2.5 px-2 text-center font-bold text-blue-800 tabular-nums">{team.points}</td>
-                          <td className="py-2.5 px-2 text-center text-gray-600 tabular-nums">{team.runs_for}</td>
-                          <td className="py-2.5 px-2 text-center text-gray-600 tabular-nums">{team.runs_against}</td>
-                          <td className={`py-2.5 px-2 text-center font-semibold tabular-nums ${diff > 0 ? 'text-green-700' : diff < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                          <td className="py-2.5 px-2 text-center text-gray-400">{team.ties || '—'}</td>
+                          <td className="py-2.5 px-2 text-center text-gray-400">{team.gp}</td>
+                          <td className="py-2.5 px-2 text-center font-bold text-blue-300 tabular-nums">{team.points}</td>
+                          <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{team.runs_for}</td>
+                          <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{team.runs_against}</td>
+                          <td className={`py-2.5 px-2 text-center font-semibold tabular-nums ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-600' : 'text-gray-400'}`}>
                             {diff > 0 ? '+' : ''}{diff}
                           </td>
                         </tr>
@@ -131,24 +131,24 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                 {div.teams.map((team, idx) => {
                   const diff = team.runs_for - team.runs_against;
                   return (
-                    <div key={team.team_id} className={`bg-white border border-gray-200 rounded-lg p-3 ${idx === 0 ? 'ring-1 ring-yellow-300' : ''}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
+                    <div key={team.team_id} className={`bg-gray-800 border border-gray-700 rounded-lg p-3 ${idx === 0 ? 'ring-1 ring-yellow-300' : ''}`} style={{ borderLeft: `3px solid ${team.primary_color || '#ccc'}` }}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-mono text-gray-400 w-5">{idx + 1}</span>
                         <TeamLogo src={team.logo} name={team.team_name} ageGroup={team.age_group} level={team.level} cityAbbr={team.city_abbr} primaryColor={team.primary_color} secondaryColor={team.secondary_color} size="w-8 h-8" />
                         <div className="flex-1 min-w-0">
-                          <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-sm truncate text-blue-700 hover:text-blue-900 hover:underline text-left block max-w-full">{team.team_name}</button>
+                          <button onClick={() => onNavigateToTeam?.(team.team_id, team.org_id)} className="font-semibold text-sm truncate text-blue-400 hover:text-blue-200 hover:underline text-left block max-w-full">{team.team_name}</button>
                           {team.org_name && <div className="text-xs text-gray-400">{team.org_name}</div>}
                         </div>
                         <div className="text-right shrink-0">
                           <div className="font-bold text-sm">{team.wins}-{team.losses}{team.ties ? `-${team.ties}` : ''}</div>
-                          <div className="text-xs font-bold text-blue-800">{team.points} pts</div>
+                          <div className="text-xs font-bold text-blue-300">{team.points} pts</div>
                         </div>
                       </div>
-                      <div className="flex justify-between text-xs text-gray-500 border-t border-gray-100 pt-1.5">
+                      <div className="flex justify-between text-xs text-gray-400 border-t border-gray-700 pt-1.5">
                         <span>GP: {team.gp}</span>
                         <span>PTS: {team.points}</span>
                         <span>RA: {team.runs_against}</span>
-                        <span className={`font-semibold ${diff > 0 ? 'text-green-700' : diff < 0 ? 'text-red-600' : ''}`}>
+                        <span className={`font-semibold ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-600' : ''}`}>
                           DIFF: {diff > 0 ? '+' : ''}{diff}
                         </span>
                       </div>
