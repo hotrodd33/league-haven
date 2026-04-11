@@ -1,6 +1,39 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchPlayersByTeam, deletePlayer, unassignPlayerFromTeam, searchPlayers, assignPlayerToTeam } from '../api/index.js';
+import { fetchPlayersByTeam, deletePlayer, unassignPlayerFromTeam, searchPlayers, assignPlayerToTeam, createPlayer } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+
+function parseRosterPaste(text) {
+  const lines = String(text || '')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const entries = [];
+  const ignored = [];
+
+  for (const line of lines) {
+    if (/^roster\s*\(\d+\)/i.test(line)) { ignored.push(line); continue; }
+    if (/^add\s+player$/i.test(line)) { ignored.push(line); continue; }
+    if (/^[A-Z]{1,4}$/.test(line)) { ignored.push(line); continue; }
+
+    let m = line.match(/^(.+?),\s*#\s*(\d{1,3})$/);
+    if (!m) m = line.match(/^(.+?)\s+#\s*(\d{1,3})$/);
+    const rawName = (m ? m[1] : line).trim();
+    const jersey = m ? Number(m[2]) : null;
+
+    const parts = rawName.split(/\s+/).filter(Boolean);
+    if (parts.length < 2) {
+      ignored.push(line);
+      continue;
+    }
+
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ');
+    entries.push({ first_name: firstName, last_name: lastName, jersey_number: jersey });
+  }
+
+  return { entries, ignored };
+}
 
 export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlayer, refreshKey }) {
   const { canEditTeam: canEdit } = useAuth();
@@ -14,6 +47,10 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [assigning, setAssigning] = useState(null);
+  const [showPasteImport, setShowPasteImport] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [importingPaste, setImportingPaste] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const loadPlayers = useCallback(async () => {
     if (!teamId) return;
@@ -90,6 +127,56 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
     }
   }
 
+  async function handleImportPaste() {
+    const { entries, ignored } = parseRosterPaste(pasteText);
+    if (!entries.length) {
+      setImportSummary({
+        added: 0,
+        skipped: 0,
+        ignoredCount: ignored.length,
+        errors: ['No valid player rows found. Use format: First Last, #Number'],
+      });
+      return;
+    }
+
+    const existingKeys = new Set(
+      players.map((p) => `${String(p.first_name || '').trim().toLowerCase()}|${String(p.last_name || '').trim().toLowerCase()}|${p.jersey_number ?? ''}`)
+    );
+
+    let added = 0;
+    let skipped = 0;
+    const errors = [];
+
+    setImportingPaste(true);
+    setImportSummary(null);
+    try {
+      for (const entry of entries) {
+        const key = `${entry.first_name.toLowerCase()}|${entry.last_name.toLowerCase()}|${entry.jersey_number ?? ''}`;
+        if (existingKeys.has(key)) {
+          skipped += 1;
+          continue;
+        }
+        try {
+          await createPlayer({
+            team_id: teamId,
+            first_name: entry.first_name,
+            last_name: entry.last_name,
+            jersey_number: entry.jersey_number,
+          });
+          existingKeys.add(key);
+          added += 1;
+        } catch (err) {
+          errors.push(`${entry.first_name} ${entry.last_name}: ${err.message}`);
+        }
+      }
+
+      await loadPlayers();
+      setImportSummary({ added, skipped, ignoredCount: ignored.length, errors });
+    } finally {
+      setImportingPaste(false);
+    }
+  }
+
   if (!teamId) {
     return <div className="py-12 text-center text-gray-400">Select a team to view the roster.</div>;
   }
@@ -105,12 +192,59 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
             <button onClick={() => setShowAddExisting(!showAddExisting)} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">
               + Existing Player
             </button>
+            <button onClick={() => { setShowPasteImport(!showPasteImport); setImportSummary(null); }} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+              + Paste Roster
+            </button>
             <button onClick={onAddPlayer} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
               + New Player
             </button>
           </div>
         )}
       </div>
+
+      {showPasteImport && editable && (
+        <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 mb-4">
+          <p className="text-xs text-gray-400 mb-2">Paste roster rows like: <span className="text-gray-300">Josie Schnell, #2</span></p>
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            rows={8}
+            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600"
+            placeholder="Paste roster text here..."
+          />
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handleImportPaste}
+              disabled={importingPaste || !pasteText.trim()}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60"
+            >
+              {importingPaste ? 'Importing…' : 'Import Players'}
+            </button>
+            <button
+              onClick={() => { setShowPasteImport(false); setPasteText(''); setImportSummary(null); }}
+              className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600"
+            >
+              Close
+            </button>
+          </div>
+
+          {importSummary && (
+            <div className="mt-3 text-xs text-gray-300 bg-gray-800 border border-gray-700 rounded p-2 space-y-1">
+              <div>Added: <span className="text-green-400 font-semibold">{importSummary.added}</span></div>
+              <div>Skipped duplicates: <span className="text-yellow-300 font-semibold">{importSummary.skipped}</span></div>
+              <div>Ignored non-player lines: <span className="text-gray-400 font-semibold">{importSummary.ignoredCount}</span></div>
+              {importSummary.errors.length > 0 && (
+                <div>
+                  <div className="text-red-400 font-semibold">Errors:</div>
+                  <ul className="list-disc list-inside text-red-300">
+                    {importSummary.errors.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Search existing players to add to this team */}
       {showAddExisting && editable && (
