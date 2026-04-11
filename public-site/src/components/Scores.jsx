@@ -179,6 +179,11 @@ export default function Scores() {
                           📍 {g.location_name}{g.location_city ? `, ${g.location_city}` : ''}
                         </div>
                       )}
+                      {!!g.official_names?.length && (
+                        <div className="mt-1 text-xs text-gray-500 text-center">
+                          {g.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {g.official_names.join(', ')}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

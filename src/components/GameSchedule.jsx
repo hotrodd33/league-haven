@@ -279,7 +279,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                                 </span>
                               )}
                               {!!game.official_names?.length && (
-                                <span className="text-xs text-gray-400 hidden xl:inline truncate max-w-[220px]">
+                                <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[220px]">
                                   👤 {game.official_names.join(', ')}
                                 </span>
                               )}
