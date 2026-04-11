@@ -45,7 +45,7 @@ function formatTime(timeStr) {
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, canScoreGame } = useAuth();
   const [games, setGames] = useState([]);
   const [teams, setTeams] = useState([]);
   const [seasons, setSeasons] = useState([]);
@@ -257,7 +257,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
                                 {game.status_label}
                               </span>
-                              {game.status !== 'completed' && isAdmin && (
+                              {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id) && (
                                 <button onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
                                   className="px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">⚾ Track</button>
                               )}
@@ -301,7 +301,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                           )}
                           {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
                           <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
-                            {game.status !== 'completed' && isAdmin && (
+                            {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id) && (
                               <button onClick={() => setTrackingGameId(game.id)}
                                 className="px-2.5 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">⚾ Track</button>
                             )}

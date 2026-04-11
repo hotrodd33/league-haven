@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchGames } from '../api/index.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
@@ -27,6 +28,7 @@ function formatTime(timeStr) {
 }
 
 export default function TeamSchedule({ teamId, onNavigateToTeam }) {
+  const { canScoreGame } = useAuth();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState(null);
@@ -118,13 +120,15 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                   </div>
                 ) : (
                   <>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
-                      className="text-xs font-semibold px-2 py-1 rounded bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"
-                      title="Live pitch tracker"
-                    >
-                      ⚾ Track
-                    </button>
+                    {canScoreGame(game.home_team_id, game.away_team_id) && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
+                        className="text-xs font-semibold px-2 py-1 rounded bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"
+                        title="Live pitch tracker"
+                      >
+                        ⚾ Track
+                      </button>
+                    )}
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
                       {game.status_label}
                     </span>

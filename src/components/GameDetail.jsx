@@ -37,7 +37,7 @@ function formatTime(timeStr) {
 }
 
 export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
-  const { isAdmin, canEditTeam } = useAuth();
+  const { isAdmin, canEditTeam, canScoreGame } = useAuth();
   const [game, setGame] = useState(null);
   const [pitchCounts, setPitchCounts] = useState([]);
   const [homePlayers, setHomePlayers] = useState([]);
@@ -201,6 +201,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   }
 
   const userCanEdit = canEdit(game);
+  const userCanScore = canScoreGame(game.home_team_id, game.away_team_id);
   const homePC = pitchCounts.filter(pc => pc.team_id === game.home_team_id);
   const awayPC = pitchCounts.filter(pc => pc.team_id === game.away_team_id);
 
@@ -215,7 +216,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       {/* Back button + tracker */}
       <div className="flex items-center gap-2 mb-4">
         <button onClick={onBack} className={btnSecondary}>← Back to Schedule</button>
-        {userCanEdit && game.status !== 'completed' && (
+        {userCanScore && game.status !== 'completed' && (
           <button onClick={() => setShowTracker(true)} className="px-4 py-2 bg-yellow-500 text-white text-sm font-semibold rounded-lg hover:bg-yellow-600 transition-colors">
             ⚾ Pitch Tracker
           </button>
@@ -262,7 +263,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       </div>
 
       {/* Score reporting */}
-      {userCanEdit && (
+      {userCanScore && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">Report Score</h3>
@@ -320,7 +321,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         teamName={game.home_team_name}
         entries={homePC}
         availablePlayers={availableHome}
-        canEdit={userCanEdit}
+        canEdit={userCanScore}
         isAdding={addingFor === 'home'}
         onStartAdd={() => { setAddingFor('home'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); setAddingNewPlayerFor(null); }}
         onCancelAdd={() => { setAddingFor(null); setAddingNewPlayerFor(null); }}
@@ -351,7 +352,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         teamName={game.away_team_name}
         entries={awayPC}
         availablePlayers={availableAway}
-        canEdit={userCanEdit}
+        canEdit={userCanScore}
         isAdding={addingFor === 'away'}
         onStartAdd={() => { setAddingFor('away'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); setAddingNewPlayerFor(null); }}
         onCancelAdd={() => { setAddingFor(null); setAddingNewPlayerFor(null); }}
