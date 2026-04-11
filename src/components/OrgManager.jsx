@@ -69,9 +69,9 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
         }
         for (const orgId of involvedOrgs) {
           if (!stats[orgId]) continue;
-          if (g.status === 'final') {
+          if (g.status === 'completed') {
             stats[orgId].played += 1;
-          } else if (g.game_date < todayStr && g.status !== 'cancelled') {
+          } else if (g.game_date < todayStr && !['cancelled', 'completed'].includes(g.status)) {
             stats[orgId].missingScores += 1;
           } else if (g.game_date >= todayStr && ['scheduled', 'in_progress', 'postponed'].includes(g.status)) {
             stats[orgId].scheduled += 1;
