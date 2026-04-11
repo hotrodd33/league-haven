@@ -86,19 +86,19 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
         {orgNames.map((orgName) => (
           <optgroup key={orgName} label={orgName}>
             {grouped[orgName].map((team) => (
-              <option key={team.id} value={team.id}>{team.name}{team.age_group ? ` ${team.age_group}` : ''}{team.level ? ` ${team.level}` : ''}</option>
+              <option key={team.id} value={team.id}>{team.name}</option>
             ))}
           </optgroup>
         ))}
         {ungrouped.length > 0 && orgNames.length > 0 && (
           <optgroup label="Unassigned">
             {ungrouped.map((team) => (
-              <option key={team.id} value={team.id}>{team.name}{team.age_group ? ` ${team.age_group}` : ''}{team.level ? ` ${team.level}` : ''}</option>
+              <option key={team.id} value={team.id}>{team.name}</option>
             ))}
           </optgroup>
         )}
         {ungrouped.length > 0 && orgNames.length === 0 && ungrouped.map((team) => (
-          <option key={team.id} value={team.id}>{team.name}{team.age_group ? ` ${team.age_group}` : ''}{team.level ? ` ${team.level}` : ''}</option>
+          <option key={team.id} value={team.id}>{team.name}</option>
         ))}
       </select>
 
@@ -183,12 +183,28 @@ function TeamForm({ team, onDone, onCancel }) {
   const [logoPreview, setLogoPreview] = useState(team?.logo_url || null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [form, setForm] = useState({
-    name: team?.name || '',
+    team_city: team?.team_city || '',
+    team_color: team?.team_color || '',
+    team_mascot: team?.team_mascot || '',
     age_group: team?.age_group || '',
     level: team?.level || '',
     org_id: team?.org_id || '',
     division_ids: team?.divisions ? team.divisions.map(d => d.id) : [],
   });
+
+  // Computed name previews
+  const shortName = [form.team_city, form.team_color, form.age_group, form.level].filter(Boolean).join(' ');
+  const longName = [form.team_city, form.team_color, form.team_mascot, form.age_group, form.level].filter(Boolean).join(' ');
+  const abbreviation = (() => {
+    let abbr = '';
+    if (form.team_city) {
+      const words = form.team_city.trim().split(/\s+/);
+      abbr = words.length > 1 ? words.map(w => w[0].toUpperCase()).join('') : form.team_city.substring(0, 3).toUpperCase();
+    }
+    if (form.team_color) abbr += form.team_color[0].toUpperCase();
+    const suffix = [form.age_group, form.level].filter(Boolean).join(' ');
+    return suffix ? `${abbr} ${suffix}` : abbr;
+  })();
 
   function handleLogoChange(e) {
     const file = e.target.files?.[0];
@@ -254,7 +270,9 @@ function TeamForm({ team, onDone, onCancel }) {
     setSaving(true);
     setError(null);
     const data = {
-      name: form.name.trim(),
+      team_city: form.team_city.trim(),
+      team_color: form.team_color.trim(),
+      team_mascot: form.team_mascot.trim(),
       age_group: form.age_group || null,
       level: form.level || null,
       division_ids: form.division_ids,
@@ -286,10 +304,27 @@ function TeamForm({ team, onDone, onCancel }) {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 my-4">
         <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit Team' : 'Add Team'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="team-name" className={labelCls}>Team Name *</label>
-            <input id="team-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="e.g. Thunder 12U" className={inputCls} />
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label htmlFor="team-city" className={labelCls}>Team City *</label>
+              <input id="team-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" className={inputCls} />
+            </div>
+            <div>
+              <label htmlFor="team-color" className={labelCls}>Team Color</label>
+              <input id="team-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" className={inputCls} />
+            </div>
+            <div>
+              <label htmlFor="team-mascot" className={labelCls}>Team Mascot</label>
+              <input id="team-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" className={inputCls} />
+            </div>
           </div>
+          {shortName && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1 text-sm">
+              <div><span className="text-xs font-semibold text-gray-400 uppercase">Long Name:</span> <span className="font-semibold text-gray-800">{longName}</span></div>
+              <div><span className="text-xs font-semibold text-gray-400 uppercase">Short Name:</span> <span className="font-semibold text-gray-800">{shortName}</span></div>
+              <div><span className="text-xs font-semibold text-gray-400 uppercase">Abbreviation:</span> <span className="font-mono font-semibold text-gray-800">{abbreviation}</span></div>
+            </div>
+          )}
           <div>
             <label className={labelCls}>Team Logo</label>
             <div className="flex items-center gap-3">

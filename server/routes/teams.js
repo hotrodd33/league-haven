@@ -6,6 +6,37 @@ const { authMiddleware, requireAdmin } = require('../auth');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
 
+// ── Name builders ──
+function buildShortName(city, color, ageGroup, level) {
+  return [city, color, ageGroup, level].filter(Boolean).join(' ');
+}
+
+function buildLongName(city, color, mascot, ageGroup, level) {
+  return [city, color, mascot, ageGroup, level].filter(Boolean).join(' ');
+}
+
+function buildAbbreviation(city, color, ageGroup, level) {
+  let abbr = '';
+  if (city) {
+    const words = city.trim().split(/\s+/);
+    abbr = words.length > 1 ? words.map(w => w[0].toUpperCase()).join('') : city.substring(0, 3).toUpperCase();
+  }
+  if (color) abbr += color[0].toUpperCase();
+  const suffix = [ageGroup, level].filter(Boolean).join(' ');
+  return suffix ? `${abbr} ${suffix}` : abbr;
+}
+
+function addComputedNames(team) {
+  if (team.team_city) {
+    team.long_name = buildLongName(team.team_city, team.team_color, team.team_mascot, team.age_group, team.level);
+    team.abbreviation = buildAbbreviation(team.team_city, team.team_color, team.age_group, team.level);
+  } else {
+    team.long_name = team.name;
+    team.abbreviation = team.name;
+  }
+  return team;
+}
+
 // Helper: attach divisions array to each team row
 async function attachDivisions(teams) {
   if (!teams.length) return teams;
@@ -55,7 +86,7 @@ router.get('/', async (req, res) => {
       );
     }
     const teams = await attachDivisions(result.rows);
-    res.json(teams);
+    res.json(teams.map(addComputedNames));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -64,12 +95,13 @@ router.get('/', async (req, res) => {
 
 router.post('/', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, age_group, level, division, division_ids, org_id } = req.body;
-    if (!name) return res.status(400).json({ error: 'Team name is required' });
+    const { team_city, team_color, team_mascot, age_group, level, division, division_ids, org_id } = req.body;
+    const name = buildShortName(team_city, team_color, age_group, level) || req.body.name;
+    if (!name) return res.status(400).json({ error: 'Team city is required' });
 
     const { rows } = await pool.query(
-      'INSERT INTO teams (name, age_group, level, division, org_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [name, age_group || null, level || null, division || null, org_id || null]
+      'INSERT INTO teams (name, team_city, team_color, team_mascot, age_group, level, division, org_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+      [name, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id || null]
     );
     const teamId = rows[0].id;
     if (division_ids && division_ids.length) {
@@ -80,7 +112,7 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
        LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [teamId]
     );
     const teams = await attachDivisions(result.rows);
-    res.status(201).json(teams[0]);
+    res.status(201).json(addComputedNames(teams[0]));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -89,16 +121,17 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
 
 router.put('/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, age_group, level, division, division_ids, org_id } = req.body;
+    const { team_city, team_color, team_mascot, age_group, level, division, division_ids, org_id } = req.body;
     const { id } = req.params;
-    if (!name) return res.status(400).json({ error: 'Team name is required' });
+    const name = buildShortName(team_city, team_color, age_group, level) || req.body.name;
+    if (!name) return res.status(400).json({ error: 'Team city is required' });
 
     const { rows: existing } = await pool.query('SELECT id FROM teams WHERE id = $1', [id]);
     if (!existing.length) return res.status(404).json({ error: 'Team not found' });
 
     await pool.query(
-      'UPDATE teams SET name = $1, age_group = $2, level = $3, division = $4, org_id = $5 WHERE id = $6',
-      [name, age_group || null, level || null, division || null, org_id ?? null, id]
+      'UPDATE teams SET name = $1, team_city = $2, team_color = $3, team_mascot = $4, age_group = $5, level = $6, division = $7, org_id = $8 WHERE id = $9',
+      [name, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id ?? null, id]
     );
     if (division_ids !== undefined) {
       await syncDivisions(id, division_ids || []);
@@ -108,7 +141,7 @@ router.put('/:id', authMiddleware, requireAdmin, async (req, res) => {
        LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [id]
     );
     const teams = await attachDivisions(result.rows);
-    res.json(teams[0]);
+    res.json(addComputedNames(teams[0]));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

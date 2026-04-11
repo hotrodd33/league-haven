@@ -191,7 +191,7 @@ router.get('/export/:entity', async (req, res) => {
       }
       case 'teams': {
         const { rows } = await pool.query(
-          `SELECT t.id, t.name, o.name AS org_name, t.age_group, t.level
+          `SELECT t.id, t.name, t.team_city, t.team_color, t.team_mascot, o.name AS org_name, t.age_group, t.level
            FROM teams t LEFT JOIN organizations o ON o.id = t.org_id ORDER BY o.name, t.name`
         );
         const { rows: divRows } = await pool.query(
@@ -203,10 +203,10 @@ router.get('/export/:entity', async (req, res) => {
         );
         const divMap = {};
         for (const r of divRows) { if (!divMap[r.team_id]) divMap[r.team_id] = []; divMap[r.team_id].push(r.name); }
-        csvLines = ['team_name,org_name,age_group,level,division'];
+        csvLines = ['team_city,team_color,team_mascot,team_name,org_name,age_group,level,division'];
         for (const t of rows) {
           const divs = divMap[t.id] ? divMap[t.id].join('; ') : '';
-          csvLines.push([t.name, t.org_name, t.age_group, t.level, divs].map(csvEsc).join(','));
+          csvLines.push([t.team_city, t.team_color, t.team_mascot, t.name, t.org_name, t.age_group, t.level, divs].map(csvEsc).join(','));
         }
         break;
       }
@@ -432,12 +432,16 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
 
       // ── Teams ──
       case 'teams': {
+        const cityCol = findCol(headers, 'team_city', 'city');
+        const colorCol = findCol(headers, 'team_color', 'color');
+        const mascotCol = findCol(headers, 'team_mascot', 'mascot');
         const nameCol = findCol(headers, 'team_name', 'name', 'team');
-        if (!nameCol) return res.status(400).json({ error: 'CSV must have a "team_name" or "name" column' });
         const orgCol = findCol(headers, 'org_name', 'organization', 'org');
         const ageCol = findCol(headers, 'age_group', 'age', 'agegroup');
         const lvlCol = findCol(headers, 'level', 'lvl');
         const divCol = findCol(headers, 'division', 'divisions', 'div');
+
+        if (!cityCol && !nameCol) return res.status(400).json({ error: 'CSV must have a "team_city" or "team_name" column' });
 
         const { rows: allOrgs } = await pool.query('SELECT id, name FROM organizations');
         const orgLookup = {};
@@ -464,13 +468,16 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
 
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i];
-          const name = r[nameCol];
+          const city = cityCol ? r[cityCol] : '';
+          const color = colorCol ? r[colorCol] : '';
+          const mascot = mascotCol ? r[mascotCol] : '';
+          const ageGroup = ageCol ? r[ageCol] : '';
+          const level = lvlCol ? r[lvlCol] : '';
+          const name = city ? [city, color, ageGroup, level].filter(Boolean).join(' ') : (nameCol ? r[nameCol] : '');
           if (!name) { results.skipped++; continue; }
           const orgName = orgCol ? r[orgCol] : '';
           const orgId = orgName ? (orgLookup[orgName.toLowerCase()] || null) : null;
           if (orgName && !orgId) results.errors.push(`Row ${i + 2}: org "${orgName}" not found`);
-          const ageGroup = ageCol ? r[ageCol] : '';
-          const level = lvlCol ? r[lvlCol] : '';
           const divText = divCol ? r[divCol] : '';
 
           const divisionIds = [];
@@ -486,8 +493,10 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
             const exId = teamLookup[name.toLowerCase()];
             if (exId && mode !== 'create_only') {
               await pool.query(
-                'UPDATE teams SET age_group = COALESCE(NULLIF($1,\'\'), age_group), level = COALESCE(NULLIF($2,\'\'), level), org_id = COALESCE($3, org_id) WHERE id = $4',
-                [ageGroup, level, orgId, exId]
+                `UPDATE teams SET team_city = COALESCE(NULLIF($1,''), team_city), team_color = COALESCE(NULLIF($2,''), team_color),
+                 team_mascot = COALESCE(NULLIF($3,''), team_mascot), age_group = COALESCE(NULLIF($4,''), age_group),
+                 level = COALESCE(NULLIF($5,''), level), org_id = COALESCE($6, org_id) WHERE id = $7`,
+                [city, color, mascot, ageGroup, level, orgId, exId]
               );
               if (divisionIds.length) {
                 await pool.query('DELETE FROM team_divisions WHERE team_id = $1', [exId]);
@@ -498,8 +507,8 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
               results.updated++;
             } else if (!exId) {
               const { rows: nr } = await pool.query(
-                'INSERT INTO teams (name, age_group, level, org_id) VALUES ($1,$2,$3,$4) RETURNING id',
-                [name, ageGroup || null, level || null, orgId]
+                'INSERT INTO teams (name, team_city, team_color, team_mascot, age_group, level, org_id) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+                [name, city || null, color || null, mascot || null, ageGroup || null, level || null, orgId]
               );
               teamLookup[name.toLowerCase()] = nr[0].id;
               if (divisionIds.length) {

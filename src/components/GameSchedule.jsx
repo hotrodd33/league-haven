@@ -171,12 +171,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
           <option value="">All Teams</option>
           {orgNames.map(orgName => (
             <optgroup key={orgName} label={orgName}>
-              {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}{t.age_group ? ` ${t.age_group}` : ''}{t.level ? ` ${t.level}` : ''}</option>)}
+              {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </optgroup>
           ))}
           {ungroupedTeams.length > 0 && (
             <optgroup label="Unassigned">
-              {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}{t.age_group ? ` ${t.age_group}` : ''}{t.level ? ` ${t.level}` : ''}</option>)}
+              {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </optgroup>
           )}
         </select>
@@ -396,12 +396,12 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
         <option value="">— Select Team —</option>
         {orgNames.map(orgName => (
           <optgroup key={orgName} label={orgName}>
-            {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}{t.age_group ? ` ${t.age_group}` : ''}{t.level ? ` ${t.level}` : ''}</option>)}
+            {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </optgroup>
         ))}
         {ungroupedTeams.length > 0 && (
           <optgroup label="Unassigned">
-            {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}{t.age_group ? ` ${t.age_group}` : ''}{t.level ? ` ${t.level}` : ''}</option>)}
+            {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </optgroup>
         )}
       </select>
