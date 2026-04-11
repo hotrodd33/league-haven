@@ -108,7 +108,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <span className="text-xs text-gray-400 font-semibold w-5 shrink-0">{prefix}</span>
                 <TeamLogo src={opponentLogo} name={opponent} ageGroup={oppAgeGroup} level={oppLevel} cityAbbr={oppCityAbbr} primaryColor={oppPrimary} secondaryColor={oppSecondary} size="w-6 h-6" />
-                <span className="font-semibold truncate">{opponent}</span>
+                <span className="font-semibold text-gray-200 truncate">{opponent}</span>
               </div>
 
               {/* Score / Status */}
@@ -116,7 +116,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                 {isCompleted ? (
                   <div className="flex items-center gap-2">
                     <span className={`font-bold text-xs px-1.5 py-0.5 rounded ${resultColor}`}>{result}</span>
-                    <span className="font-semibold tabular-nums">{teamScore}–{oppScore}</span>
+                    <span className="font-semibold text-gray-200 tabular-nums">{teamScore}–{oppScore}</span>
                   </div>
                 ) : (
                   <>

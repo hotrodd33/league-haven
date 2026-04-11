@@ -87,7 +87,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold">Coaches &amp; Staff ({staff.length})</h2>
+        <h2 className="text-lg font-bold text-gray-100">Coaches &amp; Staff ({staff.length})</h2>
         {editable && (
           <div className="flex gap-2">
             <button onClick={() => setShowAddExisting(!showAddExisting)}
@@ -111,7 +111,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
               placeholder="Search by name…" className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }} />
             <select value={assignRole} onChange={(e) => setAssignRole(e.target.value)}
-              className="px-2 py-2 border border-gray-600 rounded-lg text-sm">
+              className="px-2 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100">
               {ROLE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
             <button onClick={handleSearch} disabled={searching || !searchQuery.trim()}
@@ -126,7 +126,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
           {searchResults.length > 0 && (
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {searchResults.map(s => (
-                <div key={s.id} className="flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm">
+                <div key={s.id} className="flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200">
                   <div>
                     <span className="font-semibold">{s.name}</span>
                     {s.email && <span className="text-gray-400 ml-2">{s.email}</span>}
@@ -161,7 +161,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
         <>
           {/* Desktop table */}
           <div className="hidden md:block">
-            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm">
+            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Role</th>
@@ -216,7 +216,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {staff.map((m) => (
-              <div key={m.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4">
+              <div key={m.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4 text-gray-200">
                 <div className="flex items-start justify-between mb-1">
                   <div>
                     <div className="font-semibold">{m.name}</div>

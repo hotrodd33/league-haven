@@ -99,7 +99,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold">Team Roster ({players.length})</h2>
+        <h2 className="text-lg font-bold text-gray-100">Team Roster ({players.length})</h2>
         {editable && (
           <div className="flex gap-2">
             <button onClick={() => setShowAddExisting(!showAddExisting)} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">
@@ -119,7 +119,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
           <div className="flex gap-2 mb-2">
             <input
               type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name…" className="flex-1 px-3 py-2 border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600"
+              placeholder="Search by name…" className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600"
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
             />
             <button onClick={handleSearch} disabled={searching || !searchQuery.trim()} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
@@ -132,7 +132,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
           {searchResults.length > 0 && (
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {searchResults.map(p => (
-                <div key={p.id} className="flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm">
+                <div key={p.id} className="flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200">
                   <div>
                     <span className="font-semibold">{p.first_name} {p.last_name}</span>
                     {p.positions?.length > 0 && <span className="text-gray-400 ml-2">{p.positions.map(pos => pos.abbreviation || pos.name).join(', ')}</span>}
@@ -167,7 +167,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
         <>
           {/* Desktop table */}
           <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm">
+            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">#</th>
@@ -220,7 +220,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
           {/* Mobile cards */}
           <div className="lg:hidden space-y-3">
             {players.map((player) => (
-              <div key={player.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4">
+              <div key={player.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4 text-gray-200">
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <span className="text-blue-300 font-bold text-lg mr-2">#{player.jersey_number ?? '—'}</span>

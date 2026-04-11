@@ -65,7 +65,7 @@ export default function PitcherRest({ teamId }) {
 
   return (
     <div className="mt-6">
-      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden text-gray-200">
         {/* Header */}
         <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
           <div className="flex items-center justify-between">

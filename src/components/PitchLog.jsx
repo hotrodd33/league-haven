@@ -104,7 +104,7 @@ export default function PitchLog({ teamId }) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm text-gray-200">
             <thead>
               <tr className="border-b border-gray-700">
                 <th className="text-left px-4 sm:px-6 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
