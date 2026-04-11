@@ -140,7 +140,6 @@ function TeamHeader({ team, recentGames }) {
             primaryColor={team.primary_color || '#003366'}
             secondaryColor={team.secondary_color || '#CC0000'}
             size="w-14 h-14"
-            textSize="text-[8px]"
           />
         )}
       </div>

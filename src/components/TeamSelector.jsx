@@ -208,7 +208,6 @@ function TeamItem({ team, isSelected, onSelect }) {
           primaryColor={team.primary_color || '#003366'}
           secondaryColor={team.secondary_color || '#CC0000'}
           size="w-6 h-6"
-          textSize="text-[5px]"
         />
       )}
       <div className="flex-1 min-w-0">

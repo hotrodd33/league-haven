@@ -27,10 +27,10 @@ function contrastText(hex) {
 const PLATE_OUTLINE = 'M0,0 L589,0 L589,294.5 L294.5,589 L0,294.5 Z';
 const PLATE_INNER  = 'M7.5,7.5 L581.5,7.5 L581.5,291.39 L294.5,578.39 L7.5,291.39 Z';
 
-export function HomePlate({ cityAbbr, primaryColor = '#003366', secondaryColor = '#CC0000', size = 'w-8 h-8', textSize }) {
+export function HomePlate({ cityAbbr, primaryColor = '#003366', secondaryColor = '#CC0000', size = 'w-8 h-8' }) {
   const textColor = contrastText(primaryColor);
   const num = parseInt((size.match(/w-(\d+)/) || [])[1] || '8', 10);
-  const fontSize = textSize ? parseInt((textSize.match(/(\d+)/) || [])[1] || '140', 10) : (num <= 6 ? 160 : num <= 10 ? 140 : 120);
+  const fontSize = num <= 6 ? 180 : num <= 10 ? 150 : num <= 14 ? 130 : 120;
   return (
     <svg viewBox="0 0 589 589" className={`${size} shrink-0`} aria-hidden="true">
       <polygon points="7.5,291.39 7.5,7.5 581.5,7.5 581.5,291.39 294.5,578.39" fill={primaryColor} />
