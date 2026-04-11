@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin, canEditTeam, canScoreGame } = require('../auth');
+const { sendGameChangeEmail } = require('../email');
 
 const router = express.Router();
 
@@ -308,7 +309,9 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows: existing } = await pool.query('SELECT id, home_team_id, away_team_id FROM games WHERE id = $1', [id]);
+    const { rows: existing } = await pool.query(
+      'SELECT id, home_team_id, away_team_id, game_date, game_time FROM games WHERE id = $1', [id]
+    );
     if (!existing.length) return res.status(404).json({ error: 'Game not found' });
 
     const game = existing[0];
@@ -322,6 +325,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
+
+    // Capture old values for change detection
+    const oldDate = normalizeDate(game.game_date);
+    const oldTime = game.game_time || null;
 
     await pool.query(
       `UPDATE games SET
@@ -344,12 +351,57 @@ router.put('/:id', authMiddleware, async (req, res) => {
     );
 
     const { rows } = await pool.query(BASE_SELECT + ' WHERE g.id = $1', [id]);
-    res.json(enrichGame(rows[0]));
+    const updated = enrichGame(rows[0]);
+
+    // Detect date/time changes and notify staff
+    const newDate = normalizeDate(game_date || game.game_date);
+    const newTime = game_time !== undefined ? (game_time || null) : oldTime;
+    if (oldDate !== newDate || oldTime !== newTime) {
+      notifyGameChange(updated, oldDate, newDate, oldTime, newTime, req.user);
+    }
+
+    res.json(updated);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+function normalizeDate(d) {
+  if (!d) return null;
+  if (d instanceof Date) return d.toISOString().slice(0, 10);
+  return String(d).slice(0, 10);
+}
+
+async function notifyGameChange(game, oldDate, newDate, oldTime, newTime, user) {
+  try {
+    const teamIds = [game.home_team_id, game.away_team_id].filter(Boolean);
+    if (!teamIds.length) return;
+
+    const placeholders = teamIds.map((_, i) => `$${i + 1}`).join(',');
+    const { rows } = await pool.query(
+      `SELECT DISTINCT s.email
+       FROM staff_members s
+       JOIN team_staff_assignments tsa ON tsa.staff_id = s.id
+       WHERE tsa.team_id IN (${placeholders}) AND s.email IS NOT NULL AND s.email != ''`,
+      teamIds
+    );
+    const emails = rows.map(r => r.email);
+    if (!emails.length) return;
+
+    await sendGameChangeEmail(emails, {
+      homeTeam: game.home_team_name,
+      awayTeam: game.away_team_name,
+      oldDate,
+      newDate,
+      oldTime,
+      newTime,
+      changedBy: user.name || user.username || 'Unknown',
+    });
+  } catch (err) {
+    console.error('[GAME-NOTIFY] Failed to send game change email:', err);
+  }
+}
 
 // DELETE game
 router.delete('/:id', authMiddleware, requireAdmin, async (req, res) => {

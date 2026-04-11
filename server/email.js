@@ -94,6 +94,77 @@ function sendPasswordChangedEmail(to, name) {
   });
 }
 
+/**
+ * Notify staff when a game's date or time changes.
+ * @param {string[]} emails - recipient email addresses
+ * @param {object} opts
+ * @param {string} opts.homeTeam - home team name
+ * @param {string} opts.awayTeam - away team name
+ * @param {string|null} opts.oldDate
+ * @param {string|null} opts.newDate
+ * @param {string|null} opts.oldTime
+ * @param {string|null} opts.newTime
+ * @param {string} opts.changedBy - name of user who made the change
+ */
+function sendGameChangeEmail(emails, { homeTeam, awayTeam, oldDate, newDate, oldTime, newTime, changedBy }) {
+  if (!emails.length) return Promise.resolve(null);
+
+  const changes = [];
+  if (oldDate !== newDate) {
+    changes.push(`<tr><td style="padding:4px 12px;font-weight:600;color:#555;">Date</td><td style="padding:4px 12px;color:#b91c1c;text-decoration:line-through;">${esc(formatDate(oldDate))}</td><td style="padding:4px 8px;color:#555;">→</td><td style="padding:4px 12px;color:#15803d;font-weight:600;">${esc(formatDate(newDate))}</td></tr>`);
+  }
+  if (oldTime !== newTime) {
+    changes.push(`<tr><td style="padding:4px 12px;font-weight:600;color:#555;">Time</td><td style="padding:4px 12px;color:#b91c1c;text-decoration:line-through;">${esc(formatTime(oldTime))}</td><td style="padding:4px 8px;color:#555;">→</td><td style="padding:4px 12px;color:#15803d;font-weight:600;">${esc(formatTime(newTime))}</td></tr>`);
+  }
+  if (!changes.length) return Promise.resolve(null);
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+      <h2 style="color:#1e3a5f;">⚾ Game Schedule Change</h2>
+      <p style="font-size:15px;">
+        The game <strong>${esc(awayTeam)}</strong> @ <strong>${esc(homeTeam)}</strong> has been updated:
+      </p>
+      <table style="border-collapse:collapse;margin:12px 0;">
+        <thead><tr style="border-bottom:2px solid #e5e7eb;">
+          <th style="padding:4px 12px;text-align:left;font-size:12px;color:#888;">Field</th>
+          <th style="padding:4px 12px;text-align:left;font-size:12px;color:#888;">Was</th>
+          <th></th>
+          <th style="padding:4px 12px;text-align:left;font-size:12px;color:#888;">Now</th>
+        </tr></thead>
+        <tbody>${changes.join('')}</tbody>
+      </table>
+      <p style="font-size:13px;color:#888;margin-top:16px;">Changed by ${esc(changedBy)}</p>
+      <p style="margin-top:12px;"><a href="${APP_URL}" style="color:#1d4ed8;">View in ZVBL</a></p>
+    </div>
+  `;
+
+  if (emails.length === 1) {
+    return sendEmail({ to: emails[0], subject: 'ZVBL — Game Schedule Change', html });
+  }
+  return sendEmail({
+    to: FROM_EMAIL,
+    bcc: emails,
+    subject: 'ZVBL — Game Schedule Change',
+    html,
+  });
+}
+
+function formatDate(d) {
+  if (!d) return 'TBD';
+  const s = typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10);
+  const [y, m, day] = s.split('-');
+  return `${parseInt(m)}/${parseInt(day)}/${y}`;
+}
+
+function formatTime(t) {
+  if (!t) return 'TBD';
+  const [hh, mm] = t.split(':');
+  const h = parseInt(hh);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${mm} ${ampm}`;
+}
+
 function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -105,4 +176,5 @@ module.exports = {
   sendInviteEmail,
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
+  sendGameChangeEmail,
 };
