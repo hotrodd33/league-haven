@@ -278,6 +278,11 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                                   📍 {game.location_name}
                                 </span>
                               )}
+                              {!!game.official_names?.length && (
+                                <span className="text-xs text-gray-400 hidden xl:inline truncate max-w-[220px]">
+                                  👤 {game.official_names.join(', ')}
+                                </span>
+                              )}
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                                 {game.status_label}
                               </span>
@@ -322,6 +327,11 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                           </div>
                           {game.location_name && (
                             <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
+                          )}
+                          {!!game.official_names?.length && (
+                            <div className="text-xs text-gray-400 mb-1">
+                              {game.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {game.official_names.join(', ')}
+                            </div>
                           )}
                           {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
                           <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>

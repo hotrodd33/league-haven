@@ -181,6 +181,12 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                   </>
                 )}
               </div>
+
+              {!!game.official_names?.length && (
+                <div className="hidden lg:block text-xs text-gray-400 truncate max-w-[220px]">
+                  👤 {game.official_names.join(', ')}
+                </div>
+              )}
               </div>
             );
           })}

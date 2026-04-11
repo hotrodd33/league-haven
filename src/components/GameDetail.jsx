@@ -259,6 +259,12 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         {game.location_name && (
           <div className="text-xs text-gray-400 text-center">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
         )}
+
+        {!!game.official_names?.length && (
+          <div className="text-xs text-gray-400 text-center mt-1">
+            {game.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {game.official_names.join(', ')}
+          </div>
+        )}
         {game.notes && <div className="text-xs text-gray-400 italic text-center mt-1">{game.notes}</div>}
       </div>
 
