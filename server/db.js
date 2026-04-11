@@ -343,6 +343,23 @@ async function migrate() {
       UNIQUE (external_name, source)
     );
   `);
+
+  // ── Game import audit log ──
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS game_import_log (
+      id SERIAL PRIMARY KEY,
+      game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      source TEXT DEFAULT 'gamechanger',
+      home_team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+      away_team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+      home_score INTEGER,
+      away_score INTEGER,
+      pitch_counts JSONB,
+      was_existing BOOLEAN DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds

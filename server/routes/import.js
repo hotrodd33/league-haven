@@ -500,6 +500,7 @@ async function importBoxScore(req, res, opts) {
 
   // ── Create game record ──
   let gameId = null;
+  let wasExisting = false;
   const gameDate = gameInfo.date || null;
 
   if (gameDate) {
@@ -526,6 +527,7 @@ async function importBoxScore(req, res, opts) {
         [homeScore, awayScore, inningsPlayed, gameInfo.time, existingGameId, seasonId]
       );
       gameId = existingGameId;
+      wasExisting = true;
       results.updated++;
     } else if (existingGameId) {
       // Existing game found — always ensure it's marked completed with season + scores
@@ -540,6 +542,7 @@ async function importBoxScore(req, res, opts) {
         [existingGameId, seasonId, homeScore, awayScore, inningsPlayed]
       );
       gameId = existingGameId;
+      wasExisting = true;
       results.updated++;
     } else {
       // Create new game
@@ -636,6 +639,49 @@ async function importBoxScore(req, res, opts) {
     }
   }
 
+  // ── Warning for duplicate imports ──
+  if (wasExisting) {
+    results.warnings = results.warnings || [];
+    results.warnings.push(
+      'This game was already imported. Scores were kept from the original import. Pitch counts for your team\'s pitchers have been added.'
+    );
+  }
+
+  // ── Audit log ──
+  if (gameId && req.user?.id) {
+    const pitchCountSummary = [];
+    const sides = [
+      { pitchers: pitching.away, teamId: awayTeamId, label: 'Away' },
+      { pitchers: pitching.home, teamId: homeTeamId, label: 'Home' },
+    ];
+    for (const side of sides) {
+      for (const p of side.pitchers) {
+        if (p.pitches != null) {
+          pitchCountSummary.push({
+            name: p.name,
+            team: side.label,
+            pitches: p.pitches,
+            strikes: p.strikes ?? null,
+            ip: p.ip ?? null,
+          });
+        }
+      }
+    }
+    try {
+      await pool.query(
+        `INSERT INTO game_import_log
+           (game_id, user_id, source, home_team_id, away_team_id,
+            home_score, away_score, pitch_counts, was_existing)
+         VALUES ($1, $2, 'gamechanger', $3, $4, $5, $6, $7, $8)`,
+        [gameId, req.user.id, homeTeamId, awayTeamId,
+         homeScore, awayScore, JSON.stringify(pitchCountSummary), wasExisting]
+      );
+    } catch (err) {
+      // Non-fatal — don't fail the import over audit logging
+      console.error('Failed to write import log:', err.message);
+    }
+  }
+
   // ── Summary message ──
   const parts = [];
   if (results.games) parts.push(`${results.games} game`);
@@ -720,6 +766,46 @@ router.delete('/team-aliases/:id', authMiddleware, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+/* ═══════════════════════════════════════════════════════
+   GET /api/import/game-import-log
+   Super-admin only — view import audit trail.
+   Optional query params: ?game_id=X or ?limit=50
+   ═══════════════════════════════════════════════════════ */
+router.get('/game-import-log', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const gameId = req.query.game_id ? parseInt(req.query.game_id) : null;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+
+    let query = `
+      SELECT gil.*,
+             u.username AS imported_by,
+             ht.name AS home_team_name,
+             at.name AS away_team_name,
+             g.game_date::text AS game_date
+      FROM game_import_log gil
+      JOIN users u ON u.id = gil.user_id
+      LEFT JOIN teams ht ON ht.id = gil.home_team_id
+      LEFT JOIN teams at ON at.id = gil.away_team_id
+      LEFT JOIN games g ON g.id = gil.game_id
+    `;
+    const params = [];
+
+    if (gameId) {
+      query += ' WHERE gil.game_id = $1';
+      params.push(gameId);
+    }
+
+    query += ' ORDER BY gil.created_at DESC LIMIT $' + (params.length + 1);
+    params.push(limit);
+
+    const { rows } = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('Import log error:', err);
+    res.status(500).json({ error: 'Failed to fetch import log' });
   }
 });
 

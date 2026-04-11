@@ -66,6 +66,18 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
         </div>
       )}
 
+      {/* Warnings (e.g. duplicate game import) */}
+      {summary.warnings?.length > 0 && (
+        <div className="w-full bg-amber-50 rounded-xl border border-amber-200 p-4 space-y-2">
+          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+            <span aria-hidden="true">⚠️</span> Heads Up
+          </p>
+          {summary.warnings.map((w, i) => (
+            <p key={i} className="text-sm text-amber-800">{w}</p>
+          ))}
+        </div>
+      )}
+
       {/* Next actions */}
       <div className="w-full space-y-2">
         <p className="text-xs font-semibold uppercase text-gray-400 tracking-wider text-center mb-3">
