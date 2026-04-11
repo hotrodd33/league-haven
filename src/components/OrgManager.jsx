@@ -13,6 +13,23 @@ const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold 
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 const btnSm = "px-3 py-1.5 text-xs font-semibold rounded";
 
+function summarizeOrgTeams(org) {
+  const teams = org.teams || [];
+  const ageGroups = [...new Set(teams.map((team) => team.age_group).filter(Boolean))].sort();
+  const levels = [...new Set(teams.map((team) => team.level).filter(Boolean))].sort();
+  const featuredTeams = teams
+    .slice()
+    .sort((left, right) => (left.long_name || left.name).localeCompare(right.long_name || right.name))
+    .slice(0, 3)
+    .map((team) => team.long_name || team.name);
+
+  return {
+    ageGroups,
+    levels,
+    featuredTeams,
+    remainingTeams: Math.max(teams.length - featuredTeams.length, 0),
+  };
+}
 export default function OrgManager({ onBack }) {
   const { isAdmin, canEditOrg } = useAuth();
   const [orgs, setOrgs] = useState([]);
@@ -72,36 +89,113 @@ export default function OrgManager({ onBack }) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {orgs.map((org) => (
-            <div key={org.id} onClick={() => setSelectedOrg(org)}
-              className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-gray-200 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  {org.logo_url && <img src={org.logo_url} alt="" className="w-8 h-8 object-contain rounded shrink-0" />}
-                  <h3 className="font-bold text-base text-gray-100 truncate">{org.name}</h3>
-                </div>
-                <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ml-2">
-                  {org.team_count} team{org.team_count !== 1 ? 's' : ''}
-                </span>
-              </div>
-              {org.contact_name && <p className="text-sm text-gray-300">{org.contact_name}</p>}
-              {org.city && org.state && <p className="text-sm text-gray-400">{org.city}, {org.state}</p>}
-              {org.locations.length > 0 && (
-                <p className="text-sm text-gray-400">{org.locations.length} field location{org.locations.length !== 1 ? 's' : ''}</p>
-              )}
-              <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
-                {canEditOrg(org.id) && <button onClick={() => { setEditing(org); setShowForm(true); }} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>}
-                {isAdmin && (
-                  <button onClick={() => handleDelete(org)} disabled={deleting === org.id} className={btnDanger}>
-                    {deleting === org.id ? '…' : 'Delete'}
-                  </button>
-                )}
-              </div>
-            </div>
+            <OrgListCard
+              key={org.id}
+              org={org}
+              canEdit={canEditOrg(org.id)}
+              deleting={deleting === org.id}
+              isAdmin={isAdmin}
+              onOpen={() => setSelectedOrg(org)}
+              onEdit={() => { setEditing(org); setShowForm(true); }}
+              onDelete={() => handleDelete(org)}
+            />
           ))}
         </div>
       )}
 
       {showForm && <OrgForm org={editing} onDone={handleFormDone} onCancel={() => { setShowForm(false); setEditing(null); }} />}
+    </div>
+  );
+}
+
+function OrgListCard({ org, canEdit, deleting, isAdmin, onOpen, onEdit, onDelete }) {
+  const { ageGroups, levels, featuredTeams, remainingTeams } = summarizeOrgTeams(org);
+
+  return (
+    <div
+      onClick={onOpen}
+      className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-gray-200 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all"
+    >
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          {org.logo_url && <img src={org.logo_url} alt="" className="w-9 h-9 object-contain rounded shrink-0" />}
+          <div className="min-w-0">
+            <h3 className="font-bold text-base text-gray-100 truncate">{org.name}</h3>
+            {org.contact_name && <p className="text-sm text-gray-300 truncate">{org.contact_name}</p>}
+          </div>
+        </div>
+        <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0">
+          {org.team_count} team{org.team_count !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+        <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
+          <div className="text-gray-400 uppercase tracking-wide font-semibold">Fields</div>
+          <div className="text-gray-100 font-bold mt-0.5">{org.locations.length}</div>
+        </div>
+        <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
+          <div className="text-gray-400 uppercase tracking-wide font-semibold">Programs</div>
+          <div className="text-gray-100 font-bold mt-0.5">{ageGroups.length || 0} age group{ageGroups.length === 1 ? '' : 's'}</div>
+        </div>
+      </div>
+
+      {(org.city || org.state) && (
+        <p className="text-sm text-gray-400 mb-3">{[org.city, org.state].filter(Boolean).join(', ')}</p>
+      )}
+
+      {ageGroups.length > 0 && (
+        <div className="mb-3">
+          <div className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-1.5">Age Groups</div>
+          <div className="flex flex-wrap gap-1.5">
+            {ageGroups.slice(0, 5).map((ageGroup) => (
+              <span key={ageGroup} className="px-2 py-0.5 rounded-full bg-blue-900/35 text-blue-200 text-xs font-semibold">
+                {ageGroup}
+              </span>
+            ))}
+            {ageGroups.length > 5 && (
+              <span className="px-2 py-0.5 rounded-full bg-gray-700 text-gray-300 text-xs font-semibold">+{ageGroups.length - 5}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {levels.length > 0 && (
+        <div className="mb-3">
+          <div className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-1.5">Levels</div>
+          <div className="flex flex-wrap gap-1.5">
+            {levels.slice(0, 4).map((level) => (
+              <span key={level} className="px-2 py-0.5 rounded-full bg-field-900/30 text-field-300 text-xs font-semibold">
+                {level}
+              </span>
+            ))}
+            {levels.length > 4 && (
+              <span className="px-2 py-0.5 rounded-full bg-gray-700 text-gray-300 text-xs font-semibold">+{levels.length - 4}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {featuredTeams.length > 0 && (
+        <div>
+          <div className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-1.5">Featured Teams</div>
+          <div className="space-y-1 text-sm text-gray-300">
+            {featuredTeams.map((teamName) => (
+              <div key={teamName} className="truncate">{teamName}</div>
+            ))}
+            {remainingTeams > 0 && <div className="text-gray-400 text-xs">+ {remainingTeams} more team{remainingTeams === 1 ? '' : 's'}</div>}
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
+        {canEdit && <button onClick={onEdit} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>}
+        {isAdmin && (
+          <button onClick={onDelete} disabled={deleting} className={btnDanger}>
+            {deleting ? '…' : 'Delete'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
