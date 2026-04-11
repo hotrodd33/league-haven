@@ -198,10 +198,11 @@ async function migrate() {
   await pool.query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS logo_url TEXT;`);
   await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS logo_url TEXT;`);
 
-  // Team name components: city, color, mascot
+  // Team name components: city, color, mascot, abbreviation
   await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS team_city TEXT;`);
   await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS team_color TEXT;`);
   await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS team_mascot TEXT;`);
+  await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS abbreviation TEXT;`);
 
   // Drop unique constraint on league_divisions.name if it exists (allow duplicate names in different branches)
   await pool.query(`

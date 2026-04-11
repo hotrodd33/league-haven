@@ -12,24 +12,26 @@ function buildShortName(city, color, ageGroup, level) {
 }
 
 function buildLongName(city, color, mascot, ageGroup, level) {
-  return [city, color, mascot, ageGroup, level].filter(Boolean).join(' ');
+  return [city, mascot, color, ageGroup, level].filter(Boolean).join(' ');
 }
 
-function buildAbbreviation(city, color, ageGroup, level) {
+function buildAbbreviation(city, mascot, color, ageGroup, level) {
   let abbr = '';
   if (city) {
     const words = city.trim().split(/\s+/);
-    abbr = words.length > 1 ? words.map(w => w[0].toUpperCase()).join('') : city.substring(0, 3).toUpperCase();
+    abbr = words.length > 1 ? words.map(w => w[0]).join('') : city.substring(0, 3);
   }
-  if (color) abbr += color[0].toUpperCase();
-  const suffix = [ageGroup, level].filter(Boolean).join(' ');
-  return suffix ? `${abbr} ${suffix}` : abbr;
+  if (mascot) abbr += mascot[0];
+  if (color) abbr += color[0];
+  if (ageGroup) abbr += ageGroup.replace(/\s+/g, '');
+  if (level) abbr += level.replace(/\s+/g, '');
+  return abbr.toUpperCase();
 }
 
 function addComputedNames(team) {
   if (team.team_city) {
     team.long_name = buildLongName(team.team_city, team.team_color, team.team_mascot, team.age_group, team.level);
-    team.abbreviation = buildAbbreviation(team.team_city, team.team_color, team.age_group, team.level);
+    team.abbreviation = buildAbbreviation(team.team_city, team.team_mascot, team.team_color, team.age_group, team.level);
   } else {
     team.long_name = team.name;
     team.abbreviation = team.name;
@@ -98,10 +100,11 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
     const { team_city, team_color, team_mascot, age_group, level, division, division_ids, org_id } = req.body;
     const name = buildShortName(team_city, team_color, age_group, level) || req.body.name;
     if (!name) return res.status(400).json({ error: 'Team city is required' });
+    const abbr = team_city ? buildAbbreviation(team_city, team_mascot, team_color, age_group, level) : null;
 
     const { rows } = await pool.query(
-      'INSERT INTO teams (name, team_city, team_color, team_mascot, age_group, level, division, org_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-      [name, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id || null]
+      'INSERT INTO teams (name, abbreviation, team_city, team_color, team_mascot, age_group, level, division, org_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
+      [name, abbr, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id || null]
     );
     const teamId = rows[0].id;
     if (division_ids && division_ids.length) {
@@ -125,13 +128,14 @@ router.put('/:id', authMiddleware, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const name = buildShortName(team_city, team_color, age_group, level) || req.body.name;
     if (!name) return res.status(400).json({ error: 'Team city is required' });
+    const abbr = team_city ? buildAbbreviation(team_city, team_mascot, team_color, age_group, level) : null;
 
     const { rows: existing } = await pool.query('SELECT id FROM teams WHERE id = $1', [id]);
     if (!existing.length) return res.status(404).json({ error: 'Team not found' });
 
     await pool.query(
-      'UPDATE teams SET name = $1, team_city = $2, team_color = $3, team_mascot = $4, age_group = $5, level = $6, division = $7, org_id = $8 WHERE id = $9',
-      [name, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id ?? null, id]
+      'UPDATE teams SET name = $1, abbreviation = $2, team_city = $3, team_color = $4, team_mascot = $5, age_group = $6, level = $7, division = $8, org_id = $9 WHERE id = $10',
+      [name, abbr, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id ?? null, id]
     );
     if (division_ids !== undefined) {
       await syncDivisions(id, division_ids || []);

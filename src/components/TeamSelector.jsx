@@ -194,16 +194,18 @@ function TeamForm({ team, onDone, onCancel }) {
 
   // Computed name previews
   const shortName = [form.team_city, form.team_color, form.age_group, form.level].filter(Boolean).join(' ');
-  const longName = [form.team_city, form.team_color, form.team_mascot, form.age_group, form.level].filter(Boolean).join(' ');
+  const longName = [form.team_city, form.team_mascot, form.team_color, form.age_group, form.level].filter(Boolean).join(' ');
   const abbreviation = (() => {
     let abbr = '';
     if (form.team_city) {
       const words = form.team_city.trim().split(/\s+/);
-      abbr = words.length > 1 ? words.map(w => w[0].toUpperCase()).join('') : form.team_city.substring(0, 3).toUpperCase();
+      abbr = words.length > 1 ? words.map(w => w[0]).join('') : form.team_city.substring(0, 3);
     }
-    if (form.team_color) abbr += form.team_color[0].toUpperCase();
-    const suffix = [form.age_group, form.level].filter(Boolean).join(' ');
-    return suffix ? `${abbr} ${suffix}` : abbr;
+    if (form.team_mascot) abbr += form.team_mascot[0];
+    if (form.team_color) abbr += form.team_color[0];
+    if (form.age_group) abbr += form.age_group.replace(/\s+/g, '');
+    if (form.level) abbr += form.level.replace(/\s+/g, '');
+    return abbr.toUpperCase();
   })();
 
   function handleLogoChange(e) {
@@ -310,12 +312,12 @@ function TeamForm({ team, onDone, onCancel }) {
               <input id="team-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" className={inputCls} />
             </div>
             <div>
-              <label htmlFor="team-color" className={labelCls}>Team Color</label>
-              <input id="team-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" className={inputCls} />
-            </div>
-            <div>
               <label htmlFor="team-mascot" className={labelCls}>Team Mascot</label>
               <input id="team-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" className={inputCls} />
+            </div>
+            <div>
+              <label htmlFor="team-color" className={labelCls}>Team Color</label>
+              <input id="team-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" className={inputCls} />
             </div>
           </div>
           {shortName && (
