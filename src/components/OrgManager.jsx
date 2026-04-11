@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchOrganizations, createOrganization, updateOrganization, deleteOrganization,
   fetchTeams, fetchGames, createTeam, updateTeam, uploadOrgLogo, removeOrgLogo,
-  fetchAgeGroups, fetchLevels, fetchSeasons, fetchDivisions, uploadTeamLogo,
+  fetchAgeGroups, fetchLevels, fetchSeasons, fetchDivisions, uploadTeamLogo, removeTeamLogo,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldLocations from './FieldLocations.jsx';
@@ -441,7 +441,9 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
   const [divisions, setDivisions] = useState([]);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
+  const [removeLogo, setRemoveLogo] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingTeam, setEditingTeam] = useState(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(null);
   const [newTeam, setNewTeam] = useState({
@@ -513,12 +515,52 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setLogoFile(file);
+    setRemoveLogo(false);
     setLogoPreview(URL.createObjectURL(file));
   }
 
   function handleRemoveLogo() {
     setLogoFile(null);
     setLogoPreview(null);
+    setRemoveLogo(true);
+  }
+
+  function openCreateModal() {
+    setEditingTeam(null);
+    setCreateError(null);
+    setNewTeam({
+      team_city: '',
+      team_mascot: '',
+      team_color: '',
+      age_group: '',
+      level: '',
+      primary_color: '#003366',
+      secondary_color: '#CC0000',
+      division_ids: [],
+    });
+    setLogoFile(null);
+    setLogoPreview(null);
+    setRemoveLogo(false);
+    setShowCreate(true);
+  }
+
+  function openEditModal(team) {
+    setEditingTeam(team);
+    setCreateError(null);
+    setNewTeam({
+      team_city: team.team_city || '',
+      team_mascot: team.team_mascot || '',
+      team_color: team.team_color || '',
+      age_group: team.age_group || '',
+      level: team.level || '',
+      primary_color: team.primary_color || '#003366',
+      secondary_color: team.secondary_color || '#CC0000',
+      division_ids: team.divisions ? team.divisions.map((d) => d.id) : [],
+    });
+    setLogoFile(null);
+    setLogoPreview(team.logo_url || null);
+    setRemoveLogo(false);
+    setShowCreate(true);
   }
 
   async function handleAssign() {
@@ -552,7 +594,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
     setCreating(true);
     setCreateError(null);
     try {
-      const savedTeam = await createTeam({
+      const payload = {
         team_city: newTeam.team_city.trim(),
         team_mascot: newTeam.team_mascot.trim() || null,
         team_color: newTeam.team_color.trim() || null,
@@ -562,9 +604,19 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
         secondary_color: newTeam.secondary_color || null,
         division_ids: newTeam.division_ids,
         org_id: org.id,
-      });
+      };
+
+      let savedTeam;
+      if (editingTeam) {
+        savedTeam = await updateTeam(editingTeam.id, payload);
+      } else {
+        savedTeam = await createTeam(payload);
+      }
+
       if (logoFile) {
         await uploadTeamLogo(savedTeam.id, logoFile);
+      } else if (editingTeam && removeLogo) {
+        await removeTeamLogo(savedTeam.id);
       }
       setNewTeam({
         team_city: '',
@@ -578,6 +630,8 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
       });
       setLogoFile(null);
       setLogoPreview(null);
+      setRemoveLogo(false);
+      setEditingTeam(null);
       setShowCreate(false);
       onChanged();
     } catch (err) {
@@ -600,7 +654,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
       <div className="flex items-center justify-between gap-2 mb-2">
         <h3 className="text-base font-bold text-gray-100">Teams ({orgTeams.length})</h3>
         {canManage && (
-          <button onClick={() => { setShowCreate(true); setCreateError(null); }} className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700">
+          <button onClick={openCreateModal} className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700">
             + Add Team
           </button>
         )}
@@ -617,7 +671,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Age Group</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Level</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Division(s)</th>
-                  {isAdmin && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 w-24">Actions</th>}
+                  {isAdmin && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 w-36">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -631,7 +685,14 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
                     <td className="px-3 py-2">{t.age_group || '—'}</td>
                     <td className="px-3 py-2">{t.level || '—'}</td>
                     <td className="px-3 py-2">{t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : (t.division || '—')}</td>
-                    {isAdmin && <td className="px-3 py-2"><button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button></td>}
+                    {isAdmin && (
+                      <td className="px-3 py-2">
+                        <div className="flex gap-1.5">
+                          <button onClick={() => openEditModal(t)} className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">Edit</button>
+                          <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -647,7 +708,12 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
                   </button>
                   <div className="text-xs text-gray-400">{[t.age_group, t.level, t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : t.division].filter(Boolean).join(' · ') || '—'}</div>
                 </div>
-                {isAdmin && <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>}
+                {isAdmin && (
+                  <div className="flex gap-1.5">
+                    <button onClick={() => openEditModal(t)} className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">Edit</button>
+                    <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -659,7 +725,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
       {showCreate && canManage && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
           <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200 border border-gray-700">
-            <h4 className="text-lg font-bold text-gray-100 mb-3">Add Team to {org.name}</h4>
+            <h4 className="text-lg font-bold text-gray-100 mb-3">{editingTeam ? 'Edit Team' : 'Add Team to'} {org.name}</h4>
             <form onSubmit={handleCreateTeam} className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <div>
@@ -789,8 +855,8 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
               {createError && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{createError}</div>}
 
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowCreate(false)} className={btnSecondary}>Cancel</button>
-                <button type="submit" disabled={creating} className={btnPrimary}>{creating ? 'Adding…' : 'Add Team'}</button>
+                <button type="button" onClick={() => { setShowCreate(false); setEditingTeam(null); }} className={btnSecondary}>Cancel</button>
+                <button type="submit" disabled={creating} className={btnPrimary}>{creating ? 'Saving…' : editingTeam ? 'Update Team' : 'Add Team'}</button>
               </div>
             </form>
           </div>

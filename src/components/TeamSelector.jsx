@@ -174,29 +174,6 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
         <div className="p-4 text-center text-gray-400 text-sm">No teams found.</div>
       )}
 
-      {/* Admin actions */}
-      {isAdmin && selected && (
-        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700">
-          <button
-            onClick={() => { setEditing(true); setShowForm(true); }}
-            className="flex-1 px-2 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
-          >Edit</button>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex-1 px-2 py-1.5 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
-          >{deleting ? '…' : 'Delete'}</button>
-        </div>
-      )}
-
-      {isAdmin && (
-        <div className="mt-2">
-          <button
-            onClick={() => { setEditing(false); setShowForm(true); }}
-            className="w-full px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-          >+ Add Team</button>
-        </div>
-      )}
     </>
   );
 
@@ -233,6 +210,24 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
             <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
           </svg>
         </button>
+        {isAdmin && (
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <button
+              onClick={() => { setEditing(false); setShowForm(true); }}
+              className="px-2 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >+ Add</button>
+            <button
+              onClick={() => { if (selected) { setEditing(true); setShowForm(true); } }}
+              disabled={!selected}
+              className="px-2 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600 disabled:opacity-50"
+            >Edit</button>
+            <button
+              onClick={handleDelete}
+              disabled={!selected || deleting}
+              className="px-2 py-1.5 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+            >{deleting ? '…' : 'Delete'}</button>
+          </div>
+        )}
         {mobileOpen && (
           <div className="mt-2 max-h-80 overflow-y-auto">
             {teamList}
@@ -242,7 +237,27 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
 
       {/* Desktop: always visible */}
       <div className="hidden lg:block">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1">Teams</p>
+        <div className="flex items-center justify-between gap-2 mb-2 px-1">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Teams</p>
+          {isAdmin && (
+            <div className="flex gap-1">
+              <button
+                onClick={() => { setEditing(false); setShowForm(true); }}
+                className="px-2 py-1 text-[11px] font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >+ Add Team</button>
+              <button
+                onClick={() => { if (selected) { setEditing(true); setShowForm(true); } }}
+                disabled={!selected}
+                className="px-2 py-1 text-[11px] font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600 disabled:opacity-50"
+              >Edit</button>
+              <button
+                onClick={handleDelete}
+                disabled={!selected || deleting}
+                className="px-2 py-1 text-[11px] font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+              >{deleting ? '…' : 'Delete'}</button>
+            </div>
+          )}
+        </div>
         {teamList}
       </div>
 
