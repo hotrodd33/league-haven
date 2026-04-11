@@ -2,10 +2,11 @@ import { cn } from '../../lib/cn.js';
 import {
   UsersIcon, BuildingIcon, CalendarIcon, TrophyIcon,
   ClipboardIcon, CogIcon, UserGroupIcon, DatabaseIcon,
-  ChevronLeftIcon, ChevronRightIcon,
+  ChevronLeftIcon, ChevronRightIcon, HomeIcon,
 } from './icons.jsx';
 
 const mainNav = [
+  { key: 'dashboard',     label: 'Dashboard',     icon: HomeIcon },
   { key: 'organizations', label: 'Organizations', icon: BuildingIcon },
   { key: 'rosters',       label: 'Rosters',       icon: UsersIcon },
   { key: 'schedule',      label: 'Schedule',      icon: CalendarIcon },

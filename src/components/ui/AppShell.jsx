@@ -26,6 +26,7 @@ export default function AppShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const pageTitle = {
+    dashboard: 'Dashboard',
     organizations: 'Organizations',
     rosters: 'Rosters',
     schedule: 'Schedule',

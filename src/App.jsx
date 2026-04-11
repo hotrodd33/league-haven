@@ -17,6 +17,8 @@ import PitcherRest from "./components/PitcherRest.jsx";
 import PitchLog from "./components/PitchLog.jsx";
 import Directory from "./components/Directory.jsx";
 import DataManager from "./components/DataManager.jsx";
+import Dashboard from "./components/Dashboard.jsx";
+import AppShell from "./components/ui/AppShell.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, user, logout } = useAuth();
@@ -25,8 +27,7 @@ export default function App() {
     const [showForm, setShowForm] = useState(false);
     const [editingPlayer, setEditingPlayer] = useState(null);
     const [refreshKey, setRefreshKey] = useState(0);
-    const [page, setPage] = useState("rosters");
-    const [menuOpen, setMenuOpen] = useState(false);
+    const [page, setPage] = useState("dashboard");
     const [showChangePassword, setShowChangePassword] = useState(false);
 
     function navigateToTeam(teamId, orgId) {
@@ -67,168 +68,67 @@ export default function App() {
         setEditingPlayer(null);
     }
 
-    return (
-        <div className="min-h-screen bg-gray-50 text-gray-900">
-            {/* Header */}
-            <header className="bg-blue-800 text-white shadow-lg border-t-4 border-baseball-600">
-                <div className="flex items-center justify-between px-4 py-3">
-                    <h1 className="font-heading text-xl font-bold whitespace-nowrap tracking-wide">⚾ ZVBL Roster Manager</h1>
-                    {/* Desktop nav */}
-                    <nav className="hidden sm:flex items-center gap-1">
-                        <button
-                            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "organizations" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                            onClick={() => setPage("organizations")}
-                        >
-                            Organizations
-                        </button>
-                        <button
-                            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "rosters" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                            onClick={() => setPage("rosters")}
-                        >
-                            Rosters
-                        </button>
-                        <button
-                            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "schedule" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                            onClick={() => setPage("schedule")}
-                        >
-                            Schedule
-                        </button>
-                        <button
-                            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "standings" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                            onClick={() => setPage("standings")}
-                        >
-                            Standings
-                        </button>
-                        <button
-                            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "directory" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                            onClick={() => setPage("directory")}
-                        >
-                            Directory
-                        </button>
-                        {isAdmin && (
-                            <button
-                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "league" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                                onClick={() => setPage("league")}
-                            >
-                                League
-                            </button>
-                        )}
-                        {isAdmin && (
-                            <button
-                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "users" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                                onClick={() => setPage("users")}
-                            >
-                                Users
-                            </button>
-                        )}
-                        {isAdmin && (
-                            <button
-                                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${page === "data" ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                                onClick={() => setPage("data")}
-                            >
-                                Data
-                            </button>
-                        )}
-                    </nav>
-                    <div className="hidden sm:flex items-center gap-3">
-                        <span className="text-sm opacity-90">{user?.name || user?.username}</span>
-                        <button className="px-3 py-1 text-xs font-semibold bg-white/20 text-white rounded-md hover:bg-white/30" onClick={() => setShowChangePassword(true)}>
-                            Password
-                        </button>
-                        <button className="px-3 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" onClick={logout}>
-                            Sign Out
-                        </button>
-                    </div>
-                    {/* Mobile hamburger (2-line bun) → X morph */}
-                    <button
-                        className="sm:hidden relative w-7 h-5 flex flex-col justify-between"
-                        onClick={() => setMenuOpen((v) => !v)}
-                        aria-label={menuOpen ? "Close menu" : "Open menu"}
-                    >
-                        <span className={`block h-0.5 w-full bg-white rounded transition-transform duration-300 origin-center ${menuOpen ? "translate-y-[9px] rotate-45" : ""}`} />
-                        <span className={`block h-0.5 w-full bg-white rounded transition-transform duration-300 origin-center ${menuOpen ? "-translate-y-[9px] -rotate-45" : ""}`} />
-                    </button>
-                </div>
-                {/* Mobile dropdown */}
-                {menuOpen && (
-                    <nav className="sm:hidden flex flex-col border-t border-white/20 px-4 pb-3 pt-2 gap-1">
-                        {[
-                            { key: "organizations", label: "Organizations" },
-                            { key: "rosters", label: "Rosters" },
-                            { key: "schedule", label: "Schedule" },
-                            { key: "standings", label: "Standings" },
-                            { key: "directory", label: "Directory" },
-                            ...(isAdmin ? [{ key: "league", label: "League" }, { key: "users", label: "Users" }, { key: "data", label: "Data" }] : []),
-                        ].map((item) => (
-                            <button
-                                key={item.key}
-                                className={`text-left px-3 py-2 text-sm rounded-md transition-colors ${page === item.key ? "bg-white/20 text-white font-semibold" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                                onClick={() => { setPage(item.key); setMenuOpen(false); }}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20">
-                            <span className="text-sm opacity-90">{user?.name || user?.username}</span>
-                            <div className="flex gap-2">
-                                <button className="px-3 py-1 text-xs font-semibold bg-white/20 text-white rounded-md hover:bg-white/30" onClick={() => { setShowChangePassword(true); setMenuOpen(false); }}>
-                                    Password
-                                </button>
-                                <button className="px-3 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" onClick={logout}>
-                                    Sign Out
-                                </button>
-                            </div>
-                        </div>
-                    </nav>
-                )}
-            </header>
+    /* ── Page content renderer ── */
+    function renderPage() {
+        switch (page) {
+            case 'dashboard':
+                return <Dashboard onNavigate={setPage} />;
 
-            {/* Content */}
-            {page === "organizations" ? (
-                <main className="p-4 max-w-7xl mx-auto">
-                    <OrgManager onBack={() => setPage("rosters")} />
-                </main>
-            ) : page === "users" && isAdmin ? (
-                <main className="p-4 max-w-7xl mx-auto">
-                    <UserManager onBack={() => setPage("rosters")} />
-                </main>
-            ) : page === "league" && isAdmin ? (
-                <main className="p-4 max-w-7xl mx-auto">
-                    <LeagueConfig onBack={() => setPage("rosters")} />
-                </main>
-            ) : page === "schedule" ? (
-                <main className="p-4 max-w-7xl mx-auto">
-                    <GameSchedule onBack={() => setPage("rosters")} onNavigateToTeam={navigateToTeam} />
-                </main>
-            ) : page === "standings" ? (
-                <main className="p-4 max-w-7xl mx-auto">
-                    <Standings onBack={() => setPage("rosters")} onNavigateToTeam={navigateToTeam} />
-                </main>
-            ) : page === "directory" ? (
-                <main className="p-4 max-w-7xl mx-auto">
-                    <Directory onEditTeam={navigateToTeam} />
-                </main>
-            ) : page === "data" && isAdmin ? (
-                <main className="p-4 max-w-7xl mx-auto">
-                    <DataManager />
-                </main>
-            ) : (
-                <main className="flex flex-col md:flex-row min-h-[calc(100vh-56px)]">
-                    <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-gray-200 p-4 shrink-0">
-                        <TeamSelector selectedTeam={selectedTeam} onSelectTeam={(id, orgId) => { setSelectedTeam(id); setSelectedTeamOrgId(orgId); }} onTeamsChanged={() => setRefreshKey((k) => k + 1)} />
-                    </aside>
-                    <div className="flex-1 p-4 overflow-x-auto">
-                        <RosterList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} />
-                        <StaffList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} refreshKey={refreshKey} />
-                        <PitcherRest teamId={selectedTeam} />
-                        <PitchLog teamId={selectedTeam} />
-                        <TeamSchedule teamId={selectedTeam} onNavigateToTeam={navigateToTeam} />
+            case 'organizations':
+                return <OrgManager onBack={() => setPage("dashboard")} />;
+
+            case 'users':
+                return isAdmin ? <UserManager onBack={() => setPage("dashboard")} /> : null;
+
+            case 'league':
+                return isAdmin ? <LeagueConfig onBack={() => setPage("dashboard")} /> : null;
+
+            case 'schedule':
+                return <GameSchedule onBack={() => setPage("dashboard")} onNavigateToTeam={navigateToTeam} />;
+
+            case 'standings':
+                return <Standings onBack={() => setPage("dashboard")} onNavigateToTeam={navigateToTeam} />;
+
+            case 'directory':
+                return <Directory onEditTeam={navigateToTeam} />;
+
+            case 'data':
+                return isAdmin ? <DataManager /> : null;
+
+            case 'rosters':
+            default:
+                return (
+                    <div className="flex flex-col lg:flex-row gap-4 -m-4 lg:-m-6">
+                        <aside className="w-full lg:w-64 bg-white rounded-xl shadow-card p-4 shrink-0 lg:m-6 lg:mr-0 lg:self-start lg:sticky lg:top-20">
+                            <TeamSelector selectedTeam={selectedTeam} onSelectTeam={(id, orgId) => { setSelectedTeam(id); setSelectedTeamOrgId(orgId); }} onTeamsChanged={() => setRefreshKey((k) => k + 1)} />
+                        </aside>
+                        <div className="flex-1 p-4 lg:p-6 overflow-x-auto space-y-4">
+                            <RosterList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} />
+                            <StaffList teamId={selectedTeam} teamOrgId={selectedTeamOrgId} refreshKey={refreshKey} />
+                            <PitcherRest teamId={selectedTeam} />
+                            <PitchLog teamId={selectedTeam} />
+                            <TeamSchedule teamId={selectedTeam} onNavigateToTeam={navigateToTeam} />
+                        </div>
                     </div>
-                </main>
-            )}
+                );
+        }
+    }
+
+    return (
+        <>
+            <AppShell
+                page={page}
+                onNavigate={setPage}
+                isAdmin={isAdmin}
+                user={user}
+                onChangePassword={() => setShowChangePassword(true)}
+                onLogout={logout}
+            >
+                {renderPage()}
+            </AppShell>
 
             {showForm && selectedTeam && <PlayerForm teamId={selectedTeam} player={editingPlayer} onSaved={handleFormSaved} onCancel={handleFormCancel} />}
             {showChangePassword && <ChangePassword onClose={() => setShowChangePassword(false)} />}
-        </div>
+        </>
     );
 }
