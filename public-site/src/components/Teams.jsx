@@ -60,9 +60,9 @@ export default function Teams() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {group.teams.map(team => (
               <div key={team.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
-                <TeamLogo src={team.logo_url || group.org.logo} name={team.name} />
+                <TeamLogo src={team.logo_url || group.org.logo} name={team.long_name || team.name} />
                 <div className="min-w-0">
-                  <div className="font-semibold truncate">{team.name}</div>
+                  <div className="font-semibold truncate">{team.long_name || team.name}</div>
                   <div className="text-xs text-gray-500">
                     {[team.age_group, team.level].filter(Boolean).join(' · ')}
                   </div>

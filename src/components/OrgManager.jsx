@@ -328,7 +328,7 @@ function OrgTeams({ org, allTeams, onChanged }) {
               <tbody className="divide-y divide-gray-100">
                 {orgTeams.map((t) => (
                   <tr key={t.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 font-semibold">{t.name}</td>
+                    <td className="px-3 py-2 font-semibold">{t.long_name || t.name}</td>
                     <td className="px-3 py-2">{t.age_group || '—'}</td>
                     <td className="px-3 py-2">{t.level || '—'}</td>
                     <td className="px-3 py-2">{t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : (t.division || '—')}</td>
@@ -343,7 +343,7 @@ function OrgTeams({ org, allTeams, onChanged }) {
             {orgTeams.map((t) => (
               <div key={t.id} className="bg-white rounded-lg border border-gray-200 p-3 flex items-center justify-between">
                 <div>
-                  <div className="font-semibold text-sm">{t.name}</div>
+                  <div className="font-semibold text-sm">{t.long_name || t.name}</div>
                   <div className="text-xs text-gray-500">{[t.age_group, t.level, t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : t.division].filter(Boolean).join(' · ') || '—'}</div>
                 </div>
                 {isAdmin && <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>}

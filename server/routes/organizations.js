@@ -10,6 +10,11 @@ async function enrich(org) {
   if (!org) return null;
   const { rows: locations } = await pool.query('SELECT * FROM field_locations WHERE org_id = $1 ORDER BY name', [org.id]);
   const { rows: teams } = await pool.query('SELECT * FROM teams WHERE org_id = $1 ORDER BY name', [org.id]);
+  for (const t of teams) {
+    t.long_name = t.team_city
+      ? [t.team_city, t.team_mascot, t.team_color, t.age_group, t.level].filter(Boolean).join(' ')
+      : t.name;
+  }
   return { ...org, locations, teams, team_count: teams.length };
 }
 
@@ -54,6 +59,9 @@ router.get('/directory', async (req, res) => {
     // Group teams by org
     const teamsByOrg = {};
     for (const t of teams) {
+      t.long_name = t.team_city
+        ? [t.team_city, t.team_mascot, t.team_color, t.age_group, t.level].filter(Boolean).join(' ')
+        : t.name;
       if (!teamsByOrg[t.org_id]) teamsByOrg[t.org_id] = [];
       teamsByOrg[t.org_id].push({ ...t, staff: staffByTeam[t.id] || [] });
     }

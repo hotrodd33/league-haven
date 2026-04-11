@@ -117,7 +117,7 @@ export default function Directory({ onEditTeam }) {
                           className="flex-1 text-left px-4 sm:px-6 py-3 hover:bg-gray-50 transition-colors flex items-center gap-4"
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-sm">{team.name}</div>
+                            <div className="font-semibold text-sm">{team.long_name || team.name}</div>
                             <div className="text-xs text-gray-500">
                               {[team.age_group, team.level].filter(Boolean).join(' · ')}
                             </div>
@@ -209,7 +209,7 @@ function buildPrintHTML(orgs) {
       ).join('');
       return `<tr style="border-top:1px solid #e5e7eb;">
         <td colspan="4" style="padding:6px 12px;font-weight:600;font-size:14px;">
-          ${esc(team.name)}
+          ${esc(team.long_name || team.name)}
           <span style="font-weight:400;color:#888;font-size:12px;margin-left:8px;">${esc([team.age_group, team.level].filter(Boolean).join(' · '))}</span>
         </td>
       </tr>${staffRows || '<tr><td colspan="4" style="padding:2px 40px;font-size:12px;color:#aaa;">No staff assigned</td></tr>'}`;
