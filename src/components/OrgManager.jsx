@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchOrganizations, createOrganization, updateOrganization, deleteOrganization,
   fetchTeams, fetchGames, createTeam, updateTeam, uploadOrgLogo, removeOrgLogo,
-  fetchAgeGroups, fetchLevels,
+  fetchAgeGroups, fetchLevels, fetchSeasons, fetchDivisions, uploadTeamLogo,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldLocations from './FieldLocations.jsx';
+import { HomePlate, plateLabel } from './TeamLogo.jsx';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
@@ -435,18 +436,90 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [ageGroups, setAgeGroups] = useState([]);
   const [levels, setLevels] = useState([]);
+  const [seasons, setSeasons] = useState([]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
+  const [divisions, setDivisions] = useState([]);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(null);
-  const [newTeam, setNewTeam] = useState({ team_city: '', team_mascot: '', team_color: '', age_group: '', level: '' });
+  const [newTeam, setNewTeam] = useState({
+    team_city: '',
+    team_mascot: '',
+    team_color: '',
+    age_group: '',
+    level: '',
+    primary_color: '#003366',
+    secondary_color: '#CC0000',
+    division_ids: [],
+  });
 
   const orgTeams = org.teams || [];
   const unassignedTeams = allTeams.filter((t) => !t.org_id);
 
   useEffect(() => {
-    fetchAgeGroups().then(setAgeGroups).catch(() => setAgeGroups([]));
-    fetchLevels().then(setLevels).catch(() => setLevels([]));
+    (async () => {
+      try {
+        const [agData, lvData, seasonData] = await Promise.all([
+          fetchAgeGroups(),
+          fetchLevels(),
+          fetchSeasons(),
+        ]);
+        setAgeGroups(agData || []);
+        setLevels(lvData || []);
+        setSeasons(seasonData || []);
+        const active = (seasonData || []).find((s) => s.is_active);
+        const sid = active ? active.id : ((seasonData || []).length ? seasonData[0].id : null);
+        setSelectedSeasonId(sid);
+        if (sid) {
+          const divData = await fetchDivisions(sid);
+          setDivisions(divData || []);
+        }
+      } catch {
+        setAgeGroups([]);
+        setLevels([]);
+        setSeasons([]);
+        setDivisions([]);
+      }
+    })();
   }, []);
+
+  async function handleSeasonChange(e) {
+    const sid = e.target.value ? Number(e.target.value) : null;
+    setSelectedSeasonId(sid);
+    setNewTeam((prev) => ({ ...prev, division_ids: [] }));
+    if (sid) {
+      try {
+        setDivisions(await fetchDivisions(sid));
+      } catch {
+        setDivisions([]);
+      }
+    } else {
+      setDivisions([]);
+    }
+  }
+
+  function toggleDivision(divId) {
+    setNewTeam((prev) => ({
+      ...prev,
+      division_ids: prev.division_ids.includes(divId)
+        ? prev.division_ids.filter((id) => id !== divId)
+        : [...prev.division_ids, divId],
+    }));
+  }
+
+  function handleLogoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  }
+
+  function handleRemoveLogo() {
+    setLogoFile(null);
+    setLogoPreview(null);
+  }
 
   async function handleAssign() {
     if (!selectedTeamId) return;
@@ -479,15 +552,32 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
     setCreating(true);
     setCreateError(null);
     try {
-      await createTeam({
+      const savedTeam = await createTeam({
         team_city: newTeam.team_city.trim(),
         team_mascot: newTeam.team_mascot.trim() || null,
         team_color: newTeam.team_color.trim() || null,
         age_group: newTeam.age_group.trim() || null,
         level: newTeam.level.trim() || null,
+        primary_color: newTeam.primary_color || null,
+        secondary_color: newTeam.secondary_color || null,
+        division_ids: newTeam.division_ids,
         org_id: org.id,
       });
-      setNewTeam({ team_city: '', team_mascot: '', team_color: '', age_group: '', level: '' });
+      if (logoFile) {
+        await uploadTeamLogo(savedTeam.id, logoFile);
+      }
+      setNewTeam({
+        team_city: '',
+        team_mascot: '',
+        team_color: '',
+        age_group: '',
+        level: '',
+        primary_color: '#003366',
+        secondary_color: '#CC0000',
+        division_ids: [],
+      });
+      setLogoFile(null);
+      setLogoPreview(null);
       setShowCreate(false);
       onChanged();
     } catch (err) {
@@ -496,6 +586,14 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
       setCreating(false);
     }
   }
+
+  const shortName = [newTeam.team_city, newTeam.team_color, newTeam.age_group, newTeam.level].filter(Boolean).join(' ');
+  const longName = [newTeam.team_city, newTeam.team_mascot, newTeam.team_color, newTeam.age_group, newTeam.level].filter(Boolean).join(' ');
+  const cityAbbr = (() => {
+    if (!newTeam.team_city) return '';
+    const words = newTeam.team_city.trim().split(/\s+/);
+    return (words.length > 1 ? words.map((w) => w[0]).join('') : newTeam.team_city.substring(0, 3)).toUpperCase();
+  })();
 
   return (
     <div className="mt-6">
@@ -562,38 +660,130 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
           <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200 border border-gray-700">
             <h4 className="text-lg font-bold text-gray-100 mb-3">Add Team to {org.name}</h4>
-            <form onSubmit={handleCreateTeam} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form onSubmit={handleCreateTeam} className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label htmlFor="new-team-city" className={labelCls}>City *</label>
-                  <input id="new-team-city" name="team_city" value={newTeam.team_city} onChange={handleCreateChange} required className={inputCls} placeholder="Lake City" />
+                  <label htmlFor="new-team-city" className={labelCls}>Team City *</label>
+                  <input id="new-team-city" name="team_city" value={newTeam.team_city} onChange={handleCreateChange} required className={inputCls} placeholder="e.g. Austin" />
                 </div>
                 <div>
-                  <label htmlFor="new-team-mascot" className={labelCls}>Mascot</label>
-                  <input id="new-team-mascot" name="team_mascot" value={newTeam.team_mascot} onChange={handleCreateChange} className={inputCls} placeholder="Tigers" />
+                  <label htmlFor="new-team-mascot" className={labelCls}>Team Mascot</label>
+                  <input id="new-team-mascot" name="team_mascot" value={newTeam.team_mascot} onChange={handleCreateChange} className={inputCls} placeholder="e.g. Thunder" />
                 </div>
                 <div>
-                  <label htmlFor="new-team-color" className={labelCls}>Color</label>
-                  <input id="new-team-color" name="team_color" value={newTeam.team_color} onChange={handleCreateChange} className={inputCls} placeholder="Blue" />
+                  <label htmlFor="new-team-color" className={labelCls}>Team Color</label>
+                  <input id="new-team-color" name="team_color" value={newTeam.team_color} onChange={handleCreateChange} className={inputCls} placeholder="e.g. Red" />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="new-team-primary" className={labelCls}>Primary Color</label>
+                  <div className="flex items-center gap-2">
+                    <input id="new-team-primary" type="color" value={newTeam.primary_color} onChange={(e) => setNewTeam((prev) => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
+                    <input type="text" value={newTeam.primary_color} onChange={(e) => setNewTeam((prev) => ({ ...prev, primary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="new-team-secondary" className={labelCls}>Secondary Color</label>
+                  <div className="flex items-center gap-2">
+                    <input id="new-team-secondary" type="color" value={newTeam.secondary_color} onChange={(e) => setNewTeam((prev) => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
+                    <input type="text" value={newTeam.secondary_color} onChange={(e) => setNewTeam((prev) => ({ ...prev, secondary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+                  </div>
+                </div>
+              </div>
+
+              {shortName && (
+                <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 space-y-2 text-sm">
+                  <div className="flex items-center gap-3">
+                    <HomePlate cityAbbr={cityAbbr} label={plateLabel(newTeam.age_group, newTeam.level)} primaryColor={newTeam.primary_color} secondaryColor={newTeam.secondary_color} size="w-12 h-12" />
+                    <div className="space-y-1">
+                      <div><span className="text-xs font-semibold text-gray-400 uppercase">Long Name:</span> <span className="font-semibold text-gray-200">{longName}</span></div>
+                      <div><span className="text-xs font-semibold text-gray-400 uppercase">Short Name:</span> <span className="font-semibold text-gray-200">{shortName}</span></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className={labelCls}>Team Logo</label>
+                <div className="flex items-center gap-3">
+                  {logoPreview && <img src={logoPreview} alt="Logo preview" className="w-14 h-14 object-contain rounded border border-gray-700" />}
+                  <div className="flex flex-col gap-1">
+                    <label className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600 cursor-pointer inline-block w-fit">
+                      {logoPreview ? 'Change' : 'Upload'}
+                      <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+                    </label>
+                    {logoPreview && (
+                      <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-900/35 text-red-300 rounded hover:bg-red-800/60 w-fit">Remove</button>
+                    )}
+                    <p className="text-xs text-gray-400">Max 500 KB. If none, uses org logo.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="new-team-age" className={labelCls}>Age Group</label>
-                  <select id="new-team-age" name="age_group" value={newTeam.age_group} onChange={handleCreateChange} className={inputCls}>
-                    <option value="">— Select Age Group —</option>
-                    {ageGroups.map((ag) => (
-                      <option key={ag.id} value={ag.name}>{ag.name}</option>
-                    ))}
-                  </select>
+                  {ageGroups.length > 0 ? (
+                    <select id="new-team-age" name="age_group" value={newTeam.age_group} onChange={handleCreateChange} className={inputCls}>
+                      <option value="">— Select —</option>
+                      {ageGroups.map((ag) => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
+                    </select>
+                  ) : (
+                    <input id="new-team-age" name="age_group" value={newTeam.age_group} onChange={handleCreateChange} className={inputCls} placeholder="e.g. 12U" />
+                  )}
                 </div>
                 <div>
                   <label htmlFor="new-team-level" className={labelCls}>Level</label>
-                  <select id="new-team-level" name="level" value={newTeam.level} onChange={handleCreateChange} className={inputCls}>
-                    <option value="">— Select Level —</option>
-                    {levels.map((lvl) => (
-                      <option key={lvl.id} value={lvl.name}>{lvl.name}</option>
-                    ))}
-                  </select>
+                  {levels.length > 0 ? (
+                    <select id="new-team-level" name="level" value={newTeam.level} onChange={handleCreateChange} className={inputCls}>
+                      <option value="">— Select —</option>
+                      {levels.map((lvl) => <option key={lvl.id} value={lvl.name}>{lvl.name}</option>)}
+                    </select>
+                  ) : (
+                    <input id="new-team-level" name="level" value={newTeam.level} onChange={handleCreateChange} className={inputCls} placeholder="e.g. Competitive" />
+                  )}
                 </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Season / Divisions</label>
+                {seasons.length > 0 ? (
+                  <>
+                    <select value={selectedSeasonId || ''} onChange={handleSeasonChange} className={inputCls + ' mb-2'}>
+                      {seasons.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
+                      ))}
+                    </select>
+                    {divisions.length > 0 ? (
+                      <div className="border border-gray-600 rounded-lg p-2 max-h-40 overflow-y-auto space-y-1">
+                        {divisions.map((dv) => (
+                          <label key={dv.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-900 cursor-pointer text-sm"
+                            style={{ paddingLeft: `${(dv.depth || 0) * 16 + 8}px` }}>
+                            <input
+                              type="checkbox"
+                              checked={newTeam.division_ids.includes(dv.id)}
+                              onChange={() => toggleDivision(dv.id)}
+                              className="rounded border-gray-600"
+                            />
+                            <span className="truncate">{dv.name}</span>
+                            {dv.depth > 0 && <span className="text-xs text-gray-400 shrink-0">({dv.path})</span>}
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400">No divisions for this season. Add them in League Config.</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400">No seasons configured. Add them in League Config.</p>
+                )}
+                {newTeam.division_ids.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {newTeam.division_ids.length} selected: {divisions.filter((d) => newTeam.division_ids.includes(d.id)).map((d) => d.path || d.name).join(', ')}
+                  </p>
+                )}
               </div>
 
               {createError && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{createError}</div>}
