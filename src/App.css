@@ -1,7 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  /* === Baseball Navy (replaces default blue) === */
+  /* ═══════════════════════════════════════════════════════
+     ZVBL DESIGN SYSTEM · Color Tokens
+     ═══════════════════════════════════════════════════════ */
+
+  /* === Baseball Navy (headers, dark surfaces) === */
   --color-blue-50: #ebf0f7;
   --color-blue-100: #d4e1f0;
   --color-blue-200: #abc3df;
@@ -14,7 +18,7 @@
   --color-blue-900: #0f1b33;
   --color-blue-950: #080e1c;
 
-  /* === Warm Neutrals (replaces default gray) === */
+  /* === Warm Neutrals (surfaces, text, borders) === */
   --color-gray-50: #faf8f5;
   --color-gray-100: #f2efe9;
   --color-gray-200: #e4dfd7;
@@ -27,7 +31,45 @@
   --color-gray-900: #191715;
   --color-gray-950: #0d0c0b;
 
-  /* === Baseball Red (custom accent) === */
+  /* === Field Green (primary actions, CTA, success) === */
+  --color-field-50: #f0fdf4;
+  --color-field-100: #dcfce7;
+  --color-field-200: #bbf7d0;
+  --color-field-300: #86efac;
+  --color-field-400: #4ade80;
+  --color-field-500: #22c55e;
+  --color-field-600: #16a34a;
+  --color-field-700: #166534;
+  --color-field-800: #14532d;
+  --color-field-900: #052e16;
+  --color-field-950: #022c22;
+
+  /* === Dirt Brown (warm accent, secondary CTA) === */
+  --color-dirt-50: #fffbeb;
+  --color-dirt-100: #fef3c7;
+  --color-dirt-200: #fde68a;
+  --color-dirt-300: #fcd34d;
+  --color-dirt-400: #fbbf24;
+  --color-dirt-500: #f59e0b;
+  --color-dirt-600: #d97706;
+  --color-dirt-700: #b45309;
+  --color-dirt-800: #854d0e;
+  --color-dirt-900: #713f12;
+  --color-dirt-950: #422006;
+
+  /* === Cream (warm backgrounds, paper feel) === */
+  --color-cream-50: #fefdfb;
+  --color-cream-100: #fdfbf7;
+  --color-cream-200: #faf6ee;
+  --color-cream-300: #f8f1e3;
+  --color-cream-400: #f0e5cf;
+  --color-cream-500: #e5d5b5;
+  --color-cream-600: #d4bf94;
+  --color-cream-700: #b89e6e;
+  --color-cream-800: #96804f;
+  --color-cream-900: #766439;
+
+  /* === Baseball Red / Strike (danger, alerts) === */
   --color-baseball-50: #fef2f3;
   --color-baseball-100: #fde3e5;
   --color-baseball-200: #fbc8cc;
@@ -40,11 +82,89 @@
   --color-baseball-900: #751a28;
   --color-baseball-950: #410910;
 
-  /* === Heading Font === */
-  --font-heading: 'Oswald', sans-serif;
+  /* ═══════════════════════════════════════════════════════
+     Typography
+     ═══════════════════════════════════════════════════════ */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Oswald', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+
+  /* ═══════════════════════════════════════════════════════
+     Shadows
+     ═══════════════════════════════════════════════════════ */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+  --shadow-glow-green: 0 0 20px rgb(22 101 52 / 0.15);
+  --shadow-glow-dirt: 0 0 20px rgb(133 77 14 / 0.15);
+  --shadow-inner-field: inset 0 2px 4px 0 rgb(22 101 52 / 0.06);
+
+  /* ═══════════════════════════════════════════════════════
+     Animations
+     ═══════════════════════════════════════════════════════ */
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.25s ease-out;
+  --animate-slide-right: slide-right 0.3s ease-out;
+  --animate-scale-in: scale-in 0.2s ease-out;
+  --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
 }
 
-/* Leaflet z-index fix */
+/* ═══════════════════════════════════════════════════════
+   Animation Keyframes
+   ═══════════════════════════════════════════════════════ */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Baseball Background Patterns (decorative)
+   ═══════════════════════════════════════════════════════ */
+.bg-diamond-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20Z' fill='none' stroke='%23166534' stroke-width='0.5' opacity='0.07'/%3E%3C/svg%3E");
+}
+
+.bg-stitch-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10 Q15 0 30 10 Q45 20 60 10' fill='none' stroke='%23c41e3a' stroke-width='1' opacity='0.06'/%3E%3C/svg%3E");
+}
+
+.bg-field-lines {
+  background-image:
+    linear-gradient(90deg, rgb(22 101 52 / 0.03) 1px, transparent 1px),
+    linear-gradient(rgb(22 101 52 / 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Custom Scrollbar
+   ═══════════════════════════════════════════════════════ */
+.scrollbar-thin::-webkit-scrollbar { width: 6px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgb(167 160 152 / 0.4); border-radius: 3px; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: rgb(167 160 152 / 0.6); }
+
+/* ═══════════════════════════════════════════════════════
+   Leaflet z-index fix
+   ═══════════════════════════════════════════════════════ */
 .leaflet-pane { z-index: 1; }
 .leaflet-top, .leaflet-bottom { z-index: 2; }
 .leaflet-popup { z-index: 3; }
