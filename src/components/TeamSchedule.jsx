@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchGames } from '../api/index.js';
 import GameDetail from './GameDetail.jsx';
+import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 
 const STATUS_COLORS = {
@@ -29,6 +30,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState(null);
+  const [trackingGameId, setTrackingGameId] = useState(null);
 
   const loadGames = useCallback(() => {
     if (!teamId) { setGames([]); return; }
@@ -40,6 +42,14 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   }, [teamId]);
 
   useEffect(() => { loadGames(); }, [loadGames]);
+
+  if (trackingGameId) {
+    return (
+      <div className="mt-6">
+        <PitchTracker gameId={trackingGameId} onBack={() => { setTrackingGameId(null); loadGames(); }} />
+      </div>
+    );
+  }
 
   if (selectedGameId) {
     return (
@@ -100,16 +110,25 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
               </div>
 
               {/* Score / Status */}
-              <div className="shrink-0 text-right">
+              <div className="shrink-0 text-right flex items-center gap-2">
                 {isCompleted ? (
                   <div className="flex items-center gap-2">
                     <span className={`font-bold text-xs px-1.5 py-0.5 rounded ${resultColor}`}>{result}</span>
                     <span className="font-semibold tabular-nums">{teamScore}–{oppScore}</span>
                   </div>
                 ) : (
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
-                    {game.status_label}
-                  </span>
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
+                      className="text-xs font-semibold px-2 py-1 rounded bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"
+                      title="Live pitch tracker"
+                    >
+                      ⚾ Track
+                    </button>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
+                      {game.status_label}
+                    </span>
+                  </>
                 )}
               </div>
             </div>

@@ -6,6 +6,7 @@ import {
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
+import PitchTracker from './PitchTracker.jsx';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
 const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
@@ -44,6 +45,9 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  // Pitch tracker mode
+  const [showTracker, setShowTracker] = useState(false);
 
   // Score form
   const [scoreForm, setScoreForm] = useState({ home_score: '', away_score: '', innings_played: '' });
@@ -194,6 +198,10 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   if (loading) return <div className="py-8 text-center text-gray-500">Loading game…</div>;
   if (!game) return <div className="py-8 text-center text-red-600">Game not found</div>;
 
+  if (showTracker) {
+    return <PitchTracker gameId={gameId} onBack={() => { setShowTracker(false); loadAll(); }} />;
+  }
+
   const userCanEdit = canEdit(game);
   const homePC = pitchCounts.filter(pc => pc.team_id === game.home_team_id);
   const awayPC = pitchCounts.filter(pc => pc.team_id === game.away_team_id);
@@ -206,8 +214,15 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
 
   return (
     <div>
-      {/* Back button */}
-      <button onClick={onBack} className={`${btnSecondary} mb-4`}>← Back to Schedule</button>
+      {/* Back button + tracker */}
+      <div className="flex items-center gap-2 mb-4">
+        <button onClick={onBack} className={btnSecondary}>← Back to Schedule</button>
+        {userCanEdit && game.status !== 'completed' && (
+          <button onClick={() => setShowTracker(true)} className="px-4 py-2 bg-yellow-500 text-white text-sm font-semibold rounded-lg hover:bg-yellow-600 transition-colors">
+            ⚾ Pitch Tracker
+          </button>
+        )}
+      </div>
 
       {/* Game header */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 mb-4">

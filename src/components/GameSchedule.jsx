@@ -5,6 +5,7 @@ import {
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
+import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600";
@@ -54,6 +55,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [selectedGameId, setSelectedGameId] = useState(null);
+  const [trackingGameId, setTrackingGameId] = useState(null);
 
   // Filters
   const [filterTeam, setFilterTeam] = useState('');
@@ -136,6 +138,10 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
 
   if (loading) return <div className="py-8 text-center text-gray-500">Loading schedule…</div>;
   if (error) return <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+
+  if (trackingGameId) {
+    return <PitchTracker gameId={trackingGameId} onBack={() => { setTrackingGameId(null); loadGames(); }} />;
+  }
 
   if (selectedGameId) {
     return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} onNavigateToTeam={onNavigateToTeam} />;
@@ -251,6 +257,10 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-100'}`}>
                                 {game.status_label}
                               </span>
+                              {game.status !== 'completed' && isAdmin && (
+                                <button onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
+                                  className="px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">⚾ Track</button>
+                              )}
                               {isAdmin && (
                                 <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                   <button onClick={() => { setEditing(game); setShowForm(true); }}
@@ -290,14 +300,20 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                             <div className="text-xs text-gray-500 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
                           )}
                           {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
-                          {isAdmin && (
-                            <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
-                              <button onClick={() => { setEditing(game); setShowForm(true); }}
-                                className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
-                              <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
-                                className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
-                            </div>
-                          )}
+                          <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+                            {game.status !== 'completed' && isAdmin && (
+                              <button onClick={() => setTrackingGameId(game.id)}
+                                className="px-2.5 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">⚾ Track</button>
+                            )}
+                            {isAdmin && (
+                              <>
+                                <button onClick={() => { setEditing(game); setShowForm(true); }}
+                                  className="px-2.5 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Edit</button>
+                                <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
+                                  className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
