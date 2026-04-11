@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchGames, createGame, updateGame, deleteGame,
-  fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings,
+  fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
@@ -365,6 +365,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
 function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
   const isEditing = !!game;
   const [saving, setSaving] = useState(false);
+  const [addingLocation, setAddingLocation] = useState(false);
+  const [showAddLocationForm, setShowAddLocationForm] = useState(false);
   const [error, setError] = useState(null);
   const [locations, setLocations] = useState([]);
   const [scheduleSettings, setScheduleSettings] = useState({
@@ -386,8 +388,19 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
     notes: game?.notes || '',
   });
 
+  const [newLocation, setNewLocation] = useState({
+    name: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: '',
+    comments: '',
+  });
+
+  const selectedHomeTeam = teams.find((t) => String(t.id) === String(form.home_team_id));
+  const homeOrgId = selectedHomeTeam?.org_id || null;
+
   useEffect(() => {
-    fetchLocations().then(setLocations).catch(() => {});
     fetchScheduleSettings().then((data) => {
       setScheduleSettings({
         game_start_time: data?.game_start_time || '08:00',
@@ -397,6 +410,24 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
     }).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!homeOrgId) {
+      setLocations([]);
+      if (form.location_id) {
+        setForm((prev) => ({ ...prev, location_id: '' }));
+      }
+      return;
+    }
+    fetchLocations(homeOrgId).then((locs) => {
+      setLocations(locs);
+      if (form.location_id && !locs.some((loc) => String(loc.id) === String(form.location_id))) {
+        setForm((prev) => ({ ...prev, location_id: '' }));
+      }
+    }).catch(() => {
+      setLocations([]);
+    });
+  }, [homeOrgId]);
+
   const timeSlots = buildTimeSlots(
     scheduleSettings.game_start_time,
     scheduleSettings.game_end_time,
@@ -405,7 +436,59 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
   const currentTimeIncluded = form.game_time && !timeSlots.includes(form.game_time);
 
   function handleChange(e) {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    if (name === 'home_team_id') {
+      const nextTeam = teams.find((t) => String(t.id) === String(value));
+      const nextOrgId = nextTeam?.org_id || null;
+      const prevOrgId = selectedHomeTeam?.org_id || null;
+      setForm((prev) => ({
+        ...prev,
+        home_team_id: value,
+        location_id: nextOrgId !== prevOrgId ? '' : prev.location_id,
+      }));
+      return;
+    }
+    setForm(prev => ({ ...prev, [name]: value }));
+  }
+
+  function handleNewLocationChange(e) {
+    const { name, value } = e.target;
+    setNewLocation((prev) => ({ ...prev, [name]: value }));
+  }
+
+  async function handleAddLocation(e) {
+    e.preventDefault();
+    if (!homeOrgId) {
+      setError('Select a home team with an organization before adding a field.');
+      return;
+    }
+    if (!newLocation.name.trim()) {
+      setError('Field name is required.');
+      return;
+    }
+    setAddingLocation(true);
+    setError(null);
+    try {
+      const payload = {
+        org_id: homeOrgId,
+        name: newLocation.name.trim(),
+        address: newLocation.address.trim() || null,
+        city: newLocation.city.trim() || null,
+        state: newLocation.state.trim() || null,
+        zip: newLocation.zip.trim() || null,
+        comments: newLocation.comments.trim() || null,
+      };
+      const created = await createLocation(payload);
+      const updated = await fetchLocations(homeOrgId);
+      setLocations(updated);
+      setForm((prev) => ({ ...prev, location_id: String(created.id) }));
+      setNewLocation({ name: '', address: '', city: '', state: '', zip: '', comments: '' });
+      setShowAddLocationForm(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAddingLocation(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -462,19 +545,6 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
     );
   }
 
-  // Group locations by org
-  const locsByOrg = {};
-  const ungroupedLocs = [];
-  for (const l of locations) {
-    if (l.org_name) {
-      if (!locsByOrg[l.org_name]) locsByOrg[l.org_name] = [];
-      locsByOrg[l.org_name].push(l);
-    } else {
-      ungroupedLocs.push(l);
-    }
-  }
-  const locOrgNames = Object.keys(locsByOrg).sort();
-
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
@@ -525,20 +595,28 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
 
           {/* Location */}
           <div>
-            <label htmlFor="game-location" className={labelCls}>Location</label>
-            <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className={inputCls}>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <label htmlFor="game-location" className={`${labelCls} mb-0`}>Location</label>
+              <button
+                type="button"
+                onClick={() => setShowAddLocationForm(true)}
+                disabled={!homeOrgId}
+                className="text-xs font-semibold text-field-300 hover:text-field-100 underline disabled:opacity-50 disabled:no-underline"
+              >
+                + Add new field
+              </button>
+            </div>
+            <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className={inputCls} disabled={!homeOrgId}>
               <option value="">— None —</option>
-              {locOrgNames.map(orgName => (
-                <optgroup key={orgName} label={orgName}>
-                  {locsByOrg[orgName].map(l => (
-                    <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
-                  ))}
-                </optgroup>
-              ))}
-              {ungroupedLocs.map(l => (
+              {locations.map(l => (
                 <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
               ))}
             </select>
+            {!homeOrgId ? (
+              <p className="text-xs text-gray-400 mt-1">Select a home team first to see that organization&apos;s fields.</p>
+            ) : locations.length === 0 ? (
+              <p className="text-xs text-gray-400 mt-1">No fields found for {selectedHomeTeam?.org_name || 'this organization'}.</p>
+            ) : null}
           </div>
 
           {/* Status + Score + Innings */}
@@ -579,6 +657,54 @@ function GameForm({ game, teams, seasons, defaultSeasonId, onDone, onCancel }) {
             </button>
           </div>
         </form>
+
+        {showAddLocationForm && (
+          <div className="fixed inset-0 z-[60] bg-black/50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4 border border-gray-700">
+              <h3 className="text-lg font-bold text-gray-100 mb-1">Add Field Location</h3>
+              <p className="text-xs text-gray-400 mb-4">This will be added to {selectedHomeTeam?.org_name || 'the selected home team organization'}.</p>
+
+              <form onSubmit={handleAddLocation} className="space-y-3">
+                <div>
+                  <label htmlFor="new-loc-name" className={labelCls}>Field Name *</label>
+                  <input id="new-loc-name" name="name" value={newLocation.name} onChange={handleNewLocationChange} required className={inputCls} placeholder="e.g. Hok-Si-La Park Field 1" />
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-[2fr_1fr_70px_90px] gap-3">
+                  <div className="col-span-2 sm:col-span-1">
+                    <label htmlFor="new-loc-address" className={labelCls}>Address</label>
+                    <input id="new-loc-address" name="address" value={newLocation.address} onChange={handleNewLocationChange} className={inputCls} placeholder="123 Main St" />
+                  </div>
+                  <div>
+                    <label htmlFor="new-loc-city" className={labelCls}>City</label>
+                    <input id="new-loc-city" name="city" value={newLocation.city} onChange={handleNewLocationChange} className={inputCls} />
+                  </div>
+                  <div>
+                    <label htmlFor="new-loc-state" className={labelCls}>State</label>
+                    <input id="new-loc-state" name="state" value={newLocation.state} onChange={handleNewLocationChange} maxLength={2} className={inputCls} placeholder="MN" />
+                  </div>
+                  <div>
+                    <label htmlFor="new-loc-zip" className={labelCls}>ZIP</label>
+                    <input id="new-loc-zip" name="zip" value={newLocation.zip} onChange={handleNewLocationChange} maxLength={10} className={inputCls} />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="new-loc-comments" className={labelCls}>Comments</label>
+                  <textarea id="new-loc-comments" name="comments" value={newLocation.comments} onChange={handleNewLocationChange} rows={2}
+                    className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    placeholder="Optional notes"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setShowAddLocationForm(false)} className={btnSecondary}>Cancel</button>
+                  <button type="submit" disabled={addingLocation} className={btnPrimary}>{addingLocation ? 'Adding…' : 'Add Field'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
