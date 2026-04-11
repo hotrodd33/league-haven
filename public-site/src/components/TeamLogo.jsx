@@ -14,24 +14,24 @@ function contrastText(hex) {
   return lum > 0.179 ? '#000000' : '#FFFFFF';
 }
 
-const HOME_PLATE = 'M50 6 L90 30 L90 75 L50 96 L10 75 L10 30 Z';
-
-export function HomePlate({ cityAbbr, primaryColor = '#003366', secondaryColor = '#CC0000', size = 'w-8 h-8' }) {
+// Real home-plate shape (flat top, point bottom) — viewBox 0 0 589 589
+export function HomePlate({ cityAbbr, primaryColor = '#003366', secondaryColor = '#CC0000', size = 'w-8 h-8', textSize }) {
   const textColor = contrastText(primaryColor);
   const num = parseInt((size.match(/w-(\d+)/) || [])[1] || '8', 10);
-  const fontSize = num <= 6 ? '28' : num <= 8 ? '26' : num <= 10 ? '24' : '22';
+  const fontSize = textSize ? parseInt((textSize.match(/(\d+)/) || [])[1] || '140', 10) : (num <= 6 ? 160 : num <= 10 ? 140 : 120);
   return (
-    <svg viewBox="0 0 100 100" className={`${size} shrink-0`} aria-hidden="true">
-      <path d={HOME_PLATE} fill={primaryColor} stroke={secondaryColor} strokeWidth="6" strokeLinejoin="round" />
+    <svg viewBox="0 0 589 589" className={`${size} shrink-0`} aria-hidden="true">
+      <polygon points="7.5,291.39 7.5,7.5 581.5,7.5 581.5,291.39 294.5,578.39" fill={primaryColor} />
+      <path d="M574,15v273.29l-279.5,279.5L15,288.29V15h559M589,0H0v294.5l294.5,294.5,294.5-294.5V0h0Z" fill={secondaryColor} />
       <text
-        x="50" y="56"
+        x="294.5" y="220"
         textAnchor="middle"
         dominantBaseline="central"
         fill={textColor}
         fontSize={fontSize}
         fontWeight="800"
         fontFamily="system-ui, sans-serif"
-        letterSpacing="1"
+        letterSpacing="4"
       >
         {(cityAbbr || '?').substring(0, 4)}
       </text>
