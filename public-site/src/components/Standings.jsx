@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchStandings, fetchSeasons } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
 
+function winPct(team) {
+  if (!team.gp) return '---';
+  return ((team.wins + (team.ties * 0.5)) / team.gp).toFixed(3);
+}
+
 export default function Standings() {
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
@@ -84,10 +89,11 @@ export default function Standings() {
                 <tr className="bg-gray-100 border-b border-gray-200">
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide w-8"></th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Team</th>
+                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">PTS</th>
+                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">WIN%</th>
                   <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">W</th>
                   <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">L</th>
                   <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">T</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">PTS</th>
                   <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">GP</th>
                   <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">RF</th>
                   <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">RA</th>
@@ -106,10 +112,11 @@ export default function Standings() {
                         <div className="font-semibold">{t.team_name}</div>
                         <div className="text-xs text-gray-400">{t.org_name}</div>
                       </td>
+                      <td className="px-3 py-2 text-center tabular-nums font-bold text-blue-800">{t.points}</td>
+                      <td className="px-3 py-2 text-center tabular-nums text-gray-600">{winPct(t)}</td>
                       <td className="px-3 py-2 text-center tabular-nums">{t.wins}</td>
                       <td className="px-3 py-2 text-center tabular-nums">{t.losses}</td>
                       <td className="px-3 py-2 text-center tabular-nums">{t.ties}</td>
-                      <td className="px-3 py-2 text-center tabular-nums font-bold text-blue-800">{t.points}</td>
                       <td className="px-3 py-2 text-center tabular-nums text-gray-500">{t.gp}</td>
                       <td className="px-3 py-2 text-center tabular-nums">{t.runs_for}</td>
                       <td className="px-3 py-2 text-center tabular-nums">{t.runs_against}</td>
@@ -136,6 +143,7 @@ export default function Standings() {
                   </div>
                   <div className="text-right shrink-0">
                     <div className="font-bold text-blue-800 text-lg tabular-nums">{t.points}<span className="text-xs text-gray-400 ml-1">pts</span></div>
+                    <div className="text-xs text-gray-500 tabular-nums">Win% {winPct(t)}</div>
                     <div className="text-xs text-gray-500 tabular-nums">{t.wins}W {t.losses}L {t.ties}T</div>
                   </div>
                 </div>

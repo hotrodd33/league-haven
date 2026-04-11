@@ -4,6 +4,11 @@ import TeamLogo from './TeamLogo.jsx';
 
 const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors";
 
+function winPct(team) {
+  if (!team.gp) return '---';
+  return ((team.wins + (team.ties * 0.5)) / team.gp).toFixed(3);
+}
+
 export default function Standings({ onBack, onNavigateToTeam }) {
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
@@ -84,11 +89,12 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                     <tr className="border-b-2 border-gray-700">
                       <th className="text-left py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-8">#</th>
                       <th className="text-left py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide">Team</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-14">PTS</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-16">WIN%</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-12">W</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-12">L</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-12">T</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-14">GP</th>
-                      <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-14">PTS</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-12">RF</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-12">RA</th>
                       <th className="text-center py-2 px-2 font-semibold text-gray-300 uppercase text-xs tracking-wide w-14">DIFF</th>
@@ -109,11 +115,12 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                               </div>
                             </div>
                           </td>
+                          <td className="py-2.5 px-2 text-center font-bold text-field-300 tabular-nums">{team.points}</td>
+                          <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{winPct(team)}</td>
                           <td className="py-2.5 px-2 text-center font-bold text-gray-100">{team.wins}</td>
                           <td className="py-2.5 px-2 text-center font-bold text-gray-100">{team.losses}</td>
                           <td className="py-2.5 px-2 text-center text-gray-400">{team.ties || '—'}</td>
                           <td className="py-2.5 px-2 text-center text-gray-400">{team.gp}</td>
-                          <td className="py-2.5 px-2 text-center font-bold text-field-300 tabular-nums">{team.points}</td>
                           <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{team.runs_for}</td>
                           <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{team.runs_against}</td>
                           <td className={`py-2.5 px-2 text-center font-semibold tabular-nums ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-gray-400'}`}>
@@ -142,11 +149,13 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                         <div className="text-right shrink-0">
                           <div className="font-bold text-sm text-gray-100">{team.wins}-{team.losses}{team.ties ? `-${team.ties}` : ''}</div>
                           <div className="text-xs font-bold text-field-300">{team.points} pts</div>
+                          <div className="text-[11px] text-gray-400 tabular-nums">Win% {winPct(team)}</div>
                         </div>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 border-t border-gray-700 pt-1.5">
-                        <span>GP: {team.gp}</span>
                         <span>PTS: {team.points}</span>
+                        <span>WIN%: {winPct(team)}</span>
+                        <span>GP: {team.gp}</span>
                         <span>RA: {team.runs_against}</span>
                         <span className={`font-semibold ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : ''}`}>
                           DIFF: {diff > 0 ? '+' : ''}{diff}
