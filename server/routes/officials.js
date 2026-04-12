@@ -381,27 +381,31 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
          ht.name AS home_team_name,
          at.name AS away_team_name,
          ht.team_city AS home_team_city, ht.team_mascot AS home_team_mascot, ht.team_color AS home_team_color,
+         ht.age_group AS home_age_group,
          at.team_city AS away_team_city, at.team_mascot AS away_team_mascot, at.team_color AS away_team_color,
          fl.name AS location_name,
          goa.added_at,
          goa.game_fee,
          goa.is_paid,
          goa.paid_at,
-         ls.name AS season_name
+         ls.name AS season_name,
+         lag.umpire_rate AS age_group_rate
        FROM game_official_assignments goa
        JOIN games g ON g.id = goa.game_id
        LEFT JOIN teams ht ON ht.id = g.home_team_id
        LEFT JOIN teams at ON at.id = g.away_team_id
        LEFT JOIN field_locations fl ON fl.id = g.location_id
        LEFT JOIN league_seasons ls ON ls.id = g.season_id
+       LEFT JOIN league_age_groups lag ON LOWER(TRIM(lag.name)) = LOWER(TRIM(ht.age_group))
        WHERE goa.official_id = $1
        ORDER BY g.game_date DESC, g.game_time DESC NULLS LAST`,
       [id]
     );
 
-    // Calculate summary
+    // Fee priority: game_fee override > age-group rate > official default rate > $50
     const games = rows.map(r => {
-      const fee = r.game_fee != null ? Number(r.game_fee) : defaultRate;
+      const ageGroupRate = r.age_group_rate != null ? Number(r.age_group_rate) : null;
+      const fee = r.game_fee != null ? Number(r.game_fee) : (ageGroupRate ?? defaultRate);
       const homeName = r.home_team_city
         ? [r.home_team_city, r.home_team_mascot, r.home_team_color].filter(Boolean).join(' ')
         : (r.home_team_name || '(TBD)');

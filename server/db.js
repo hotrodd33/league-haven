@@ -443,6 +443,9 @@ async function migrate() {
   await pool.query(`ALTER TABLE game_official_assignments ADD COLUMN IF NOT EXISTS game_fee NUMERIC(10, 2);`);
   await pool.query(`ALTER TABLE game_official_assignments ADD COLUMN IF NOT EXISTS is_paid BOOLEAN NOT NULL DEFAULT FALSE;`);
   await pool.query(`ALTER TABLE game_official_assignments ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;`);
+
+  // ── Umpire rate per age group ──
+  await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS umpire_rate NUMERIC(10, 2) NOT NULL DEFAULT 50;`);
 }
 
 // Lazy migration: retries on each request until it succeeds

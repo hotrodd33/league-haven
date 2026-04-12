@@ -40,13 +40,7 @@ export default function LeagueConfig({ onBack }) {
       {tab === 'branding' && <BrandingConfig />}
       {tab === 'scheduling' && <SchedulingConfig />}
       {tab === 'seasons' && <SeasonList />}
-      {tab === 'age_groups' && (
-        <ConfigList
-          title="Age Groups" placeholder="e.g. 8U, 10U, 12U, 14U"
-          fetchItems={fetchAgeGroups} createItem={createAgeGroup}
-          updateItem={updateAgeGroup} deleteItem={deleteAgeGroup}
-        />
-      )}
+      {tab === 'age_groups' && <AgeGroupConfig />}
       {tab === 'levels' && (
         <ConfigList
           title="Levels" placeholder="e.g. Recreational, Competitive, Elite"
@@ -438,6 +432,162 @@ function SeasonList() {
                   {deletingId === s.id ? '…' : 'Del'}
                 </button>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Age Group Config with Umpire Rate ──
+function AgeGroupConfig() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [newName, setNewName] = useState('');
+  const [newRate, setNewRate] = useState('50');
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editOrder, setEditOrder] = useState(0);
+  const [editRate, setEditRate] = useState('50');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try { setItems(await fetchAgeGroups()); }
+    catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setAdding(true); setError(null);
+    try {
+      await createAgeGroup({ name: newName.trim(), sort_order: items.length, umpire_rate: Number(newRate) || 50 });
+      setNewName('');
+      setNewRate('50');
+      await load();
+    } catch (err) { setError(err.message); }
+    finally { setAdding(false); }
+  }
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setEditName(item.name);
+    setEditOrder(item.sort_order ?? 0);
+    setEditRate(String(item.umpire_rate ?? 50));
+  }
+
+  async function handleSaveEdit() {
+    if (!editName.trim()) return;
+    setSavingEdit(true); setError(null);
+    try {
+      await updateAgeGroup(editingId, { name: editName.trim(), sort_order: editOrder, umpire_rate: Number(editRate) || 50 });
+      setEditingId(null);
+      await load();
+    } catch (err) { setError(err.message); }
+    finally { setSavingEdit(false); }
+  }
+
+  async function handleDelete(item) {
+    if (!window.confirm(`Delete "${item.name}"?`)) return;
+    setDeletingId(item.id); setError(null);
+    try { await deleteAgeGroup(item.id); await load(); }
+    catch (err) { setError(err.message); }
+    finally { setDeletingId(null); }
+  }
+
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading age groups…</div>;
+
+  return (
+    <div>
+      <h3 className="text-base font-bold mb-3">Age Groups ({items.length})</h3>
+
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+
+      {/* Add form */}
+      <form onSubmit={handleAdd} className="flex gap-2 mb-4">
+        <input
+          type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
+          placeholder="e.g. 8U, 10U, 12U, 14U" className={`flex-1 ${inputCls}`}
+        />
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-gray-400">$</span>
+          <input
+            type="number" min="0" step="0.01" value={newRate} onChange={(e) => setNewRate(e.target.value)}
+            placeholder="50" className={`w-20 ${inputCls}`} title="Umpire rate per game"
+          />
+        </div>
+        <button type="submit" disabled={adding || !newName.trim()} className={btnPrimary}>
+          {adding ? '…' : '+ Add'}
+        </button>
+      </form>
+
+      {items.length === 0 ? (
+        <div className="py-8 text-center text-gray-400">No age groups configured yet.</div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div key={item.id} className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3">
+              {editingId === item.id ? (
+                <div className="flex-1 flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
+                    className={`flex-1 ${inputCls}`} autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(); } }}
+                  />
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-400 whitespace-nowrap">Order:</label>
+                    <input
+                      type="number" value={editOrder} onChange={(e) => setEditOrder(Number(e.target.value))}
+                      className={`w-20 ${inputCls}`}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-400 whitespace-nowrap">Ump $:</label>
+                    <input
+                      type="number" min="0" step="0.01" value={editRate} onChange={(e) => setEditRate(e.target.value)}
+                      className={`w-24 ${inputCls}`}
+                    />
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={handleSaveEdit} disabled={savingEdit}
+                      className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60">
+                      {savingEdit ? '…' : 'Save'}
+                    </button>
+                    <button onClick={() => setEditingId(null)}
+                      className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="font-semibold text-sm">{item.name}</span>
+                    <span className="text-xs text-gray-400">#{item.sort_order ?? 0}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">
+                      ${Number(item.umpire_rate ?? 50).toFixed(2)}/game
+                    </span>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => startEdit(item)}
+                      className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
+                      Edit
+                    </button>
+                    <button onClick={() => handleDelete(item)} disabled={deletingId === item.id}
+                      className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                      {deletingId === item.id ? '…' : 'Del'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>
