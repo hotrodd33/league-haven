@@ -41,7 +41,7 @@ export default function AppShell({
   }[page] || 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-cream-200 bg-diamond-pattern">
+    <div className="min-h-screen bg-league-watermark">
       {/* Sidebar */}
       <Sidebar
         page={page}

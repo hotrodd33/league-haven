@@ -40,3 +40,7 @@ export function fetchGames(params = {}) {
 export function fetchDivisions() {
   return apiFetch('/league-config/divisions');
 }
+
+export function fetchBranding() {
+  return apiFetch('/league-config/branding');
+}

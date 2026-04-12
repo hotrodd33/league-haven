@@ -38,6 +38,11 @@ export default function App() {
             .catch(() => { /* non-blocking */ });
     }, [isAuthenticated]);
 
+    useEffect(() => {
+        const cssValue = branding?.logo_url ? `url(\"${branding.logo_url}\")` : 'none';
+        document.documentElement.style.setProperty('--league-logo-watermark', cssValue);
+    }, [branding?.logo_url]);
+
     function navigateToTeam(teamId, orgId) {
         setSelectedTeam(teamId);
         setSelectedTeamOrgId(orgId || null);

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Teams from './components/Teams.jsx';
 import Standings from './components/Standings.jsx';
 import Scores from './components/Scores.jsx';
+import { fetchBranding } from './api/index.js';
 
 const TABS = [
   { key: 'standings', label: 'Standings' },
@@ -12,13 +13,25 @@ const TABS = [
 export default function App() {
   const [page, setPage] = useState('standings');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [branding, setBranding] = useState({ app_name: 'ZVBL', logo_url: null });
+
+  useEffect(() => {
+    fetchBranding()
+      .then((data) => setBranding({ app_name: data?.app_name || 'ZVBL', logo_url: data?.logo_url || null }))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const cssValue = branding?.logo_url ? `url(\"${branding.logo_url}\")` : 'none';
+    document.documentElement.style.setProperty('--league-logo-watermark', cssValue);
+  }, [branding?.logo_url]);
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="min-h-screen bg-league-watermark text-gray-900">
       {/* Header */}
       <header className="bg-blue-800 text-white shadow-lg border-t-4 border-baseball-600">
         <div className="flex items-center justify-between px-4 py-3 max-w-6xl mx-auto">
-          <h1 className="font-heading text-xl font-bold whitespace-nowrap tracking-wide">⚾ ZVBL</h1>
+          <h1 className="font-heading text-xl font-bold whitespace-nowrap tracking-wide">⚾ {branding.app_name || 'ZVBL'}</h1>
 
           {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-1">
