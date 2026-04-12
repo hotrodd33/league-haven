@@ -20,7 +20,7 @@ function sanitizeRole(role) {
 router.get('/', async (req, res) => {
   try {
     const { rows: users } = await pool.query(
-      'SELECT id, username, name, email, role, is_umpire, created_at FROM users ORDER BY name'
+      'SELECT id, username, name, email, role, is_umpire, created_at, last_login_at FROM users ORDER BY name'
     );
     const result = await Promise.all(users.map(async (u) => ({
       ...u,

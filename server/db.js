@@ -391,6 +391,9 @@ async function migrate() {
   // Back-fill: existing umpire-role accounts get is_umpire=true
   await pool.query(`UPDATE users SET is_umpire = TRUE WHERE role = 'umpire' AND is_umpire = FALSE;`);
 
+  // Track last login timestamp
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;`);
+
 
   // Password reset tokens table
   await pool.query(`
