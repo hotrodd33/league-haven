@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
+import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
@@ -14,13 +15,7 @@ const btnPrimary = "px-4 py-2 bg-blue-600 text-white text-sm font-semibold round
 const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors";
 const btnDanger = "px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 
-const STATUS_COLORS = {
-  scheduled: 'bg-blue-900/40 text-blue-200',
-  in_progress: 'bg-amber-500/20 text-amber-200',
-  completed: 'bg-green-900/35 text-green-300',
-  cancelled: 'bg-red-900/35 text-red-300',
-  postponed: 'bg-gray-700 text-gray-300',
-};
+const STATUS_COLORS = DARK_STATUS_COLORS;
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
@@ -488,8 +483,8 @@ function PitchCountSection({
                       <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
                         restDays >= 3 ? 'bg-red-900/35 text-red-300' :
                         restDays >= 2 ? 'bg-orange-100 text-orange-700' :
-                        restDays >= 1 ? 'bg-amber-500/20 text-amber-200' :
-                        'bg-green-900/35 text-green-300'
+                        restDays >= 1 ? DARK_BADGES.warning :
+                        DARK_BADGES.success
                       }`}
                         title={availDate ? `Available ${availDate}` : 'No rest required'}
                       >

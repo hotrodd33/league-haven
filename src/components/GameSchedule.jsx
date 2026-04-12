@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
+import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
@@ -24,13 +25,7 @@ const STATUS_OPTIONS = [
   { value: 'postponed', label: 'Postponed' },
 ];
 
-const STATUS_COLORS = {
-  scheduled: 'bg-blue-900/40 text-blue-200',
-  in_progress: 'bg-amber-500/20 text-amber-200',
-  completed: 'bg-green-900/35 text-green-300',
-  cancelled: 'bg-red-900/35 text-red-300',
-  postponed: 'bg-gray-700 text-gray-300',
-};
+const STATUS_COLORS = DARK_STATUS_COLORS;
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
@@ -75,7 +70,7 @@ function UmpireStatusList({ officials, interestedUmpires }) {
         <span key={i} className={`text-xs px-1.5 py-0.5 rounded font-medium ${
           item.status === 'assigned'
             ? 'bg-green-900/50 text-green-300'
-            : 'bg-amber-500/20 text-amber-200'
+            : DARK_BADGES.warning
         }`}>
           {item.name}
         </span>
@@ -361,7 +356,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                           </span>
                           {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                             <button onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
-                              className="px-2 py-1 text-xs font-semibold bg-amber-500/20 text-amber-200 rounded hover:bg-amber-500/30">⚾ Track</button>
+                              className={`px-2 py-1 text-xs font-semibold rounded ${DARK_TRACK_BUTTON_TONE}`}>⚾ Track</button>
                           )}
                           {canEditThisGame && (
                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -433,7 +428,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                       <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
                         {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                           <button onClick={() => setTrackingGameId(game.id)}
-                            className="px-2.5 py-1 text-xs font-semibold bg-amber-500/20 text-amber-200 rounded hover:bg-amber-500/30">⚾ Track</button>
+                            className={`px-2.5 py-1 text-xs font-semibold rounded ${DARK_TRACK_BUTTON_TONE}`}>⚾ Track</button>
                         )}
                         {canEditThisGame && (
                           <>

@@ -5,14 +5,9 @@ import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { GameForm } from './GameSchedule.jsx';
+import { DARK_STATUS_COLORS, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 
-const STATUS_COLORS = {
-  scheduled: 'bg-blue-900/40 text-blue-200',
-  in_progress: 'bg-amber-500/20 text-amber-200',
-  completed: 'bg-green-900/35 text-green-300',
-  cancelled: 'bg-red-900/35 text-red-300',
-  postponed: 'bg-gray-700 text-gray-300',
-};
+const STATUS_COLORS = DARK_STATUS_COLORS;
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
@@ -169,7 +164,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                     {canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
-                        className="text-xs font-semibold px-2 py-1 rounded bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 transition-colors"
+                        className={`text-xs font-semibold px-2 py-1 rounded transition-colors ${DARK_TRACK_BUTTON_TONE}`}
                         title="Live pitch tracker"
                       >
                         ⚾ Track

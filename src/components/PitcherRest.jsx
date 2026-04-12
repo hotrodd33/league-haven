@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchTeamPitcherStats } from '../api/index.js';
+import { DARK_BADGES } from '../constants/statusClasses.js';
 
 function formatShortDate(dateStr) {
   if (!dateStr) return '—';
@@ -14,9 +15,9 @@ function formatDayOfWeek(dateStr) {
 }
 
 const STATUS_BADGE = {
-  available: 'bg-green-900/35 text-green-300',
-  resting: 'bg-amber-500/20 text-amber-200',
-  unavailable: 'bg-red-900/35 text-red-300',
+  available: DARK_BADGES.success,
+  resting: DARK_BADGES.warning,
+  unavailable: DARK_BADGES.danger,
 };
 
 export default function PitcherRest({ teamId }) {
