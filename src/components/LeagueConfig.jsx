@@ -471,7 +471,7 @@ function AgeGroupConfig() {
     if (!newName.trim()) return;
     setAdding(true); setError(null);
     try {
-      await createAgeGroup({ name: newName.trim(), sort_order: items.length, umpire_rate: Number(newRate) || 50, ump_required: newUmpRequired });
+      await createAgeGroup({ name: newName.trim(), sort_order: items.length, umpire_rate: newUmpRequired ? (Number(newRate) || 50) : 0, ump_required: newUmpRequired });
       setNewName('');
       setNewRate('50');
       setNewUmpRequired(true);
@@ -492,7 +492,7 @@ function AgeGroupConfig() {
     if (!editName.trim()) return;
     setSavingEdit(true); setError(null);
     try {
-      await updateAgeGroup(editingId, { name: editName.trim(), sort_order: editOrder, umpire_rate: Number(editRate) || 50, ump_required: editUmpRequired });
+      await updateAgeGroup(editingId, { name: editName.trim(), sort_order: editOrder, umpire_rate: editUmpRequired ? (Number(editRate) || 50) : 0, ump_required: editUmpRequired });
       setEditingId(null);
       await load();
     } catch (err) { setError(err.message); }
@@ -521,13 +521,15 @@ function AgeGroupConfig() {
           type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
           placeholder="e.g. 8U, 10U, 12U, 14U" className={`flex-1 ${inputCls}`}
         />
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-gray-400">$</span>
-          <input
-            type="number" min="0" step="0.01" value={newRate} onChange={(e) => setNewRate(e.target.value)}
-            placeholder="50" className={`w-20 ${inputCls}`} title="Umpire rate per game"
-          />
-        </div>
+        {newUmpRequired && (
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-400">$</span>
+            <input
+              type="number" min="0" step="0.01" value={newRate} onChange={(e) => setNewRate(e.target.value)}
+              placeholder="50" className={`w-20 ${inputCls}`} title="Umpire rate per game"
+            />
+          </div>
+        )}
         <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
           <input type="checkbox" checked={newUmpRequired} onChange={(e) => setNewUmpRequired(e.target.checked)}
             className="rounded border-gray-600" />
@@ -558,13 +560,15 @@ function AgeGroupConfig() {
                       className={`w-20 ${inputCls}`}
                     />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-400 whitespace-nowrap">Ump $:</label>
-                    <input
-                      type="number" min="0" step="0.01" value={editRate} onChange={(e) => setEditRate(e.target.value)}
-                      className={`w-24 ${inputCls}`}
-                    />
-                  </div>
+                  {editUmpRequired && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-400 whitespace-nowrap">Ump $:</label>
+                      <input
+                        type="number" min="0" step="0.01" value={editRate} onChange={(e) => setEditRate(e.target.value)}
+                        className={`w-24 ${inputCls}`}
+                      />
+                    </div>
+                  )}
                   <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
                     <input type="checkbox" checked={editUmpRequired} onChange={(e) => setEditUmpRequired(e.target.checked)}
                       className="rounded border-gray-600" />
@@ -586,9 +590,11 @@ function AgeGroupConfig() {
                   <div className="flex-1 flex items-center gap-2">
                     <span className="font-semibold text-sm">{item.name}</span>
                     <span className="text-xs text-gray-400">#{item.sort_order ?? 0}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">
-                      ${Number(item.umpire_rate ?? 50).toFixed(2)}/game
-                    </span>
+                    {item.ump_required !== false && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">
+                        ${Number(item.umpire_rate ?? 50).toFixed(2)}/game
+                      </span>
+                    )}
                     {item.ump_required === false ? (
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-700 text-gray-400">No Ump</span>
                     ) : (

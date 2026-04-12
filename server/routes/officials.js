@@ -5,7 +5,8 @@ const { authMiddleware, canEditOrg, getUserPermissions } = require('../auth');
 const router = express.Router();
 
 function toMoney(value, fallback = null) {
-  if (value === undefined || value === null || value === '') return fallback;
+  if (value === undefined || value === null) return fallback;
+  if (value === '') return null;
   const num = Number(value);
   if (!Number.isFinite(num) || num < 0) return { error: true };
   return Math.round(num * 100) / 100;
