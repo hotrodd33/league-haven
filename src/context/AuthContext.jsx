@@ -60,11 +60,11 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const registerUmpire = useCallback(async (username, password, name, email, phone, org_id) => {
+  const registerUmpire = useCallback(async (username, password, name, email, phone, org_id, date_of_birth, is_certified, years_of_experience) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiRegisterUmpire(username, password, name, email, phone, org_id);
+      const data = await apiRegisterUmpire(username, password, name, email, phone, org_id, date_of_birth, is_certified, years_of_experience);
       const saved = {
         token: data.token,
         user: data.user,

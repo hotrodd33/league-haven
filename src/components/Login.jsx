@@ -13,6 +13,9 @@ export default function Login({ onResetPassword }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [isCertified, setIsCertified] = useState(false);
+  const [yearsOfExperience, setYearsOfExperience] = useState('');
   const [orgId, setOrgId] = useState('');
   const [organizations, setOrganizations] = useState([]);
   const [forgotEmail, setForgotEmail] = useState('');
@@ -42,7 +45,7 @@ export default function Login({ onResetPassword }) {
 
   async function handleRegisterUmpire(e) {
     e.preventDefault();
-    try { await registerUmpire(username, password, name, email, phone || null, orgId || null); } catch { /* context sets error */ }
+    try { await registerUmpire(username, password, name, email, phone || null, orgId || null, dateOfBirth || null, isCertified, yearsOfExperience ? parseInt(yearsOfExperience) : null); } catch { /* context sets error */ }
   }
 
   async function handleForgotPassword(e) {
@@ -176,6 +179,28 @@ export default function Login({ onResetPassword }) {
                   <option key={org.id} value={org.id}>{org.name}</option>
                 ))}
               </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="ump-dob" className={labelCls}>Date of Birth</label>
+                <input id="ump-dob" type="date" value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  className={inputCls} />
+              </div>
+              <div>
+                <label htmlFor="ump-exp" className={labelCls}>Years of Experience</label>
+                <input id="ump-exp" type="number" min="0" max="99" value={yearsOfExperience}
+                  onChange={(e) => setYearsOfExperience(e.target.value)}
+                  placeholder="0" className={inputCls} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input id="ump-certified" type="checkbox" checked={isCertified}
+                onChange={(e) => setIsCertified(e.target.checked)}
+                className="w-4 h-4 bg-gray-900 border border-gray-600 rounded cursor-pointer" />
+              <label htmlFor="ump-certified" className="text-sm text-gray-300 cursor-pointer">
+                I am certified
+              </label>
             </div>
             <div>
               <label htmlFor="ump-username" className={labelCls}>Username</label>

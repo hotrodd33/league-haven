@@ -95,7 +95,7 @@ router.post('/register', async (req, res) => {
 // POST /api/auth/register-umpire — umpire self-registration with profile creation
 router.post('/register-umpire', async (req, res) => {
   try {
-    const { username, password, name, email, phone, org_id } = req.body;
+    const { username, password, name, email, phone, org_id, date_of_birth, is_certified, years_of_experience } = req.body;
     if (!username || !password || !name || !email) {
       return res.status(400).json({ error: 'Username, password, name, and email are required' });
     }
@@ -122,8 +122,8 @@ router.post('/register-umpire', async (req, res) => {
 
     // Create official profile linked to user
     await pool.query(
-      'INSERT INTO officials (user_id, org_id, name, email, phone, rate_per_game) VALUES ($1, $2, $3, $4, $5, 50)',
-      [user.id, org_id || null, name, email, phone || null]
+      'INSERT INTO officials (user_id, org_id, name, email, phone, date_of_birth, is_certified, years_of_experience, rate_per_game) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 50)',
+      [user.id, org_id || null, name, email, phone || null, date_of_birth || null, is_certified === true, years_of_experience || null]
     );
 
     // Send welcome email (non-blocking)

@@ -232,6 +232,13 @@ async function migrate() {
     ALTER TABLE officials ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
   `);
 
+  // Umpire profile fields
+  await pool.query(`
+    ALTER TABLE officials ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+    ALTER TABLE officials ADD COLUMN IF NOT EXISTS is_certified BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE officials ADD COLUMN IF NOT EXISTS years_of_experience INTEGER;
+  `);
+
   // Officials feature toggle on organizations
   await pool.query(`
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS officials_enabled BOOLEAN NOT NULL DEFAULT FALSE;

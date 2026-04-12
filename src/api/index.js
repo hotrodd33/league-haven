@@ -671,10 +671,10 @@ export async function sendContactEmail({ scope, scopeId, subject, body }) {
 }
 
 /* ── Umpires ── */
-export async function registerAsUmpire(username, password, name, email, phone, org_id) {
+export async function registerAsUmpire(username, password, name, email, phone, org_id, date_of_birth, is_certified, years_of_experience) {
   return apiFetch('/auth/register-umpire', {
     method: 'POST',
-    body: JSON.stringify({ username, password, name, email, phone, org_id }),
+    body: JSON.stringify({ username, password, name, email, phone, org_id, date_of_birth, is_certified, years_of_experience }),
   });
 }
 
