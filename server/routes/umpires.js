@@ -38,7 +38,7 @@ router.get('/assigned-games', authMiddleware, async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT DISTINCT 
+      `SELECT 
          g.id, g.game_date, g.game_time, g.status, 
          g.home_team_id, g.away_team_id, g.location_id,
          g.home_score, g.away_score,
@@ -55,7 +55,7 @@ router.get('/assigned-games', authMiddleware, async (req, res) => {
        JOIN game_official_assignments my_goa ON my_goa.game_id = g.id
        JOIN officials my_off ON my_off.id = my_goa.official_id
        WHERE my_off.user_id = $1
-       GROUP BY g.id, ht.id, at.id, fl.id
+       GROUP BY g.id, g.game_date, g.game_time, g.status, g.home_team_id, g.away_team_id, g.location_id, g.home_score, g.away_score, ht.id, ht.name, ht.age_group, ht.level, ht.division, at.id, at.name, at.age_group, at.level, at.division, fl.id, fl.name
        ORDER BY g.game_date DESC, g.game_time ASC`,
       [req.user.id]
     );
@@ -84,13 +84,13 @@ router.get('/available-games', authMiddleware, async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT DISTINCT
+      `SELECT
          g.id, g.season_id, g.game_date, g.game_time, g.status,
          g.home_team_id, g.away_team_id, g.location_id,
          ht.name AS home_team_name, ht.age_group AS home_age_group, ht.level AS home_level, ht.division AS home_division,
          at.name AS away_team_name, at.age_group AS away_age_group, at.level AS away_level, at.division AS away_division,
          fl.name AS location_name,
-         COUNT(goa.official_id) AS assigned_count,
+         COUNT(DISTINCT goa.official_id) AS assigned_count,
          COALESCE(ugi.id, NULL) AS user_interest_id
        FROM games g
        JOIN teams ht ON ht.id = g.home_team_id
@@ -99,7 +99,7 @@ router.get('/available-games', authMiddleware, async (req, res) => {
        LEFT JOIN game_official_assignments goa ON goa.game_id = g.id
        LEFT JOIN umpire_game_interests ugi ON ugi.game_id = g.id AND ugi.user_id = $1
        ${whereClause}
-       GROUP BY g.id, ht.id, at.id, fl.id, ugi.id
+       GROUP BY g.id, g.season_id, g.game_date, g.game_time, g.status, g.home_team_id, g.away_team_id, g.location_id, ht.id, ht.name, ht.age_group, ht.level, ht.division, at.id, at.name, at.age_group, at.level, at.division, fl.id, fl.name, ugi.id
        ORDER BY g.game_date DESC, g.game_time ASC`,
       params
     );
@@ -119,15 +119,15 @@ router.get('/game-interests', authMiddleware, async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT DISTINCT
+      `SELECT
          g.id, g.season_id, g.game_date, g.game_time, g.status,
          g.home_team_id, g.away_team_id, g.location_id,
          ht.name AS home_team_name, ht.age_group AS home_age_group, ht.level AS home_level, ht.division AS home_division,
          at.name AS away_team_name, at.age_group AS away_age_group, at.level AS away_level, at.division AS away_division,
          fl.name AS location_name,
          ugi.interested_at,
-         COUNT(goa.official_id) AS assigned_count,
-         CASE WHEN goa.official_id IS NOT NULL THEN true ELSE false END AS is_assigned
+         COUNT(DISTINCT goa.official_id) AS assigned_count,
+         MAX(CASE WHEN goa.official_id IS NOT NULL THEN true ELSE false END) AS is_assigned
        FROM umpire_game_interests ugi
        JOIN games g ON g.id = ugi.game_id
        JOIN teams ht ON ht.id = g.home_team_id
@@ -135,7 +135,7 @@ router.get('/game-interests', authMiddleware, async (req, res) => {
        LEFT JOIN field_locations fl ON fl.id = g.location_id
        LEFT JOIN game_official_assignments goa ON goa.game_id = g.id
        WHERE ugi.user_id = $1
-       GROUP BY g.id, ht.id, at.id, fl.id, ugi.interested_at
+       GROUP BY g.id, g.season_id, g.game_date, g.game_time, g.status, g.home_team_id, g.away_team_id, g.location_id, ht.id, ht.name, ht.age_group, ht.level, ht.division, at.id, at.name, at.age_group, at.level, at.division, fl.id, fl.name, ugi.id, ugi.interested_at
        ORDER BY g.game_date DESC, g.game_time ASC`,
       [req.user.id]
     );
