@@ -264,51 +264,53 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-lg font-bold">Game Schedule ({filteredGames.length})</h2>
-        <div className="flex gap-2">
-          {isAdmin && (
-            <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Game</button>
-          )}
-          {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
+      <div className="sticky top-16 z-20 -mx-4 lg:-mx-6 px-4 lg:px-6 pt-2 pb-3 mb-4 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+          <h2 className="text-lg font-bold">Game Schedule ({filteredGames.length})</h2>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Game</button>
+            )}
+            {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
+          </div>
         </div>
-      </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <select value={filterSeason} onChange={(e) => setFilterSeason(e.target.value)}
-          className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
-          <option value="">All Seasons</option>
-          {seasons.map(s => (
-            <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
-          ))}
-        </select>
-        <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)}
-          className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
-          <option value="">All Teams</option>
-          {orgNames.map(orgName => (
-            <optgroup key={orgName} label={orgName}>
-              {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </optgroup>
-          ))}
-          {ungroupedTeams.length > 0 && (
-            <optgroup label="Unassigned">
-              {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </optgroup>
-          )}
-        </select>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
-          <option value="">All Statuses</option>
-          {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
-        <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}
-          className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
-          <option value="">All Divisions</option>
-          {sortedDivisions.map(div => (
-            <option key={div} value={div}>{div}</option>
-          ))}
-        </select>
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <select value={filterSeason} onChange={(e) => setFilterSeason(e.target.value)}
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+            <option value="">All Seasons</option>
+            {seasons.map(s => (
+              <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
+            ))}
+          </select>
+          <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)}
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+            <option value="">All Teams</option>
+            {orgNames.map(orgName => (
+              <optgroup key={orgName} label={orgName}>
+                {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </optgroup>
+            ))}
+            {ungroupedTeams.length > 0 && (
+              <optgroup label="Unassigned">
+                {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </optgroup>
+            )}
+          </select>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+            <option value="">All Statuses</option>
+            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+            <option value="">All Divisions</option>
+            {sortedDivisions.map(div => (
+              <option key={div} value={div}>{div}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {filteredGames.length === 0 ? (
