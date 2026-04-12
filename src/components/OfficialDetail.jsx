@@ -384,13 +384,17 @@ function GameRow({ game, canEdit, updating, onTogglePaid, onToggleNoShow, onFeeC
               </form>
             ) : (
               <button
-                onClick={() => { if (canEdit) { setFeeValue(String(game.game_fee)); setEditingFee(true); } }}
-                className={`text-sm font-semibold tabular-nums ${canEdit ? 'text-gray-100 hover:text-blue-300 cursor-pointer' : 'text-gray-100 cursor-default'}`}
-                title={canEdit ? 'Click to edit fee' : undefined}
-                disabled={!canEdit}
+                onClick={() => { if (canEdit && !game.no_show) { setFeeValue(String(game.game_fee)); setEditingFee(true); } }}
+                className={`text-sm font-semibold tabular-nums ${
+                  game.no_show
+                    ? 'text-red-400 line-through cursor-default'
+                    : canEdit ? 'text-gray-100 hover:text-blue-300 cursor-pointer' : 'text-gray-100 cursor-default'
+                }`}
+                title={game.no_show ? 'No show — no payment' : canEdit ? 'Click to edit fee' : undefined}
+                disabled={!canEdit || game.no_show}
               >
                 {formatMoney(game.game_fee)}
-                {game.game_fee !== defaultRate && (
+                {!game.no_show && game.game_fee !== defaultRate && (
                   <span className="text-[10px] text-amber-400 ml-1" title="Custom rate">✱</span>
                 )}
               </button>
@@ -405,15 +409,17 @@ function GameRow({ game, canEdit, updating, onTogglePaid, onToggleNoShow, onFeeC
                 type="checkbox"
                 checked={game.is_paid}
                 onChange={onTogglePaid}
-                disabled={!canEdit || updating}
+                disabled={!canEdit || updating || game.no_show}
                 className="w-4 h-4 rounded bg-gray-700 border-gray-500 accent-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </label>
-            {game.is_paid && game.paid_at && (
+            {game.no_show ? (
+              <div className="text-[9px] text-red-400 mt-0.5">N/A</div>
+            ) : game.is_paid && game.paid_at ? (
               <div className="text-[9px] text-gray-400 mt-0.5">
                 {new Date(game.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* No Show checkbox (completed games only) */}
