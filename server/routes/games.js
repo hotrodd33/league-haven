@@ -145,7 +145,7 @@ function enrichGame(row) {
     away_city_abbr: cityAbbr(row.away_team_city),
     official_ids: row.official_ids || [],
     official_names: row.official_names || [],
-    officials: row.officials || [],
+    officials: (row.officials || []).map(({ rate_per_game, ...rest }) => rest),
     interested_official_ids: row.interested_official_ids || [],
     interested_umpire_names: row.interested_umpire_names || [],
     interested_umpires: row.interested_umpires || [],

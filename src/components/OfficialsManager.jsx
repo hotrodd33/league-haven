@@ -20,7 +20,8 @@ const btnDanger = 'px-3 py-1.5 bg-red-600 text-white text-xs font-semibold round
 const btnSm = 'px-3 py-1.5 text-xs font-semibold rounded';
 
 export default function OfficialsManager({ onBack }) {
-  const { isSuperAdmin, permissions, canEditOrg } = useAuth();
+  const { isSuperAdmin, isAccountant, isOrgAdmin, permissions, canEditOrg } = useAuth();
+  const canViewFinancials = isSuperAdmin || isAccountant || isOrgAdmin;
   const [officials, setOfficials] = useState([]);
   const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,13 +119,15 @@ export default function OfficialsManager({ onBack }) {
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${official.org_id ? 'bg-blue-900/40 text-blue-200' : 'bg-purple-900/35 text-purple-200'}`}>
                       {official.org_id ? official.org_name || 'Organization' : 'League'}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">{official.rate_per_game != null ? `$${Number(official.rate_per_game).toFixed(2)}/game` : 'Level Rate'}</span>
+                    {canViewFinancials && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">{official.rate_per_game != null ? `$${Number(official.rate_per_game).toFixed(2)}/game` : 'Level Rate'}</span>
+                    )}
                     {official.linked_username && (
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-900/35 text-teal-200">@{official.linked_username}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap mt-1.5">
-                    {Number(official.total_owed) > 0 && (
+                    {canViewFinancials && Number(official.total_owed) > 0 && (
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-900/35 text-amber-300">
                         ${Number(official.total_owed).toFixed(2)} owed
                       </span>
@@ -150,7 +153,7 @@ export default function OfficialsManager({ onBack }) {
                     </div>
                   )}
                   <div className="text-sm text-gray-400 mt-1">
-                    {[official.email, official.phone, official.venmo_id ? `Venmo: ${official.venmo_id}` : null].filter(Boolean).join(' • ') || 'No contact details'}
+                    {[official.email, official.phone, canViewFinancials && official.venmo_id ? `Venmo: ${official.venmo_id}` : null].filter(Boolean).join(' • ') || 'No contact details'}
                   </div>
                   {(official.address || official.city || official.state || official.zip) && (
                     <div className="text-xs text-gray-400 mt-1">{[official.address, official.city, official.state, official.zip].filter(Boolean).join(', ')}</div>

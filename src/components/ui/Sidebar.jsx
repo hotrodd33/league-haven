@@ -32,6 +32,7 @@ export default function Sidebar({
   onNavigate,
   isAdmin = false,
   isAccountant = false,
+  isOrgAdmin = false,
   branding,
   collapsed = false,
   onToggleCollapse,
@@ -115,6 +116,29 @@ export default function Sidebar({
           )}
 
           {!isAdmin && isAccountant && (
+            <>
+              <div className={cn('pt-5 pb-2', collapsed ? 'px-2' : 'px-3')}>
+                {!collapsed ? (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
+                    Management
+                  </p>
+                ) : (
+                  <div className="border-t border-white/10" />
+                )}
+              </div>
+              {accountantNav.map((item) => (
+                <NavItem
+                  key={item.key}
+                  item={item}
+                  active={page === item.key}
+                  collapsed={collapsed}
+                  onClick={() => { onNavigate(item.key); onCloseMobile?.(); }}
+                />
+              ))}
+            </>
+          )}
+
+          {!isAdmin && !isAccountant && isOrgAdmin && (
             <>
               <div className={cn('pt-5 pb-2', collapsed ? 'px-2' : 'px-3')}>
                 {!collapsed ? (

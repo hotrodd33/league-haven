@@ -36,7 +36,8 @@ function summarizeOrgTeams(org) {
   return { ageGroups, levels };
 }
 export default function OrgManager({ onBack, onNavigateToTeam }) {
-  const { isAdmin, canEditOrg } = useAuth();
+  const { isAdmin, isAccountant, isOrgAdmin, canEditOrg } = useAuth();
+  const canViewFinancials = isAdmin || isAccountant || isOrgAdmin;
   const [orgs, setOrgs] = useState([]);
   const [orgStats, setOrgStats] = useState({});
   const [orgPayments, setOrgPayments] = useState({});
@@ -50,7 +51,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   const loadOrgs = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [orgData, games, regData] = await Promise.all([fetchOrganizations(), fetchGames(), fetchRegistrations().catch(() => ({ registrations: [] }))]);
+      const [orgData, games, regData] = await Promise.all([fetchOrganizations(), fetchGames(), canViewFinancials ? fetchRegistrations().catch(() => ({ registrations: [] })) : Promise.resolve({ registrations: [] })]);
       setOrgs(orgData);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -154,6 +155,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
               orgStats={orgStats[org.id]}
               orgPayment={orgPayments.summary?.[org.id]}
               canEdit={canEditOrg(org.id)}
+              canViewFinancials={canViewFinancials}
               deleting={deleting === org.id}
               isAdmin={isAdmin}
               onOpen={() => setSelectedOrg(org)}
@@ -169,10 +171,10 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   );
 }
 
-function OrgListCard({ org, orgStats, orgPayment, canEdit, deleting, isAdmin, onOpen, onEdit, onDelete }) {
+function OrgListCard({ org, orgStats, orgPayment, canEdit, canViewFinancials, deleting, isAdmin, onOpen, onEdit, onDelete }) {
   const { ageGroups, levels } = summarizeOrgTeams(org);
   const { scheduled = 0, played = 0, missingScores = 0 } = orgStats || {};
-  const hasPayment = orgPayment && (orgPayment.total_fees > 0 || orgPayment.teams_unpaid > 0);
+  const hasPayment = canViewFinancials && orgPayment && (orgPayment.total_fees > 0 || orgPayment.teams_unpaid > 0);
 
   return (
     <div

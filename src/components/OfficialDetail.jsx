@@ -43,7 +43,8 @@ function formatMoney(val) {
 }
 
 export default function OfficialDetail({ officialId, onBack }) {
-  const { isSuperAdmin, canEditOrg } = useAuth();
+  const { isSuperAdmin, isAccountant, isOrgAdmin, canEditOrg } = useAuth();
+  const canViewFinancials = isSuperAdmin || isAccountant || isOrgAdmin;
   const [official, setOfficial] = useState(null);
   const [gamesData, setGamesData] = useState({ games: [], summary: {} });
   const [interestedGames, setInterestedGames] = useState([]);
@@ -188,7 +189,7 @@ export default function OfficialDetail({ officialId, onBack }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-sm text-gray-300">
               {official.email && <div><span className="text-gray-400">Email:</span> {official.email}</div>}
               {official.phone && <div><span className="text-gray-400">Phone:</span> {official.phone}</div>}
-              {official.venmo_id && <div><span className="text-gray-400">Venmo:</span> {official.venmo_id}</div>}
+              {official.venmo_id && canViewFinancials && <div><span className="text-gray-400">Venmo:</span> {official.venmo_id}</div>}
               {official.years_of_experience != null && <div><span className="text-gray-400">Experience:</span> {official.years_of_experience} yr{official.years_of_experience !== 1 ? 's' : ''}</div>}
               {(official.address || official.city || official.state || official.zip) && (
                 <div className="sm:col-span-2"><span className="text-gray-400">Address:</span> {[official.address, official.city, official.state, official.zip].filter(Boolean).join(', ')}</div>
@@ -202,31 +203,35 @@ export default function OfficialDetail({ officialId, onBack }) {
             </div>
             {official.notes && <div className="text-sm text-gray-400 italic mt-2">{official.notes}</div>}
           </div>
-          <div className="shrink-0 text-right">
-            <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Default Rate</div>
-            <div className="text-2xl font-bold text-green-400">{official.rate_per_game != null ? formatMoney(official.rate_per_game) : 'Level Rate'}</div>
-            <div className="text-xs text-gray-400">per game</div>
-          </div>
+          {canViewFinancials && (
+            <div className="shrink-0 text-right">
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Default Rate</div>
+              <div className="text-2xl font-bold text-green-400">{official.rate_per_game != null ? formatMoney(official.rate_per_game) : 'Level Rate'}</div>
+              <div className="text-xs text-gray-400">per game</div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Financial summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
-          <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Earnings</div>
-          <div className="text-2xl font-bold text-gray-100">{formatMoney(summary.total_earnings)}</div>
-          <div className="text-xs text-gray-400 mt-0.5">{summary.completed_games} finalized game{summary.completed_games !== 1 ? 's' : ''}</div>
+      {canViewFinancials && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
+            <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Earnings</div>
+            <div className="text-2xl font-bold text-gray-100">{formatMoney(summary.total_earnings)}</div>
+            <div className="text-xs text-gray-400 mt-0.5">{summary.completed_games} finalized game{summary.completed_games !== 1 ? 's' : ''}</div>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
+            <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Payments</div>
+            <div className="text-2xl font-bold text-green-400">{formatMoney(summary.total_payments)}</div>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
+            <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Due</div>
+            <div className={`text-2xl font-bold ${summary.total_due > 0 ? 'text-amber-400' : 'text-gray-400'}`}>{formatMoney(summary.total_due)}</div>
+            <div className="text-xs text-gray-400 mt-0.5">finalized & unpaid</div>
+          </div>
         </div>
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
-          <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Payments</div>
-          <div className="text-2xl font-bold text-green-400">{formatMoney(summary.total_payments)}</div>
-        </div>
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
-          <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Due</div>
-          <div className={`text-2xl font-bold ${summary.total_due > 0 ? 'text-amber-400' : 'text-gray-400'}`}>{formatMoney(summary.total_due)}</div>
-          <div className="text-xs text-gray-400 mt-0.5">finalized & unpaid</div>
-        </div>
-      </div>
+      )}
 
       {/* Games tabs */}
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6">
@@ -263,6 +268,7 @@ export default function OfficialDetail({ officialId, onBack }) {
                   key={game.game_id}
                   game={game}
                   canEdit={canEdit}
+                  canViewFinancials={canViewFinancials}
                   updating={updatingGame === game.game_id}
                   onTogglePaid={() => handleTogglePaid(game)}
                   onFeeChange={(fee) => handleFeeChange(game, fee)}
@@ -285,6 +291,7 @@ export default function OfficialDetail({ officialId, onBack }) {
                   key={game.game_id}
                   game={game}
                   canEdit={canEdit}
+                  canViewFinancials={canViewFinancials}
                   updating={updatingGame === game.game_id}
                   onTogglePaid={() => handleTogglePaid(game)}
                   onToggleNoShow={() => handleToggleNoShow(game)}
@@ -320,7 +327,7 @@ export default function OfficialDetail({ officialId, onBack }) {
   );
 }
 
-function GameRow({ game, canEdit, updating, onTogglePaid, onToggleNoShow, onFeeChange, onUnassign, defaultRate, showNoShow }) {
+function GameRow({ game, canEdit, canViewFinancials, updating, onTogglePaid, onToggleNoShow, onFeeChange, onUnassign, defaultRate, showNoShow }) {
   const [editingFee, setEditingFee] = useState(false);
   const [feeValue, setFeeValue] = useState(String(game.game_fee));
 
@@ -366,61 +373,65 @@ function GameRow({ game, canEdit, updating, onTogglePaid, onToggleNoShow, onFeeC
 
         {/* Fee + checkboxes + actions */}
         <div className="shrink-0 flex items-center gap-3">
-          <div className="text-right">
-            <div className="text-xs text-gray-400 uppercase tracking-wide">Fee</div>
-            {editingFee && canEdit ? (
-              <form onSubmit={handleFeeSubmit} className="flex items-center gap-1">
-                <span className="text-gray-400 text-sm">$</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={feeValue}
-                  onChange={(e) => setFeeValue(e.target.value)}
-                  onBlur={() => setEditingFee(false)}
-                  autoFocus
-                  className="w-20 px-1.5 py-0.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </form>
-            ) : (
-              <button
-                onClick={() => { if (canEdit && !game.no_show) { setFeeValue(String(game.game_fee)); setEditingFee(true); } }}
-                className={`text-sm font-semibold tabular-nums ${
-                  game.no_show
-                    ? 'text-red-400 line-through cursor-default'
-                    : canEdit ? 'text-gray-100 hover:text-blue-300 cursor-pointer' : 'text-gray-100 cursor-default'
-                }`}
-                title={game.no_show ? 'No show — no payment' : canEdit ? 'Click to edit fee' : undefined}
-                disabled={!canEdit || game.no_show}
-              >
-                {formatMoney(game.game_fee)}
-                {!game.no_show && game.game_fee !== defaultRate && (
-                  <span className="text-[10px] text-amber-400 ml-1" title="Custom rate">✱</span>
+          {canViewFinancials && (
+            <>
+              <div className="text-right">
+                <div className="text-xs text-gray-400 uppercase tracking-wide">Fee</div>
+                {editingFee && canEdit ? (
+                  <form onSubmit={handleFeeSubmit} className="flex items-center gap-1">
+                    <span className="text-gray-400 text-sm">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={feeValue}
+                      onChange={(e) => setFeeValue(e.target.value)}
+                      onBlur={() => setEditingFee(false)}
+                      autoFocus
+                      className="w-20 px-1.5 py-0.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </form>
+                ) : (
+                  <button
+                    onClick={() => { if (canEdit && !game.no_show) { setFeeValue(String(game.game_fee)); setEditingFee(true); } }}
+                    className={`text-sm font-semibold tabular-nums ${
+                      game.no_show
+                        ? 'text-red-400 line-through cursor-default'
+                        : canEdit ? 'text-gray-100 hover:text-blue-300 cursor-pointer' : 'text-gray-100 cursor-default'
+                    }`}
+                    title={game.no_show ? 'No show — no payment' : canEdit ? 'Click to edit fee' : undefined}
+                    disabled={!canEdit || game.no_show}
+                  >
+                    {formatMoney(game.game_fee)}
+                    {!game.no_show && game.game_fee !== defaultRate && (
+                      <span className="text-[10px] text-amber-400 ml-1" title="Custom rate">✱</span>
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
-          </div>
-
-          {/* Paid checkbox */}
-          <div className="flex flex-col items-center">
-            <div className="text-xs text-gray-400 uppercase tracking-wide">Paid</div>
-            <label className="relative inline-flex items-center cursor-pointer mt-0.5">
-              <input
-                type="checkbox"
-                checked={game.is_paid}
-                onChange={onTogglePaid}
-                disabled={!canEdit || updating || game.no_show}
-                className="w-4 h-4 rounded bg-gray-700 border-gray-500 accent-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-            </label>
-            {game.no_show ? (
-              <div className="text-[9px] text-red-400 mt-0.5">N/A</div>
-            ) : game.is_paid && game.paid_at ? (
-              <div className="text-[9px] text-gray-400 mt-0.5">
-                {new Date(game.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </div>
-            ) : null}
-          </div>
+
+              {/* Paid checkbox */}
+              <div className="flex flex-col items-center">
+                <div className="text-xs text-gray-400 uppercase tracking-wide">Paid</div>
+                <label className="relative inline-flex items-center cursor-pointer mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={game.is_paid}
+                    onChange={onTogglePaid}
+                    disabled={!canEdit || updating || game.no_show}
+                    className="w-4 h-4 rounded bg-gray-700 border-gray-500 accent-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                </label>
+                {game.no_show ? (
+                  <div className="text-[9px] text-red-400 mt-0.5">N/A</div>
+                ) : game.is_paid && game.paid_at ? (
+                  <div className="text-[9px] text-gray-400 mt-0.5">
+                    {new Date(game.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
 
           {/* No Show checkbox (completed games only) */}
           {showNoShow && (

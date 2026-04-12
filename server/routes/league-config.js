@@ -145,10 +145,18 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
 
 // ── Age Groups ──
 
-router.get('/age-groups', async (req, res) => {
+router.get('/age-groups', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM league_age_groups ORDER BY sort_order, name');
-    res.json(rows.map(r => ({ ...r, umpire_rate: r.umpire_rate != null ? Number(r.umpire_rate) : 50, league_fee: r.league_fee != null ? Number(r.league_fee) : null })));
+    const canSeeFinancials = ['super_admin', 'accountant', 'org_admin'].includes(req.user.role);
+    res.json(rows.map(r => {
+      const result = { ...r, umpire_rate: r.umpire_rate != null ? Number(r.umpire_rate) : 50, league_fee: r.league_fee != null ? Number(r.league_fee) : null };
+      if (!canSeeFinancials) {
+        delete result.umpire_rate;
+        delete result.league_fee;
+      }
+      return result;
+    }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

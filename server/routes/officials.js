@@ -75,7 +75,15 @@ router.get('/assignable', authMiddleware, async (req, res) => {
        ORDER BY CASE WHEN o.org_id IS NULL THEN 0 ELSE 1 END, o.name`,
       orgOfficialsEnabled ? [org_id] : []
     );
-    res.json(rows.map(normalizeOfficial));
+    const canSeeFinancials = ['super_admin', 'accountant', 'org_admin'].includes(req.user.role);
+    res.json(rows.map(r => {
+      const o = normalizeOfficial(r);
+      if (!canSeeFinancials) {
+        delete o.rate_per_game;
+        delete o.venmo_id;
+      }
+      return o;
+    }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -151,7 +159,16 @@ router.get('/', authMiddleware, async (req, res) => {
       params
     );
 
-    res.json(rows.map(normalizeOfficial));
+    const canSeeFinancials = ['super_admin', 'accountant', 'org_admin'].includes(req.user.role);
+    res.json(rows.map(r => {
+      const o = normalizeOfficial(r);
+      if (!canSeeFinancials) {
+        delete o.total_owed;
+        delete o.rate_per_game;
+        delete o.venmo_id;
+      }
+      return o;
+    }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
