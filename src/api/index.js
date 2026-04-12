@@ -669,3 +669,39 @@ export async function sendContactEmail({ scope, scopeId, subject, body }) {
     body: JSON.stringify({ scope, scopeId, subject, body }),
   });
 }
+
+/* ── Umpires ── */
+export async function registerAsUmpire(username, password, name, email, phone, org_id) {
+  return apiFetch('/auth/register-umpire', {
+    method: 'POST',
+    body: JSON.stringify({ username, password, name, email, phone, org_id }),
+  });
+}
+
+export async function fetchUmpireProfile() {
+  return apiFetch('/umpires/me');
+}
+
+export async function fetchAssignedGames() {
+  return apiFetch('/umpires/assigned-games');
+}
+
+export async function fetchAvailableGames(seasonId = null) {
+  const params = seasonId ? `?season_id=${seasonId}` : '';
+  return apiFetch(`/umpires/available-games${params}`);
+}
+
+export async function fetchGameInterests() {
+  return apiFetch('/umpires/game-interests');
+}
+
+export async function expressGameInterest(gameId) {
+  return apiFetch('/umpires/interest', {
+    method: 'POST',
+    body: JSON.stringify({ game_id: gameId }),
+  });
+}
+
+export async function removeGameInterest(gameId) {
+  return apiFetch(`/umpires/interest/${gameId}`, { method: 'DELETE' });
+}

@@ -16,6 +16,7 @@ import Directory from "./components/Directory.jsx";
 import DataManager from "./components/DataManager.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import OfficialsManager from "./components/OfficialsManager.jsx";
+import UmpireDashboard from "./components/UmpireDashboard.jsx";
 import AppShell from "./components/ui/AppShell.jsx";
 import GameChangerImportWizard from "./components/import/GameChangerImportWizard.jsx";
 
@@ -98,9 +99,17 @@ export default function App() {
 
     /* ── Page content renderer ── */
     function renderPage() {
+        // Umpires get their own dashboard by default
+        if (user?.role === 'umpire' && page === 'dashboard') {
+            return <UmpireDashboard onBack={() => setPage("dashboard")} />;
+        }
+
         switch (page) {
             case 'dashboard':
                 return <Dashboard onNavigate={setPage} onOpenImport={() => setShowImportWizard(true)} />;
+
+            case 'umpire':
+                return <UmpireDashboard onBack={() => setPage("dashboard")} />;
 
             case 'organizations':
                 return <OrgManager onBack={() => setPage("dashboard")} onNavigateToTeam={navigateToTeam} />;

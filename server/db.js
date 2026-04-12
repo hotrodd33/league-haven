@@ -212,11 +212,24 @@ async function migrate() {
       added_at TIMESTAMPTZ DEFAULT NOW(),
       PRIMARY KEY (game_id, official_id)
     );
+
+    CREATE TABLE IF NOT EXISTS umpire_game_interests (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      interested_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, game_id)
+    );
   `);
 
   // Add level column to teams if missing
   await pool.query(`
     ALTER TABLE teams ADD COLUMN IF NOT EXISTS level TEXT;
+  `);
+
+  // Link umpires to user accounts
+  await pool.query(`
+    ALTER TABLE officials ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
   `);
 
   // Officials feature toggle on organizations

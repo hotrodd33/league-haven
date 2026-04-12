@@ -92,6 +92,61 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// POST /api/auth/register-umpire — umpire self-registration with profile creation
+router.post('/register-umpire', async (req, res) => {
+  try {
+    const { username, password, name, email, phone, org_id } = req.body;
+    if (!username || !password || !name || !email) {
+      return res.status(400).json({ error: 'Username, password, name, and email are required' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Check username uniqueness
+    const { rows: existingUser } = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    if (existingUser.length) return res.status(409).json({ error: 'Username already taken' });
+
+    // Check email uniqueness
+    const { rows: existingEmail } = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existingEmail.length) return res.status(409).json({ error: 'Email already registered' });
+
+    const hash = await bcrypt.hash(password, 10);
+    
+    // Create user with umpire role
+    const { rows: userRows } = await pool.query(
+      'INSERT INTO users (username, password_hash, name, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, role, created_at',
+      [username, hash, name, email, 'umpire']
+    );
+    const user = userRows[0];
+
+    // Create official profile linked to user
+    await pool.query(
+      'INSERT INTO officials (user_id, org_id, name, email, phone, rate_per_game) VALUES ($1, $2, $3, $4, $5, 50)',
+      [user.id, org_id || null, name, email, phone || null]
+    );
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(email, name).catch(() => {});
+
+    const token = jwt.sign(
+      { id: user.id, username: user.username, name: user.name, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const permissions = { org_ids: [], team_ids: [] };
+    res.status(201).json({
+      token,
+      user: { id: user.id, username: user.username, name: user.name, role: user.role, email: user.email },
+      permissions,
+    });
+  } catch (err) {
+    console.error('Register umpire error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/auth/forgot-password — send reset email
 router.post('/forgot-password', async (req, res) => {
   try {

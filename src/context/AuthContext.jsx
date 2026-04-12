@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react';
-import { login as apiLogin, register as apiRegister } from '../api/index.js';
+import { login as apiLogin, register as apiRegister, registerAsUmpire as apiRegisterUmpire } from '../api/index.js';
 
 const AuthContext = createContext(null);
 
@@ -45,6 +45,26 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       const data = await apiRegister(username, password, name, email);
+      const saved = {
+        token: data.token,
+        user: data.user,
+        permissions: data.permissions || { org_ids: [], team_ids: [] },
+      };
+      setAuth(saved);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const registerUmpire = useCallback(async (username, password, name, email, phone, org_id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiRegisterUmpire(username, password, name, email, phone, org_id);
       const saved = {
         token: data.token,
         user: data.user,
@@ -110,6 +130,7 @@ export function AuthProvider({ children }) {
     error,
     login,
     register,
+    registerUmpire,
     logout,
   };
 

@@ -23,6 +23,7 @@ const dataManagerRoutes = require('./routes/data-manager');
 const importRoutes = require('./routes/import');
 const contactRoutes = require('./routes/contact');
 const officialsRoutes = require('./routes/officials');
+const umpireRoutes = require('./routes/umpires');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -56,6 +57,7 @@ app.use('/api/data-manager', dataManagerRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/officials', officialsRoutes);
+app.use('/api/umpires', umpireRoutes);
 
 // ── Serve React build in local dev only (Vercel serves static files itself) ──
 if (!process.env.VERCEL) {
