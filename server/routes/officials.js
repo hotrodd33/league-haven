@@ -63,15 +63,16 @@ router.get('/assignable', authMiddleware, async (req, res) => {
 
     const { rows: orgRows } = await pool.query('SELECT id, officials_enabled FROM organizations WHERE id = $1', [org_id]);
     if (!orgRows.length) return res.status(404).json({ error: 'Organization not found' });
-    if (!orgRows[0].officials_enabled) return res.json([]);
+    const orgOfficialsEnabled = !!orgRows[0].officials_enabled;
 
+    // Always include league-level officials (org_id IS NULL); include org officials only if enabled
     const { rows } = await pool.query(
       `SELECT o.*, org.name AS org_name
        FROM officials o
        LEFT JOIN organizations org ON org.id = o.org_id
-       WHERE o.org_id = $1 OR o.org_id IS NULL
+       WHERE o.org_id IS NULL${orgOfficialsEnabled ? ' OR o.org_id = $1' : ''}
        ORDER BY CASE WHEN o.org_id IS NULL THEN 0 ELSE 1 END, o.name`,
-      [org_id]
+      orgOfficialsEnabled ? [org_id] : []
     );
     res.json(rows.map(normalizeOfficial));
   } catch (err) {

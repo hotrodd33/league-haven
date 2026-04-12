@@ -427,8 +427,15 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
     if (officialIds.length) {
       const allowed = await canAssignOfficialsForTeam(client, home_team_id);
       if (!allowed) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'Officials are not enabled for the home organization' });
+        // Still allow if all officials being assigned are league-level (org_id IS NULL)
+        const { rows: offRows } = await client.query(
+          'SELECT id FROM officials WHERE id = ANY($1) AND org_id IS NOT NULL',
+          [officialIds.map(Number).filter(Number.isFinite)]
+        );
+        if (offRows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Officials are not enabled for the home organization' });
+        }
       }
     }
     await replaceGameOfficials(client, gameId, officialIds);
@@ -496,10 +503,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
       const officialIds = Array.isArray(official_ids) ? official_ids : [];
       if (officialIds.length) {
         const effectiveHomeTeamId = home_team_id || game.home_team_id;
-        const allowed = await canAssignOfficialsForTeam(client, effectiveHomeTeamId);
-        if (!allowed) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({ error: 'Officials are not enabled for the home organization' });
+        const orgAllowed = await canAssignOfficialsForTeam(client, effectiveHomeTeamId);
+        if (!orgAllowed) {
+          // Still allow if all officials being assigned are league-level (org_id IS NULL)
+          const { rows: offRows } = await client.query(
+            'SELECT id FROM officials WHERE id = ANY($1) AND org_id IS NOT NULL',
+            [officialIds.map(Number).filter(Number.isFinite)]
+          );
+          if (offRows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Officials are not enabled for the home organization' });
+          }
         }
       }
       await replaceGameOfficials(client, id, officialIds);

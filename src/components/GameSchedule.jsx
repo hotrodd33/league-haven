@@ -555,7 +555,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const interestedOfficialIds = (game?.interested_official_ids || []).map((id) => Number(id));
   const interestedOfficialSet = new Set(interestedOfficialIds);
   const homeOrgId = selectedHomeTeam?.org_id || null;
-  const officialsEnabled = homeOrgId ? !!orgSettings[homeOrgId]?.officials_enabled : false;
+  const orgOfficialsEnabled = homeOrgId ? !!orgSettings[homeOrgId]?.officials_enabled : false;
+  const officialsEnabled = orgOfficialsEnabled || officials.length > 0;
 
   useEffect(() => {
     fetchOrganizations().then((orgs) => {
