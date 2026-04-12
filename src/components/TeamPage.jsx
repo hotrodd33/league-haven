@@ -160,7 +160,7 @@ function TeamHeader({ team, recentGames, onContactTeam }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <h2 className="text-xl font-bold text-gray-100 truncate font-display">{team.name}</h2>
+        <h2 className="text-xl font-heading font-bold text-white truncate">{team.name}</h2>
         <div className="flex items-center gap-3 text-sm text-gray-400 mt-0.5 flex-wrap">
           {team.org_name && <span>{team.org_name}</span>}
           {team.age_group && (
@@ -212,7 +212,7 @@ function OverviewTab({ team, recentGames }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Team Info */}
       <div className="bg-gray-800 rounded-xl shadow-card p-4">
-        <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wide mb-3">Team Info</h3>
+        <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-3">Team Info</h3>
         <dl className="space-y-2 text-sm">
           {team?.org_name && <InfoRow label="Organization" value={team.org_name} />}
           {team?.age_group && <InfoRow label="Age Group" value={team.age_group} />}
@@ -236,7 +236,7 @@ function OverviewTab({ team, recentGames }) {
 
       {/* Recent Games */}
       <div className="bg-gray-800 rounded-xl shadow-card p-4">
-        <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wide mb-3">Recent Games</h3>
+        <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-3">Recent Games</h3>
         {recentGames.length === 0 ? (
           <p className="text-sm text-gray-400 py-4 text-center">No completed games yet</p>
         ) : (

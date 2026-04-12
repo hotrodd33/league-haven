@@ -98,7 +98,7 @@ export default function PitchLog({ teamId }) {
     <div className="mt-6">
       <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-300">
+          <h3 className="text-base font-heading font-bold uppercase tracking-wide text-white">
             Pitch Log
           </h3>
         </div>

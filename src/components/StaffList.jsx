@@ -87,7 +87,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-gray-100">Coaches &amp; Staff ({staff.length})</h2>
+        <h2 className="text-xl font-heading font-bold text-white">Coaches &amp; Staff ({staff.length})</h2>
         {editable && (
           <div className="flex gap-2">
             <button onClick={() => setShowAddExisting(!showAddExisting)}
@@ -301,7 +301,7 @@ function StaffForm({ teamId, staff, onDone, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit Staff' : 'Add Staff'}</h2>
+        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Staff' : 'Add Staff'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>

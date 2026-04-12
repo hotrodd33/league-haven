@@ -77,7 +77,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-lg font-bold">Standings</h2>
+        <h2 className="text-xl font-heading font-bold text-white">Standings</h2>
         <div className="flex gap-2 items-center">
           <select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}
             className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
@@ -112,7 +112,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
           {divisions.map(div => (
             <div key={div.key}>
               {(divisions.length > 1 || div.name) && (
-                <h3 className="text-base font-bold text-field-300 mb-3 border-b-2 border-field-700 pb-1">
+                <h3 className="text-base font-heading font-bold text-field-300 mb-3 border-b-2 border-field-700 pb-1">
                   {div.name || 'Other'}
                 </h3>
               )}

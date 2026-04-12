@@ -592,7 +592,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
               <ArrowUpTrayIcon className="w-4 h-4 text-field-600" />
             </div>
             <div>
-              <h2 className="font-heading text-base font-bold text-gray-100">
+              <h2 className="font-heading text-lg font-bold text-white">
                 Import from GameChanger
               </h2>
               {typeMeta && step > 0 && (

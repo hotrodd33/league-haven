@@ -175,14 +175,14 @@ export default function UmpireDashboard({ onBack }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold">Umpire Dashboard</h2>
+        <h2 className="text-xl font-heading font-bold text-white">Umpire Dashboard</h2>
         {onBack && <button onClick={onBack} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">← Back</button>}
       </div>
 
       {/* Profile Card */}
       {profile && (
         <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-          <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-3">Your Profile</h3>
+          <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-3">Your Profile</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Name</p>

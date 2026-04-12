@@ -70,7 +70,7 @@ export default function PitcherRest({ teamId }) {
         {/* Header */}
         <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-300">
+            <h3 className="text-base font-heading font-bold uppercase tracking-wide text-white">
               Pitcher Rest & Stats
             </h3>
             <div className="flex items-center gap-3 text-xs text-gray-400">

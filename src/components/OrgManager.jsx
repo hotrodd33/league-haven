@@ -106,7 +106,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-lg font-bold text-gray-100">Organizations ({orgs.length})</h2>
+        <h2 className="text-xl font-heading font-bold text-white">Organizations ({orgs.length})</h2>
         <div className="flex gap-2">
           {isAdmin && <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Organization</button>}
           {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
@@ -159,7 +159,7 @@ function OrgListCard({ org, orgStats, canEdit, deleting, isAdmin, onOpen, onEdit
         <div className="flex items-center gap-2 min-w-0">
           {org.logo_url && <img src={org.logo_url} alt="" className="w-9 h-9 object-contain rounded shrink-0" />}
           <div className="min-w-0">
-            <h3 className="font-bold text-base text-gray-100 truncate">{org.name}</h3>
+            <h3 className="font-heading font-bold text-base text-white truncate">{org.name}</h3>
             {org.contact_name && <p className="text-sm text-gray-300 truncate">{org.contact_name}</p>}
           </div>
         </div>
@@ -238,7 +238,7 @@ function OrgCard({ org }) {
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-4 text-gray-200">
       <div className="flex items-center gap-3 mb-3">
         {org.logo_url && <img src={org.logo_url} alt="" className="w-12 h-12 object-contain rounded" />}
-        <h2 className="text-xl font-bold text-gray-100">{org.name}</h2>
+        <h2 className="text-xl font-heading font-bold text-white">{org.name}</h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
         {org.contact_name && <div><span className="font-semibold">Contact:</span> {org.contact_name}</div>}
@@ -313,7 +313,7 @@ function OrgForm({ org, onDone, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200">
-        <h2 className="text-xl font-bold text-gray-100 mb-4">{isEditing ? 'Edit Organization' : 'Add Organization'}</h2>
+        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Organization' : 'Add Organization'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="org-name" className={labelCls}>Organization Name *</label>
@@ -653,7 +653,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <h3 className="text-base font-bold text-gray-100">Teams ({orgTeams.length})</h3>
+        <h3 className="text-base font-heading font-bold text-white">Teams ({orgTeams.length})</h3>
         {canManage && (
           <button onClick={openCreateModal} className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700">
             + Add Team

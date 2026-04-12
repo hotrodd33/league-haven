@@ -294,7 +294,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       {userCanScore && (
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-300">Report Score</h3>
+            <h3 className="text-base font-heading font-bold uppercase tracking-wide text-white">Report Score</h3>
             <div className="flex items-center gap-3">
               {!editingScore && (
                 <button onClick={() => setEditingScore(true)} className="text-xs text-blue-400 font-semibold hover:underline">Edit</button>
@@ -456,7 +456,7 @@ function PitchCountSection({
     <div className={`border rounded-xl p-4 sm:p-5 mb-4 shadow-sm ${sectionTone}`}>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-200 truncate">{label}</h3>
+          <h3 className="text-base font-heading font-bold uppercase tracking-wide text-white truncate">{label}</h3>
           {dailyLimit && <span className="text-xs text-gray-400 shrink-0">Limit: {dailyLimit}/day</span>}
         </div>
         {canEdit && !isAdding && !editingPc && (

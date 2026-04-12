@@ -53,7 +53,7 @@ export default function ContactModal({ scope, scopeId, scopeLabel, onClose }) {
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
 
-        <h2 className="text-xl font-bold mb-1">
+        <h2 className="text-xl font-heading font-bold text-white mb-1">
           Send Email
         </h2>
         <p className="text-sm text-gray-400 mb-4">

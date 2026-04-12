@@ -95,7 +95,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide">Schedule ({games.length})</h3>
+        <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide">Schedule ({games.length})</h3>
         {isAdmin && (
           <button
             onClick={() => setShowForm((prev) => !prev)}

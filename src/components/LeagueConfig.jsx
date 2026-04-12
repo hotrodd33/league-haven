@@ -23,7 +23,7 @@ export default function LeagueConfig({ onBack }) {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-lg font-bold">League Configuration</h2>
+        <h2 className="text-xl font-heading font-bold text-white">League Configuration</h2>
         {onBack && <button onClick={onBack} className={btnSecondary}>← Back</button>}
       </div>
       <p className="text-sm text-gray-400 mb-4">
@@ -133,7 +133,7 @@ function BrandingConfig() {
 
   return (
     <div className="space-y-5">
-      <h3 className="text-base font-bold">App Branding</h3>
+      <h3 className="text-base font-heading font-bold text-white">App Branding</h3>
       <p className="text-xs text-gray-400">
         Set the app name and logo shown in the main sidebar header.
       </p>
@@ -245,7 +245,7 @@ function SchedulingConfig() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-base font-bold">Game Time Window</h3>
+      <h3 className="text-base font-heading font-bold text-white">Game Time Window</h3>
       <p className="text-xs text-gray-400">
         Controls available game start times in schedule forms.
       </p>
@@ -366,7 +366,7 @@ function SeasonList() {
 
   return (
     <div>
-      <h3 className="text-base font-bold mb-3">Seasons ({seasons.length})</h3>
+      <h3 className="text-base font-heading font-bold text-white mb-3">Seasons ({seasons.length})</h3>
       <p className="text-xs text-gray-400 mb-3">
         Manage league seasons. The active season is used as the default when assigning divisions. Deleting a season removes all its divisions.
       </p>
@@ -507,7 +507,7 @@ function AgeGroupConfig() {
 
   return (
     <div>
-      <h3 className="text-base font-bold mb-3">Age Groups ({items.length})</h3>
+      <h3 className="text-base font-heading font-bold text-white mb-3">Age Groups ({items.length})</h3>
 
       {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
 
@@ -658,7 +658,7 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
 
   return (
     <div>
-      <h3 className="text-base font-bold mb-3">{title} ({items.length})</h3>
+      <h3 className="text-base font-heading font-bold text-white mb-3">{title} ({items.length})</h3>
 
       {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
 
@@ -837,7 +837,7 @@ function DivisionTree() {
 
   return (
     <div>
-      <h3 className="text-base font-bold mb-3">Divisions ({totalCount})</h3>
+      <h3 className="text-base font-heading font-bold text-white mb-3">Divisions ({totalCount})</h3>
 
       {/* Season selector */}
       <div className="mb-4">

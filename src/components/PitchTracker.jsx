@@ -257,7 +257,7 @@ export default function PitchTracker({ gameId, onBack }) {
           <svg className="w-12 h-12 text-green-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <h2 className="text-xl font-bold text-green-300 mb-2">Game Finalized</h2>
+          <h2 className="text-xl font-heading font-bold text-green-300 mb-2">Game Finalized</h2>
           <p className="text-sm text-green-400 mb-1">
             {game.home_team_name} {homeScore} – {awayScore} {game.away_team_name}
           </p>
@@ -410,7 +410,7 @@ export default function PitchTracker({ gameId, onBack }) {
       {addingSide && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-gray-800 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6">
-            <h3 className="text-lg font-bold mb-3">
+            <h3 className="text-lg font-heading font-bold text-white mb-3">
               Add {addingSide === 'home' ? 'Home' : 'Away'} Pitcher
             </h3>
 
@@ -488,7 +488,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: teamColor || '#9ca3af' }}>{label}</h3>
+        <h3 className="text-sm font-heading font-bold uppercase tracking-wide" style={{ color: teamColor || '#9ca3af' }}>{label}</h3>
         <button onClick={onAddPitcher} className="text-xs font-semibold text-blue-400 hover:text-blue-200">
           + Add Pitcher
         </button>

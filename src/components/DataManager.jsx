@@ -96,7 +96,7 @@ export default function DataManager() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-100 mb-1">Data Manager</h1>
+      <h1 className="text-2xl font-heading font-bold text-white mb-1">Data Manager</h1>
       <p className="text-sm text-gray-400 mb-4">Import, export, and manage all league data via CSV.</p>
 
       {/* Tabs */}

@@ -116,7 +116,7 @@ export default function OfficialDetail({ officialId, onBack }) {
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-2">
-              <h1 className="text-xl font-bold text-gray-100">{official.name}</h1>
+              <h1 className="text-xl font-heading font-bold text-white">{official.name}</h1>
               <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${official.org_id ? 'bg-blue-900/40 text-blue-200' : 'bg-purple-900/35 text-purple-200'}`}>
                 {official.org_id ? official.org_name || 'Organization' : 'League'}
               </span>
@@ -169,7 +169,7 @@ export default function OfficialDetail({ officialId, onBack }) {
 
       {/* Games list */}
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-gray-300 mb-3">
+        <h2 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-3">
           Assigned Games ({games.length})
         </h2>
         {games.length === 0 ? (

@@ -267,7 +267,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
     <div>
       <div className="sticky top-16 z-20 -mx-4 lg:-mx-6 px-4 lg:px-6 pt-2 pb-3 mb-4 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-          <h2 className="text-lg font-bold">Game Schedule ({filteredGames.length})</h2>
+          <h2 className="text-xl font-heading font-bold text-white">Game Schedule ({filteredGames.length})</h2>
           <div className="flex gap-2">
             {isAdmin && (
               <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Game</button>
@@ -328,7 +328,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
         <div className="space-y-6">
           {sortedDateKeys.map(dateKey => (
             <div key={dateKey} ref={(el) => { dateSectionRefs.current[dateKey] = el; }}>
-              <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
+              <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
                 {formatDate(dateKey)}
               </h3>
 
@@ -743,7 +743,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-bold mb-4">{isEditing ? 'Edit Game' : 'Schedule Game'}</h2>
+        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Game' : 'Schedule Game'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Season */}
           <div>
@@ -893,7 +893,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
         {showAddLocationForm && (
           <div className="fixed inset-0 z-[60] bg-black/50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
             <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4 border border-gray-700">
-              <h3 className="text-lg font-bold text-gray-100 mb-1">Add Field Location</h3>
+              <h3 className="text-lg font-heading font-bold text-white mb-1">Add Field Location</h3>
               <p className="text-xs text-gray-400 mb-4">This will be added to {selectedHomeTeam?.org_name || 'the selected home team organization'}.</p>
 
               <form onSubmit={handleAddLocation} className="space-y-3">

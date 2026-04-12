@@ -186,7 +186,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-gray-100">Team Roster ({players.length})</h2>
+        <h2 className="text-xl font-heading font-bold text-white">Team Roster ({players.length})</h2>
         {editable && (
           <div className="flex gap-2">
             <button onClick={() => setShowAddExisting(!showAddExisting)} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">

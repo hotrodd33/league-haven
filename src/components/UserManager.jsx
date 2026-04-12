@@ -76,7 +76,7 @@ export default function UserManager({ onBack }) {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-lg font-bold text-gray-100">User Accounts ({users.length})</h2>
+        <h2 className="text-xl font-heading font-bold text-white">User Accounts ({users.length})</h2>
         <div className="flex gap-2">
           <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add User</button>
           {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
@@ -254,7 +254,7 @@ function UserForm({ user, onDone, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4 text-gray-200">
-        <h2 className="text-xl font-bold text-gray-100 mb-4">{isEditing ? 'Edit User' : 'Add User'}</h2>
+        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit User' : 'Add User'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -386,13 +386,13 @@ function PermissionsEditor({ user, onBack }) {
       </button>
 
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-4 text-gray-200">
-        <h2 className="text-xl font-bold text-gray-100 mb-1">Permissions for {user.name}</h2>
+        <h2 className="text-xl font-heading font-bold text-white mb-1">Permissions for {user.name}</h2>
         <p className="text-sm text-gray-400 mb-4">
           Select which organizations and teams this user can edit. Granting org access automatically includes all teams under that org.
         </p>
 
         {/* Organizations */}
-        <h3 className="text-sm font-bold uppercase text-gray-400 tracking-wide mb-2">Organizations</h3>
+        <h3 className="text-base font-heading font-bold uppercase text-white tracking-wide mb-2">Organizations</h3>
         {orgs.length === 0 ? (
           <p className="text-sm text-gray-400 mb-4">No organizations created yet.</p>
         ) : (
@@ -417,7 +417,7 @@ function PermissionsEditor({ user, onBack }) {
         )}
 
         {/* Individual Teams */}
-        <h3 className="text-sm font-bold uppercase text-gray-400 tracking-wide mb-2">Individual Teams</h3>
+        <h3 className="text-base font-heading font-bold uppercase text-white tracking-wide mb-2">Individual Teams</h3>
         <p className="text-xs text-gray-400 mb-2">Grant access to specific teams without full org access. Teams under a selected org above are already included.</p>
         {teams.length === 0 ? (
           <p className="text-sm text-gray-400 mb-4">No teams created yet.</p>

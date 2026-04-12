@@ -100,7 +100,7 @@ export default function FieldLocations({ orgId, orgName }) {
   return (
     <div className="mt-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-        <h3 className="text-base font-bold text-gray-100">Field Locations{orgName ? ` — ${orgName}` : ''}</h3>
+        <h3 className="text-base font-heading font-bold text-white">Field Locations{orgName ? ` — ${orgName}` : ''}</h3>
         {editable && <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Field</button>}
       </div>
 
@@ -371,7 +371,7 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200">
-        <h2 className="text-xl font-bold text-gray-100 mb-4">{isEditing ? 'Edit Field Location' : 'Add Field Location'}</h2>
+        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Field Location' : 'Add Field Location'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="loc-name" className={labelCls}>Field Name *</label>
