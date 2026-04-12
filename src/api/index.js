@@ -786,3 +786,10 @@ export async function registerDirector(data) {
     body: JSON.stringify(data),
   });
 }
+
+export async function registerCoach(data) {
+  return apiFetch('/auth/register-coach', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}

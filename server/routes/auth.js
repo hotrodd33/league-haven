@@ -265,6 +265,110 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/auth/register-coach — coach registers with a single team under an existing org
+router.post('/register-coach', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { username, password, name, email, phone, org_id, team } = req.body;
+
+    if (!username || !password || !name || !email) {
+      return res.status(400).json({ error: 'Username, password, name, and email are required' });
+    }
+    const pwErr = validatePassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
+    if (!org_id) return res.status(400).json({ error: 'Organization is required' });
+    if (!team?.team_city) return res.status(400).json({ error: 'Team city is required' });
+    if (!team?.age_group) return res.status(400).json({ error: 'Age group is required' });
+
+    const { rows: orgCheck } = await client.query('SELECT id, name FROM organizations WHERE id = $1', [org_id]);
+    if (!orgCheck.length) return res.status(400).json({ error: 'Organization not found' });
+
+    const { rows: existingUser } = await client.query('SELECT id FROM users WHERE username = $1', [username]);
+    if (existingUser.length) return res.status(409).json({ error: 'Username already taken' });
+    const { rows: existingEmail } = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existingEmail.length) return res.status(409).json({ error: 'Email already registered' });
+
+    await client.query('BEGIN');
+
+    // Create user as team_manager
+    const hash = await bcrypt.hash(password, 10);
+    const { rows: userRows } = await client.query(
+      'INSERT INTO users (username, password_hash, name, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, role',
+      [username, hash, name, email, 'team_manager']
+    );
+    const user = userRows[0];
+
+    // Build team name + abbreviation
+    const t = team;
+    const teamName = [t.team_city, t.team_color, t.age_group, t.level].filter(Boolean).join(' ');
+    let abbr = '';
+    if (t.team_city) {
+      const words = t.team_city.trim().split(/\s+/);
+      abbr = words.length > 1 ? words.map(w => w[0]).join('') : t.team_city.substring(0, 3);
+    }
+    if (t.team_mascot) abbr += t.team_mascot[0];
+    if (t.team_color) abbr += t.team_color[0];
+    if (t.age_group) abbr += t.age_group.replace(/\s+/g, '');
+    if (t.level) abbr += t.level.replace(/\s+/g, '');
+    abbr = abbr.toUpperCase();
+
+    const { rows: teamRows } = await client.query(
+      `INSERT INTO teams (name, abbreviation, team_city, team_color, team_mascot, age_group, level, org_id, primary_color, secondary_color)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [teamName, abbr || null, t.team_city, t.team_color || null, t.team_mascot || null, t.age_group, t.level || null, org_id, t.primary_color || null, t.secondary_color || null]
+    );
+    const teamId = teamRows[0].id;
+
+    // Grant team permission
+    await client.query(
+      'INSERT INTO user_permissions (user_id, team_id) VALUES ($1, $2)',
+      [user.id, teamId]
+    );
+
+    // Auto-register for active season
+    const { rows: seasonRows } = await client.query(
+      'SELECT id FROM league_seasons WHERE is_active = TRUE ORDER BY year DESC LIMIT 1'
+    );
+    if (seasonRows[0]) {
+      const { rows: agRows } = await client.query(
+        'SELECT league_fee FROM league_age_groups WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))',
+        [t.age_group]
+      );
+      await client.query(
+        `INSERT INTO team_registrations (team_id, season_id, fee, status)
+         VALUES ($1, $2, $3, 'registered') ON CONFLICT (team_id, season_id) DO NOTHING`,
+        [teamId, seasonRows[0].id, agRows[0]?.league_fee || null]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    sendWelcomeEmail(email, name).catch(() => {});
+
+    const token = jwt.sign(
+      { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: false },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    const permissions = await getUserPermissions(user.id);
+
+    res.status(201).json({
+      token,
+      user: { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: false, email: user.email },
+      permissions,
+      team_name: teamName,
+      org_name: orgCheck[0].name,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Register coach error:', err);
+    if (err.code === '23505') return res.status(409).json({ error: 'A duplicate entry was detected.' });
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // GET /api/auth/registration-config — public config for registration forms
 router.get('/registration-config', async (req, res) => {
   try {
