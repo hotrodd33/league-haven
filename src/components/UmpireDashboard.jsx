@@ -10,14 +10,18 @@ const badgeGreen = "inline-block px-2 py-0.5 bg-green-900/40 text-green-300 text
 const badgeYellow = "inline-block px-2 py-0.5 bg-yellow-900/35 text-yellow-300 text-xs rounded-full font-semibold";
 
 function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr + 'T00:00:00');
+  if (!dateStr) return 'TBD';
+  const raw = String(dateStr);
+  const normalized = raw.includes('T') ? raw : `${raw}T00:00:00`;
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return 'TBD';
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 function formatTime(timeStr) {
   if (!timeStr) return 'TBD';
-  const [h, m] = timeStr.split(':').map(Number);
+  const [h, m] = String(timeStr).split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return 'TBD';
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
