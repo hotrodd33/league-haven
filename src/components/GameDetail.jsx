@@ -436,13 +436,12 @@ function PitchCountSection({
       ) : (
         <div className="space-y-2">
           {/* Header */}
-          <div className="hidden sm:grid grid-cols-12 gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide px-2">
+          <div className="hidden md:grid grid-cols-12 gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide px-2">
             <div className="col-span-1">#</div>
-            <div className="col-span-3">Player</div>
+            <div className="col-span-5">Player</div>
             <div className="col-span-2 text-right">Pitches</div>
-            <div className="col-span-2 text-right">IP</div>
             <div className="col-span-2 text-right">Rest</div>
-            <div className="col-span-2"></div>
+            <div className="col-span-2 text-right">Actions</div>
           </div>
 
           {entries.map(pc => {
@@ -462,7 +461,7 @@ function PitchCountSection({
                       onChange={(e) => setPcForm(prev => ({ ...prev, pitch_count: e.target.value }))}
                       className={inputCls} />
                     {pcForm.pitch_count && dailyLimit && (Number(pcForm.pitch_count) + otherToday) > dailyLimit && (
-                      <div className="mt-1 text-xs text-red-600 font-semibold">Exceeds daily limit of {dailyLimit}</div>
+                      <div className="mt-1 text-xs text-red-400 font-semibold">Exceeds daily limit of {dailyLimit}</div>
                     )}
                   </div>
                 </div>
@@ -472,29 +471,30 @@ function PitchCountSection({
                 </div>
               </form>
             ) : (
-              <div key={pc.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-900 group">
-                <div className="w-8 text-xs text-gray-400 font-mono">{pc.jersey_number || '—'}</div>
-                <div className="flex-1 text-sm font-medium truncate">{pc.first_name} {pc.last_name}</div>
-                <div className={`w-16 text-sm font-bold text-right tabular-nums ${overLimit ? 'text-red-600' : ''}`}>{pc.pitch_count}</div>
-                <div className="w-16 text-right">
+              <div key={pc.id} className="md:grid md:grid-cols-12 md:gap-2 px-2 py-2 rounded hover:bg-gray-900 group border border-transparent hover:border-gray-700">
+                <div className="md:col-span-1 text-xs text-gray-400 font-mono mb-1 md:mb-0">#{pc.jersey_number || '—'}</div>
+                <div className="md:col-span-5 text-sm font-medium truncate mb-1 md:mb-0">{pc.first_name} {pc.last_name}</div>
+                <div className={`md:col-span-2 text-sm font-bold md:text-right tabular-nums mb-1 md:mb-0 ${overLimit ? 'text-red-400' : 'text-gray-200'}`}>{pc.pitch_count}</div>
+                <div className="md:col-span-2 md:text-right mb-1 md:mb-0">
                   {restDays != null && (() => {
                     const availDate = availableDate(restDays);
                     return (
-                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-full ${
                         restDays >= 3 ? 'bg-red-900/35 text-red-300' :
-                        restDays >= 2 ? 'bg-orange-100 text-orange-700' :
+                        restDays >= 2 ? DARK_BADGES.warning :
                         restDays >= 1 ? DARK_BADGES.warning :
                         DARK_BADGES.success
                       }`}
                         title={availDate ? `Available ${availDate}` : 'No rest required'}
                       >
-                        {restDays > 0 ? `${restDays}d → ${availDate}` : '0d'}
+                        {restDays > 0 ? `${restDays}d` : '0d'}
+                        {restDays > 0 && availDate ? <span className="opacity-80">→ {availDate}</span> : null}
                       </span>
                     );
                   })()}
                 </div>
                 {canEdit && (
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+                  <div className="md:col-span-2 flex gap-1 md:justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <button onClick={() => onStartEdit(pc)} className="px-2 py-0.5 text-xs bg-gray-700 rounded hover:bg-gray-600">Edit</button>
                     <button onClick={() => onDelete(pc)} className={btnDanger}>×</button>
                   </div>
@@ -611,7 +611,7 @@ function PitchCountSection({
                     return (
                       <div className="mt-1 space-y-0.5">
                         {total > dailyLimit && (
-                          <div className="text-xs text-red-600 font-semibold">⚠ Exceeds daily limit of {dailyLimit}</div>
+                          <div className="text-xs text-red-400 font-semibold">⚠ Exceeds daily limit of {dailyLimit}</div>
                         )}
                         {rest != null && rest > 0 && (
                           <div className="text-xs text-gray-400">→ Will require <strong>{rest} rest day{rest !== 1 ? 's' : ''}</strong></div>
