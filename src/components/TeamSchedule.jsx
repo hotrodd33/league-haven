@@ -23,6 +23,13 @@ function formatTime(timeStr) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+function toSortStamp(game) {
+  const datePart = game?.game_date ? String(game.game_date) : '1900-01-01';
+  const timePart = game?.game_time ? String(game.game_time).slice(0, 5) : '00:00';
+  const stamp = new Date(`${datePart}T${timePart}:00`).getTime();
+  return Number.isFinite(stamp) ? stamp : 0;
+}
+
 export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const { isAdmin, canScoreGame } = useAuth();
   const [games, setGames] = useState([]);
@@ -82,6 +89,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
 
   const activeSeason = seasons.find((season) => season.is_active);
   const defaultSeasonId = activeSeason ? String(activeSeason.id) : '';
+  const sortedGames = [...games].sort((a, b) => toSortStamp(b) - toSortStamp(a));
 
   return (
     <div className="mt-6">
@@ -115,7 +123,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
         <div className="text-sm text-gray-400">No games scheduled.</div>
       ) : (
         <div className="space-y-2">
-          {games.map(game => {
+          {sortedGames.map(game => {
           const isHome = game.home_team_id === teamId;
           const opponent = isHome ? game.away_team_name : game.home_team_name;
           const opponentLogo = isHome ? game.away_logo : game.home_logo;
@@ -135,10 +143,14 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
             else result = 'T';
           }
           const resultColor = result === 'W' ? 'text-green-400' : result === 'L' ? 'text-red-600' : result === 'T' ? 'text-gray-400' : '';
+          const isUnplayed = game.status !== 'completed';
+          const cardTone = isUnplayed
+            ? 'bg-slate-800/85 border-slate-600/80'
+            : 'bg-gray-800 border-gray-700';
 
             return (
               <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 flex items-center gap-3 text-sm cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                className={`${cardTone} border rounded-lg px-3 py-2 flex items-center gap-3 text-sm cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all`}>
               {/* Date + Time */}
               <div className="w-24 shrink-0">
                 <div className="font-semibold text-gray-300 text-xs">{formatDate(game.game_date)}</div>
