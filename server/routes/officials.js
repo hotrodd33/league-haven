@@ -113,10 +113,39 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const { rows } = await pool.query(
-      `SELECT o.*, org.name AS org_name, u.username AS linked_username
+      `SELECT o.*, org.name AS org_name, u.username AS linked_username,
+         COALESCE(stats.assigned_games, 0) AS assigned_games,
+         COALESCE(stats.completed_games, 0) AS completed_games,
+         COALESCE(stats.total_owed, 0) AS total_owed,
+         COALESCE(interest_stats.interested_games, 0) AS interested_games,
+         ag_list.age_group_ids
        FROM officials o
        LEFT JOIN organizations org ON org.id = o.org_id
        LEFT JOIN users u ON u.id = o.user_id
+       LEFT JOIN LATERAL (
+         SELECT
+           COUNT(*) FILTER (WHERE g.status != 'completed') AS assigned_games,
+           COUNT(*) FILTER (WHERE g.status = 'completed') AS completed_games,
+           COALESCE(SUM(
+             CASE WHEN g.status = 'completed' AND NOT goa.is_paid THEN
+               COALESCE(goa.game_fee, (SELECT lag.umpire_rate FROM league_age_groups lag WHERE LOWER(TRIM(lag.name)) = LOWER(TRIM(ht.age_group)) LIMIT 1), o.rate_per_game, 50)
+             ELSE 0 END
+           ), 0) AS total_owed
+         FROM game_official_assignments goa
+         JOIN games g ON g.id = goa.game_id
+         LEFT JOIN teams ht ON ht.id = g.home_team_id
+         WHERE goa.official_id = o.id
+       ) stats ON true
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*) AS interested_games
+         FROM umpire_game_interests ugi
+         WHERE ugi.user_id = o.user_id AND o.user_id IS NOT NULL
+       ) interest_stats ON true
+       LEFT JOIN LATERAL (
+         SELECT ARRAY_AGG(oag.age_group_id) AS age_group_ids
+         FROM official_age_groups oag
+         WHERE oag.official_id = o.id
+       ) ag_list ON true
        ${where}
        ORDER BY CASE WHEN o.org_id IS NULL THEN 0 ELSE 1 END, org.name NULLS FIRST, o.name`,
       params
@@ -501,6 +530,34 @@ router.put('/:id/games/:gameId/payment', authMiddleware, async (req, res) => {
     );
 
     res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Official Age Group Eligibility ──
+
+// PUT /officials/:id/age-groups — set eligible age groups for an official
+router.put('/:id/age-groups', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { age_group_ids } = req.body; // array of age_group_id
+    if (!Array.isArray(age_group_ids)) return res.status(400).json({ error: 'age_group_ids must be an array' });
+
+    const { rows: existing } = await pool.query('SELECT * FROM officials WHERE id = $1', [id]);
+    if (!existing.length) return res.status(404).json({ error: 'Official not found' });
+
+    // Delete all existing then insert new
+    await pool.query('DELETE FROM official_age_groups WHERE official_id = $1', [id]);
+    for (const agId of age_group_ids) {
+      await pool.query(
+        'INSERT INTO official_age_groups (official_id, age_group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [id, agId]
+      );
+    }
+
+    res.json({ success: true, age_group_ids });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

@@ -453,6 +453,15 @@ async function migrate() {
 
   // ── Age-group ump_required flag (e.g. 8U does not need an ump) ──
   await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS ump_required BOOLEAN NOT NULL DEFAULT TRUE;`);
+
+  // ── Official age-group eligibility ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS official_age_groups (
+      official_id INTEGER NOT NULL REFERENCES officials(id) ON DELETE CASCADE,
+      age_group_id INTEGER NOT NULL REFERENCES league_age_groups(id) ON DELETE CASCADE,
+      PRIMARY KEY (official_id, age_group_id)
+    );
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds

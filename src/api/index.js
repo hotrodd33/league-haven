@@ -391,6 +391,13 @@ export async function updateOfficialGamePayment(officialId, gameId, data) {
   });
 }
 
+export async function updateOfficialAgeGroups(officialId, ageGroupIds) {
+  return apiFetch(`/officials/${officialId}/age-groups`, {
+    method: 'PUT',
+    body: JSON.stringify({ age_group_ids: ageGroupIds }),
+  });
+}
+
 // ── Field Locations ──
 
 export async function fetchLocations(orgId) {

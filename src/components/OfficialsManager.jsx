@@ -6,6 +6,8 @@ import {
   deleteOfficial,
   fetchOrganizations,
   fetchUmpireUsers,
+  fetchAgeGroups,
+  updateOfficialAgeGroups,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import OfficialDetail from './OfficialDetail.jsx';
@@ -104,6 +106,24 @@ export default function OfficialsManager({ onBack }) {
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-900/35 text-teal-200">@{official.linked_username}</span>
                     )}
                   </div>
+                  <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                    {Number(official.total_owed) > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-900/35 text-amber-300">
+                        ${Number(official.total_owed).toFixed(2)} owed
+                      </span>
+                    )}
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-900/30 text-blue-300">
+                      {official.assigned_games} assigned
+                    </span>
+                    {Number(official.interested_games) > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-cyan-900/30 text-cyan-300">
+                        {official.interested_games} interested
+                      </span>
+                    )}
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-700 text-gray-300">
+                      {official.completed_games} completed
+                    </span>
+                  </div>
                   <div className="text-sm text-gray-400 mt-1">
                     {[official.email, official.phone, official.venmo_id ? `Venmo: ${official.venmo_id}` : null].filter(Boolean).join(' • ') || 'No contact details'}
                   </div>
@@ -144,11 +164,17 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [umpireUsers, setUmpireUsers] = useState([]);
+  const [ageGroups, setAgeGroups] = useState([]);
+  const [selectedAgeGroups, setSelectedAgeGroups] = useState(official?.age_group_ids || []);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
     fetchUmpireUsers().then(setUmpireUsers).catch(() => {});
   }, [isSuperAdmin]);
+
+  useEffect(() => {
+    fetchAgeGroups().then(setAgeGroups).catch(() => {});
+  }, []);
 
   const editableOrgs = (orgs || []).filter((org) => canEditOrg(org.id));
   const defaultScope = official?.org_id ? 'org' : (isSuperAdmin ? 'league' : 'org');
@@ -201,8 +227,13 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
       if (!data.name) throw new Error('Name is required');
       if (scope === 'org' && !data.org_id) throw new Error('Organization is required for org-scoped officials');
 
-      if (isEditing) await updateOfficial(official.id, data);
-      else await createOfficial(data);
+      if (isEditing) {
+        await updateOfficial(official.id, data);
+        await updateOfficialAgeGroups(official.id, selectedAgeGroups);
+      } else {
+        const created = await createOfficial(data);
+        if (created?.id) await updateOfficialAgeGroups(created.id, selectedAgeGroups);
+      }
       onDone();
     } catch (err) {
       setError(err.message);
@@ -310,6 +341,29 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
                 ))}
               </select>
               <p className="text-xs text-gray-400 mt-1">Only umpire-role accounts are shown. Link this profile to a user so they see assigned games on their dashboard.</p>
+            </div>
+          )}
+
+          {ageGroups.length > 0 && (
+            <div>
+              <label className={labelCls}>Eligible Age Groups</label>
+              <div className="flex flex-wrap gap-2">
+                {ageGroups.filter(ag => ag.ump_required !== false).map((ag) => {
+                  const checked = selectedAgeGroups.includes(ag.id);
+                  return (
+                    <label key={ag.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-colors ${checked ? 'bg-blue-900/40 border-blue-500 text-blue-200' : 'bg-gray-900 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setSelectedAgeGroups(prev => checked ? prev.filter(id => id !== ag.id) : [...prev, ag.id])}
+                        className="sr-only"
+                      />
+                      {ag.name}
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Select the age groups this official is eligible to umpire. Leave empty for all.</p>
             </div>
           )}
 

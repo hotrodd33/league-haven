@@ -75,12 +75,18 @@ router.get('/available-games', authMiddleware, async (req, res) => {
     }
 
     const { season_id } = req.query;
-    // Get umpire's official profile to determine org scope
+    // Get umpire's official profile to determine org scope and eligible age groups
     const { rows: profileRows } = await pool.query(
-      'SELECT org_id FROM officials WHERE user_id = $1 LIMIT 1',
+      `SELECT o.id, o.org_id, ARRAY_AGG(oag.age_group_id) FILTER (WHERE oag.age_group_id IS NOT NULL) AS eligible_age_group_ids
+       FROM officials o
+       LEFT JOIN official_age_groups oag ON oag.official_id = o.id
+       WHERE o.user_id = $1
+       GROUP BY o.id
+       LIMIT 1`,
       [req.user.id]
     );
     const umpireOrgId = profileRows[0]?.org_id ?? null;
+    const eligibleAgeGroupIds = profileRows[0]?.eligible_age_group_ids ?? null;
 
     const params = [req.user.id];
     let whereClause = 'WHERE g.status = \'scheduled\'';
@@ -95,6 +101,12 @@ router.get('/available-games', authMiddleware, async (req, res) => {
     if (season_id) {
       params.push(season_id);
       whereClause += ` AND g.season_id = $${params.length}`;
+    }
+
+    // Filter by official's eligible age groups (empty = eligible for all)
+    if (eligibleAgeGroupIds && eligibleAgeGroupIds.length > 0) {
+      params.push(eligibleAgeGroupIds);
+      whereClause += ` AND (hag.id = ANY($${params.length}) OR aag.id = ANY($${params.length}))`;
     }
 
     const { rows } = await pool.query(
