@@ -293,8 +293,8 @@ export default function UmpireDashboard({ onBack }) {
               <GameCard
                 key={game.id}
                 game={game}
-                showButton={true}
-                buttonLabel={game.is_assigned ? 'Assigned!' : 'Remove Interest'}
+                showButton={!game.is_assigned}
+                buttonLabel="Remove Interest"
                 onButtonClick={() => handleRemoveInterest(game.id)}
                 isProcessing={managingInterest}
               />
