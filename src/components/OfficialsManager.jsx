@@ -5,6 +5,7 @@ import {
   updateOfficial,
   deleteOfficial,
   fetchOrganizations,
+  fetchUmpireUsers,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -87,12 +88,15 @@ export default function OfficialsManager({ onBack }) {
             <div key={official.id} className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-gray-200">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-gray-100 truncate">{official.name}</h3>
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${official.org_id ? 'bg-blue-900/40 text-blue-200' : 'bg-purple-900/35 text-purple-200'}`}>
                       {official.org_id ? official.org_name || 'Organization' : 'League'}
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">${Number(official.rate_per_game || 50).toFixed(2)}/game</span>
+                    {official.linked_username && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-900/35 text-teal-200">@{official.linked_username}</span>
+                    )}
                   </div>
                   <div className="text-sm text-gray-400 mt-1">
                     {[official.email, official.phone, official.venmo_id ? `Venmo: ${official.venmo_id}` : null].filter(Boolean).join(' • ') || 'No contact details'}
@@ -133,6 +137,12 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
   const isEditing = !!official;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [umpireUsers, setUmpireUsers] = useState([]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    fetchUmpireUsers().then(setUmpireUsers).catch(() => {});
+  }, [isSuperAdmin]);
 
   const editableOrgs = (orgs || []).filter((org) => canEditOrg(org.id));
   const defaultScope = official?.org_id ? 'org' : (isSuperAdmin ? 'league' : 'org');
@@ -153,6 +163,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
     date_of_birth: official?.date_of_birth || '',
     is_certified: official?.is_certified || false,
     years_of_experience: official?.years_of_experience != null ? String(official.years_of_experience) : '',
+    user_id: official?.user_id || '',
   });
 
   function handleChange(e) {
@@ -179,6 +190,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
         date_of_birth: form.date_of_birth.trim() || null,
         is_certified: form.is_certified === true,
         years_of_experience: form.years_of_experience ? Number(form.years_of_experience) : null,
+        user_id: form.user_id ? Number(form.user_id) : null,
       };
       if (!data.name) throw new Error('Name is required');
       if (scope === 'org' && !data.org_id) throw new Error('Organization is required for org-scoped officials');
@@ -279,6 +291,21 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
               <input id="official-zip" name="zip" value={form.zip} onChange={handleChange} maxLength={10} className={inputCls} />
             </div>
           </div>
+
+          {isSuperAdmin && (
+            <div>
+              <label htmlFor="official-user" className={labelCls}>Linked User Account</label>
+              <select id="official-user" name="user_id" value={form.user_id} onChange={handleChange} className={inputCls}>
+                <option value="">— Not linked —</option>
+                {umpireUsers.map((u) => (
+                  <option key={u.id} value={u.id} disabled={u.official_id != null && u.official_id !== official?.id}>
+                    @{u.username}{u.name ? ` (${u.name})` : ''}{u.official_id != null && u.official_id !== official?.id ? ' — already linked' : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Only umpire-role accounts are shown. Link this profile to a user so they see assigned games on their dashboard.</p>
+            </div>
+          )}
 
           <div>
             <label htmlFor="official-notes" className={labelCls}>Notes</label>

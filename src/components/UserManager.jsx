@@ -16,6 +16,7 @@ const ROLE_LABELS = {
   org_admin: 'Org Admin',
   team_manager: 'Team Manager',
   score_reporter: 'Score Reporter',
+  umpire: 'Umpire',
 };
 
 const ROLE_COLORS = {
@@ -23,6 +24,7 @@ const ROLE_COLORS = {
   org_admin: 'bg-blue-900/40 text-blue-200',
   team_manager: 'bg-green-900/35 text-green-300',
   score_reporter: 'bg-gray-800 text-gray-300',
+  umpire: 'bg-teal-900/35 text-teal-200',
 };
 
 export default function UserManager({ onBack }) {
@@ -265,6 +267,7 @@ function UserForm({ user, onDone, onCancel }) {
                 <option value="team_manager">Team Manager</option>
                 <option value="org_admin">Org Admin</option>
                 <option value="super_admin">Super Admin</option>
+                <option value="umpire">Umpire</option>
               </select>
             </div>
             <div>

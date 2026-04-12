@@ -19,6 +19,24 @@ function normalizeOfficial(row) {
   };
 }
 
+// Get umpire-role users and whether they're already linked to an official profile
+router.get('/umpire-users', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'super_admin') return res.status(403).json({ error: 'Super admin only' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.username, u.name, u.email, o.id AS official_id
+       FROM users u
+       LEFT JOIN officials o ON o.user_id = u.id
+       WHERE u.role = 'umpire'
+       ORDER BY u.name`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get assignable officials for an organization (league + org scoped), respecting org toggle
 router.get('/assignable', authMiddleware, async (req, res) => {
   try {
@@ -93,9 +111,10 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const { rows } = await pool.query(
-      `SELECT o.*, org.name AS org_name
+      `SELECT o.*, org.name AS org_name, u.username AS linked_username
        FROM officials o
        LEFT JOIN organizations org ON org.id = o.org_id
+       LEFT JOIN users u ON u.id = o.user_id
        ${where}
        ORDER BY CASE WHEN o.org_id IS NULL THEN 0 ELSE 1 END, org.name NULLS FIRST, o.name`,
       params
@@ -186,6 +205,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
       venmo_id,
       rate_per_game,
       notes,
+      date_of_birth,
+      is_certified,
+      years_of_experience,
+      user_id,
     } = req.body;
 
     const nextOrgId = org_id === undefined
@@ -220,8 +243,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
          venmo_id = $9,
          rate_per_game = $10,
          notes = $11,
+         date_of_birth = $12,
+         is_certified = $13,
+         years_of_experience = $14,
+         user_id = $15,
          updated_at = NOW()
-       WHERE id = $12
+       WHERE id = $16
        RETURNING *`,
       [
         nextOrgId,
@@ -235,13 +262,18 @@ router.put('/:id', authMiddleware, async (req, res) => {
         venmo_id !== undefined ? (venmo_id || null) : existing.venmo_id,
         rate,
         notes !== undefined ? (notes || null) : existing.notes,
+        date_of_birth !== undefined ? (date_of_birth || null) : existing.date_of_birth,
+        is_certified !== undefined ? Boolean(is_certified) : existing.is_certified,
+        years_of_experience !== undefined ? (years_of_experience != null && years_of_experience !== '' ? Number(years_of_experience) : null) : existing.years_of_experience,
+        user_id !== undefined ? (user_id || null) : existing.user_id,
         id,
       ]
     );
 
     const row = rows[0];
     const { rows: orgRows } = await pool.query('SELECT name FROM organizations WHERE id = $1', [row.org_id]);
-    res.json(normalizeOfficial({ ...row, org_name: orgRows[0]?.name || null }));
+    const { rows: userRows } = await pool.query('SELECT username FROM users WHERE id = $1', [row.user_id]);
+    res.json(normalizeOfficial({ ...row, org_name: orgRows[0]?.name || null, linked_username: userRows[0]?.username || null }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

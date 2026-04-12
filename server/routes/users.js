@@ -10,7 +10,7 @@ const router = express.Router();
 // All routes require super_admin
 router.use(authMiddleware, requireAdmin);
 
-const VALID_ROLES = ROLES; // ['score_reporter', 'team_manager', 'org_admin', 'super_admin']
+const VALID_ROLES = [...ROLES, 'umpire']; // includes 'umpire' for admin assignment
 
 function sanitizeRole(role) {
   return VALID_ROLES.includes(role) ? role : 'score_reporter';
