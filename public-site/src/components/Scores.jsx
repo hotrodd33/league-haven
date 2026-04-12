@@ -122,7 +122,7 @@ export default function Scores() {
             {div.name}
           </h3>
           {Object.entries(div.dates)
-            .sort(([a], [b]) => a.localeCompare(b))
+            .sort(([a], [b]) => b.localeCompare(a))
             .map(([date, dateGames]) => (
               <div key={date} className="mb-4">
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">

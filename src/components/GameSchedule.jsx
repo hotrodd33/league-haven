@@ -144,8 +144,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
     }
     dg.dateGroups[g.game_date].push(g);
   }
-  // Sort date keys within each division
-  for (const div of divisions) div.dateKeys.sort();
+  // Sort date keys within each division (newest first)
+  for (const div of divisions) div.dateKeys.sort((a, b) => b.localeCompare(a));
 
   // Build team optgroups
   const teamsByOrg = {};
