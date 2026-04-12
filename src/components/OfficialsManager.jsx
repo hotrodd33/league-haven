@@ -29,15 +29,18 @@ export default function OfficialsManager({ onBack }) {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [scopeFilter, setScopeFilter] = useState('all');
+  const [ageGroupFilter, setAgeGroupFilter] = useState('');
+  const [ageGroups, setAgeGroups] = useState([]);
   const [selectedOfficialId, setSelectedOfficialId] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [officialRows, orgRows] = await Promise.all([fetchOfficials(), fetchOrganizations()]);
+      const [officialRows, orgRows, agRows] = await Promise.all([fetchOfficials(), fetchOrganizations(), fetchAgeGroups()]);
       setOfficials(officialRows || []);
       setOrgs(orgRows || []);
+      setAgeGroups(agRows || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -60,9 +63,15 @@ export default function OfficialsManager({ onBack }) {
     }
   }
 
+  const agMap = Object.fromEntries(ageGroups.map(ag => [ag.id, ag.name]));
+
   const filtered = officials.filter((official) => {
-    if (scopeFilter === 'league') return !official.org_id;
-    if (scopeFilter === 'org') return !!official.org_id;
+    if (scopeFilter === 'league' && official.org_id) return false;
+    if (scopeFilter === 'org' && !official.org_id) return false;
+    if (ageGroupFilter) {
+      const ids = official.age_group_ids || [];
+      if (!ids.includes(Number(ageGroupFilter))) return false;
+    }
     return true;
   });
 
@@ -83,6 +92,14 @@ export default function OfficialsManager({ onBack }) {
             <option value="league">League</option>
             <option value="org">Organization</option>
           </select>
+          {ageGroups.length > 0 && (
+            <select value={ageGroupFilter} onChange={(e) => setAgeGroupFilter(e.target.value)} className={btnSecondary}>
+              <option value="">All Age Groups</option>
+              {ageGroups.filter(ag => ag.ump_required !== false).map(ag => (
+                <option key={ag.id} value={ag.id}>{ag.name}</option>
+              ))}
+            </select>
+          )}
           <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Official</button>
           {onBack && <button onClick={onBack} className={btnSecondary}>← Dashboard</button>}
         </div>
@@ -124,6 +141,14 @@ export default function OfficialsManager({ onBack }) {
                       {official.completed_games} completed
                     </span>
                   </div>
+                  {official.age_group_ids?.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                      <span className="text-[11px] text-gray-500">Ages:</span>
+                      {official.age_group_ids.map(id => agMap[id]).filter(Boolean).map(name => (
+                        <span key={name} className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-900/30 text-indigo-300">{name}</span>
+                      ))}
+                    </div>
+                  )}
                   <div className="text-sm text-gray-400 mt-1">
                     {[official.email, official.phone, official.venmo_id ? `Venmo: ${official.venmo_id}` : null].filter(Boolean).join(' • ') || 'No contact details'}
                   </div>
