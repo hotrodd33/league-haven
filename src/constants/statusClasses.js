@@ -12,4 +12,4 @@ export const DARK_BADGES = {
   danger: 'bg-red-900/35 text-red-300',
 };
 
-export const DARK_TRACK_BUTTON_TONE = 'bg-amber-500/20 text-amber-200 hover:bg-amber-500/30';
+export const DARK_TRACK_BUTTON_TONE = 'bg-cyan-500/20 text-cyan-100 border border-cyan-400/35 hover:bg-cyan-500/30 hover:border-cyan-300/50 active:scale-[0.98]';
