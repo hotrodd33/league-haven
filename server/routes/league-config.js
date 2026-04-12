@@ -157,13 +157,13 @@ router.get('/age-groups', async (req, res) => {
 
 router.post('/age-groups', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, sort_order, umpire_rate } = req.body;
+    const { name, sort_order, umpire_rate, ump_required } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
     const rate = umpire_rate != null && umpire_rate !== '' ? Number(umpire_rate) : 50;
     if (!Number.isFinite(rate) || rate < 0) return res.status(400).json({ error: 'Umpire rate must be a non-negative number' });
     const { rows } = await pool.query(
-      'INSERT INTO league_age_groups (name, sort_order, umpire_rate) VALUES ($1, $2, $3) RETURNING *',
-      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100]
+      'INSERT INTO league_age_groups (name, sort_order, umpire_rate, ump_required) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false]
     );
     const r = rows[0];
     res.status(201).json({ ...r, umpire_rate: Number(r.umpire_rate) });
@@ -176,13 +176,13 @@ router.post('/age-groups', authMiddleware, requireAdmin, async (req, res) => {
 
 router.put('/age-groups/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, sort_order, umpire_rate } = req.body;
+    const { name, sort_order, umpire_rate, ump_required } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
     const rate = umpire_rate != null && umpire_rate !== '' ? Number(umpire_rate) : 50;
     if (!Number.isFinite(rate) || rate < 0) return res.status(400).json({ error: 'Umpire rate must be a non-negative number' });
     const { rows } = await pool.query(
-      'UPDATE league_age_groups SET name = $1, sort_order = $2, umpire_rate = $3 WHERE id = $4 RETURNING *',
-      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, req.params.id]
+      'UPDATE league_age_groups SET name = $1, sort_order = $2, umpire_rate = $3, ump_required = $4 WHERE id = $5 RETURNING *',
+      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     const r = rows[0];
@@ -219,11 +219,11 @@ router.get('/levels', async (req, res) => {
 
 router.post('/levels', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, sort_order, ump_required } = req.body;
+    const { name, sort_order } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
     const { rows } = await pool.query(
-      'INSERT INTO league_levels (name, sort_order, ump_required) VALUES ($1, $2, $3) RETURNING *',
-      [name.trim(), sort_order ?? 0, ump_required !== false]
+      'INSERT INTO league_levels (name, sort_order) VALUES ($1, $2) RETURNING *',
+      [name.trim(), sort_order ?? 0]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -235,11 +235,11 @@ router.post('/levels', authMiddleware, requireAdmin, async (req, res) => {
 
 router.put('/levels/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, sort_order, ump_required } = req.body;
+    const { name, sort_order } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
     const { rows } = await pool.query(
-      'UPDATE league_levels SET name = $1, sort_order = $2, ump_required = $3 WHERE id = $4 RETURNING *',
-      [name.trim(), sort_order ?? 0, ump_required !== false, req.params.id]
+      'UPDATE league_levels SET name = $1, sort_order = $2 WHERE id = $3 RETURNING *',
+      [name.trim(), sort_order ?? 0, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(rows[0]);
