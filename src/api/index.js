@@ -773,3 +773,16 @@ export async function updateRegistration(id, data) {
 export async function deleteRegistration(id) {
   return apiFetch(`/registrations/${id}`, { method: 'DELETE' });
 }
+
+// ── Team Registration (Travel Director) ──
+
+export async function fetchRegistrationConfig() {
+  return apiFetch('/auth/registration-config');
+}
+
+export async function registerDirector(data) {
+  return apiFetch('/auth/register-director', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}

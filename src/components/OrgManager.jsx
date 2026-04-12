@@ -474,8 +474,8 @@ function OrgDetailView({ org: initialOrg, onBack, onNavigateToTeam, teamPayments
 }
 
 function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {} }) {
-  const { isAdmin } = useAuth();
-  const canManage = isAdmin;
+  const { isAdmin, canEditOrg } = useAuth();
+  const canManage = isAdmin || canEditOrg(org.id);
   const [assigning, setAssigning] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [ageGroups, setAgeGroups] = useState([]);
@@ -715,7 +715,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Age Group</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Level</th>
                   <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400">Division(s)</th>
-                  {isAdmin && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 w-36">Actions</th>}
+                  {canManage && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 w-36">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -734,7 +734,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                     <td className="px-3 py-2">{t.age_group || '—'}</td>
                     <td className="px-3 py-2">{t.level || '—'}</td>
                     <td className="px-3 py-2">{t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : (t.division || '—')}</td>
-                    {isAdmin && (
+                    {canManage && (
                       <td className="px-3 py-2">
                         <div className="flex gap-1.5">
                           <button onClick={() => openEditModal(t)} className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">Edit</button>
@@ -762,7 +762,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                   </div>
                   <div className="text-xs text-gray-400">{[t.age_group, t.level, t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : t.division].filter(Boolean).join(' · ') || '—'}</div>
                 </div>
-                {isAdmin && (
+                {canManage && (
                   <div className="flex gap-1.5">
                     <button onClick={() => openEditModal(t)} className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">Edit</button>
                     <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>
@@ -917,7 +917,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
         </div>
       )}
 
-      {isAdmin && unassignedTeams.length > 0 && (
+      {canManage && unassignedTeams.length > 0 && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
           <select value={selectedTeamId} onChange={(e) => setSelectedTeamId(e.target.value)}
             className="flex-1 sm:flex-none sm:min-w-[220px] px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800">

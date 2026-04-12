@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const { JWT_SECRET, authMiddleware, getUserPermissions, validatePassword } = require('../auth');
-const { sendWelcomeEmail, sendPasswordResetEmail, sendPasswordChangedEmail } = require('../email');
+const { sendWelcomeEmail, sendPasswordResetEmail, sendPasswordChangedEmail, sendCoachInviteEmail } = require('../email');
 
 const router = express.Router();
 
@@ -262,6 +262,231 @@ router.get('/me', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Me error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/auth/registration-config — public config for registration forms
+router.get('/registration-config', async (req, res) => {
+  try {
+    const [orgs, ageGroups, levels, seasons] = await Promise.all([
+      pool.query(`SELECT id, name, city, state FROM organizations ORDER BY name`),
+      pool.query(`SELECT id, name FROM league_age_groups ORDER BY sort_order, name`),
+      pool.query(`SELECT id, name FROM league_levels ORDER BY sort_order, name`),
+      pool.query(`SELECT id, name, year, is_active FROM league_seasons ORDER BY year DESC, name`),
+    ]);
+    res.json({
+      organizations: orgs.rows,
+      age_groups: ageGroups.rows,
+      levels: levels.rows,
+      seasons: seasons.rows,
+    });
+  } catch (err) {
+    console.error('Registration config error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/register-director — travel director self-registration with org + teams + coaches
+router.post('/register-director', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { director, organization, teams } = req.body;
+
+    // ── Validate director ──
+    if (!director?.username || !director?.password || !director?.name || !director?.email) {
+      return res.status(400).json({ error: 'Director username, password, name, and email are required' });
+    }
+    const pwErr = validatePassword(director.password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
+
+    // ── Validate organization ──
+    if (!organization) {
+      return res.status(400).json({ error: 'Organization information is required' });
+    }
+    if (!organization.id && !organization.name) {
+      return res.status(400).json({ error: 'Please select an existing organization or provide a name for a new one' });
+    }
+
+    // ── Validate teams ──
+    if (!teams || !teams.length) {
+      return res.status(400).json({ error: 'At least one team is required' });
+    }
+    for (let i = 0; i < teams.length; i++) {
+      if (!teams[i].team_city) {
+        return res.status(400).json({ error: `Team ${i + 1}: city is required` });
+      }
+      if (!teams[i].age_group) {
+        return res.status(400).json({ error: `Team ${i + 1}: age group is required` });
+      }
+    }
+
+    // ── Check director username/email uniqueness ──
+    const { rows: existingUser } = await client.query('SELECT id FROM users WHERE username = $1', [director.username]);
+    if (existingUser.length) return res.status(409).json({ error: 'Username already taken' });
+    const { rows: existingEmail } = await client.query('SELECT id FROM users WHERE email = $1', [director.email]);
+    if (existingEmail.length) return res.status(409).json({ error: 'Email already registered' });
+
+    await client.query('BEGIN');
+
+    // ── 1. Create director user account ──
+    const dirHash = await bcrypt.hash(director.password, 10);
+    const { rows: dirRows } = await client.query(
+      'INSERT INTO users (username, password_hash, name, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, role',
+      [director.username, dirHash, director.name, director.email, 'org_admin']
+    );
+    const dirUser = dirRows[0];
+
+    // ── 2. Create or find organization ──
+    let orgId;
+    if (organization.id) {
+      // Verify org exists
+      const { rows: orgCheck } = await client.query('SELECT id FROM organizations WHERE id = $1', [organization.id]);
+      if (!orgCheck.length) return res.status(400).json({ error: 'Selected organization not found' });
+      orgId = organization.id;
+    } else {
+      // Create new org
+      const { rows: orgRows } = await client.query(
+        `INSERT INTO organizations (name, city, state, contact_name, contact_email, contact_phone)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [
+          organization.name,
+          organization.city || null,
+          organization.state || null,
+          organization.contact_name || director.name,
+          organization.contact_email || director.email,
+          organization.contact_phone || null,
+        ]
+      );
+      orgId = orgRows[0].id;
+    }
+
+    // ── 3. Grant director org permission ──
+    await client.query(
+      'INSERT INTO user_permissions (user_id, org_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [dirUser.id, orgId]
+    );
+
+    // ── 4. Find active season for registrations ──
+    const { rows: seasonRows } = await client.query(
+      'SELECT id FROM league_seasons WHERE is_active = TRUE ORDER BY year DESC LIMIT 1'
+    );
+    const activeSeasonId = seasonRows[0]?.id || null;
+
+    // ── 5. Create teams + coaches ──
+    const coachEmails = []; // track to send emails after commit
+    const teamIds = [];
+
+    for (const t of teams) {
+      // Build team name
+      const name = [t.team_city, t.team_color, t.age_group, t.level].filter(Boolean).join(' ');
+      let abbr = '';
+      if (t.team_city) {
+        const words = t.team_city.trim().split(/\s+/);
+        abbr = words.length > 1 ? words.map(w => w[0]).join('') : t.team_city.substring(0, 3);
+      }
+      if (t.team_mascot) abbr += t.team_mascot[0];
+      if (t.team_color) abbr += t.team_color[0];
+      if (t.age_group) abbr += t.age_group.replace(/\s+/g, '');
+      if (t.level) abbr += t.level.replace(/\s+/g, '');
+      abbr = abbr.toUpperCase();
+
+      // Insert team
+      const { rows: teamRows } = await client.query(
+        `INSERT INTO teams (name, abbreviation, team_city, team_color, team_mascot, age_group, level, org_id, primary_color, secondary_color)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        [name, abbr || null, t.team_city, t.team_color || null, t.team_mascot || null, t.age_group, t.level || null, orgId, t.primary_color || null, t.secondary_color || null]
+      );
+      const teamId = teamRows[0].id;
+      teamIds.push(teamId);
+
+      // Register team for active season
+      if (activeSeasonId) {
+        // Look up age group fee
+        const { rows: agRows } = await client.query(
+          `SELECT league_fee FROM league_age_groups WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))`,
+          [t.age_group]
+        );
+        const fee = agRows[0]?.league_fee || null;
+
+        await client.query(
+          `INSERT INTO team_registrations (team_id, season_id, fee, status)
+           VALUES ($1, $2, $3, 'registered') ON CONFLICT (team_id, season_id) DO NOTHING`,
+          [teamId, activeSeasonId, fee]
+        );
+      }
+
+      // Create coach account if coach email provided and different from director
+      if (t.coach_email && t.coach_email.toLowerCase() !== director.email.toLowerCase()) {
+        const coachEmail = t.coach_email.toLowerCase().trim();
+        const coachName = t.coach_name || coachEmail.split('@')[0];
+
+        // Check if user already exists
+        const { rows: existing } = await client.query('SELECT id FROM users WHERE email = $1', [coachEmail]);
+        let coachUserId;
+        let tempPassword = null;
+
+        if (existing.length) {
+          coachUserId = existing[0].id;
+        } else {
+          // Check if username (email) is taken
+          const { rows: usernameCheck } = await client.query('SELECT id FROM users WHERE username = $1', [coachEmail]);
+          const coachUsername = usernameCheck.length ? `coach_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` : coachEmail;
+
+          // Generate temp password
+          tempPassword = crypto.randomBytes(6).toString('base64url').slice(0, 10);
+          const coachHash = await bcrypt.hash(tempPassword, 10);
+
+          const { rows: coachRows } = await client.query(
+            'INSERT INTO users (username, password_hash, name, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+            [coachUsername, coachHash, coachName, coachEmail, 'team_manager']
+          );
+          coachUserId = coachRows[0].id;
+          coachEmails.push({ email: coachEmail, name: coachName, tempPassword, teamName: name });
+        }
+
+        // Grant team permission
+        await client.query(
+          'INSERT INTO user_permissions (user_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [coachUserId, teamId]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+
+    // ── 6. Send coach invitation emails (non-blocking, after commit) ──
+    for (const c of coachEmails) {
+      sendCoachInviteEmail(c.email, c.name, c.tempPassword, c.teamName).catch(() => {});
+    }
+
+    // Send welcome email to director
+    sendWelcomeEmail(director.email, director.name).catch(() => {});
+
+    // ── 7. Generate JWT & return ──
+    const token = jwt.sign(
+      { id: dirUser.id, username: dirUser.username, name: dirUser.name, role: dirUser.role, is_umpire: false },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const permissions = await getUserPermissions(dirUser.id);
+
+    res.status(201).json({
+      token,
+      user: { id: dirUser.id, username: dirUser.username, name: dirUser.name, role: dirUser.role, is_umpire: false, email: dirUser.email },
+      permissions,
+      teams_created: teamIds.length,
+      coaches_invited: coachEmails.length,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Register director error:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A duplicate entry was detected. Please check your information.' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 

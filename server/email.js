@@ -170,10 +170,31 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function sendCoachInviteEmail(to, name, tempPassword, teamName) {
+  return sendEmail({
+    to,
+    subject: `ZVBL — You've been added as coach for ${teamName}`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+        <h2 style="color:#1e3a5f;">⚾ Welcome to ZVBL, ${esc(name)}!</h2>
+        <p>You've been registered as the coach for <strong>${esc(teamName)}</strong>.</p>
+        <p>An account has been created for you. Sign in with these credentials:</p>
+        <div style="background:#f3f4f6;padding:12px 16px;border-radius:8px;margin:12px 0;">
+          <p style="margin:4px 0;"><strong>Username:</strong> ${esc(to)}</p>
+          <p style="margin:4px 0;"><strong>Temporary Password:</strong> ${esc(tempPassword)}</p>
+        </div>
+        <p>Sign in at: <a href="${APP_URL}" style="color:#1d4ed8;">${APP_URL}</a></p>
+        <p><strong>Please change your password after your first login.</strong></p>
+      </div>
+    `,
+  });
+}
+
 module.exports = {
   sendEmail,
   sendWelcomeEmail,
   sendInviteEmail,
+  sendCoachInviteEmail,
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
   sendGameChangeEmail,

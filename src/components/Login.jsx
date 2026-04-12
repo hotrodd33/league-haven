@@ -99,6 +99,10 @@ export default function Login({ onResetPassword }) {
                 <button type="button" onClick={handleUmpireMode} className="text-green-400 hover:underline">
                   Umpire signup
                 </button>
+                <span className="text-gray-400">•</span>
+                <button type="button" onClick={() => { window.location.href = '?register'; }} className="text-amber-400 hover:underline">
+                  Register teams
+                </button>
               </div>
             </div>
           </form>

@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const { pool } = require('../db');
-const { authMiddleware, requireAdmin } = require('../auth');
+const { authMiddleware, requireAdmin, canEditOrg, canEditTeam } = require('../auth');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
@@ -109,9 +109,15 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', authMiddleware, requireAdmin, async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const { team_city, team_color, team_mascot, age_group, level, division, division_ids, org_id, primary_color, secondary_color } = req.body;
+    // Admin or org permission required
+    if (req.user.role !== 'super_admin') {
+      if (!org_id || !(await canEditOrg(req.user, org_id))) {
+        return res.status(403).json({ error: 'You do not have permission to create teams for this organization' });
+      }
+    }
     const name = buildShortName(team_city, team_color, age_group, level) || req.body.name;
     if (!name) return res.status(400).json({ error: 'Team city is required' });
     const abbr = team_city ? buildAbbreviation(team_city, team_mascot, team_color, age_group, level) : null;
@@ -136,10 +142,14 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', authMiddleware, requireAdmin, async (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { team_city, team_color, team_mascot, age_group, level, division, division_ids, org_id, primary_color, secondary_color } = req.body;
     const { id } = req.params;
+    // Admin or team/org permission required
+    if (req.user.role !== 'super_admin' && !(await canEditTeam(req.user, id))) {
+      return res.status(403).json({ error: 'You do not have permission to edit this team' });
+    }
     const name = buildShortName(team_city, team_color, age_group, level) || req.body.name;
     if (!name) return res.status(400).json({ error: 'Team city is required' });
     const abbr = team_city ? buildAbbreviation(team_city, team_mascot, team_color, age_group, level) : null;
@@ -181,9 +191,12 @@ router.delete('/:id', authMiddleware, requireAdmin, async (req, res) => {
 });
 
 // Upload team logo
-router.post('/:id/logo', authMiddleware, requireAdmin, upload.single('logo'), async (req, res) => {
+router.post('/:id/logo', authMiddleware, upload.single('logo'), async (req, res) => {
   try {
     const { id } = req.params;
+    if (req.user.role !== 'super_admin' && !(await canEditTeam(req.user, id))) {
+      return res.status(403).json({ error: 'You do not have permission to edit this team' });
+    }
     const { rows } = await pool.query('SELECT id FROM teams WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Team not found' });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -202,9 +215,12 @@ router.post('/:id/logo', authMiddleware, requireAdmin, upload.single('logo'), as
 });
 
 // Remove team logo
-router.delete('/:id/logo', authMiddleware, requireAdmin, async (req, res) => {
+router.delete('/:id/logo', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    if (req.user.role !== 'super_admin' && !(await canEditTeam(req.user, id))) {
+      return res.status(403).json({ error: 'You do not have permission to edit this team' });
+    }
     const { rows } = await pool.query('SELECT id FROM teams WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Team not found' });
 

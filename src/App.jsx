@@ -21,6 +21,7 @@ import AppShell from "./components/ui/AppShell.jsx";
 import GameChangerImportWizard from "./components/import/GameChangerImportWizard.jsx";
 import HelpPage from "./components/HelpPage.jsx";
 import LeagueFees from "./components/LeagueFees.jsx";
+import TeamRegistration from "./components/TeamRegistration.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, isAccountant, isUmpire, user, logout } = useAuth();
@@ -72,6 +73,11 @@ export default function App() {
     const resetToken = params.get('reset');
     if (resetToken) {
         return <ResetPassword token={resetToken} onDone={() => { window.history.replaceState({}, '', window.location.pathname); window.location.reload(); }} />;
+    }
+
+    // Handle team registration URL (?register)
+    if (params.has('register')) {
+        return <TeamRegistration onDone={() => { window.history.replaceState({}, '', window.location.pathname); window.location.reload(); }} />;
     }
 
     if (!isAuthenticated) {
