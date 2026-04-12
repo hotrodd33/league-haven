@@ -128,7 +128,7 @@ router.get('/', authMiddleware, async (req, res) => {
            COUNT(*) FILTER (WHERE g.status = 'completed') AS completed_games,
            COALESCE(SUM(
              CASE WHEN g.status = 'completed' AND NOT goa.is_paid THEN
-               COALESCE(goa.game_fee, (SELECT lag.umpire_rate FROM league_age_groups lag WHERE LOWER(TRIM(lag.name)) = LOWER(TRIM(ht.age_group)) LIMIT 1), o.rate_per_game, 50)
+               COALESCE(goa.game_fee, o.rate_per_game, (SELECT lag.umpire_rate FROM league_age_groups lag WHERE LOWER(TRIM(lag.name)) = LOWER(TRIM(ht.age_group)) LIMIT 1), 50)
              ELSE 0 END
            ), 0) AS total_owed
          FROM game_official_assignments goa
@@ -432,10 +432,10 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
       [id]
     );
 
-    // Fee priority: game_fee override > age-group rate > official default rate > $50
+    // Fee priority: game_fee override > official rate > age-group rate > $50
     const games = rows.map(r => {
       const ageGroupRate = r.age_group_rate != null ? Number(r.age_group_rate) : null;
-      const fee = r.game_fee != null ? Number(r.game_fee) : (ageGroupRate ?? defaultRate ?? 50);
+      const fee = r.game_fee != null ? Number(r.game_fee) : (defaultRate ?? ageGroupRate ?? 50);
       const homeName = r.home_team_city
         ? [r.home_team_city, r.home_team_mascot, r.home_team_color].filter(Boolean).join(' ')
         : (r.home_team_name || '(TBD)');
