@@ -23,6 +23,36 @@ export default function HelpPage({ onBack, initialTab = 'about' }) {
 
   return (
     <div>
+      <style>{`
+        .md-content { color: #d1d5db; line-height: 1.75; font-size: 0.9rem; }
+        .md-content h1 { font-size: 1.6rem; font-weight: 700; color: #fff; border-bottom: 1px solid #374151; padding-bottom: 0.75rem; margin: 2rem 0 1.25rem; }
+        .md-content h1:first-child { margin-top: 0; }
+        .md-content h2 { font-size: 1.3rem; font-weight: 700; color: #e5e7eb; border-bottom: 1px solid #374151; padding-bottom: 0.5rem; margin: 2rem 0 1rem; }
+        .md-content h3 { font-size: 1.05rem; font-weight: 600; color: #e5e7eb; margin: 1.5rem 0 0.75rem; }
+        .md-content h4 { font-size: 0.95rem; font-weight: 600; color: #d1d5db; margin: 1.25rem 0 0.5rem; }
+        .md-content p { margin: 0.75rem 0; }
+        .md-content a { color: #60a5fa; text-decoration: none; }
+        .md-content a:hover { text-decoration: underline; }
+        .md-content strong { color: #f3f4f6; font-weight: 600; }
+        .md-content em { color: #d1d5db; }
+        .md-content code { background: #1f2937; color: #fbbf24; padding: 0.15rem 0.4rem; border-radius: 0.25rem; font-size: 0.8rem; }
+        .md-content pre { background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+        .md-content pre code { background: none; padding: 0; color: #d1d5db; font-size: 0.8rem; }
+        .md-content ul, .md-content ol { padding-left: 1.5rem; margin: 0.75rem 0; }
+        .md-content li { margin: 0.35rem 0; color: #d1d5db; }
+        .md-content li::marker { color: #6b7280; }
+        .md-content ul { list-style-type: disc; }
+        .md-content ol { list-style-type: decimal; }
+        .md-content ul ul { list-style-type: circle; }
+        .md-content blockquote { border-left: 3px solid #3b82f6; padding: 0.5rem 1rem; margin: 1rem 0; background: #1e293b; border-radius: 0 0.375rem 0.375rem 0; color: #93c5fd; }
+        .md-content hr { border: none; border-top: 1px solid #374151; margin: 2rem 0; }
+        .md-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+        .md-content th { background: #1f2937; color: #e5e7eb; font-weight: 600; text-align: left; padding: 0.6rem 0.75rem; border: 1px solid #374151; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .md-content td { padding: 0.5rem 0.75rem; border: 1px solid #374151; color: #d1d5db; }
+        .md-content tr:nth-child(even) td { background: #111827; }
+        .md-content img { max-width: 100%; border-radius: 0.5rem; }
+      `}</style>
+
       <div className="flex items-center gap-2 mb-4">
         <button onClick={onBack} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">
           ← Back
@@ -49,22 +79,8 @@ export default function HelpPage({ onBack, initialTab = 'about' }) {
 
         {/* Content */}
         <div className="p-5 sm:p-8">
-            <article
-              className="prose prose-invert prose-sm max-w-none
-                prose-headings:font-heading prose-headings:tracking-wide
-                prose-h1:text-2xl prose-h1:text-white prose-h1:border-b prose-h1:border-gray-700 prose-h1:pb-3 prose-h1:mb-6
-                prose-h2:text-xl prose-h2:text-gray-100 prose-h2:mt-10 prose-h2:mb-4 prose-h2:border-b prose-h2:border-gray-700/50 prose-h2:pb-2
-                prose-h3:text-base prose-h3:text-gray-200 prose-h3:mt-6 prose-h3:mb-3
-                prose-p:text-gray-300 prose-p:leading-relaxed
-                prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
-                prose-strong:text-gray-100
-                prose-code:text-amber-300 prose-code:bg-gray-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
-                prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-700 prose-pre:rounded-lg
-                prose-table:border-collapse
-                prose-th:bg-gray-900 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-gray-200 prose-th:text-xs prose-th:uppercase prose-th:tracking-wide prose-th:border prose-th:border-gray-700
-                prose-td:px-3 prose-td:py-2 prose-td:text-gray-300 prose-td:border prose-td:border-gray-700
-                prose-li:text-gray-300
-                prose-hr:border-gray-700"
+            <div
+              className="md-content"
               dangerouslySetInnerHTML={{ __html: rendered }}
             />
         </div>
