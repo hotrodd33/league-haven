@@ -65,8 +65,7 @@ const BASE_SELECT = `
           json_build_object(
             'id', o.id,
             'name', o.name,
-            'org_id', o.org_id,
-            'org_name', org.name,
+            'org_ids', COALESCE((SELECT array_agg(oo.org_id) FROM official_organizations oo WHERE oo.official_id = o.id), ARRAY[]::INTEGER[]),
             'rate_per_game', o.rate_per_game
           )
           ORDER BY o.name
@@ -75,7 +74,6 @@ const BASE_SELECT = `
       ) AS officials
     FROM game_official_assignments go
     JOIN officials o ON o.id = go.official_id
-    LEFT JOIN organizations org ON org.id = o.org_id
     WHERE go.game_id = g.id
   ) goa ON true
   LEFT JOIN LATERAL (
@@ -427,9 +425,9 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
     if (officialIds.length) {
       const allowed = await canAssignOfficialsForTeam(client, home_team_id);
       if (!allowed) {
-        // Still allow if all officials being assigned are league-level (org_id IS NULL)
+        // Still allow if all officials being assigned are league-level (no org assignments)
         const { rows: offRows } = await client.query(
-          'SELECT id FROM officials WHERE id = ANY($1) AND org_id IS NOT NULL',
+          'SELECT DISTINCT o.id FROM officials o JOIN official_organizations oo ON oo.official_id = o.id WHERE o.id = ANY($1)',
           [officialIds.map(Number).filter(Number.isFinite)]
         );
         if (offRows.length > 0) {
@@ -505,9 +503,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
         const effectiveHomeTeamId = home_team_id || game.home_team_id;
         const orgAllowed = await canAssignOfficialsForTeam(client, effectiveHomeTeamId);
         if (!orgAllowed) {
-          // Still allow if all officials being assigned are league-level (org_id IS NULL)
+          // Still allow if all officials being assigned are league-level (no org assignments)
           const { rows: offRows } = await client.query(
-            'SELECT id FROM officials WHERE id = ANY($1) AND org_id IS NOT NULL',
+            'SELECT DISTINCT o.id FROM officials o JOIN official_organizations oo ON oo.official_id = o.id WHERE o.id = ANY($1)',
             [officialIds.map(Number).filter(Number.isFinite)]
           );
           if (offRows.length > 0) {

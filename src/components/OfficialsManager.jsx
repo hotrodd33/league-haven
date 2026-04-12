@@ -67,8 +67,8 @@ export default function OfficialsManager({ onBack }) {
   const agMap = Object.fromEntries(ageGroups.map(ag => [ag.id, ag.name]));
 
   const filtered = officials.filter((official) => {
-    if (scopeFilter === 'league' && official.org_id) return false;
-    if (scopeFilter === 'org' && !official.org_id) return false;
+    if (scopeFilter === 'league' && official.org_ids?.length) return false;
+    if (scopeFilter === 'org' && !official.org_ids?.length) return false;
     if (ageGroupFilter) {
       const ids = official.age_group_ids || [];
       if (!ids.includes(Number(ageGroupFilter))) return false;
@@ -116,9 +116,11 @@ export default function OfficialsManager({ onBack }) {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-gray-100 truncate cursor-pointer hover:text-blue-300 hover:underline" onClick={() => setSelectedOfficialId(official.id)}>{official.name}</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${official.org_id ? 'bg-blue-900/40 text-blue-200' : 'bg-purple-900/35 text-purple-200'}`}>
-                      {official.org_id ? official.org_name || 'Organization' : 'League'}
-                    </span>
+                    {official.org_ids?.length ? official.org_names.map((name, i) => (
+                      <span key={official.org_ids[i]} className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-900/40 text-blue-200">{name}</span>
+                    )) : (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-900/35 text-purple-200">League</span>
+                    )}
                     {canViewFinancials && (
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">{official.rate_per_game != null ? `$${Number(official.rate_per_game).toFixed(2)}/game` : 'Level Rate'}</span>
                     )}
@@ -205,11 +207,13 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
   }, []);
 
   const editableOrgs = (orgs || []).filter((org) => canEditOrg(org.id));
-  const defaultScope = official?.org_id ? 'org' : (isSuperAdmin ? 'league' : 'org');
+  const defaultScope = official?.org_ids?.length ? 'org' : (isSuperAdmin ? 'league' : 'org');
   const [scope, setScope] = useState(defaultScope);
+  const [selectedOrgIds, setSelectedOrgIds] = useState(
+    official?.org_ids?.length ? official.org_ids : (editableOrgs[0]?.id ? [editableOrgs[0].id] : [])
+  );
 
   const [form, setForm] = useState({
-    org_id: official?.org_id || (editableOrgs[0]?.id || ''),
     name: official?.name || '',
     email: official?.email || '',
     phone: official?.phone || '',
@@ -236,7 +240,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
     setError(null);
     try {
       const data = {
-        org_id: scope === 'league' ? null : (form.org_id ? Number(form.org_id) : null),
+        org_ids: scope === 'league' ? [] : selectedOrgIds.map(Number),
         name: form.name.trim(),
         email: form.email.trim() || null,
         phone: form.phone.trim() || null,
@@ -253,7 +257,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
         user_id: form.user_id ? Number(form.user_id) : null,
       };
       if (!data.name) throw new Error('Name is required');
-      if (scope === 'org' && !data.org_id) throw new Error('Organization is required for org-scoped officials');
+      if (scope === 'org' && !data.org_ids.length) throw new Error('At least one organization is required for org-scoped officials');
 
       if (isEditing) {
         await updateOfficial(official.id, data);
@@ -287,11 +291,24 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
 
           {scope === 'org' && (
             <div>
-              <label htmlFor="official-org" className={labelCls}>Organization *</label>
-              <select id="official-org" name="org_id" value={form.org_id} onChange={handleChange} required className={inputCls}>
-                <option value="">— Select Organization —</option>
-                {editableOrgs.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
-              </select>
+              <label className={labelCls}>Organizations *</label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {editableOrgs.map((org) => {
+                  const checked = selectedOrgIds.includes(org.id);
+                  return (
+                    <label key={org.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer text-sm ${checked ? 'bg-blue-700 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setSelectedOrgIds(prev => checked ? prev.filter(id => id !== org.id) : [...prev, org.id])}
+                        className="sr-only"
+                      />
+                      {org.name}
+                    </label>
+                  );
+                })}
+              </div>
+              {editableOrgs.length === 0 && <div className="text-sm text-gray-500 mt-1">No organizations available</div>}
             </div>
           )}
 

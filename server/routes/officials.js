@@ -13,9 +13,13 @@ function toMoney(value, fallback = null) {
 }
 
 function normalizeOfficial(row) {
+  const org_ids = row.org_ids || [];
+  const org_names = row.org_names || [];
   return {
     ...row,
-    scope: row.org_id ? 'org' : 'league',
+    org_ids,
+    org_names,
+    scope: org_ids.length ? 'org' : 'league',
     rate_per_game: row.rate_per_game != null ? Number(row.rate_per_game) : null,
   };
 }
@@ -66,13 +70,23 @@ router.get('/assignable', authMiddleware, async (req, res) => {
     if (!orgRows.length) return res.status(404).json({ error: 'Organization not found' });
     const orgOfficialsEnabled = !!orgRows[0].officials_enabled;
 
-    // Always include league-level officials (org_id IS NULL); include org officials only if enabled
+    // Always include league-level officials (no org assignments); include org officials only if enabled
     const { rows } = await pool.query(
-      `SELECT o.*, org.name AS org_name
+      `SELECT o.*,
+         COALESCE(oo_agg.org_ids, ARRAY[]::INTEGER[]) AS org_ids,
+         COALESCE(oo_agg.org_names, ARRAY[]::TEXT[]) AS org_names
        FROM officials o
-       LEFT JOIN organizations org ON org.id = o.org_id
-       WHERE o.org_id IS NULL${orgOfficialsEnabled ? ' OR o.org_id = $1' : ''}
-       ORDER BY CASE WHEN o.org_id IS NULL THEN 0 ELSE 1 END, o.name`,
+       LEFT JOIN LATERAL (
+         SELECT
+           ARRAY_AGG(oo.org_id) AS org_ids,
+           ARRAY_AGG(orgs.name ORDER BY orgs.name) AS org_names
+         FROM official_organizations oo
+         JOIN organizations orgs ON orgs.id = oo.org_id
+         WHERE oo.official_id = o.id
+       ) oo_agg ON true
+       WHERE NOT EXISTS (SELECT 1 FROM official_organizations oo WHERE oo.official_id = o.id)
+         ${orgOfficialsEnabled ? 'OR EXISTS (SELECT 1 FROM official_organizations oo WHERE oo.official_id = o.id AND oo.org_id = $1)' : ''}
+       ORDER BY CASE WHEN COALESCE(array_length(oo_agg.org_ids, 1), 0) = 0 THEN 0 ELSE 1 END, o.name`,
       orgOfficialsEnabled ? [org_id] : []
     );
     const canSeeFinancials = ['super_admin', 'accountant', 'org_admin'].includes(req.user.role);
@@ -98,11 +112,11 @@ router.get('/', authMiddleware, async (req, res) => {
     const clauses = [];
 
     if (org_id) {
-      params.push(org_id);
-      clauses.push(`o.org_id = $${params.length}`);
+      params.push(Number(org_id));
+      clauses.push(`EXISTS (SELECT 1 FROM official_organizations oo WHERE oo.official_id = o.id AND oo.org_id = $${params.length})`);
     }
-    if (scope === 'league') clauses.push('o.org_id IS NULL');
-    if (scope === 'org') clauses.push('o.org_id IS NOT NULL');
+    if (scope === 'league') clauses.push('NOT EXISTS (SELECT 1 FROM official_organizations oo WHERE oo.official_id = o.id)');
+    if (scope === 'org') clauses.push('EXISTS (SELECT 1 FROM official_organizations oo WHERE oo.official_id = o.id)');
     if (search) {
       params.push(`%${search}%`);
       clauses.push(`(o.name ILIKE $${params.length} OR COALESCE(o.email, '') ILIKE $${params.length})`);
@@ -115,22 +129,31 @@ router.get('/', authMiddleware, async (req, res) => {
       userOrgIds = orgIds;
       if (orgIds.length) {
         params.push(orgIds);
-        clauses.push(`(o.org_id = ANY($${params.length}) OR o.org_id IS NULL)`);
+        clauses.push(`(EXISTS (SELECT 1 FROM official_organizations oo WHERE oo.official_id = o.id AND oo.org_id = ANY($${params.length})) OR NOT EXISTS (SELECT 1 FROM official_organizations oo WHERE oo.official_id = o.id))`);
       } else {
-        clauses.push('o.org_id IS NULL');
+        clauses.push('NOT EXISTS (SELECT 1 FROM official_organizations oo WHERE oo.official_id = o.id)');
       }
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const { rows } = await pool.query(
-      `SELECT o.*, org.name AS org_name, u.username AS linked_username,
+      `SELECT o.*, u.username AS linked_username,
+         COALESCE(oo_agg.org_ids, ARRAY[]::INTEGER[]) AS org_ids,
+         COALESCE(oo_agg.org_names, ARRAY[]::TEXT[]) AS org_names,
          COALESCE(stats.assigned_games, 0) AS assigned_games,
          COALESCE(stats.completed_games, 0) AS completed_games,
          COALESCE(stats.total_owed, 0) AS total_owed,
          COALESCE(interest_stats.interested_games, 0) AS interested_games,
          ag_list.age_group_ids
        FROM officials o
-       LEFT JOIN organizations org ON org.id = o.org_id
+       LEFT JOIN LATERAL (
+         SELECT
+           ARRAY_AGG(oo.org_id) AS org_ids,
+           ARRAY_AGG(orgs.name ORDER BY orgs.name) AS org_names
+         FROM official_organizations oo
+         JOIN organizations orgs ON orgs.id = oo.org_id
+         WHERE oo.official_id = o.id
+       ) oo_agg ON true
        LEFT JOIN users u ON u.id = o.user_id
        LEFT JOIN LATERAL (
          SELECT
@@ -157,15 +180,15 @@ router.get('/', authMiddleware, async (req, res) => {
          WHERE oag.official_id = o.id
        ) ag_list ON true
        ${where}
-       ORDER BY CASE WHEN o.org_id IS NULL THEN 0 ELSE 1 END, org.name NULLS FIRST, o.name`,
+       ORDER BY CASE WHEN COALESCE(array_length(oo_agg.org_ids, 1), 0) = 0 THEN 0 ELSE 1 END, o.name`,
       params
     );
 
     const isGlobalFinancial = ['super_admin', 'accountant'].includes(req.user.role);
     res.json(rows.map(r => {
       const o = normalizeOfficial(r);
-      // Admin/accountant see all financials; org_admin sees only their own org's
-      const canSeeThisFinancial = isGlobalFinancial || (userOrgIds && o.org_id && userOrgIds.includes(o.org_id));
+      // Admin/accountant see all financials; org_admin sees only their own org's officials
+      const canSeeThisFinancial = isGlobalFinancial || (userOrgIds && o.org_ids?.some(oid => userOrgIds.includes(oid)));
       if (!canSeeThisFinancial) {
         delete o.total_owed;
         delete o.rate_per_game;
@@ -184,6 +207,7 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     const {
       org_id,
+      org_ids: rawOrgIds,
       name,
       email,
       phone,
@@ -198,9 +222,15 @@ router.post('/', authMiddleware, async (req, res) => {
 
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'name is required' });
 
-    const targetOrgId = org_id ? Number(org_id) : null;
-    if (targetOrgId) {
-      if (!(await canEditOrg(req.user, targetOrgId))) return res.status(403).json({ error: 'No permission for this organization' });
+    // Accept org_ids array or fall back to single org_id
+    const orgIds = Array.isArray(rawOrgIds)
+      ? rawOrgIds.map(Number).filter(Number.isFinite)
+      : (org_id ? [Number(org_id)] : []);
+
+    if (orgIds.length) {
+      for (const oid of orgIds) {
+        if (!(await canEditOrg(req.user, oid))) return res.status(403).json({ error: 'No permission for organization ' + oid });
+      }
     } else if (req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Only super admin can create league officials' });
     }
@@ -210,11 +240,10 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO officials
-        (org_id, name, email, phone, address, city, state, zip, venmo_id, rate_per_game, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        (name, email, phone, address, city, state, zip, venmo_id, rate_per_game, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
-        targetOrgId,
         String(name).trim(),
         email || null,
         phone || null,
@@ -229,8 +258,14 @@ router.post('/', authMiddleware, async (req, res) => {
     );
 
     const row = rows[0];
-    const { rows: orgRows } = await pool.query('SELECT name FROM organizations WHERE id = $1', [row.org_id]);
-    res.status(201).json(normalizeOfficial({ ...row, org_name: orgRows[0]?.name || null }));
+    // Insert org associations
+    const insertedOrgNames = [];
+    for (const oid of orgIds) {
+      await pool.query('INSERT INTO official_organizations (official_id, org_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [row.id, oid]);
+      const { rows: orgRows } = await pool.query('SELECT name FROM organizations WHERE id = $1', [oid]);
+      if (orgRows[0]) insertedOrgNames.push(orgRows[0].name);
+    }
+    res.status(201).json(normalizeOfficial({ ...row, org_ids: orgIds, org_names: insertedOrgNames }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -247,6 +282,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     const {
       org_id,
+      org_ids: rawOrgIds,
       name,
       email,
       phone,
@@ -263,18 +299,35 @@ router.put('/:id', authMiddleware, async (req, res) => {
       user_id,
     } = req.body;
 
-    const nextOrgId = org_id === undefined
-      ? existing.org_id
-      : (org_id ? Number(org_id) : null);
+    // Current org associations
+    const { rows: currentOrgRows } = await pool.query(
+      'SELECT org_id FROM official_organizations WHERE official_id = $1', [id]
+    );
+    const currentOrgIds = currentOrgRows.map(r => r.org_id);
 
-    if (existing.org_id) {
-      if (!(await canEditOrg(req.user, existing.org_id))) return res.status(403).json({ error: 'No permission for this official' });
+    // Determine next org IDs (support org_ids array or legacy org_id)
+    let nextOrgIds;
+    if (rawOrgIds !== undefined) {
+      nextOrgIds = Array.isArray(rawOrgIds) ? rawOrgIds.map(Number).filter(Number.isFinite) : [];
+    } else if (org_id !== undefined) {
+      nextOrgIds = org_id ? [Number(org_id)] : [];
+    } else {
+      nextOrgIds = currentOrgIds;
+    }
+
+    // Permission: user must have access to existing orgs (or be super_admin for league officials)
+    if (currentOrgIds.length) {
+      const hasPermForAny = (await Promise.all(currentOrgIds.map(oid => canEditOrg(req.user, oid)))).some(Boolean);
+      if (!hasPermForAny) return res.status(403).json({ error: 'No permission for this official' });
     } else if (req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'No permission for this official' });
     }
 
-    if (nextOrgId) {
-      if (!(await canEditOrg(req.user, nextOrgId))) return res.status(403).json({ error: 'No permission for target organization' });
+    // Permission: user must have access to all target orgs
+    if (nextOrgIds.length) {
+      for (const oid of nextOrgIds) {
+        if (!(await canEditOrg(req.user, oid))) return res.status(403).json({ error: 'No permission for organization ' + oid });
+      }
     } else if (req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Only super admin can assign league officials' });
     }
@@ -284,26 +337,24 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     const { rows } = await pool.query(
       `UPDATE officials SET
-         org_id = $1,
-         name = $2,
-         email = $3,
-         phone = $4,
-         address = $5,
-         city = $6,
-         state = $7,
-         zip = $8,
-         venmo_id = $9,
-         rate_per_game = $10,
-         notes = $11,
-         date_of_birth = $12,
-         is_certified = $13,
-         years_of_experience = $14,
-         user_id = $15,
+         name = $1,
+         email = $2,
+         phone = $3,
+         address = $4,
+         city = $5,
+         state = $6,
+         zip = $7,
+         venmo_id = $8,
+         rate_per_game = $9,
+         notes = $10,
+         date_of_birth = $11,
+         is_certified = $12,
+         years_of_experience = $13,
+         user_id = $14,
          updated_at = NOW()
-       WHERE id = $16
+       WHERE id = $15
        RETURNING *`,
       [
-        nextOrgId,
         name !== undefined ? String(name).trim() : existing.name,
         email !== undefined ? (email || null) : existing.email,
         phone !== undefined ? (phone || null) : existing.phone,
@@ -322,10 +373,18 @@ router.put('/:id', authMiddleware, async (req, res) => {
       ]
     );
 
+    // Update org associations
+    await pool.query('DELETE FROM official_organizations WHERE official_id = $1', [id]);
+    const orgNames = [];
+    for (const oid of nextOrgIds) {
+      await pool.query('INSERT INTO official_organizations (official_id, org_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [id, oid]);
+      const { rows: orgRow } = await pool.query('SELECT name FROM organizations WHERE id = $1', [oid]);
+      if (orgRow[0]) orgNames.push(orgRow[0].name);
+    }
+
     const row = rows[0];
-    const { rows: orgRows } = await pool.query('SELECT name FROM organizations WHERE id = $1', [row.org_id]);
     const { rows: userRows } = await pool.query('SELECT username FROM users WHERE id = $1', [row.user_id]);
-    res.json(normalizeOfficial({ ...row, org_name: orgRows[0]?.name || null, linked_username: userRows[0]?.username || null }));
+    res.json(normalizeOfficial({ ...row, org_ids: nextOrgIds, org_names: orgNames, linked_username: userRows[0]?.username || null }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -336,12 +395,14 @@ router.put('/:id', authMiddleware, async (req, res) => {
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await pool.query('SELECT org_id FROM officials WHERE id = $1', [id]);
+    const { rows } = await pool.query('SELECT id FROM officials WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Official not found' });
 
-    const orgId = rows[0].org_id;
-    if (orgId) {
-      if (!(await canEditOrg(req.user, orgId))) return res.status(403).json({ error: 'No permission for this official' });
+    const { rows: orgRows } = await pool.query('SELECT org_id FROM official_organizations WHERE official_id = $1', [id]);
+    const orgIds = orgRows.map(r => r.org_id);
+    if (orgIds.length) {
+      const hasPermForAny = (await Promise.all(orgIds.map(oid => canEditOrg(req.user, oid)))).some(Boolean);
+      if (!hasPermForAny) return res.status(403).json({ error: 'No permission for this official' });
     } else if (req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Only super admin can delete league officials' });
     }
@@ -359,30 +420,46 @@ router.get('/:id/detail', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(
-      `SELECT o.*, org.name AS org_name, u.username AS linked_username
+      `SELECT o.*, u.username AS linked_username,
+         COALESCE(oo_agg.org_ids, ARRAY[]::INTEGER[]) AS org_ids,
+         COALESCE(oo_agg.org_names, ARRAY[]::TEXT[]) AS org_names
        FROM officials o
-       LEFT JOIN organizations org ON org.id = o.org_id
+       LEFT JOIN LATERAL (
+         SELECT
+           ARRAY_AGG(oo.org_id) AS org_ids,
+           ARRAY_AGG(orgs.name ORDER BY orgs.name) AS org_names
+         FROM official_organizations oo
+         JOIN organizations orgs ON orgs.id = oo.org_id
+         WHERE oo.official_id = o.id
+       ) oo_agg ON true
        LEFT JOIN users u ON u.id = o.user_id
        WHERE o.id = $1`,
       [id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Official not found' });
     const official = rows[0];
+    const officialOrgIds = official.org_ids || [];
 
     // Permission: super admin/accountant see all; others must have org access or be in same org
     let canSeeFinancials = req.user.role === 'super_admin' || req.user.role === 'accountant';
     if (!canSeeFinancials) {
-      if (official.org_id) {
-        const hasOrgAccess = await canEditOrg(req.user, official.org_id);
-        if (!hasOrgAccess) {
-          // Also allow coaches (team-level permissions) if they're in the same org
+      if (officialOrgIds.length) {
+        // Check if user has access to ANY of the official's orgs
+        const orgAccessChecks = await Promise.all(officialOrgIds.map(oid => canEditOrg(req.user, oid)));
+        if (!orgAccessChecks.some(Boolean)) {
+          // Also allow coaches (team-level permissions) if they're in any of the same orgs
           const perms = await getUserPermissions(req.user.id);
-          const orgTeamCheck = perms.team_ids?.length
-            ? await pool.query('SELECT 1 FROM teams WHERE id = ANY($1) AND org_id = $2 LIMIT 1', [perms.team_ids, official.org_id])
-            : { rows: [] };
-          if (!orgTeamCheck.rows.length) return res.status(403).json({ error: 'No permission' });
+          if (perms.team_ids?.length) {
+            const orgTeamCheck = await pool.query(
+              'SELECT 1 FROM teams WHERE id = ANY($1) AND org_id = ANY($2) LIMIT 1',
+              [perms.team_ids, officialOrgIds]
+            );
+            if (!orgTeamCheck.rows.length) return res.status(403).json({ error: 'No permission' });
+          } else {
+            return res.status(403).json({ error: 'No permission' });
+          }
         }
-        canSeeFinancials = true; // user has permission for this org's official
+        canSeeFinancials = true; // user has permission for at least one of this official's orgs
       }
       // League-scoped officials: visible to all authenticated users, but no financial data
     }
@@ -405,22 +482,25 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
     const { id } = req.params;
 
     // Verify official exists and user has permission
-    const { rows: offRows } = await pool.query('SELECT id, org_id, rate_per_game FROM officials WHERE id = $1', [id]);
+    const { rows: offRows } = await pool.query('SELECT id, rate_per_game FROM officials WHERE id = $1', [id]);
     if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
     const official = offRows[0];
 
+    const { rows: ooRows } = await pool.query('SELECT org_id FROM official_organizations WHERE official_id = $1', [id]);
+    const officialOrgIds = ooRows.map(r => r.org_id);
+
     let canSeeFinancials = req.user.role === 'super_admin' || req.user.role === 'accountant';
     if (!canSeeFinancials) {
-      if (official.org_id) {
-        const hasOrgAccess = await canEditOrg(req.user, official.org_id);
-        if (!hasOrgAccess) {
+      if (officialOrgIds.length) {
+        const orgAccessChecks = await Promise.all(officialOrgIds.map(oid => canEditOrg(req.user, oid)));
+        if (!orgAccessChecks.some(Boolean)) {
           const perms = await getUserPermissions(req.user.id);
           const orgTeamCheck = perms.team_ids?.length
-            ? await pool.query('SELECT 1 FROM teams WHERE id = ANY($1) AND org_id = $2 LIMIT 1', [perms.team_ids, official.org_id])
+            ? await pool.query('SELECT 1 FROM teams WHERE id = ANY($1) AND org_id = ANY($2) LIMIT 1', [perms.team_ids, officialOrgIds])
             : { rows: [] };
           if (!orgTeamCheck.rows.length) return res.status(403).json({ error: 'No permission' });
         }
-        canSeeFinancials = true; // user has permission for this org's official
+        canSeeFinancials = true; // user has permission for at least one of this official's orgs
       }
       // League-scoped: allow viewing games but strip financial data
     }
@@ -517,13 +597,15 @@ router.put('/:id/games/:gameId/payment', authMiddleware, async (req, res) => {
     const { game_fee, is_paid, no_show } = req.body;
 
     // Verify official exists + permission
-    const { rows: offRows } = await pool.query('SELECT id, org_id FROM officials WHERE id = $1', [id]);
+    const { rows: offRows } = await pool.query('SELECT id FROM officials WHERE id = $1', [id]);
     if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
-    const official = offRows[0];
 
     if (req.user.role !== 'super_admin' && req.user.role !== 'accountant') {
-      if (official.org_id) {
-        if (!(await canEditOrg(req.user, official.org_id))) return res.status(403).json({ error: 'No permission' });
+      const { rows: ooRows } = await pool.query('SELECT org_id FROM official_organizations WHERE official_id = $1', [id]);
+      const orgIds = ooRows.map(r => r.org_id);
+      if (orgIds.length) {
+        const hasPermForAny = (await Promise.all(orgIds.map(oid => canEditOrg(req.user, oid)))).some(Boolean);
+        if (!hasPermForAny) return res.status(403).json({ error: 'No permission' });
       } else {
         return res.status(403).json({ error: 'No permission' });
       }

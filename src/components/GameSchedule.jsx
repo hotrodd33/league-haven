@@ -835,7 +835,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                         <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
                         <span className="flex-1 text-sm text-gray-200 truncate">
                           {official.name}
-                          <span className="text-xs text-gray-400 ml-1">({official.scope === 'league' ? 'League' : (official.org_name || 'Org')})</span>
+                          <span className="text-xs text-gray-400 ml-1">({official.org_ids?.length ? 'Org' : 'League'})</span>
                         </span>
                         <input type="checkbox" checked={checked} onChange={() => toggleOfficial(official.id)} className="accent-green-500" />
                       </label>

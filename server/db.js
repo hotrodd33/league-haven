@@ -478,6 +478,21 @@ async function migrate() {
   // ── League fee per age group ──
   await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS league_fee NUMERIC(10, 2);`);
 
+  // ── Official ↔ Organization many-to-many ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS official_organizations (
+      official_id INTEGER NOT NULL REFERENCES officials(id) ON DELETE CASCADE,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      PRIMARY KEY (official_id, org_id)
+    );
+  `);
+  // Migrate legacy officials.org_id into the join table
+  await pool.query(`
+    INSERT INTO official_organizations (official_id, org_id)
+    SELECT id, org_id FROM officials WHERE org_id IS NOT NULL
+    ON CONFLICT DO NOTHING;
+  `);
+
   // ── Team registrations & fee tracking ──
   await pool.query(`
     CREATE TABLE IF NOT EXISTS team_registrations (

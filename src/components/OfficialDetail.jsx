@@ -75,7 +75,7 @@ export default function OfficialDetail({ officialId, onBack }) {
   useEffect(() => { loadData(); }, [loadData]);
 
   const canEdit = official
-    ? (isSuperAdmin || (official.org_id && canEditOrg(official.org_id)))
+    ? (isSuperAdmin || (official.org_ids?.length && official.org_ids.some(oid => canEditOrg(oid))))
     : false;
 
   async function handleTogglePaid(game) {
@@ -179,9 +179,11 @@ export default function OfficialDetail({ officialId, onBack }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <h1 className="text-xl font-heading font-bold text-white">{official.name}</h1>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${official.org_id ? 'bg-blue-900/40 text-blue-200' : 'bg-purple-900/35 text-purple-200'}`}>
-                {official.org_id ? official.org_name || 'Organization' : 'League'}
-              </span>
+              {official.org_ids?.length ? official.org_names.map((name, i) => (
+                <span key={official.org_ids[i]} className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-900/40 text-blue-200">{name}</span>
+              )) : (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-900/35 text-purple-200">League</span>
+              )}
               {official.is_certified && (
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">Certified</span>
               )}
