@@ -45,13 +45,17 @@ export default function App() {
 
     useEffect(() => {
         if (page !== 'rosters') {
-            document.documentElement.style.setProperty('--page-logo-watermark', 'none');
+            document.documentElement.style.removeProperty('--page-logo-watermark');
         }
     }, [page]);
 
     function handleTeamWatermarkLogoChange(logoUrl) {
-        const cssValue = logoUrl ? `url(\"${logoUrl}\")` : 'none';
-        document.documentElement.style.setProperty('--page-logo-watermark', cssValue);
+        if (logoUrl) {
+            const cssValue = `url(\"${logoUrl}\")`;
+            document.documentElement.style.setProperty('--page-logo-watermark', cssValue);
+        } else {
+            document.documentElement.style.removeProperty('--page-logo-watermark');
+        }
     }
 
     function navigateToTeam(teamId, orgId) {
