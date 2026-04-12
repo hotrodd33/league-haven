@@ -465,6 +465,9 @@ async function migrate() {
       PRIMARY KEY (official_id, age_group_id)
     );
   `);
+
+  // ── No-show tracking for umpire assignments ──
+  await pool.query(`ALTER TABLE game_official_assignments ADD COLUMN IF NOT EXISTS no_show BOOLEAN NOT NULL DEFAULT FALSE;`);
 }
 
 // Lazy migration: retries on each request until it succeeds

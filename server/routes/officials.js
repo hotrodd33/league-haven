@@ -418,6 +418,7 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
          goa.game_fee,
          goa.is_paid,
          goa.paid_at,
+         goa.no_show,
          ls.name AS season_name,
          lag.umpire_rate AS age_group_rate
        FROM game_official_assignments goa
@@ -448,6 +449,7 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
         away_team_name: awayName,
         game_fee: fee,
         is_paid: !!r.is_paid,
+        no_show: !!r.no_show,
         effective_fee: fee,
         game_date: r.game_date instanceof Date ? r.game_date.toISOString().slice(0, 10) : (r.game_date || '').slice(0, 10),
       };
@@ -479,7 +481,7 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
 router.put('/:id/games/:gameId/payment', authMiddleware, async (req, res) => {
   try {
     const { id, gameId } = req.params;
-    const { game_fee, is_paid } = req.body;
+    const { game_fee, is_paid, no_show } = req.body;
 
     // Verify official exists + permission
     const { rows: offRows } = await pool.query('SELECT id, org_id FROM officials WHERE id = $1', [id]);
@@ -521,6 +523,11 @@ router.put('/:id/games/:gameId/payment', authMiddleware, async (req, res) => {
       }
     }
 
+    if (no_show !== undefined) {
+      params.push(!!no_show);
+      updates.push(`no_show = $${params.length}`);
+    }
+
     if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
 
     params.push(Number(gameId), Number(id));
@@ -558,6 +565,134 @@ router.put('/:id/age-groups', authMiddleware, async (req, res) => {
     }
 
     res.json({ success: true, age_group_ids });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Interested games for an official (via linked user) ──
+router.get('/:id/interested-games', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows: offRows } = await pool.query('SELECT id, user_id FROM officials WHERE id = $1', [id]);
+    if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
+    const official = offRows[0];
+    if (!official.user_id) return res.json([]);
+
+    const { rows } = await pool.query(
+      `SELECT
+         g.id AS game_id,
+         g.game_date,
+         g.game_time,
+         g.status,
+         g.home_score,
+         g.away_score,
+         ht.name AS home_team_name,
+         at.name AS away_team_name,
+         ht.team_city AS home_team_city, ht.team_mascot AS home_team_mascot,
+         ht.age_group AS home_age_group,
+         at.team_city AS away_team_city, at.team_mascot AS away_team_mascot,
+         fl.name AS location_name,
+         ls.name AS season_name,
+         ugi.interested_at,
+         COUNT(DISTINCT goa.official_id) AS assigned_count
+       FROM umpire_game_interests ugi
+       JOIN games g ON g.id = ugi.game_id
+       LEFT JOIN teams ht ON ht.id = g.home_team_id
+       LEFT JOIN teams at ON at.id = g.away_team_id
+       LEFT JOIN field_locations fl ON fl.id = g.location_id
+       LEFT JOIN league_seasons ls ON ls.id = g.season_id
+       LEFT JOIN game_official_assignments goa ON goa.game_id = g.id
+       WHERE ugi.user_id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM game_official_assignments x WHERE x.game_id = g.id AND x.official_id = $2
+         )
+       GROUP BY g.id, g.game_date, g.game_time, g.status, g.home_score, g.away_score,
+         ht.name, at.name, ht.team_city, ht.team_mascot, ht.age_group,
+         at.team_city, at.team_mascot, fl.name, ls.name, ugi.interested_at
+       ORDER BY g.game_date ASC, g.game_time ASC NULLS LAST`,
+      [official.user_id, id]
+    );
+
+    const games = rows.map(r => {
+      const homeName = r.home_team_city
+        ? [r.home_team_city, r.home_team_mascot].filter(Boolean).join(' ')
+        : (r.home_team_name || '(TBD)');
+      const awayName = r.away_team_city
+        ? [r.away_team_city, r.away_team_mascot].filter(Boolean).join(' ')
+        : (r.away_team_name || '(TBD)');
+      return {
+        ...r,
+        home_team_name: homeName,
+        away_team_name: awayName,
+        game_date: r.game_date instanceof Date ? r.game_date.toISOString().slice(0, 10) : (r.game_date || '').slice(0, 10),
+      };
+    });
+
+    res.json(games);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Assign an official to a game (from interested) ──
+router.post('/:id/games/:gameId/assign', authMiddleware, async (req, res) => {
+  try {
+    const { id, gameId } = req.params;
+    const { rows: offRows } = await pool.query('SELECT id, org_id FROM officials WHERE id = $1', [id]);
+    if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
+
+    if (req.user.role !== 'super_admin') {
+      if (offRows[0].org_id) {
+        if (!(await canEditOrg(req.user, offRows[0].org_id))) return res.status(403).json({ error: 'No permission' });
+      } else {
+        return res.status(403).json({ error: 'No permission' });
+      }
+    }
+
+    await pool.query(
+      'INSERT INTO game_official_assignments (game_id, official_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [gameId, id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Unassign an official from a game (moves back to interested) ──
+router.delete('/:id/games/:gameId/assign', authMiddleware, async (req, res) => {
+  try {
+    const { id, gameId } = req.params;
+    const { rows: offRows } = await pool.query('SELECT id, org_id, user_id FROM officials WHERE id = $1', [id]);
+    if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
+
+    if (req.user.role !== 'super_admin') {
+      if (offRows[0].org_id) {
+        if (!(await canEditOrg(req.user, offRows[0].org_id))) return res.status(403).json({ error: 'No permission' });
+      } else {
+        return res.status(403).json({ error: 'No permission' });
+      }
+    }
+
+    await pool.query(
+      'DELETE FROM game_official_assignments WHERE game_id = $1 AND official_id = $2',
+      [gameId, id]
+    );
+
+    // Re-add interest if the official has a linked user
+    if (offRows[0].user_id) {
+      await pool.query(
+        'INSERT INTO umpire_game_interests (user_id, game_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [offRows[0].user_id, gameId]
+      );
+    }
+
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

@@ -398,6 +398,18 @@ export async function updateOfficialAgeGroups(officialId, ageGroupIds) {
   });
 }
 
+export async function fetchOfficialInterestedGames(id) {
+  return apiFetch(`/officials/${id}/interested-games`);
+}
+
+export async function assignOfficialToGame(officialId, gameId) {
+  return apiFetch(`/officials/${officialId}/games/${gameId}/assign`, { method: 'POST' });
+}
+
+export async function unassignOfficialFromGame(officialId, gameId) {
+  return apiFetch(`/officials/${officialId}/games/${gameId}/assign`, { method: 'DELETE' });
+}
+
 // ── Field Locations ──
 
 export async function fetchLocations(orgId) {
