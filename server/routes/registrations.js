@@ -46,7 +46,7 @@ router.get('/', authMiddleware, requireAdminOrAccountant, async (req, res) => {
     const { rows } = await pool.query(`
       SELECT r.*,
         t.name AS team_name, t.age_group, t.level, t.logo_url,
-        t.primary_color, t.secondary_color, t.city_abbr,
+        t.primary_color, t.secondary_color,
         o.name AS org_name, o.id AS org_id,
         s.name AS season_name, s.year AS season_year,
         lag.league_fee AS age_group_fee
