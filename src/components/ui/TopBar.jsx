@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '../../lib/cn.js';
-import { Bars3Icon, LockIcon, ArrowRightStartOnRectangleIcon } from './icons.jsx';
+import { Bars3Icon, LockIcon, ArrowRightStartOnRectangleIcon, InformationCircleIcon, BookOpenIcon } from './icons.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { fetchTeams } from '../../api/index.js';
 import TeamLogo from '../TeamLogo.jsx';
@@ -13,6 +13,8 @@ export default function TopBar({
   onChangePassword,
   onLogout,
   onNavigateToTeam,
+  onShowAbout,
+  onShowGuide,
   children,
 }) {
   const { isSuperAdmin, permissions } = useAuth();
@@ -123,6 +125,21 @@ export default function TopBar({
                 {user?.role?.replace(/_/g, ' ')}
               </p>
             </div>
+            <button
+              onClick={() => { setUserMenuOpen(false); onShowAbout?.(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-900 transition-colors"
+            >
+              <InformationCircleIcon className="w-4 h-4 text-gray-400" />
+              About
+            </button>
+            <button
+              onClick={() => { setUserMenuOpen(false); onShowGuide?.(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-900 transition-colors"
+            >
+              <BookOpenIcon className="w-4 h-4 text-gray-400" />
+              User Guide
+            </button>
+            <div className="border-t border-gray-700 my-1" />
             <button
               onClick={() => { setUserMenuOpen(false); onChangePassword?.(); }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-900 transition-colors"

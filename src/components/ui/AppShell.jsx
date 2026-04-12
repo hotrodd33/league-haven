@@ -39,6 +39,8 @@ export default function AppShell({
     users: 'User Management',
     data: 'Data Manager',
     officials: 'Officials',
+    about: 'Help',
+    guide: 'Help',
   }[page] || 'Dashboard';
 
   return (
@@ -72,6 +74,8 @@ export default function AppShell({
           onChangePassword={onChangePassword}
           onLogout={onLogout}
           onNavigateToTeam={onNavigateToTeam}
+          onShowAbout={() => onNavigate('about')}
+          onShowGuide={() => onNavigate('guide')}
         />
 
         {/* Page content */}
