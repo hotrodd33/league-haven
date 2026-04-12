@@ -302,4 +302,203 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// ── Official detail: single official profile ──
+router.get('/:id/detail', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `SELECT o.*, org.name AS org_name, u.username AS linked_username
+       FROM officials o
+       LEFT JOIN organizations org ON org.id = o.org_id
+       LEFT JOIN users u ON u.id = o.user_id
+       WHERE o.id = $1`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Official not found' });
+    const official = rows[0];
+
+    // Permission check: super admin, or can edit the official's org
+    if (req.user.role !== 'super_admin') {
+      if (official.org_id) {
+        if (!(await canEditOrg(req.user, official.org_id))) {
+          // Also allow coaches (team-level permissions) if they're in the same org
+          const perms = await getUserPermissions(req.user.id);
+          const orgTeamCheck = perms.team_ids?.length
+            ? await pool.query('SELECT 1 FROM teams WHERE id = ANY($1) AND org_id = $2 LIMIT 1', [perms.team_ids, official.org_id])
+            : { rows: [] };
+          if (!orgTeamCheck.rows.length) return res.status(403).json({ error: 'No permission' });
+        }
+      } else {
+        // League-scoped official — only super admin
+        return res.status(403).json({ error: 'No permission' });
+      }
+    }
+
+    res.json(normalizeOfficial(official));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Official games: all assigned games with fee/payment info ──
+router.get('/:id/games', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verify official exists and user has permission
+    const { rows: offRows } = await pool.query('SELECT id, org_id, rate_per_game FROM officials WHERE id = $1', [id]);
+    if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
+    const official = offRows[0];
+
+    if (req.user.role !== 'super_admin') {
+      if (official.org_id) {
+        if (!(await canEditOrg(req.user, official.org_id))) {
+          const perms = await getUserPermissions(req.user.id);
+          const orgTeamCheck = perms.team_ids?.length
+            ? await pool.query('SELECT 1 FROM teams WHERE id = ANY($1) AND org_id = $2 LIMIT 1', [perms.team_ids, official.org_id])
+            : { rows: [] };
+          if (!orgTeamCheck.rows.length) return res.status(403).json({ error: 'No permission' });
+        }
+      } else {
+        return res.status(403).json({ error: 'No permission' });
+      }
+    }
+
+    const defaultRate = Number(official.rate_per_game) || 50;
+
+    const { rows } = await pool.query(
+      `SELECT
+         g.id AS game_id,
+         g.game_date,
+         g.game_time,
+         g.status,
+         g.home_score,
+         g.away_score,
+         g.innings_played,
+         g.season_id,
+         ht.name AS home_team_name,
+         at.name AS away_team_name,
+         ht.team_city AS home_team_city, ht.team_mascot AS home_team_mascot, ht.team_color AS home_team_color,
+         at.team_city AS away_team_city, at.team_mascot AS away_team_mascot, at.team_color AS away_team_color,
+         fl.name AS location_name,
+         goa.added_at,
+         goa.game_fee,
+         goa.is_paid,
+         goa.paid_at,
+         ls.name AS season_name
+       FROM game_official_assignments goa
+       JOIN games g ON g.id = goa.game_id
+       LEFT JOIN teams ht ON ht.id = g.home_team_id
+       LEFT JOIN teams at ON at.id = g.away_team_id
+       LEFT JOIN field_locations fl ON fl.id = g.location_id
+       LEFT JOIN league_seasons ls ON ls.id = g.season_id
+       WHERE goa.official_id = $1
+       ORDER BY g.game_date DESC, g.game_time DESC NULLS LAST`,
+      [id]
+    );
+
+    // Calculate summary
+    const games = rows.map(r => {
+      const fee = r.game_fee != null ? Number(r.game_fee) : defaultRate;
+      const homeName = r.home_team_city
+        ? [r.home_team_city, r.home_team_mascot, r.home_team_color].filter(Boolean).join(' ')
+        : (r.home_team_name || '(TBD)');
+      const awayName = r.away_team_city
+        ? [r.away_team_city, r.away_team_mascot, r.away_team_color].filter(Boolean).join(' ')
+        : (r.away_team_name || '(TBD)');
+      return {
+        ...r,
+        home_team_name: homeName,
+        away_team_name: awayName,
+        game_fee: fee,
+        is_paid: !!r.is_paid,
+        effective_fee: fee,
+        game_date: r.game_date instanceof Date ? r.game_date.toISOString().slice(0, 10) : (r.game_date || '').slice(0, 10),
+      };
+    });
+
+    const completedGames = games.filter(g => g.status === 'completed');
+    const totalEarnings = completedGames.reduce((sum, g) => sum + g.effective_fee, 0);
+    const totalPayments = completedGames.filter(g => g.is_paid).reduce((sum, g) => sum + g.effective_fee, 0);
+    const totalDue = totalEarnings - totalPayments;
+
+    res.json({
+      games,
+      summary: {
+        total_games: games.length,
+        completed_games: completedGames.length,
+        total_earnings: Math.round(totalEarnings * 100) / 100,
+        total_payments: Math.round(totalPayments * 100) / 100,
+        total_due: Math.round(totalDue * 100) / 100,
+        default_rate: defaultRate,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Update payment info for an official's game assignment ──
+router.put('/:id/games/:gameId/payment', authMiddleware, async (req, res) => {
+  try {
+    const { id, gameId } = req.params;
+    const { game_fee, is_paid } = req.body;
+
+    // Verify official exists + permission
+    const { rows: offRows } = await pool.query('SELECT id, org_id FROM officials WHERE id = $1', [id]);
+    if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
+    const official = offRows[0];
+
+    if (req.user.role !== 'super_admin') {
+      if (official.org_id) {
+        if (!(await canEditOrg(req.user, official.org_id))) return res.status(403).json({ error: 'No permission' });
+      } else {
+        return res.status(403).json({ error: 'No permission' });
+      }
+    }
+
+    // Check assignment exists
+    const { rows: assignRows } = await pool.query(
+      'SELECT * FROM game_official_assignments WHERE game_id = $1 AND official_id = $2',
+      [gameId, id]
+    );
+    if (!assignRows.length) return res.status(404).json({ error: 'Assignment not found' });
+
+    const updates = [];
+    const params = [];
+
+    if (game_fee !== undefined) {
+      const fee = toMoney(game_fee, null);
+      params.push(fee);
+      updates.push(`game_fee = $${params.length}`);
+    }
+
+    if (is_paid !== undefined) {
+      params.push(!!is_paid);
+      updates.push(`is_paid = $${params.length}`);
+      if (is_paid) {
+        params.push(new Date());
+        updates.push(`paid_at = $${params.length}`);
+      } else {
+        updates.push(`paid_at = NULL`);
+      }
+    }
+
+    if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
+
+    params.push(Number(gameId), Number(id));
+    await pool.query(
+      `UPDATE game_official_assignments SET ${updates.join(', ')} WHERE game_id = $${params.length - 1} AND official_id = $${params.length}`,
+      params
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

@@ -438,6 +438,11 @@ async function migrate() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
+
+  // ── Official assignment payment tracking ──
+  await pool.query(`ALTER TABLE game_official_assignments ADD COLUMN IF NOT EXISTS game_fee NUMERIC(10, 2);`);
+  await pool.query(`ALTER TABLE game_official_assignments ADD COLUMN IF NOT EXISTS is_paid BOOLEAN NOT NULL DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE game_official_assignments ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;`);
 }
 
 // Lazy migration: retries on each request until it succeeds

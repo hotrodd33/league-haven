@@ -375,6 +375,22 @@ export async function deleteOfficial(id) {
   });
 }
 
+export async function fetchOfficialDetail(id) {
+  return apiFetch(`/officials/${id}/detail`);
+}
+
+export async function fetchOfficialGames(id) {
+  return apiFetch(`/officials/${id}/games`);
+}
+
+export async function updateOfficialGamePayment(officialId, gameId, data) {
+  return apiFetch(`/officials/${officialId}/games/${gameId}/payment`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
 // ── Field Locations ──
 
 export async function fetchLocations(orgId) {

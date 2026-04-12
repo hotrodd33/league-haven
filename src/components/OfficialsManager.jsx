@@ -8,6 +8,7 @@ import {
   fetchUmpireUsers,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import OfficialDetail from './OfficialDetail.jsx';
 
 const inputCls = 'w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500';
 const labelCls = 'block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1';
@@ -26,6 +27,7 @@ export default function OfficialsManager({ onBack }) {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [scopeFilter, setScopeFilter] = useState('all');
+  const [selectedOfficialId, setSelectedOfficialId] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -65,6 +67,10 @@ export default function OfficialsManager({ onBack }) {
   if (loading) return <div className="py-8 text-center text-gray-400">Loading officials…</div>;
   if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
 
+  if (selectedOfficialId) {
+    return <OfficialDetail officialId={selectedOfficialId} onBack={() => { setSelectedOfficialId(null); loadData(); }} />;
+  }
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
@@ -89,7 +95,7 @@ export default function OfficialsManager({ onBack }) {
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-gray-100 truncate">{official.name}</h3>
+                    <h3 className="font-semibold text-gray-100 truncate cursor-pointer hover:text-blue-300 hover:underline" onClick={() => setSelectedOfficialId(official.id)}>{official.name}</h3>
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${official.org_id ? 'bg-blue-900/40 text-blue-200' : 'bg-purple-900/35 text-purple-200'}`}>
                       {official.org_id ? official.org_name || 'Organization' : 'League'}
                     </span>
