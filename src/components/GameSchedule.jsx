@@ -26,6 +26,7 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
+const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-[#00AEEF] px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-white';
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
@@ -383,6 +384,11 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                             {game.status_label}
                           </span>
+                          {game.is_gamechanger_imported && (
+                            <span className={GC_BADGE_CLASS} title="Imported from GameChanger" aria-label="Imported from GameChanger">
+                              GC
+                            </span>
+                          )}
                           {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                             <button onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
                               className={`px-2 py-1 text-xs font-semibold rounded ${DARK_TRACK_BUTTON_TONE}`}>⚾ Track</button>
@@ -432,6 +438,11 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                           {game.status_label}
                         </span>
+                        {game.is_gamechanger_imported && (
+                          <span className={GC_BADGE_CLASS} title="Imported from GameChanger" aria-label="Imported from GameChanger">
+                            GC
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />

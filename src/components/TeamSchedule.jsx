@@ -8,6 +8,7 @@ import { GameForm } from './GameSchedule.jsx';
 import { DARK_STATUS_COLORS, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
+const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-[#00AEEF] px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-white';
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
@@ -166,6 +167,11 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
 
               {/* Score / Status */}
               <div className="shrink-0 text-right flex items-center gap-2">
+                {game.is_gamechanger_imported && (
+                  <span className={GC_BADGE_CLASS} title="Imported from GameChanger" aria-label="Imported from GameChanger">
+                    GC
+                  </span>
+                )}
                 {isCompleted ? (
                   <div className="flex items-center gap-2">
                     <span className={`font-bold text-xs px-1.5 py-0.5 rounded ${resultColor}`}>{result}</span>

@@ -604,6 +604,7 @@ export async function importGameChanger(fileOrText, importType, options = {}) {
       body: JSON.stringify({
         pastedText: fileOrText,
         importType,
+        gameId: options.gameId || undefined,
         teamId: options.teamId || undefined,
         seasonId: options.seasonId || undefined,
         overwrite: options.overwrite ?? undefined,
@@ -616,6 +617,7 @@ export async function importGameChanger(fileOrText, importType, options = {}) {
   const fd = new FormData();
   fd.append('gamechangerFile', fileOrText);
   fd.append('importType', importType);
+  if (options.gameId) fd.append('gameId', options.gameId);
   if (options.teamId) fd.append('teamId', options.teamId);
   if (options.seasonId) fd.append('seasonId', options.seasonId);
   if (options.overwrite != null) fd.append('overwrite', String(options.overwrite));

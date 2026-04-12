@@ -373,6 +373,7 @@ router.post(
   async (req, res) => {
     try {
       const importType = req.body.importType || 'boxscore';
+      const gameId = req.body.gameId ? parseInt(req.body.gameId) : null;
       const teamId = req.body.teamId ? parseInt(req.body.teamId) : null;
       const seasonId = req.body.seasonId ? parseInt(req.body.seasonId) : null;
       const overwrite = req.body.overwrite === 'true';
@@ -398,6 +399,7 @@ router.post(
         const parsed = await parseBoxScoreInput(req);
         return await importBoxScore(req, res, {
           parsed,
+          targetGameId: gameId,
           teamId,
           seasonId,
           overwrite,
@@ -418,7 +420,7 @@ router.post(
 
 /* ── Box Score Import Logic ── */
 async function importBoxScore(req, res, opts) {
-  let { parsed, teamId, seasonId, overwrite, teamMappings, playerMappings } = opts;
+  let { parsed, targetGameId, teamId, seasonId, overwrite, teamMappings, playerMappings } = opts;
   const { gameInfo, linescore, batting, pitching } = parsed;
 
   // Auto-detect active season if none provided
@@ -473,8 +475,8 @@ async function importBoxScore(req, res, opts) {
     }
   }
 
-  const awayTeamId = gameInfo.awayTeam ? teamLookup[gameInfo.awayTeam.toLowerCase()] : null;
-  const homeTeamId = gameInfo.homeTeam ? teamLookup[gameInfo.homeTeam.toLowerCase()] : null;
+  let awayTeamId = gameInfo.awayTeam ? teamLookup[gameInfo.awayTeam.toLowerCase()] : null;
+  let homeTeamId = gameInfo.homeTeam ? teamLookup[gameInfo.homeTeam.toLowerCase()] : null;
 
   if (!awayTeamId && gameInfo.awayTeam) {
     results.errors.push(`Away team "${gameInfo.awayTeam}" not found in database`);
@@ -503,7 +505,33 @@ async function importBoxScore(req, res, opts) {
   let wasExisting = false;
   const gameDate = gameInfo.date || null;
 
-  if (gameDate) {
+  if (targetGameId) {
+    const { rows: targetGameRows } = await pool.query(
+      'SELECT id, home_team_id, away_team_id FROM games WHERE id = $1 LIMIT 1',
+      [targetGameId]
+    );
+    if (!targetGameRows.length) {
+      return res.status(400).json({ error: 'Target game for import was not found' });
+    }
+
+    const targetGame = targetGameRows[0];
+    homeTeamId = homeTeamId || targetGame.home_team_id;
+    awayTeamId = awayTeamId || targetGame.away_team_id;
+
+    await pool.query(
+      `UPDATE games SET home_score = $1, away_score = $2, innings_played = $3,
+       status = 'completed', game_time = COALESCE($4, game_time), season_id = COALESCE($6, season_id)
+       WHERE id = $5`,
+      [homeScore, awayScore, inningsPlayed, gameInfo.time, targetGameId, seasonId]
+    );
+
+    gameId = targetGameId;
+    wasExisting = true;
+    results.updated++;
+    results.games = 1;
+  }
+
+  if (!gameId && gameDate) {
     // Check for existing game on same date with same teams
     let existingGameId = null;
     if (awayTeamId && homeTeamId) {
@@ -558,7 +586,7 @@ async function importBoxScore(req, res, opts) {
       results.created++;
     }
     results.games = 1;
-  } else {
+  } else if (!gameId) {
     results.errors.push('Could not determine game date from box score');
   }
 

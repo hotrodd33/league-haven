@@ -32,6 +32,7 @@ const BASE_SELECT = `
     fl.city AS location_city, fl.state AS location_state,
     ls.name AS season_name, ls.year AS season_year,
     gd.division_id, gd.division_name, gd.division_sort,
+    gil.is_gamechanger_imported,
     goa.official_ids, goa.official_names, goa.officials,
     gua.interested_official_ids, gua.interested_umpire_names, gua.interested_umpires
   FROM games g
@@ -50,6 +51,11 @@ const BASE_SELECT = `
     ORDER BY ld.sort_order
     LIMIT 1
   ) gd ON true
+  LEFT JOIN LATERAL (
+    SELECT COALESCE(bool_or(gil.source = 'gamechanger'), false) AS is_gamechanger_imported
+    FROM game_import_log gil
+    WHERE gil.game_id = g.id
+  ) gil ON true
   LEFT JOIN LATERAL (
     SELECT
       COALESCE(array_agg(o.id ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::INTEGER[]) AS official_ids,
@@ -125,6 +131,7 @@ function enrichGame(row) {
   return {
     ...row,
     game_date: gameDate,
+    is_gamechanger_imported: !!row.is_gamechanger_imported,
     status_label: STATUS_LABELS[row.status] || row.status,
     home_team_name: homeLong || row.home_team_name || '(Deleted Team)',
     away_team_name: awayLong || row.away_team_name || '(Deleted Team)',

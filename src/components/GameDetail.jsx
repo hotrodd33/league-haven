@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchGame, updateGame,
   fetchPitchCounts, createPitchCount, updatePitchCount, deletePitchCount,
-  fetchPlayersByTeam, createPlayer, fetchPitchEligibility,
+  fetchPlayersByTeam, createPlayer, fetchPitchEligibility, importGameChanger,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
@@ -16,6 +16,7 @@ const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold 
 const btnDanger = "px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
+const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-[#00AEEF] px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-white';
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
@@ -40,6 +41,11 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showGcImport, setShowGcImport] = useState(false);
+  const [gcPasteText, setGcPasteText] = useState('');
+  const [gcFile, setGcFile] = useState(null);
+  const [gcImporting, setGcImporting] = useState(false);
+  const [gcImportMessage, setGcImportMessage] = useState('');
 
   // Pitch tracker mode
   const [showTracker, setShowTracker] = useState(false);
@@ -188,6 +194,37 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
     finally { setSavingNewPlayer(false); }
   }
 
+  async function handleGcImport(e) {
+    e.preventDefault();
+    setError(null);
+    setGcImportMessage('');
+
+    const input = gcPasteText.trim() ? gcPasteText.trim() : gcFile;
+    if (!input) {
+      setError('Paste GameChanger box score text or choose a file to import.');
+      return;
+    }
+
+    setGcImporting(true);
+    try {
+      const result = await importGameChanger(input, 'boxscore', {
+        gameId: game.id,
+        teamId: game.home_team_id,
+        seasonId: game.season_id || undefined,
+        overwrite: true,
+      });
+
+      setGcImportMessage(result?.message || 'Import completed.');
+      setGcPasteText('');
+      setGcFile(null);
+      await loadAll();
+    } catch (err) {
+      setError(err.message || 'GameChanger import failed.');
+    } finally {
+      setGcImporting(false);
+    }
+  }
+
   if (loading) return <div className="py-8 text-center text-gray-400">Loading game…</div>;
   if (!game) return <div className="py-8 text-center text-red-600">Game not found</div>;
 
@@ -197,6 +234,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
 
   const userCanEdit = canEdit(game);
   const userCanScore = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
+  const canUseGcImport = userCanScore || userCanEdit;
   const homePC = pitchCounts.filter(pc => pc.team_id === game.home_team_id);
   const awayPC = pitchCounts.filter(pc => pc.team_id === game.away_team_id);
 
@@ -211,6 +249,14 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       {/* Back button + tracker */}
       <div className="flex items-center gap-2 mb-4">
         <button onClick={onBack} className={btnSecondary}>← Back to Schedule</button>
+        {canUseGcImport && (
+          <button
+            onClick={() => setShowGcImport((prev) => !prev)}
+            className="px-3 py-2 bg-[#00AEEF] text-white text-sm font-semibold rounded-lg hover:brightness-105 transition"
+          >
+            {showGcImport ? 'Hide GC Import' : 'Import from GC'}
+          </button>
+        )}
         {userCanScore && game.status !== 'completed' && (
           <button onClick={() => setShowTracker(true)} className="px-4 py-2 bg-amber-500 text-gray-900 text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
             ⚾ Pitch Tracker
@@ -222,9 +268,16 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm text-gray-400">{formatDate(game.game_date)}{game.game_time ? ` · ${formatTime(game.game_time)}` : ''}</div>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
-            {game.status_label}
-          </span>
+          <div className="flex items-center gap-2">
+            {game.is_gamechanger_imported && (
+              <span className={GC_BADGE_CLASS} title="Imported from GameChanger" aria-label="Imported from GameChanger">
+                GC
+              </span>
+            )}
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
+              {game.status_label}
+            </span>
+          </div>
         </div>
 
         {/* Matchup */}
@@ -263,14 +316,52 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         {game.notes && <div className="text-xs text-gray-400 italic text-center mt-1">{game.notes}</div>}
       </div>
 
+      {showGcImport && canUseGcImport && (
+        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
+          <form onSubmit={handleGcImport} className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 p-3 space-y-3">
+            <div className="text-xs font-semibold text-cyan-200">Import score + pitch counts from GameChanger box score</div>
+            <div>
+              <label className={labelCls}>Paste Box Score Text</label>
+              <textarea
+                value={gcPasteText}
+                onChange={(e) => setGcPasteText(e.target.value)}
+                rows={5}
+                className={inputCls}
+                placeholder="Paste copied GameChanger box score text here"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Or Upload Box Score File</label>
+              <input
+                type="file"
+                accept=".pdf,.txt,.csv"
+                onChange={(e) => setGcFile(e.target.files?.[0] || null)}
+                className="block w-full text-xs text-gray-300 file:mr-3 file:rounded file:border-0 file:bg-gray-700 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gray-100 hover:file:bg-gray-600"
+              />
+            </div>
+            {gcImportMessage && (
+              <div className="text-xs text-green-300">{gcImportMessage}</div>
+            )}
+            <div className="flex gap-2">
+              <button type="submit" disabled={gcImporting} className={btnPrimary}>
+                {gcImporting ? 'Importing…' : 'Run GC Import'}
+              </button>
+              <button type="button" onClick={() => { setGcPasteText(''); setGcFile(null); }} className={btnSecondary}>Clear</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Score reporting */}
       {userCanScore && (
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold uppercase tracking-wide text-gray-300">Report Score</h3>
-            {!editingScore && (
-              <button onClick={() => setEditingScore(true)} className="text-xs text-blue-400 font-semibold hover:underline">Edit</button>
-            )}
+            <div className="flex items-center gap-3">
+              {!editingScore && (
+                <button onClick={() => setEditingScore(true)} className="text-xs text-blue-400 font-semibold hover:underline">Edit</button>
+              )}
+            </div>
           </div>
 
           {editingScore ? (
@@ -477,7 +568,7 @@ function PitchCountSection({
             ) : (
               <div key={pc.id} className="md:grid md:grid-cols-12 md:gap-2 px-2.5 py-2 rounded hover:bg-gray-900 group border border-transparent hover:border-gray-700/80 transition-colors">
                 <div className="md:col-span-1 text-xs text-gray-400 font-mono mb-1 md:mb-0">#{pc.jersey_number || '—'}</div>
-                <div className="md:col-span-5 text-sm font-medium truncate mb-1 md:mb-0">{pc.first_name} {pc.last_name}</div>
+                <div className="md:col-span-5 text-sm font-medium text-gray-100 truncate mb-1 md:mb-0">{pc.first_name} {pc.last_name}</div>
                 <div className={`md:col-span-2 text-sm font-bold md:text-right tabular-nums mb-1 md:mb-0 ${overLimit ? 'text-red-400' : 'text-gray-200'}`}>{pc.pitch_count}</div>
                 <div className="md:col-span-2 md:text-right mb-1 md:mb-0">
                   {restDays != null && (() => {
