@@ -419,22 +419,26 @@ function PitchCountSection({
   // Selected player eligibility (for add form)
   const selectedElig = pcForm.player_id ? eligMap[Number(pcForm.player_id)] : null;
 
+  const sectionTone = canEdit
+    ? 'bg-gradient-to-b from-gray-800 to-gray-800/95 border-gray-700'
+    : 'bg-gray-800/90 border-gray-700';
+
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-300">{label}</h3>
-          {dailyLimit && <span className="text-xs text-gray-400">Limit: {dailyLimit}/day</span>}
+    <div className={`border rounded-xl p-4 sm:p-5 mb-4 shadow-sm ${sectionTone}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-200 truncate">{label}</h3>
+          {dailyLimit && <span className="text-xs text-gray-400 shrink-0">Limit: {dailyLimit}/day</span>}
         </div>
         {canEdit && !isAdding && !editingPc && (
-          <button onClick={onStartAdd} className="text-xs text-blue-400 font-semibold hover:underline">+ Add Pitcher</button>
+          <button onClick={onStartAdd} className="px-2.5 py-1 text-xs font-semibold bg-blue-900/30 text-blue-200 rounded hover:bg-blue-800/40 transition-colors">+ Add Pitcher</button>
         )}
       </div>
 
       {entries.length === 0 && !isAdding ? (
-        <div className="text-sm text-gray-400">No pitch counts recorded.</div>
+        <div className="text-sm text-gray-400 bg-gray-900/40 border border-gray-700 rounded-lg px-3 py-2">No pitch counts recorded.</div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 bg-gray-900/25 border border-gray-700/70 rounded-lg p-2 sm:p-3">
           {/* Header */}
           <div className="hidden md:grid grid-cols-12 gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide px-2">
             <div className="col-span-1">#</div>
@@ -452,8 +456,8 @@ function PitchCountSection({
             const overLimit = dailyLimit && totalToday > dailyLimit;
 
             return editingPc?.id === pc.id ? (
-              <form key={pc.id} onSubmit={onSaveEdit} className="bg-gray-900 rounded-lg p-3 space-y-2">
-                <div className="text-sm font-semibold">{pc.first_name} {pc.last_name} {pc.jersey_number ? `#${pc.jersey_number}` : ''}</div>
+              <form key={pc.id} onSubmit={onSaveEdit} className="bg-gray-900/80 border border-gray-700 rounded-lg p-3 space-y-2">
+                <div className="text-sm font-semibold text-gray-100">{pc.first_name} {pc.last_name} {pc.jersey_number ? `#${pc.jersey_number}` : ''}</div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className={labelCls}>Pitch Count *</label>
@@ -471,7 +475,7 @@ function PitchCountSection({
                 </div>
               </form>
             ) : (
-              <div key={pc.id} className="md:grid md:grid-cols-12 md:gap-2 px-2 py-2 rounded hover:bg-gray-900 group border border-transparent hover:border-gray-700">
+              <div key={pc.id} className="md:grid md:grid-cols-12 md:gap-2 px-2.5 py-2 rounded hover:bg-gray-900 group border border-transparent hover:border-gray-700/80 transition-colors">
                 <div className="md:col-span-1 text-xs text-gray-400 font-mono mb-1 md:mb-0">#{pc.jersey_number || '—'}</div>
                 <div className="md:col-span-5 text-sm font-medium truncate mb-1 md:mb-0">{pc.first_name} {pc.last_name}</div>
                 <div className={`md:col-span-2 text-sm font-bold md:text-right tabular-nums mb-1 md:mb-0 ${overLimit ? 'text-red-400' : 'text-gray-200'}`}>{pc.pitch_count}</div>
@@ -495,7 +499,7 @@ function PitchCountSection({
                 </div>
                 {canEdit && (
                   <div className="md:col-span-2 flex gap-1 md:justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onStartEdit(pc)} className="px-2 py-0.5 text-xs bg-gray-700 rounded hover:bg-gray-600">Edit</button>
+                    <button onClick={() => onStartEdit(pc)} className="px-2 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
                     <button onClick={() => onDelete(pc)} className={btnDanger}>×</button>
                   </div>
                 )}
@@ -513,7 +517,7 @@ function PitchCountSection({
 
       {/* Add form */}
       {isAdding && (
-        <form onSubmit={onAdd} className="mt-3 bg-blue-900/30 rounded-lg p-3 space-y-2">
+        <form onSubmit={onAdd} className="mt-3 bg-gray-900/65 border border-blue-700/30 rounded-lg p-3 sm:p-4 space-y-3">
           <div>
             <label className={labelCls}>Player *</label>
             {availablePlayers.length > 0 ? (
@@ -538,7 +542,7 @@ function PitchCountSection({
 
             {/* Eligibility warning for selected player */}
             {selectedElig && !selectedElig.eligible && (
-              <div className="mt-2 bg-red-900/30 border border-red-200 text-red-400 text-xs rounded-lg px-3 py-2">
+              <div className="mt-2 bg-red-900/30 border border-red-400/35 text-red-300 text-xs rounded-lg px-3 py-2">
                 <strong>⚠ Ineligible to pitch:</strong>
                 <ul className="mt-1 list-disc list-inside">
                   {selectedElig.reasons.map((r, i) => <li key={i}>{r}</li>)}
@@ -555,14 +559,14 @@ function PitchCountSection({
 
             {!addingNewPlayer && (
               <button type="button" onClick={onStartAddNewPlayer}
-                className="mt-1 text-xs text-green-400 font-semibold hover:underline">+ New Player</button>
+                className="mt-1 text-xs text-green-300 font-semibold hover:underline">+ New Player</button>
             )}
           </div>
 
           {/* Inline new player form */}
           {addingNewPlayer && (
-            <div className="bg-green-900/30 border border-green-200 rounded-lg p-3 space-y-2">
-              <div className="text-xs font-bold uppercase tracking-wide text-green-400 mb-1">Quick Add Player</div>
+            <div className="bg-green-900/20 border border-green-400/30 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-bold uppercase tracking-wide text-green-300 mb-1">Quick Add Player</div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className={labelCls}>First Name *</label>
@@ -614,10 +618,10 @@ function PitchCountSection({
                           <div className="text-xs text-red-400 font-semibold">⚠ Exceeds daily limit of {dailyLimit}</div>
                         )}
                         {rest != null && rest > 0 && (
-                          <div className="text-xs text-gray-400">→ Will require <strong>{rest} rest day{rest !== 1 ? 's' : ''}</strong></div>
+                          <div className="text-xs text-gray-300">→ Will require <strong>{rest} rest day{rest !== 1 ? 's' : ''}</strong></div>
                         )}
                         {otherToday > 0 && (
-                          <div className="text-xs text-gray-400">({otherToday} from other games + {entered} = {total} total today)</div>
+                          <div className="text-xs text-gray-300">({otherToday} from other games + {entered} = {total} total today)</div>
                         )}
                       </div>
                     );
@@ -626,7 +630,7 @@ function PitchCountSection({
               </div>
             </>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 pt-1">
             {availablePlayers.length > 0 && (
               <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Adding…' : 'Add'}</button>
             )}
