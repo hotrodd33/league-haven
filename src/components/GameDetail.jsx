@@ -255,8 +255,8 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
             <span className="text-xs text-gray-400 uppercase">Home</span>
           </div>
           <div className="text-center shrink-0 px-2">
-            <div className="text-3xl font-bold tabular-nums">
-              {game.home_score ?? '—'} <span className="text-gray-300 mx-1">–</span> {game.away_score ?? '—'}
+            <div className="text-4xl sm:text-5xl font-extrabold tabular-nums text-white tracking-tight">
+              {game.home_score ?? '—'} <span className="text-gray-500 mx-1">–</span> {game.away_score ?? '—'}
             </div>
             {game.innings_played && (
               <div className="text-xs text-gray-400 mt-1">{game.innings_played} innings</div>

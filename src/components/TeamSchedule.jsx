@@ -175,7 +175,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                 {isCompleted ? (
                   <div className="flex items-center gap-2">
                     <span className={`font-bold text-xs px-1.5 py-0.5 rounded ${resultColor}`}>{result}</span>
-                    <span className="font-semibold text-gray-200 tabular-nums">{teamScore}–{oppScore}</span>
+                    <span className="font-extrabold text-lg text-white tabular-nums tracking-tight">{teamScore}–{oppScore}</span>
                   </div>
                 ) : (
                   <>

@@ -356,7 +356,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                           </div>
                           <div className="px-2 shrink-0">
                             {game.status === 'completed' ? (
-                              <span className="font-bold text-sm">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
+                              <span className="font-extrabold text-lg text-white tabular-nums tracking-tight">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
                             ) : (
                               <span className="text-xs font-semibold text-gray-400">vs</span>
                             )}
@@ -447,12 +447,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                       <div className="flex items-center gap-2 mb-1">
                         <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
                         <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-field-300 hover:text-field-100 hover:underline text-left">{game.home_team_name}</button>
-                        {game.status === 'completed' && <span className="font-bold text-sm">{game.home_score ?? '—'}</span>}
+                        {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.home_score ?? '—'}</span>}
                       </div>
                       <div className="flex items-center gap-2 mb-2">
                         <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
                         <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-field-300 hover:text-field-100 hover:underline text-left">{game.away_team_name}</button>
-                        {game.status === 'completed' && <span className="font-bold text-sm">{game.away_score ?? '—'}</span>}
+                        {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.away_score ?? '—'}</span>}
                       </div>
                       {game.location_name && (
                         <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
