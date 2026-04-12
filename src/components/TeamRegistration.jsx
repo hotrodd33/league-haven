@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchRegistrationConfig, registerDirector, registerCoach, register, registerAsUmpire } from '../api/index.js';
+import { fetchRegistrationConfig, registerDirector, registerCoach, register, registerAsUmpire, resendConfirmation } from '../api/index.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
@@ -263,13 +263,7 @@ export default function TeamRegistration({ onDone }) {
         );
       }
 
-      // Save auth
-      localStorage.setItem('zvbl_roster_auth', JSON.stringify({
-        token: result.token,
-        user: result.user,
-        permissions: result.permissions || { org_ids: [], team_ids: [] },
-      }));
-
+      // Do NOT auto-login — user must confirm email first
       setSuccess({ role, ...result });
     } catch (err) {
       setError(err.message);
@@ -280,61 +274,57 @@ export default function TeamRegistration({ onDone }) {
 
   // ═══════════════ Success Screen ═══════════════
   if (success) {
-    const messages = {
-      director: {
-        title: 'Registration Complete!',
-        body: (
-          <>
-            <p className="text-gray-300 text-sm mb-2">
-              <strong>{success.teams_created}</strong> team{success.teams_created !== 1 ? 's' : ''} created successfully.
+    const extraInfo = {
+      director: success.teams_created ? (
+        <>
+          <p className="text-gray-300 text-sm mb-2">
+            <strong>{success.teams_created}</strong> team{success.teams_created !== 1 ? 's' : ''} created.
+          </p>
+          {success.coaches_invited > 0 && (
+            <p className="text-gray-400 text-sm mb-2">
+              {success.coaches_invited} coach{success.coaches_invited !== 1 ? 'es' : ''} will receive an invitation.
             </p>
-            {success.coaches_invited > 0 && (
-              <p className="text-gray-400 text-sm mb-4">
-                {success.coaches_invited} coach{success.coaches_invited !== 1 ? 'es' : ''} will receive an email invitation.
-              </p>
-            )}
-          </>
-        ),
-      },
-      coach: {
-        title: 'Team Registered!',
-        body: (
-          <p className="text-gray-300 text-sm mb-4">
-            Your team <strong>{success.team_name}</strong> has been registered under <strong>{success.org_name}</strong>. You can now manage your roster and view your schedule.
-          </p>
-        ),
-      },
-      scorekeeper: {
-        title: 'Account Created!',
-        body: (
-          <p className="text-gray-300 text-sm mb-4">
-            Your scorekeeper account is ready. A league administrator will assign you to specific teams for score reporting.
-          </p>
-        ),
-      },
-      umpire: {
-        title: 'Umpire Profile Created!',
-        body: (
-          <p className="text-gray-300 text-sm mb-4">
-            You can now view available games, express interest, and manage your schedule from the Umpire Dashboard.
-          </p>
-        ),
-      },
+          )}
+        </>
+      ) : null,
+      coach: success.team_name ? (
+        <p className="text-gray-300 text-sm mb-2">
+          Your team <strong>{success.team_name}</strong> has been registered under <strong>{success.org_name}</strong>.
+        </p>
+      ) : null,
     };
-
-    const msg = messages[success.role] || messages.scorekeeper;
 
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
-        <div className="bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md border-t-4 border-green-600 text-center">
-          <div className="text-4xl mb-4">✅</div>
-          <h2 className="font-heading text-2xl font-bold text-green-300 mb-3">{msg.title}</h2>
-          {msg.body}
+        <div className="bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md border-t-4 border-blue-600 text-center">
+          <div className="text-4xl mb-4">📧</div>
+          <h2 className="font-heading text-2xl font-bold text-blue-300 mb-3">Check Your Email</h2>
+          {extraInfo[success.role]}
+          <p className="text-gray-300 text-sm mb-4">
+            We've sent a confirmation link to <strong className="text-gray-100">{userInfo.email}</strong>. Please click the link to activate your account.
+          </p>
+          <p className="text-gray-500 text-xs mb-6">
+            Didn't receive it? Check your spam folder or click below to resend.
+          </p>
+          <button
+            onClick={async () => {
+              try {
+                await resendConfirmation(userInfo.email.trim().toLowerCase());
+                setError(null);
+                alert('Confirmation email resent!');
+              } catch (err) {
+                setError(err.message);
+              }
+            }}
+            className={btnSecondary + ' w-full mb-3'}
+          >
+            Resend Confirmation Email
+          </button>
           <button
             onClick={() => { window.history.replaceState({}, '', window.location.pathname); onDone(); }}
-            className={btnPrimary + ' w-full mt-4'}
+            className="w-full text-center text-sm text-blue-400 hover:underline"
           >
-            Go to Dashboard
+            ← Back to Sign In
           </button>
         </div>
       </div>

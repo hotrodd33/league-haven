@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { forgotPassword } from '../api/index.js';
+import { forgotPassword, resendConfirmation } from '../api/index.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
@@ -13,10 +13,28 @@ export default function Login({ onResetPassword }) {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMsg, setForgotMsg] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
+
+  const isUnconfirmed = error && error.toLowerCase().includes('confirm your email');
 
   async function handleLogin(e) {
     e.preventDefault();
+    setResendMsg('');
     try { await login(username, password); } catch { /* context sets error */ }
+  }
+
+  async function handleResendConfirmation() {
+    const emailToResend = username.includes('@') ? username : '';
+    if (!emailToResend) {
+      setResendMsg('Please enter your email address in the username field to resend.');
+      return;
+    }
+    try {
+      const result = await resendConfirmation(emailToResend);
+      setResendMsg(result.message || 'Confirmation email resent!');
+    } catch (err) {
+      setResendMsg(err.message);
+    }
   }
 
   async function handleForgotPassword(e) {
@@ -53,7 +71,20 @@ export default function Login({ onResetPassword }) {
                 placeholder="Your password" required autoComplete="current-password"
                 className={inputCls} />
             </div>
-            {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+            {error && (
+              <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">
+                {error}
+                {isUnconfirmed && (
+                  <button type="button" onClick={handleResendConfirmation}
+                    className="block mt-2 text-xs text-blue-400 hover:underline">
+                    Resend confirmation email
+                  </button>
+                )}
+              </div>
+            )}
+            {resendMsg && (
+              <div className="bg-blue-900/30 text-blue-400 text-sm px-3 py-2 rounded-lg">{resendMsg}</div>
+            )}
             <button type="submit" disabled={loading}
               className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm">
               {loading ? 'Signing in…' : 'Sign In'}

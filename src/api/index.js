@@ -793,3 +793,14 @@ export async function registerCoach(data) {
     body: JSON.stringify(data),
   });
 }
+
+export async function confirmEmail(token) {
+  return apiFetch(`/auth/confirm-email?token=${encodeURIComponent(token)}`);
+}
+
+export async function resendConfirmation(email) {
+  return apiFetch('/auth/resend-confirmation', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}

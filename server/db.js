@@ -394,6 +394,12 @@ async function migrate() {
   // Track last login timestamp
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;`);
 
+  // Email confirmation
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_confirmed BOOLEAN NOT NULL DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_confirmation_token TEXT;`);
+  // Back-fill: existing users are considered confirmed
+  await pool.query(`UPDATE users SET email_confirmed = TRUE WHERE email_confirmed = FALSE AND created_at < NOW() - INTERVAL '1 minute';`);
+
 
   // Password reset tokens table
   await pool.query(`

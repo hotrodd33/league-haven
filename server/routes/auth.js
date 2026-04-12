@@ -4,9 +4,18 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const { JWT_SECRET, authMiddleware, getUserPermissions, validatePassword } = require('../auth');
-const { sendWelcomeEmail, sendPasswordResetEmail, sendPasswordChangedEmail, sendCoachInviteEmail } = require('../email');
+const { sendWelcomeEmail, sendPasswordResetEmail, sendPasswordChangedEmail, sendCoachInviteEmail, sendConfirmationEmail } = require('../email');
 
 const router = express.Router();
+
+// Helper: generate email confirmation token, store it, and send the email
+async function generateAndSendConfirmation(userId, email, name, client) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const db = client || pool;
+  await db.query('UPDATE users SET email_confirmation_token = $1 WHERE id = $2', [token, userId]);
+  sendConfirmationEmail(email, name, token).catch(() => {});
+  return token;
+}
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
@@ -25,6 +34,11 @@ router.post('/login', async (req, res) => {
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+
+    // Block unconfirmed users
+    if (!user.email_confirmed) {
+      return res.status(403).json({ error: 'Please confirm your email address before signing in. Check your inbox for a confirmation link.', unconfirmed: true, email: user.email });
+    }
 
     // Record last login timestamp
     await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
@@ -73,21 +87,10 @@ router.post('/register', async (req, res) => {
     );
     const user = rows[0];
 
-    // Send welcome email (non-blocking)
-    sendWelcomeEmail(email, name).catch(() => {});
+    // Send confirmation email
+    await generateAndSendConfirmation(user.id, email, name);
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: false },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    const permissions = { org_ids: [], team_ids: [] };
-    res.status(201).json({
-      token,
-      user: { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: false, email: user.email },
-      permissions,
-    });
+    res.status(201).json({ message: 'Registration successful. Please check your email to confirm your account.' });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -127,21 +130,10 @@ router.post('/register-umpire', async (req, res) => {
       [user.id, org_id || null, name, email, phone || null, date_of_birth || null, is_certified === true, years_of_experience || null]
     );
 
-    // Send welcome email (non-blocking)
-    sendWelcomeEmail(email, name).catch(() => {});
+    // Send confirmation email
+    await generateAndSendConfirmation(user.id, email, name);
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: true },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    const permissions = { org_ids: [], team_ids: [] };
-    res.status(201).json({
-      token,
-      user: { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: true, email: user.email },
-      permissions,
-    });
+    res.status(201).json({ message: 'Registration successful. Please check your email to confirm your account.' });
   } catch (err) {
     console.error('Register umpire error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -343,19 +335,11 @@ router.post('/register-coach', async (req, res) => {
 
     await client.query('COMMIT');
 
-    sendWelcomeEmail(email, name).catch(() => {});
-
-    const token = jwt.sign(
-      { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: false },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-    const permissions = await getUserPermissions(user.id);
+    // Send confirmation email
+    await generateAndSendConfirmation(user.id, email, name);
 
     res.status(201).json({
-      token,
-      user: { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: false, email: user.email },
-      permissions,
+      message: 'Registration successful. Please check your email to confirm your account.',
       team_name: teamName,
       org_name: orgCheck[0].name,
     });
@@ -563,22 +547,11 @@ router.post('/register-director', async (req, res) => {
       sendCoachInviteEmail(c.email, c.name, c.tempPassword, c.teamName).catch(() => {});
     }
 
-    // Send welcome email to director
-    sendWelcomeEmail(director.email, director.name).catch(() => {});
-
-    // ── 7. Generate JWT & return ──
-    const token = jwt.sign(
-      { id: dirUser.id, username: dirUser.username, name: dirUser.name, role: dirUser.role, is_umpire: false },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    const permissions = await getUserPermissions(dirUser.id);
+    // Send confirmation email to director
+    await generateAndSendConfirmation(dirUser.id, director.email, director.name);
 
     res.status(201).json({
-      token,
-      user: { id: dirUser.id, username: dirUser.username, name: dirUser.name, role: dirUser.role, is_umpire: false, email: dirUser.email },
-      permissions,
+      message: 'Registration successful. Please check your email to confirm your account.',
       teams_created: teamIds.length,
       coaches_invited: coachEmails.length,
     });
@@ -591,6 +564,56 @@ router.post('/register-director', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
+  }
+});
+
+// GET /api/auth/confirm-email?token=... — verify email confirmation token
+router.get('/confirm-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Confirmation token is required' });
+
+    const { rows } = await pool.query(
+      'SELECT id, name, email FROM users WHERE email_confirmation_token = $1',
+      [token]
+    );
+    if (!rows.length) return res.status(400).json({ error: 'Invalid or expired confirmation link' });
+
+    const user = rows[0];
+    await pool.query(
+      'UPDATE users SET email_confirmed = TRUE, email_confirmation_token = NULL WHERE id = $1',
+      [user.id]
+    );
+
+    res.json({ message: 'Email confirmed! You can now sign in.', name: user.name });
+  } catch (err) {
+    console.error('Confirm email error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/resend-confirmation — resend confirmation email
+router.post('/resend-confirmation', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const { rows } = await pool.query(
+      'SELECT id, name, email, email_confirmed FROM users WHERE email = $1',
+      [email]
+    );
+    // Always return success to prevent email enumeration
+    if (!rows.length || rows[0].email_confirmed) {
+      return res.json({ message: 'If that email has a pending registration, a new confirmation link has been sent.' });
+    }
+
+    const user = rows[0];
+    await generateAndSendConfirmation(user.id, user.email, user.name);
+
+    res.json({ message: 'If that email has a pending registration, a new confirmation link has been sent.' });
+  } catch (err) {
+    console.error('Resend confirmation error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

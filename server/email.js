@@ -190,11 +190,33 @@ function sendCoachInviteEmail(to, name, tempPassword, teamName) {
   });
 }
 
+function sendConfirmationEmail(to, name, confirmToken) {
+  const confirmUrl = `${APP_URL}?confirm=${confirmToken}`;
+  return sendEmail({
+    to,
+    subject: 'ZVBL — Confirm Your Email',
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+        <h2 style="color:#1e3a5f;">⚾ Welcome to ZVBL, ${esc(name)}!</h2>
+        <p>Thanks for registering! Please confirm your email address to activate your account.</p>
+        <p style="margin:16px 0;">
+          <a href="${confirmUrl}" style="display:inline-block;padding:10px 24px;background:#1e3a5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
+            Confirm Email
+          </a>
+        </p>
+        <p style="font-size:13px;color:#888;">If you didn't create this account, you can ignore this email.</p>
+        <p style="font-size:12px;color:#aaa;word-break:break-all;">Or copy this link: ${confirmUrl}</p>
+      </div>
+    `,
+  });
+}
+
 module.exports = {
   sendEmail,
   sendWelcomeEmail,
   sendInviteEmail,
   sendCoachInviteEmail,
+  sendConfirmationEmail,
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
   sendGameChangeEmail,
