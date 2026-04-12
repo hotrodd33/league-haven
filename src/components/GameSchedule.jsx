@@ -127,25 +127,20 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
     setShowForm(false); setEditing(null); loadGames();
   }
 
-  // Group games by division, then by date within each division
-  const divisions = []; // ordered list of { key, name, dateGroups: { dateKey: [games] }, dateKeys: [...] }
-  const divMap = {};
+  // Group games by date only (newest first)
+  const gamesByDate = {};
   for (const g of games) {
-    const divKey = g.division_id ? String(g.division_id) : '__none__';
-    const divName = g.division_name || null;
-    if (!divMap[divKey]) {
-      divMap[divKey] = { key: divKey, name: divName, dateGroups: {}, dateKeys: [] };
-      divisions.push(divMap[divKey]);
-    }
-    const dg = divMap[divKey];
-    if (!dg.dateGroups[g.game_date]) {
-      dg.dateGroups[g.game_date] = [];
-      dg.dateKeys.push(g.game_date);
-    }
-    dg.dateGroups[g.game_date].push(g);
+    const dateKey = g.game_date || '__unknown__';
+    if (!gamesByDate[dateKey]) gamesByDate[dateKey] = [];
+    gamesByDate[dateKey].push(g);
   }
-  // Sort date keys within each division (newest first)
-  for (const div of divisions) div.dateKeys.sort((a, b) => b.localeCompare(a));
+  const sortedDateKeys = Object.keys(gamesByDate).sort((a, b) => b.localeCompare(a));
+
+  function gameDivisionLevelLabel(game) {
+    if (game.division_name) return game.division_name;
+    const fallback = [game.home_age_group, game.home_level].filter(Boolean).join(' ');
+    return fallback || null;
+  }
 
   // Build team optgroups
   const teamsByOrg = {};
@@ -224,135 +219,132 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
           )}
         </div>
       ) : (
-        <div className="space-y-8">
-          {divisions.map(div => (
-            <div key={div.key}>
-              {/* Division header — only show if there are named divisions */}
-              {(divisions.length > 1 || div.name) && (
-                <h2 className="text-base font-bold text-field-300 mb-3 border-b-2 border-field-700 pb-1">
-                  {div.name || 'Other Games'}
-                </h2>
-              )}
+        <div className="space-y-6">
+          {sortedDateKeys.map(dateKey => (
+            <div key={dateKey}>
+              <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
+                {formatDate(dateKey)}
+              </h3>
 
-              <div className="space-y-6">
-                {div.dateKeys.map(dateKey => (
-                  <div key={dateKey}>
-                    <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
-                      {formatDate(dateKey)}
-                    </h3>
+              {/* Desktop */}
+              <div className="hidden md:block">
+                <div className="space-y-2">
+                  {gamesByDate[dateKey].map(game => {
+                    const divisionLabel = gameDivisionLevelLabel(game);
+                    return (
+                      <div key={game.id} onClick={() => setSelectedGameId(game.id)}
+                        className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                        {/* Time + Division */}
+                        <div className="w-28 text-center shrink-0">
+                          <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
+                          {divisionLabel && <span className="text-[11px] text-gray-400 truncate block">{divisionLabel}</span>}
+                        </div>
 
-                    {/* Desktop */}
-                    <div className="hidden md:block">
-                      <div className="space-y-2">
-                        {div.dateGroups[dateKey].map(game => (
-                          <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                            className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
-                            {/* Time */}
-                            <div className="w-16 text-center shrink-0">
-                              <span className="text-sm font-semibold text-gray-300">{formatTime(game.game_time) || 'TBD'}</span>
-                            </div>
-
-                            {/* Matchup */}
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline">{game.home_team_name}</button>
-                                <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
-                              </div>
-                              <div className="px-2 shrink-0">
-                                {game.status === 'completed' ? (
-                                  <span className="font-bold text-sm">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
-                                ) : (
-                                  <span className="text-xs font-semibold text-gray-400">vs</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
-                                <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline">{game.away_team_name}</button>
-                              </div>
-                            </div>
-
-                            {/* Location + Status */}
-                            <div className="flex items-center gap-3 shrink-0">
-                              {game.location_name && (
-                                <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[180px]">
-                                  📍 {game.location_name}
-                                </span>
-                              )}
-                              {!!game.official_names?.length && (
-                                <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[220px]">
-                                  👤 {game.official_names.join(', ')}
-                                </span>
-                              )}
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
-                                {game.status_label}
-                              </span>
-                              {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                                <button onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
-                                  className="px-2 py-1 text-xs font-semibold bg-yellow-900/35 text-yellow-300 rounded hover:bg-yellow-800/60">⚾ Track</button>
-                              )}
-                              {isAdmin && (
-                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                  <button onClick={() => { setEditing(game); setShowForm(true); }}
-                                    className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
-                                  <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
-                                    className={btnDanger}>{deleting === game.id ? '…' : 'Del'}</button>
-                                </div>
-                              )}
-                            </div>
+                        {/* Matchup */}
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline">{game.home_team_name}</button>
+                            <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                           </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Mobile cards */}
-                    <div className="md:hidden space-y-2">
-                      {div.dateGroups[dateKey].map(game => (
-                        <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                          className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-gray-400">{formatTime(game.game_time) || 'TBD'}</span>
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
-                              {game.status_label}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-field-300 hover:text-field-100 hover:underline text-left">{game.home_team_name}</button>
-                            {game.status === 'completed' && <span className="font-bold text-sm">{game.home_score ?? '—'}</span>}
-                          </div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-field-300 hover:text-field-100 hover:underline text-left">{game.away_team_name}</button>
-                            {game.status === 'completed' && <span className="font-bold text-sm">{game.away_score ?? '—'}</span>}
-                          </div>
-                          {game.location_name && (
-                            <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
-                          )}
-                          {!!game.official_names?.length && (
-                            <div className="text-xs text-gray-400 mb-1">
-                              {game.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {game.official_names.join(', ')}
-                            </div>
-                          )}
-                          {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
-                          <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
-                            {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                              <button onClick={() => setTrackingGameId(game.id)}
-                                className="px-2.5 py-1 text-xs font-semibold bg-yellow-900/35 text-yellow-300 rounded hover:bg-yellow-800/60">⚾ Track</button>
+                          <div className="px-2 shrink-0">
+                            {game.status === 'completed' ? (
+                              <span className="font-bold text-sm">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
+                            ) : (
+                              <span className="text-xs font-semibold text-gray-400">vs</span>
                             )}
-                            {isAdmin && (
-                              <>
-                                <button onClick={() => { setEditing(game); setShowForm(true); }}
-                                  className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
-                                <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
-                                  className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
-                              </>
-                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline">{game.away_team_name}</button>
                           </div>
                         </div>
-                      ))}
+
+                        {/* Location + Status */}
+                        <div className="flex items-center gap-3 shrink-0">
+                          {game.location_name && (
+                            <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[180px]">
+                              📍 {game.location_name}
+                            </span>
+                          )}
+                          {!!game.official_names?.length && (
+                            <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[220px]">
+                              👤 {game.official_names.join(', ')}
+                            </span>
+                          )}
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
+                            {game.status_label}
+                          </span>
+                          {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
+                            <button onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
+                              className="px-2 py-1 text-xs font-semibold bg-yellow-900/35 text-yellow-300 rounded hover:bg-yellow-800/60">⚾ Track</button>
+                          )}
+                          {isAdmin && (
+                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => { setEditing(game); setShowForm(true); }}
+                                className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
+                              <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
+                                className={btnDanger}>{deleting === game.id ? '…' : 'Del'}</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2">
+                {gamesByDate[dateKey].map(game => {
+                  const divisionLabel = gameDivisionLevelLabel(game);
+                  return (
+                    <div key={game.id} onClick={() => setSelectedGameId(game.id)}
+                      className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <span className="text-xs font-semibold text-gray-400 block">{formatTime(game.game_time) || 'TBD'}</span>
+                          {divisionLabel && <span className="text-[11px] text-gray-500 block">{divisionLabel}</span>}
+                        </div>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
+                          {game.status_label}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
+                        <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-field-300 hover:text-field-100 hover:underline text-left">{game.home_team_name}</button>
+                        {game.status === 'completed' && <span className="font-bold text-sm">{game.home_score ?? '—'}</span>}
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
+                        <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-field-300 hover:text-field-100 hover:underline text-left">{game.away_team_name}</button>
+                        {game.status === 'completed' && <span className="font-bold text-sm">{game.away_score ?? '—'}</span>}
+                      </div>
+                      {game.location_name && (
+                        <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
+                      )}
+                      {!!game.official_names?.length && (
+                        <div className="text-xs text-gray-400 mb-1">
+                          {game.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {game.official_names.join(', ')}
+                        </div>
+                      )}
+                      {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
+                      <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
+                        {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
+                          <button onClick={() => setTrackingGameId(game.id)}
+                            className="px-2.5 py-1 text-xs font-semibold bg-yellow-900/35 text-yellow-300 rounded hover:bg-yellow-800/60">⚾ Track</button>
+                        )}
+                        {isAdmin && (
+                          <>
+                            <button onClick={() => { setEditing(game); setShowForm(true); }}
+                              className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
+                            <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
+                              className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
