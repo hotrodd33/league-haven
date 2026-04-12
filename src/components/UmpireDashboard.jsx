@@ -13,10 +13,9 @@ const badgeYellow = `inline-block px-2 py-0.5 ${DARK_BADGES.warning} text-xs rou
 function formatDate(dateStr) {
   if (!dateStr) return 'TBD';
   const raw = String(dateStr);
-  const normalized = raw.includes('T') ? raw : `${raw}T00:00:00`;
-  const d = new Date(normalized);
+  const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return 'TBD';
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
 function formatTime(timeStr) {
@@ -42,7 +41,7 @@ function calculateAge(dateOfBirth) {
 
 export default function UmpireDashboard({ onBack }) {
   const [profile, setProfile] = useState(null);
-  const [activeTab, setActiveTab] = useState('assigned'); // 'assigned' | 'interested' | 'available'
+  const [activeTab, setActiveTab] = useState('completed'); // 'completed' | 'assigned' | 'interested' | 'available'
   const [assignedGames, setAssignedGames] = useState([]);
   const [interestedGames, setInterestedGames] = useState([]);
   const [availableGames, setAvailableGames] = useState([]);
@@ -215,20 +214,30 @@ export default function UmpireDashboard({ onBack }) {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-4 border-b border-gray-700">
+      <div className="flex gap-2 mb-4 border-b border-gray-700 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('completed')}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === 'completed'
+              ? 'border-blue-500 text-blue-300'
+              : 'border-transparent text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          Completed ({assignedGames.filter(g => g.status === 'completed').length})
+        </button>
         <button
           onClick={() => setActiveTab('assigned')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'assigned'
               ? 'border-blue-500 text-blue-300'
               : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
-          My Games ({assignedGames.length})
+          Assigned ({assignedGames.filter(g => g.status !== 'completed').length})
         </button>
         <button
           onClick={() => setActiveTab('interested')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'interested'
               ? 'border-blue-500 text-blue-300'
               : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -238,23 +247,36 @@ export default function UmpireDashboard({ onBack }) {
         </button>
         <button
           onClick={() => setActiveTab('available')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'available'
               ? 'border-blue-500 text-blue-300'
               : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
-          Browse Games
+          Available
         </button>
       </div>
 
-      {/* My Assigned Games */}
+      {/* Completed Games */}
+      {activeTab === 'completed' && (
+        <div className="space-y-3">
+          {assignedGames.filter(g => g.status === 'completed').length === 0 ? (
+            <p className="text-gray-400 text-sm py-6 text-center">No completed games yet.</p>
+          ) : (
+            assignedGames.filter(g => g.status === 'completed').map(game => (
+              <GameCard key={game.id} game={game} />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Assigned Games (not completed) */}
       {activeTab === 'assigned' && (
         <div className="space-y-3">
-          {assignedGames.length === 0 ? (
-            <p className="text-gray-400 text-sm py-6 text-center">No games assigned yet. Check back soon!</p>
+          {assignedGames.filter(g => g.status !== 'completed').length === 0 ? (
+            <p className="text-gray-400 text-sm py-6 text-center">No upcoming assigned games. Check back soon!</p>
           ) : (
-            assignedGames.map(game => (
+            assignedGames.filter(g => g.status !== 'completed').map(game => (
               <GameCard key={game.id} game={game} />
             ))
           )}
