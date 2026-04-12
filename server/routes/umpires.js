@@ -127,7 +127,7 @@ router.get('/game-interests', authMiddleware, async (req, res) => {
          fl.name AS location_name,
          ugi.interested_at,
          COUNT(DISTINCT goa.official_id) AS assigned_count,
-         MAX(CASE WHEN goa.official_id IS NOT NULL THEN true ELSE false END) AS is_assigned
+         COUNT(DISTINCT goa.official_id) > 0 AS is_assigned
        FROM umpire_game_interests ugi
        JOIN games g ON g.id = ugi.game_id
        JOIN teams ht ON ht.id = g.home_team_id
