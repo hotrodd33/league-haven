@@ -121,7 +121,7 @@ export default function UmpireDashboard({ onBack }) {
     }
   }
 
-  function GameCard({ game, showButton, buttonLabel, onButtonClick, isProcessing }) {
+  function GameCard({ game, showButton, buttonLabel, onButtonClick, isProcessing, infoBadge }) {
     return (
       <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-blue-500/50 transition-colors">
         <div className="flex items-start justify-between gap-4">
@@ -152,6 +152,14 @@ export default function UmpireDashboard({ onBack }) {
                 </span>
               )}
             </div>
+
+            {infoBadge && (
+              <div className="mt-2">
+                <span className="inline-block px-2 py-0.5 bg-blue-900/40 text-blue-300 text-xs rounded-full font-semibold">
+                  {infoBadge}
+                </span>
+              </div>
+            )}
           </div>
 
           {showButton && (
@@ -297,6 +305,7 @@ export default function UmpireDashboard({ onBack }) {
                 buttonLabel="Remove Interest"
                 onButtonClick={() => handleRemoveInterest(game.id)}
                 isProcessing={managingInterest}
+                infoBadge={game.is_assigned && game.assigned_official_names ? `Game assigned to: ${game.assigned_official_names}` : null}
               />
             ))
           )}

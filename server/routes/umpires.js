@@ -114,6 +114,7 @@ router.get('/available-games', authMiddleware, async (req, res) => {
        LEFT JOIN umpire_game_interests ugi ON ugi.game_id = g.id AND ugi.user_id = $1
        ${whereClause}
        GROUP BY g.id, g.season_id, g.game_date, g.game_time, g.status, g.home_team_id, g.away_team_id, g.location_id, ht.id, ht.name, ht.age_group, ht.level, ht.division, at.id, at.name, at.age_group, at.level, at.division, fl.id, fl.name, ugi.id
+       HAVING COUNT(DISTINCT goa.official_id) = 0
        ORDER BY g.game_date DESC, g.game_time ASC`,
       params
     );
@@ -141,13 +142,15 @@ router.get('/game-interests', authMiddleware, async (req, res) => {
          fl.name AS location_name,
          ugi.interested_at,
          COUNT(DISTINCT goa.official_id) AS assigned_count,
-         COUNT(DISTINCT goa.official_id) > 0 AS is_assigned
+         COUNT(DISTINCT goa.official_id) > 0 AS is_assigned,
+         STRING_AGG(DISTINCT off_assigned.name, ', ') AS assigned_official_names
        FROM umpire_game_interests ugi
        JOIN games g ON g.id = ugi.game_id
        JOIN teams ht ON ht.id = g.home_team_id
        JOIN teams at ON at.id = g.away_team_id
        LEFT JOIN field_locations fl ON fl.id = g.location_id
        LEFT JOIN game_official_assignments goa ON goa.game_id = g.id
+       LEFT JOIN officials off_assigned ON off_assigned.id = goa.official_id
        WHERE ugi.user_id = $1
        GROUP BY g.id, g.season_id, g.game_date, g.game_time, g.status, g.home_team_id, g.away_team_id, g.location_id, ht.id, ht.name, ht.age_group, ht.level, ht.division, at.id, at.name, at.age_group, at.level, at.division, fl.id, fl.name, ugi.id, ugi.interested_at
        ORDER BY g.game_date DESC, g.game_time ASC`,
