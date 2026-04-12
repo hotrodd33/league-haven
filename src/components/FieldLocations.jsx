@@ -287,6 +287,20 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
     }));
   }
 
+  // Auto-use device location for new fields
+  useEffect(() => {
+    if (isEditing || !navigator.geolocation) return;
+    setLocatingByDevice(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoordinates(position.coords.latitude, position.coords.longitude);
+        setLocatingByDevice(false);
+      },
+      () => { setLocatingByDevice(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleChange(e) { setForm((prev) => ({ ...prev, [e.target.name]: e.target.value })); }
 
   async function handleLocateByAddress() {
