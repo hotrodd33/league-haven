@@ -7,7 +7,7 @@ import {
 const btnPrimary = "px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 transition-colors disabled:opacity-60";
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 transition-colors disabled:opacity-60";
 const badgeGreen = "inline-block px-2 py-0.5 bg-green-900/40 text-green-300 text-xs rounded-full font-semibold";
-const badgeYellow = "inline-block px-2 py-0.5 bg-yellow-900/35 text-yellow-300 text-xs rounded-full font-semibold";
+const badgeYellow = "inline-block px-2 py-0.5 bg-amber-500/20 text-amber-200 text-xs rounded-full font-semibold";
 
 function formatDate(dateStr) {
   if (!dateStr) return 'TBD';

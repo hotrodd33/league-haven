@@ -15,7 +15,7 @@ function formatDayOfWeek(dateStr) {
 
 const STATUS_BADGE = {
   available: 'bg-green-900/35 text-green-300',
-  resting: 'bg-yellow-900/35 text-yellow-300',
+  resting: 'bg-amber-500/20 text-amber-200',
   unavailable: 'bg-red-900/35 text-red-300',
 };
 

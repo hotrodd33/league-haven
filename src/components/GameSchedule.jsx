@@ -26,7 +26,7 @@ const STATUS_OPTIONS = [
 
 const STATUS_COLORS = {
   scheduled: 'bg-blue-900/40 text-blue-200',
-  in_progress: 'bg-yellow-900/35 text-yellow-300',
+  in_progress: 'bg-amber-500/20 text-amber-200',
   completed: 'bg-green-900/35 text-green-300',
   cancelled: 'bg-red-900/35 text-red-300',
   postponed: 'bg-gray-700 text-gray-300',
@@ -75,7 +75,7 @@ function UmpireStatusList({ officials, interestedUmpires }) {
         <span key={i} className={`text-xs px-1.5 py-0.5 rounded font-medium ${
           item.status === 'assigned'
             ? 'bg-green-900/50 text-green-300'
-            : 'bg-yellow-900/40 text-yellow-300'
+            : 'bg-amber-500/20 text-amber-200'
         }`}>
           {item.name}
         </span>
@@ -361,7 +361,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                           </span>
                           {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                             <button onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
-                              className="px-2 py-1 text-xs font-semibold bg-yellow-900/35 text-yellow-300 rounded hover:bg-yellow-800/60">⚾ Track</button>
+                              className="px-2 py-1 text-xs font-semibold bg-amber-500/20 text-amber-200 rounded hover:bg-amber-500/30">⚾ Track</button>
                           )}
                           {canEditThisGame && (
                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -433,7 +433,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                       <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
                         {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                           <button onClick={() => setTrackingGameId(game.id)}
-                            className="px-2.5 py-1 text-xs font-semibold bg-yellow-900/35 text-yellow-300 rounded hover:bg-yellow-800/60">⚾ Track</button>
+                            className="px-2.5 py-1 text-xs font-semibold bg-amber-500/20 text-amber-200 rounded hover:bg-amber-500/30">⚾ Track</button>
                         )}
                         {canEditThisGame && (
                           <>
@@ -791,9 +791,9 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                     const rowCls = checked
                       ? 'border border-green-500/40 bg-green-900/20'
                       : interested
-                        ? 'border border-yellow-500/40 bg-yellow-900/15'
+                        ? 'border border-amber-400/50 bg-amber-500/10'
                         : 'border border-red-500/20 bg-red-900/10';
-                    const dotCls = checked ? 'bg-green-400' : interested ? 'bg-yellow-400' : 'bg-red-500';
+                    const dotCls = checked ? 'bg-green-400' : interested ? 'bg-amber-300' : 'bg-red-500';
                     return (
                       <label key={official.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${rowCls}`}>
                         <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
@@ -809,7 +809,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               )}
               <div className="flex gap-4 mt-1.5 text-xs text-gray-400">
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Assigned</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" /> Interested</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-300 inline-block" /> Interested</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> No status</span>
               </div>
             </div>
