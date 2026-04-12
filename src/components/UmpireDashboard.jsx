@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchAssignedGames, fetchAvailableGames, fetchGameInterests,
-  expressGameInterest, removeGameInterest, fetchSeasons,
+  expressGameInterest, removeGameInterest, fetchSeasons, fetchUmpireProfile,
 } from '../api/index.js';
 
 const btnPrimary = "px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 transition-colors disabled:opacity-60";
@@ -23,7 +23,20 @@ function formatTime(timeStr) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+function calculateAge(dateOfBirth) {
+  if (!dateOfBirth) return null;
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth + 'T00:00:00');
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age : null;
+}
+
 export default function UmpireDashboard({ onBack }) {
+  const [profile, setProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('assigned'); // 'assigned' | 'interested' | 'available'
   const [assignedGames, setAssignedGames] = useState([]);
   const [interestedGames, setInterestedGames] = useState([]);
@@ -38,11 +51,13 @@ export default function UmpireDashboard({ onBack }) {
     setLoading(true);
     setError(null);
     try {
-      const [assignedData, interestedData, seasonsData] = await Promise.all([
+      const [profileData, assignedData, interestedData, seasonsData] = await Promise.all([
+        fetchUmpireProfile(),
         fetchAssignedGames(),
         fetchGameInterests(),
         fetchSeasons(),
       ]);
+      setProfile(profileData);
       setAssignedGames(assignedData);
       setInterestedGames(interestedData);
       setSeasons(seasonsData);
@@ -158,6 +173,41 @@ export default function UmpireDashboard({ onBack }) {
         <h2 className="text-lg font-bold">Umpire Dashboard</h2>
         {onBack && <button onClick={onBack} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">← Back</button>}
       </div>
+
+      {/* Profile Card */}
+      {profile && (
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+          <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-3">Your Profile</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Name</p>
+              <p className="text-sm text-gray-200">{profile.name}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Email</p>
+              <p className="text-sm text-gray-200">{profile.email}</p>
+            </div>
+            {profile.date_of_birth && (
+              <div>
+                <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Age</p>
+                <p className="text-sm text-gray-200">{calculateAge(profile.date_of_birth)} years old</p>
+              </div>
+            )}
+            {profile.years_of_experience !== null ? (
+              <div>
+                <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Experience</p>
+                <p className="text-sm text-gray-200">{profile.years_of_experience} year{profile.years_of_experience !== 1 ? 's' : ''}</p>
+              </div>
+            ) : null}
+            <div>
+              <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Certification</p>
+              <span className={profile.is_certified ? "text-sm text-green-300 font-semibold" : "text-sm text-gray-400"}>
+                {profile.is_certified ? '✓ Certified' : 'Not certified'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 mb-4 border-b border-gray-700">
