@@ -17,7 +17,7 @@ const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold 
 const btnDanger = "px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
-const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-[#00AEEF] px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-white';
+const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-black px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-[#00f092]';
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';

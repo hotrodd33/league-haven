@@ -26,7 +26,7 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
-const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-[#00AEEF] px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-white';
+const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-black px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-[#00f092]';
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
