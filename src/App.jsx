@@ -21,7 +21,7 @@ import AppShell from "./components/ui/AppShell.jsx";
 import GameChangerImportWizard from "./components/import/GameChangerImportWizard.jsx";
 
 export default function App() {
-    const { isAuthenticated, isAdmin, isUmpire, user, logout } = useAuth();
+    const { isAuthenticated, isAdmin, isAccountant, isUmpire, user, logout } = useAuth();
     const [selectedTeam, setSelectedTeam] = useState(null);
     const [selectedTeamOrgId, setSelectedTeamOrgId] = useState(null);
     const [showForm, setShowForm] = useState(false);
@@ -164,6 +164,7 @@ export default function App() {
                 page={page}
                 onNavigate={setPage}
                 isAdmin={isAdmin}
+                isAccountant={isAccountant}
                 user={user}
                 branding={branding}
                 onChangePassword={() => setShowChangePassword(true)}

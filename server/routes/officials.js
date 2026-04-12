@@ -100,7 +100,7 @@ router.get('/', authMiddleware, async (req, res) => {
       clauses.push(`(o.name ILIKE $${params.length} OR COALESCE(o.email, '') ILIKE $${params.length})`);
     }
 
-    if (req.user.role !== 'super_admin') {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'accountant') {
       const perms = await getUserPermissions(req.user.id);
       const orgIds = perms.org_ids || [];
       if (orgIds.length) {
@@ -349,7 +349,7 @@ router.get('/:id/detail', authMiddleware, async (req, res) => {
     const official = rows[0];
 
     // Permission check: super admin, or can edit the official's org
-    if (req.user.role !== 'super_admin') {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'accountant') {
       if (official.org_id) {
         if (!(await canEditOrg(req.user, official.org_id))) {
           // Also allow coaches (team-level permissions) if they're in the same org
@@ -382,7 +382,7 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
     if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
     const official = offRows[0];
 
-    if (req.user.role !== 'super_admin') {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'accountant') {
       if (official.org_id) {
         if (!(await canEditOrg(req.user, official.org_id))) {
           const perms = await getUserPermissions(req.user.id);
@@ -489,7 +489,7 @@ router.put('/:id/games/:gameId/payment', authMiddleware, async (req, res) => {
     if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
     const official = offRows[0];
 
-    if (req.user.role !== 'super_admin') {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'accountant') {
       if (official.org_id) {
         if (!(await canEditOrg(req.user, official.org_id))) return res.status(403).json({ error: 'No permission' });
       } else {
@@ -645,7 +645,7 @@ router.post('/:id/games/:gameId/assign', authMiddleware, async (req, res) => {
     const { rows: offRows } = await pool.query('SELECT id, org_id FROM officials WHERE id = $1', [id]);
     if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
 
-    if (req.user.role !== 'super_admin') {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'accountant') {
       if (offRows[0].org_id) {
         if (!(await canEditOrg(req.user, offRows[0].org_id))) return res.status(403).json({ error: 'No permission' });
       } else {
@@ -672,7 +672,7 @@ router.delete('/:id/games/:gameId/assign', authMiddleware, async (req, res) => {
     const { rows: offRows } = await pool.query('SELECT id, org_id, user_id FROM officials WHERE id = $1', [id]);
     if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
 
-    if (req.user.role !== 'super_admin') {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'accountant') {
       if (offRows[0].org_id) {
         if (!(await canEditOrg(req.user, offRows[0].org_id))) return res.status(403).json({ error: 'No permission' });
       } else {

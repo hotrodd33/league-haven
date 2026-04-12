@@ -20,6 +20,7 @@ function formatLogin(ts) {
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin',
+  accountant: 'Accountant',
   org_admin: 'Org Admin',
   team_manager: 'Team Manager',
   score_reporter: 'Score Reporter',
@@ -28,6 +29,7 @@ const ROLE_LABELS = {
 
 const ROLE_COLORS = {
   super_admin: 'bg-purple-900/35 text-purple-200',
+  accountant: 'bg-amber-900/35 text-amber-200',
   org_admin: 'bg-blue-900/40 text-blue-200',
   team_manager: 'bg-green-900/35 text-green-300',
   score_reporter: 'bg-gray-800 text-gray-300',
@@ -295,6 +297,7 @@ function UserForm({ user, onDone, onCancel }) {
                 <option value="score_reporter">Score Reporter</option>
                 <option value="team_manager">Team Manager</option>
                 <option value="org_admin">Org Admin</option>
+                <option value="accountant">Accountant</option>
                 <option value="super_admin">Super Admin</option>
               </select>
             </div>

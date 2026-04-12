@@ -17,6 +17,7 @@ export default function AppShell({
   page,
   onNavigate,
   isAdmin,
+  isAccountant,
   user,
   branding,
   onChangePassword,
@@ -47,6 +48,7 @@ export default function AppShell({
         page={page}
         onNavigate={onNavigate}
         isAdmin={isAdmin}
+        isAccountant={isAccountant}
         branding={branding}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}

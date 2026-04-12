@@ -4,7 +4,7 @@ const { pool } = require('./db');
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
 
 // Valid roles ordered by privilege level
-const ROLES = ['score_reporter', 'team_manager', 'org_admin', 'super_admin'];
+const ROLES = ['score_reporter', 'team_manager', 'org_admin', 'accountant', 'super_admin'];
 
 function authMiddleware(req, res, next) {
   const header = req.headers.authorization;
@@ -52,6 +52,7 @@ async function getUserPermissions(userId) {
 async function canEditOrg(user, orgId) {
   if (user.role === 'super_admin') return true;
   if (user.role === 'score_reporter') return false;
+  if (user.role === 'accountant') return true; // accountants can view all orgs for payment management
   const perms = await getUserPermissions(user.id);
   return perms.org_ids.includes(Number(orgId));
 }

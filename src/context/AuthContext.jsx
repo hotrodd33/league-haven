@@ -88,6 +88,7 @@ export function AuthProvider({ children }) {
   const role = auth?.user?.role;
   const isSuperAdmin = role === 'super_admin';
   const isOrgAdmin = role === 'org_admin';
+  const isAccountant = role === 'accountant';
   const isAdmin = isSuperAdmin; // backward compat
   const isUmpire = role === 'umpire' || auth?.user?.is_umpire === true;
   const permissions = auth?.permissions || { org_ids: [], team_ids: [] };
@@ -95,8 +96,9 @@ export function AuthProvider({ children }) {
   const canEditOrg = useCallback((orgId) => {
     if (isSuperAdmin) return true;
     if (role === 'score_reporter') return false;
+    if (isAccountant) return true;
     return permissions.org_ids.includes(Number(orgId));
-  }, [isSuperAdmin, role, permissions.org_ids]);
+  }, [isSuperAdmin, isAccountant, role, permissions.org_ids]);
 
   const canEditTeam = useCallback((teamId, orgId) => {
     if (isSuperAdmin) return true;
@@ -122,6 +124,7 @@ export function AuthProvider({ children }) {
     isAdmin,
     isSuperAdmin,
     isOrgAdmin,
+    isAccountant,
     isUmpire,
     role,
     permissions,
