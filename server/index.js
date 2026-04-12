@@ -59,16 +59,6 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/officials', officialsRoutes);
 app.use('/api/umpires', umpireRoutes);
 
-// ── Serve markdown docs ──
-app.get('/api/docs/:name', (req, res) => {
-  const allowed = { readme: 'README.md', guide: 'USER_GUIDE.md' };
-  const file = allowed[req.params.name];
-  if (!file) return res.status(404).json({ error: 'Not found' });
-  const filePath = path.join(__dirname, '..', file);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
-  res.type('text/plain').send(fs.readFileSync(filePath, 'utf-8'));
-});
-
 // ── Serve React build in local dev only (Vercel serves static files itself) ──
 if (!process.env.VERCEL) {
   const distPath = path.join(__dirname, '..', 'dist');

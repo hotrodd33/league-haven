@@ -1,47 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { marked } from 'marked';
-
-const API = import.meta.env.VITE_API_URL || '';
+import readmeRaw from '../../README.md?raw';
+import guideRaw from '../../USER_GUIDE.md?raw';
 
 // Configure marked for safe rendering
 marked.setOptions({ breaks: true, gfm: true });
 
 const TABS = [
-  { key: 'about', label: 'About', endpoint: 'readme' },
-  { key: 'guide', label: 'User Guide', endpoint: 'guide' },
+  { key: 'about', label: 'About' },
+  { key: 'guide', label: 'User Guide' },
 ];
+
+const DOCS = {
+  about: readmeRaw,
+  guide: guideRaw,
+};
 
 export default function HelpPage({ onBack, initialTab = 'about' }) {
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [content, setContent] = useState({});
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const tab = TABS.find(t => t.key === activeTab);
-    if (!tab || content[activeTab]) return;
-
-    setLoading(true);
-    const token = (() => {
-      try {
-        const stored = localStorage.getItem('zvbl_auth');
-        return stored ? JSON.parse(stored).token : null;
-      } catch { return null; }
-    })();
-
-    fetch(`${API}/api/docs/${tab.endpoint}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then(r => r.ok ? r.text() : Promise.reject(new Error('Failed to load')))
-      .then(md => {
-        setContent(prev => ({ ...prev, [activeTab]: md }));
-      })
-      .catch(() => {
-        setContent(prev => ({ ...prev, [activeTab]: '# Unable to load content\n\nPlease try again later.' }));
-      })
-      .finally(() => setLoading(false));
-  }, [activeTab, content]);
-
-  const rendered = content[activeTab] ? marked.parse(content[activeTab]) : '';
+  const rendered = marked.parse(DOCS[activeTab] || '');
 
   return (
     <div>
@@ -71,9 +49,6 @@ export default function HelpPage({ onBack, initialTab = 'about' }) {
 
         {/* Content */}
         <div className="p-5 sm:p-8">
-          {loading ? (
-            <div className="py-12 text-center text-gray-400 animate-pulse">Loading…</div>
-          ) : (
             <article
               className="prose prose-invert prose-sm max-w-none
                 prose-headings:font-heading prose-headings:tracking-wide
@@ -92,7 +67,6 @@ export default function HelpPage({ onBack, initialTab = 'about' }) {
                 prose-hr:border-gray-700"
               dangerouslySetInnerHTML={{ __html: rendered }}
             />
-          )}
         </div>
       </div>
     </div>
