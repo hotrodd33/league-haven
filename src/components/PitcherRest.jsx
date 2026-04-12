@@ -39,7 +39,7 @@ export default function PitcherRest({ teamId }) {
 
   if (!teamId) return null;
   if (loading) return <div className="mt-6 text-sm text-gray-400 text-center py-4">Loading pitcher data…</div>;
-  if (error) return <div className="mt-6 text-sm text-red-600 text-center py-4">{error}</div>;
+  if (error) return <div className="mt-6 text-sm text-red-400 text-center py-4">{error}</div>;
   if (!data) return null;
 
   const { players, daily_limit, rules, today, season, age_category } = data;

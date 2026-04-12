@@ -108,7 +108,7 @@ export default function OfficialsManager({ onBack }) {
                     {[official.email, official.phone, official.venmo_id ? `Venmo: ${official.venmo_id}` : null].filter(Boolean).join(' • ') || 'No contact details'}
                   </div>
                   {(official.address || official.city || official.state || official.zip) && (
-                    <div className="text-xs text-gray-500 mt-1">{[official.address, official.city, official.state, official.zip].filter(Boolean).join(', ')}</div>
+                    <div className="text-xs text-gray-400 mt-1">{[official.address, official.city, official.state, official.zip].filter(Boolean).join(', ')}</div>
                   )}
                   {official.notes && <div className="text-sm text-gray-300 mt-1">{official.notes}</div>}
                 </div>
@@ -309,7 +309,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">Only umpire-role accounts are shown. Link this profile to a user so they see assigned games on their dashboard.</p>
+              <p className="text-xs text-gray-400 mt-1">Only umpire-role accounts are shown. Link this profile to a user so they see assigned games on their dashboard.</p>
             </div>
           )}
 

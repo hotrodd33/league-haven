@@ -143,7 +143,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
             else if (teamScore < oppScore) result = 'L';
             else result = 'T';
           }
-          const resultColor = result === 'W' ? 'text-green-400' : result === 'L' ? 'text-red-600' : result === 'T' ? 'text-gray-400' : '';
+          const resultColor = result === 'W' ? 'text-green-400' : result === 'L' ? 'text-red-400' : result === 'T' ? 'text-gray-400' : '';
           const isUnplayed = game.status !== 'completed';
           const cardTone = isUnplayed
             ? 'bg-slate-800/85 border-slate-600/80'

@@ -134,7 +134,7 @@ export default function UmpireDashboard({ onBack }) {
             
             <div className="flex items-center gap-2 justify-between mb-2">
               <span className="font-semibold text-sm text-blue-300 truncate">{game.home_team_name}</span>
-              <span className="text-xs text-gray-500">vs</span>
+              <span className="text-xs text-gray-400">vs</span>
               <span className="font-semibold text-sm text-blue-300 truncate">{game.away_team_name}</span>
             </div>
             

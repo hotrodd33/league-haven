@@ -125,26 +125,26 @@ export default function OfficialDetail({ officialId, onBack }) {
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-sm text-gray-300">
-              {official.email && <div><span className="text-gray-500">Email:</span> {official.email}</div>}
-              {official.phone && <div><span className="text-gray-500">Phone:</span> {official.phone}</div>}
-              {official.venmo_id && <div><span className="text-gray-500">Venmo:</span> {official.venmo_id}</div>}
-              {official.years_of_experience != null && <div><span className="text-gray-500">Experience:</span> {official.years_of_experience} yr{official.years_of_experience !== 1 ? 's' : ''}</div>}
+              {official.email && <div><span className="text-gray-400">Email:</span> {official.email}</div>}
+              {official.phone && <div><span className="text-gray-400">Phone:</span> {official.phone}</div>}
+              {official.venmo_id && <div><span className="text-gray-400">Venmo:</span> {official.venmo_id}</div>}
+              {official.years_of_experience != null && <div><span className="text-gray-400">Experience:</span> {official.years_of_experience} yr{official.years_of_experience !== 1 ? 's' : ''}</div>}
               {(official.address || official.city || official.state || official.zip) && (
-                <div className="sm:col-span-2"><span className="text-gray-500">Address:</span> {[official.address, official.city, official.state, official.zip].filter(Boolean).join(', ')}</div>
+                <div className="sm:col-span-2"><span className="text-gray-400">Address:</span> {[official.address, official.city, official.state, official.zip].filter(Boolean).join(', ')}</div>
               )}
               {official.linked_username && (
-                <div><span className="text-gray-500">User:</span> @{official.linked_username}</div>
+                <div><span className="text-gray-400">User:</span> @{official.linked_username}</div>
               )}
               {official.date_of_birth && (
-                <div><span className="text-gray-500">DOB:</span> {formatDate(official.date_of_birth)}</div>
+                <div><span className="text-gray-400">DOB:</span> {formatDate(official.date_of_birth)}</div>
               )}
             </div>
             {official.notes && <div className="text-sm text-gray-400 italic mt-2">{official.notes}</div>}
           </div>
           <div className="shrink-0 text-right">
-            <div className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Default Rate</div>
+            <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Default Rate</div>
             <div className="text-2xl font-bold text-green-400">{formatMoney(official.rate_per_game)}</div>
-            <div className="text-xs text-gray-500">per game</div>
+            <div className="text-xs text-gray-400">per game</div>
           </div>
         </div>
       </div>
@@ -152,18 +152,18 @@ export default function OfficialDetail({ officialId, onBack }) {
       {/* Financial summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
-          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Earnings</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Earnings</div>
           <div className="text-2xl font-bold text-gray-100">{formatMoney(summary.total_earnings)}</div>
-          <div className="text-xs text-gray-500 mt-0.5">{summary.completed_games} finalized game{summary.completed_games !== 1 ? 's' : ''}</div>
+          <div className="text-xs text-gray-400 mt-0.5">{summary.completed_games} finalized game{summary.completed_games !== 1 ? 's' : ''}</div>
         </div>
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
-          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Payments</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Payments</div>
           <div className="text-2xl font-bold text-green-400">{formatMoney(summary.total_payments)}</div>
         </div>
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
-          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Due</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Due</div>
           <div className={`text-2xl font-bold ${summary.total_due > 0 ? 'text-amber-400' : 'text-gray-400'}`}>{formatMoney(summary.total_due)}</div>
-          <div className="text-xs text-gray-500 mt-0.5">finalized & unpaid</div>
+          <div className="text-xs text-gray-400 mt-0.5">finalized & unpaid</div>
         </div>
       </div>
 
@@ -173,7 +173,7 @@ export default function OfficialDetail({ officialId, onBack }) {
           Assigned Games ({games.length})
         </h2>
         {games.length === 0 ? (
-          <div className="py-8 text-center text-gray-500">No games assigned to this official.</div>
+          <div className="py-8 text-center text-gray-400">No games assigned to this official.</div>
         ) : (
           <div className="space-y-2">
             {games.map((game) => (
@@ -238,7 +238,7 @@ function GameRow({ game, canEdit, updating, onTogglePaid, onFeeChange, defaultRa
         {/* Fee */}
         <div className="shrink-0 flex items-center gap-3">
           <div className="text-right">
-            <div className="text-xs text-gray-500 uppercase tracking-wide">Fee</div>
+            <div className="text-xs text-gray-400 uppercase tracking-wide">Fee</div>
             {editingFee && canEdit ? (
               <form onSubmit={handleFeeSubmit} className="flex items-center gap-1">
                 <span className="text-gray-400 text-sm">$</span>
@@ -270,7 +270,7 @@ function GameRow({ game, canEdit, updating, onTogglePaid, onFeeChange, defaultRa
 
           {/* Paid checkbox */}
           <div className="flex flex-col items-center">
-            <div className="text-xs text-gray-500 uppercase tracking-wide">Paid</div>
+            <div className="text-xs text-gray-400 uppercase tracking-wide">Paid</div>
             <label className="relative inline-flex items-center cursor-pointer mt-0.5">
               <input
                 type="checkbox"
@@ -281,7 +281,7 @@ function GameRow({ game, canEdit, updating, onTogglePaid, onFeeChange, defaultRa
               />
             </label>
             {game.is_paid && game.paid_at && (
-              <div className="text-[9px] text-gray-500 mt-0.5">
+              <div className="text-[9px] text-gray-400 mt-0.5">
                 {new Date(game.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </div>
             )}

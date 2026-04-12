@@ -192,7 +192,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading game…</div>;
-  if (!game) return <div className="py-8 text-center text-red-600">Game not found</div>;
+  if (!game) return <div className="py-8 text-center text-red-400">Game not found</div>;
 
   if (showTracker) {
     return <PitchTracker gameId={gameId} onBack={() => { setShowTracker(false); loadAll(); }} />;

@@ -179,7 +179,7 @@ function OrgListCard({ org, orgStats, canEdit, deleting, isAdmin, onOpen, onEdit
         </div>
         <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
           <div className="text-gray-400 uppercase tracking-wide font-semibold">Missing</div>
-          <div className={`font-bold text-sm mt-0.5 ${missingScores > 0 ? 'text-red-400' : 'text-gray-500'}`}>{missingScores}</div>
+          <div className={`font-bold text-sm mt-0.5 ${missingScores > 0 ? 'text-red-400' : 'text-gray-400'}`}>{missingScores}</div>
         </div>
       </div>
 

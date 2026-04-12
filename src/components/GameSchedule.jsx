@@ -433,7 +433,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                       <div className="flex items-center justify-between mb-2">
                         <div>
                           <span className="text-xs font-semibold text-gray-400 block">{formatTime(game.game_time) || 'TBD'}</span>
-                          {divisionLabel && <span className="text-[11px] text-gray-500 block">{divisionLabel}</span>}
+                          {divisionLabel && <span className="text-[11px] text-gray-400 block">{divisionLabel}</span>}
                         </div>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                           {game.status_label}

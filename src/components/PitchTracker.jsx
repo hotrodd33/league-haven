@@ -248,7 +248,7 @@ export default function PitchTracker({ gameId, onBack }) {
   }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading game…</div>;
-  if (!game) return <div className="py-8 text-center text-red-600">Game not found</div>;
+  if (!game) return <div className="py-8 text-center text-red-400">Game not found</div>;
 
   if (finalized) {
     return (
@@ -282,7 +282,7 @@ export default function PitchTracker({ gameId, onBack }) {
       <div className="bg-gray-900 text-white rounded-xl p-3 sm:p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Live Tracker</span>
-          <span className="text-xs text-gray-500">Tap + / - to update</span>
+          <span className="text-xs text-gray-400">Tap + / - to update</span>
         </div>
 
         {/* Inn row */}
@@ -488,7 +488,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: teamColor || '#333' }}>{label}</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: teamColor || '#9ca3af' }}>{label}</h3>
         <button onClick={onAddPitcher} className="text-xs font-semibold text-blue-400 hover:text-blue-200">
           + Add Pitcher
         </button>

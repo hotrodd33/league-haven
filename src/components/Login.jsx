@@ -95,7 +95,7 @@ export default function Login({ onResetPassword }) {
                 <button type="button" onClick={() => setMode('register')} className="text-blue-400 hover:underline">
                   Create account
                 </button>
-                <span className="text-gray-600">•</span>
+                <span className="text-gray-400">•</span>
                 <button type="button" onClick={handleUmpireMode} className="text-green-400 hover:underline">
                   Umpire signup
                 </button>
