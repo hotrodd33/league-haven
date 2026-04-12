@@ -11,6 +11,14 @@ const btnPrimary = 'px-4 py-2 bg-blue-600 text-white text-sm font-semibold round
 const btnSecondary = 'px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors';
 const inputCls = 'w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500';
 
+function teamAbbr(name, fallback = '') {
+  if (fallback && String(fallback).trim()) return String(fallback).trim().slice(0, 4).toUpperCase();
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return 'TEAM';
+  if (words.length === 1) return words[0].slice(0, 4).toUpperCase();
+  return words.slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+}
+
 export default function PitchTracker({ gameId, onBack }) {
   const { isAdmin, canEditTeam } = useAuth();
   const [game, setGame] = useState(null);
@@ -270,53 +278,108 @@ export default function PitchTracker({ gameId, onBack }) {
     <div className="max-w-lg mx-auto">
       <button onClick={onBack} className={`${btnSecondary} mb-4 text-sm`}>← Back</button>
 
-      {/* Scoreboard */}
-      <div className="bg-gray-900 text-white rounded-xl p-4 mb-4">
+      {/* Mobile-first Scoreboard */}
+      <div className="bg-gray-900 text-white rounded-xl p-3 sm:p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Live Tracker</span>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">INN</span>
-            <button onClick={() => setInning(i => Math.max(1, i - 1))} className="w-7 h-7 rounded bg-gray-700 text-white text-sm font-bold hover:bg-gray-600">−</button>
-            <span className="text-lg font-bold tabular-nums w-8 text-center">{inning}</span>
-            <button onClick={() => setInning(i => i + 1)} className="w-7 h-7 rounded bg-gray-700 text-white text-sm font-bold hover:bg-gray-600">+</button>
-          </div>
+          <span className="text-xs text-gray-500">Tap + / - to update</span>
         </div>
 
-        <div className="flex items-center gap-4">
-          {/* Home */}
-          <div className="flex-1 flex items-center gap-3">
-            <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level}
-              cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-10 h-10" />
-            <div className="min-w-0 flex-1">
-              <div className="text-xs text-gray-400 uppercase">Home</div>
-              <div className="font-bold text-sm truncate">{game.home_team_name}</div>
-            </div>
+        {/* Inn row */}
+        <div className="grid grid-cols-[64px_1fr_auto_auto_auto] items-center gap-2 mb-2">
+          <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold">Inn</div>
+          <div className="text-sm font-semibold text-gray-300">Current Inning</div>
+          <button
+            onClick={() => setInning((i) => Math.max(1, i - 1))}
+            className="h-11 w-11 rounded-lg bg-gray-700 text-white text-2xl font-bold leading-none active:scale-95 hover:bg-gray-600"
+            aria-label="Decrease inning"
+          >
+            −
+          </button>
+          <div className="h-11 min-w-[44px] px-2 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-xl font-bold tabular-nums">
+            {inning}
           </div>
+          <button
+            onClick={() => setInning((i) => i + 1)}
+            className="h-11 w-11 rounded-lg bg-gray-700 text-white text-2xl font-bold leading-none active:scale-95 hover:bg-gray-600"
+            aria-label="Increase inning"
+          >
+            +
+          </button>
+        </div>
 
-          {/* Score controls */}
-          <div className="flex items-center gap-1 shrink-0">
-            <div className="flex flex-col items-center">
-              <button onClick={() => setHomeScore(s => s + 1)} className="w-8 h-6 rounded-t bg-gray-700 text-white text-xs font-bold hover:bg-gray-600">+</button>
-              <div className="text-3xl font-bold tabular-nums w-8 text-center">{homeScore}</div>
-              <button onClick={() => setHomeScore(s => Math.max(0, s - 1))} className="w-8 h-6 rounded-b bg-gray-700 text-white text-xs font-bold hover:bg-gray-600">−</button>
-            </div>
-            <span className="text-gray-400 text-xl mx-1">–</span>
-            <div className="flex flex-col items-center">
-              <button onClick={() => setAwayScore(s => s + 1)} className="w-8 h-6 rounded-t bg-gray-700 text-white text-xs font-bold hover:bg-gray-600">+</button>
-              <div className="text-3xl font-bold tabular-nums w-8 text-center">{awayScore}</div>
-              <button onClick={() => setAwayScore(s => Math.max(0, s - 1))} className="w-8 h-6 rounded-b bg-gray-700 text-white text-xs font-bold hover:bg-gray-600">−</button>
-            </div>
+        {/* Home row */}
+        <div className="grid grid-cols-[64px_1fr_auto_auto_auto] items-center gap-2 mb-2">
+          <div className="text-xs uppercase tracking-wide text-green-300 font-bold">Home</div>
+          <div className="flex items-center gap-2 min-w-0">
+            <TeamLogo
+              src={game.home_logo}
+              name={game.home_team_name}
+              ageGroup={game.home_age_group}
+              level={game.home_level}
+              cityAbbr={game.home_city_abbr}
+              primaryColor={game.home_primary_color}
+              secondaryColor={game.home_secondary_color}
+              size="w-8 h-8"
+            />
+            <span className="text-sm font-semibold truncate">
+              {teamAbbr(game.home_team_name, game.home_city_abbr)}
+            </span>
           </div>
+          <button
+            onClick={() => setHomeScore((s) => Math.max(0, s - 1))}
+            className="h-11 w-11 rounded-lg bg-red-900/35 text-red-300 text-2xl font-bold leading-none active:scale-95 hover:bg-red-800/60"
+            aria-label="Decrease home score"
+          >
+            −
+          </button>
+          <div className="h-11 min-w-[44px] px-2 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-2xl font-bold tabular-nums">
+            {homeScore}
+          </div>
+          <button
+            onClick={() => setHomeScore((s) => s + 1)}
+            className="h-11 w-11 rounded-lg bg-green-900/35 text-green-300 text-2xl font-bold leading-none active:scale-95 hover:bg-green-800/60"
+            aria-label="Increase home score"
+          >
+            +
+          </button>
+        </div>
 
-          {/* Away */}
-          <div className="flex-1 flex items-center gap-3 justify-end">
-            <div className="min-w-0 flex-1 text-right">
-              <div className="text-xs text-gray-400 uppercase">Away</div>
-              <div className="font-bold text-sm truncate">{game.away_team_name}</div>
-            </div>
-            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level}
-              cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-10 h-10" />
+        {/* Away row */}
+        <div className="grid grid-cols-[64px_1fr_auto_auto_auto] items-center gap-2">
+          <div className="text-xs uppercase tracking-wide text-blue-300 font-bold">Away</div>
+          <div className="flex items-center gap-2 min-w-0">
+            <TeamLogo
+              src={game.away_logo}
+              name={game.away_team_name}
+              ageGroup={game.away_age_group}
+              level={game.away_level}
+              cityAbbr={game.away_city_abbr}
+              primaryColor={game.away_primary_color}
+              secondaryColor={game.away_secondary_color}
+              size="w-8 h-8"
+            />
+            <span className="text-sm font-semibold truncate">
+              {teamAbbr(game.away_team_name, game.away_city_abbr)}
+            </span>
           </div>
+          <button
+            onClick={() => setAwayScore((s) => Math.max(0, s - 1))}
+            className="h-11 w-11 rounded-lg bg-red-900/35 text-red-300 text-2xl font-bold leading-none active:scale-95 hover:bg-red-800/60"
+            aria-label="Decrease away score"
+          >
+            −
+          </button>
+          <div className="h-11 min-w-[44px] px-2 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-2xl font-bold tabular-nums">
+            {awayScore}
+          </div>
+          <button
+            onClick={() => setAwayScore((s) => s + 1)}
+            className="h-11 w-11 rounded-lg bg-green-900/35 text-green-300 text-2xl font-bold leading-none active:scale-95 hover:bg-green-800/60"
+            aria-label="Increase away score"
+          >
+            +
+          </button>
         </div>
       </div>
 
@@ -454,16 +517,18 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                 <div className="flex items-center gap-0 shrink-0">
                   <button
                     onClick={() => adjustCount(p.side, p.playerId, -1)}
-                    className="w-10 h-10 rounded-l-lg bg-red-900/35 text-red-300 text-lg font-bold hover:bg-red-800/60 active:bg-red-300 transition-colors select-none"
+                    className="w-12 h-12 rounded-l-lg bg-red-900/35 text-red-300 text-2xl font-bold leading-none hover:bg-red-800/60 active:scale-95 transition-colors select-none"
+                    aria-label="Decrease pitch count"
                   >
                     −
                   </button>
-                  <div className="w-14 h-10 bg-gray-800 flex items-center justify-center text-lg font-bold tabular-nums">
+                  <div className="w-16 h-12 bg-gray-800 flex items-center justify-center text-xl font-bold tabular-nums">
                     {count}
                   </div>
                   <button
                     onClick={() => adjustCount(p.side, p.playerId, 1)}
-                    className="w-10 h-10 rounded-r-lg bg-green-900/35 text-green-300 text-lg font-bold hover:bg-green-800/60 active:bg-green-700 transition-colors select-none"
+                    className="w-12 h-12 rounded-r-lg bg-green-900/35 text-green-300 text-2xl font-bold leading-none hover:bg-green-800/60 active:scale-95 transition-colors select-none"
+                    aria-label="Increase pitch count"
                   >
                     +
                   </button>
@@ -472,7 +537,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                 {/* Remove */}
                 <button
                   onClick={() => removePitcher(p.side, p.playerId)}
-                  className="p-1.5 text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                  className="p-2.5 text-gray-300 hover:text-red-500 transition-colors shrink-0"
                   title="Remove pitcher"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
