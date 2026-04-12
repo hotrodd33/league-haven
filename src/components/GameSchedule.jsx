@@ -97,8 +97,7 @@ function buildTimeSlots(startTime, endTime, increment) {
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam }) {
-  const { isAdmin, canScoreGame, role } = useAuth();
-  const isUmpire = role === 'umpire';
+  const { isAdmin, canScoreGame, role, isUmpire } = useAuth();
   const [games, setGames] = useState([]);
   const [teams, setTeams] = useState([]);
   const [seasons, setSeasons] = useState([]);

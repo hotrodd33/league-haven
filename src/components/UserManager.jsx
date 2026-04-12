@@ -111,9 +111,14 @@ export default function UserManager({ onBack }) {
                     <td className="px-3 py-2 font-semibold">{u.name}</td>
                     <td className="px-3 py-2 text-sm text-gray-400">{u.email || <span className="text-gray-300">—</span>}</td>
                     <td className="px-3 py-2">
-                      <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full ${ROLE_COLORS[u.role] || 'bg-gray-800 text-gray-300'}`}>
-                        {ROLE_LABELS[u.role] || u.role}
-                      </span>
+                      <div className="flex gap-1 flex-wrap">
+                        <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full ${ROLE_COLORS[u.role] || 'bg-gray-800 text-gray-300'}`}>
+                          {ROLE_LABELS[u.role] || u.role}
+                        </span>
+                        {u.is_umpire && u.role !== 'umpire' && (
+                          <span className="inline-block px-2 py-0.5 text-xs font-bold rounded-full bg-teal-900/35 text-teal-200">Umpire</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-300">
                       {u.role === 'super_admin' ? (
@@ -158,9 +163,14 @@ export default function UserManager({ onBack }) {
                     <div className="text-sm text-gray-400 font-mono">{u.username}</div>
                     {u.email && <div className="text-xs text-gray-400">{u.email}</div>}
                   </div>
-                  <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full shrink-0 ${ROLE_COLORS[u.role] || 'bg-gray-800 text-gray-300'}`}>
-                    {ROLE_LABELS[u.role] || u.role}
-                  </span>
+                  <div className="flex gap-1 flex-wrap justify-end">
+                    <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full shrink-0 ${ROLE_COLORS[u.role] || 'bg-gray-800 text-gray-300'}`}>
+                      {ROLE_LABELS[u.role] || u.role}
+                    </span>
+                    {u.is_umpire && u.role !== 'umpire' && (
+                      <span className="inline-block px-2 py-0.5 text-xs font-bold rounded-full shrink-0 bg-teal-900/35 text-teal-200">Umpire</span>
+                    )}
+                  </div>
                 </div>
                 {u.role !== 'super_admin' && (
                   <div className="text-sm text-gray-300 mb-2">
@@ -208,17 +218,21 @@ function UserForm({ user, onDone, onCancel }) {
     username: user?.username || '',
     name: user?.name || '',
     email: user?.email || '',
-    role: user?.role || 'score_reporter',
+    role: (user?.role && user.role !== 'umpire') ? user.role : 'score_reporter',
+    is_umpire: user?.is_umpire || user?.role === 'umpire' || false,
     password: '',
   });
 
-  function handleChange(e) { setForm((prev) => ({ ...prev, [e.target.name]: e.target.value })); }
+  function handleChange(e) {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  }
 
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true); setError(null);
     try {
       if (isEditing) {
-        const data = { name: form.name.trim(), role: form.role, email: form.email.trim() || null };
+        const data = { name: form.name.trim(), role: form.role, email: form.email.trim() || null, is_umpire: form.is_umpire };
         if (form.password.trim()) data.password = form.password.trim();
         await updateUser(user.id, data);
       } else {
@@ -228,6 +242,7 @@ function UserForm({ user, onDone, onCancel }) {
           name: form.name.trim(),
           email: form.email.trim() || undefined,
           role: form.role,
+          is_umpire: form.is_umpire,
           password: form.password.trim(),
         });
       }
@@ -267,7 +282,6 @@ function UserForm({ user, onDone, onCancel }) {
                 <option value="team_manager">Team Manager</option>
                 <option value="org_admin">Org Admin</option>
                 <option value="super_admin">Super Admin</option>
-                <option value="umpire">Umpire</option>
               </select>
             </div>
             <div>
@@ -278,6 +292,14 @@ function UserForm({ user, onDone, onCancel }) {
                 onChange={handleChange} placeholder={isEditing ? '••••••••' : 'Password'}
                 className={inputCls} />
             </div>
+          </div>
+          <div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input name="is_umpire" type="checkbox" checked={form.is_umpire} onChange={handleChange}
+                className="w-4 h-4 rounded bg-gray-700 border-gray-500 accent-teal-500 cursor-pointer" />
+              <span className="text-sm text-gray-200 font-medium">Also an Umpire</span>
+              <span className="text-xs text-gray-400">Grants umpire dashboard access alongside their primary role</span>
+            </label>
           </div>
           {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
           <div className="flex justify-end gap-3 pt-2">

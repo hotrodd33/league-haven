@@ -21,7 +21,7 @@ import AppShell from "./components/ui/AppShell.jsx";
 import GameChangerImportWizard from "./components/import/GameChangerImportWizard.jsx";
 
 export default function App() {
-    const { isAuthenticated, isAdmin, user, logout } = useAuth();
+    const { isAuthenticated, isAdmin, isUmpire, user, logout } = useAuth();
     const [selectedTeam, setSelectedTeam] = useState(null);
     const [selectedTeamOrgId, setSelectedTeamOrgId] = useState(null);
     const [showForm, setShowForm] = useState(false);
@@ -100,7 +100,7 @@ export default function App() {
     /* ── Page content renderer ── */
     function renderPage() {
         // Umpires get their own dashboard by default
-        if (user?.role === 'umpire' && page === 'dashboard') {
+        if (isUmpire && page === 'dashboard') {
             return <UmpireDashboard onBack={() => setPage("dashboard")} />;
         }
 

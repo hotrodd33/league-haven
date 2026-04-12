@@ -10,7 +10,7 @@ const router = express.Router();
 // All routes require super_admin
 router.use(authMiddleware, requireAdmin);
 
-const VALID_ROLES = [...ROLES, 'umpire']; // includes 'umpire' for admin assignment
+const VALID_ROLES = [...ROLES]; // umpire access is handled via is_umpire flag, not role
 
 function sanitizeRole(role) {
   return VALID_ROLES.includes(role) ? role : 'score_reporter';
@@ -20,7 +20,7 @@ function sanitizeRole(role) {
 router.get('/', async (req, res) => {
   try {
     const { rows: users } = await pool.query(
-      'SELECT id, username, name, email, role, created_at FROM users ORDER BY name'
+      'SELECT id, username, name, email, role, is_umpire, created_at FROM users ORDER BY name'
     );
     const result = await Promise.all(users.map(async (u) => ({
       ...u,
@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
 // POST /api/users — create a new user (admin-created)
 router.post('/', async (req, res) => {
   try {
-    const { username, password, name, email, role } = req.body;
+    const { username, password, name, email, role, is_umpire } = req.body;
     if (!username || !password || !name) {
       return res.status(400).json({ error: 'Username, password, and name are required' });
     }
@@ -52,8 +52,8 @@ router.post('/', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
-      'INSERT INTO users (username, password_hash, name, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, role, created_at',
-      [username, hash, name, email || null, userRole]
+      'INSERT INTO users (username, password_hash, name, email, role, is_umpire) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, name, email, role, is_umpire, created_at',
+      [username, hash, name, email || null, userRole, is_umpire === true]
     );
     res.status(201).json({ ...rows[0], permissions: { org_ids: [], team_ids: [] } });
   } catch (err) {
@@ -92,7 +92,7 @@ router.put('/:id', async (req, res) => {
     const { rows: existing } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
     if (!existing.length) return res.status(404).json({ error: 'User not found' });
 
-    const { name, role, password, email } = req.body;
+    const { name, role, password, email, is_umpire } = req.body;
     const userRole = sanitizeRole(role);
 
     // Check email uniqueness if changed
@@ -104,18 +104,18 @@ router.put('/:id', async (req, res) => {
     if (password) {
       const hash = await bcrypt.hash(password, 10);
       await pool.query(
-        'UPDATE users SET name = $1, role = $2, password_hash = $3, email = $4 WHERE id = $5',
-        [name || existing[0].name, userRole, hash, email ?? existing[0].email, id]
+        'UPDATE users SET name = $1, role = $2, password_hash = $3, email = $4, is_umpire = $5 WHERE id = $6',
+        [name || existing[0].name, userRole, hash, email ?? existing[0].email, is_umpire !== undefined ? Boolean(is_umpire) : existing[0].is_umpire, id]
       );
     } else {
       await pool.query(
-        'UPDATE users SET name = $1, role = $2, email = $3 WHERE id = $4',
-        [name || existing[0].name, userRole, email ?? existing[0].email, id]
+        'UPDATE users SET name = $1, role = $2, email = $3, is_umpire = $4 WHERE id = $5',
+        [name || existing[0].name, userRole, email ?? existing[0].email, is_umpire !== undefined ? Boolean(is_umpire) : existing[0].is_umpire, id]
       );
     }
 
     const { rows } = await pool.query(
-      'SELECT id, username, name, email, role, created_at FROM users WHERE id = $1', [id]
+      'SELECT id, username, name, email, role, is_umpire, created_at FROM users WHERE id = $1', [id]
     );
     const permissions = await getUserPermissions(rows[0].id);
     res.json({ ...rows[0], permissions });

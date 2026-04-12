@@ -386,6 +386,12 @@ async function migrate() {
   // Add email column to users
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;`);
 
+  // Add is_umpire flag — allows a user to have umpire access alongside any primary role
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_umpire BOOLEAN NOT NULL DEFAULT FALSE;`);
+  // Back-fill: existing umpire-role accounts get is_umpire=true
+  await pool.query(`UPDATE users SET is_umpire = TRUE WHERE role = 'umpire' AND is_umpire = FALSE;`);
+
+
   // Password reset tokens table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (

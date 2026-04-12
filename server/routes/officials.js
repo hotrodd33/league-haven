@@ -27,7 +27,7 @@ router.get('/umpire-users', authMiddleware, async (req, res) => {
       `SELECT u.id, u.username, u.name, u.email, o.id AS official_id
        FROM users u
        LEFT JOIN officials o ON o.user_id = u.id
-       WHERE u.role = 'umpire'
+       WHERE u.role = 'umpire' OR u.is_umpire = TRUE
        ORDER BY u.name`
     );
     res.json(rows);

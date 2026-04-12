@@ -89,6 +89,7 @@ export function AuthProvider({ children }) {
   const isSuperAdmin = role === 'super_admin';
   const isOrgAdmin = role === 'org_admin';
   const isAdmin = isSuperAdmin; // backward compat
+  const isUmpire = role === 'umpire' || auth?.user?.is_umpire === true;
   const permissions = auth?.permissions || { org_ids: [], team_ids: [] };
 
   const canEditOrg = useCallback((orgId) => {
@@ -121,6 +122,7 @@ export function AuthProvider({ children }) {
     isAdmin,
     isSuperAdmin,
     isOrgAdmin,
+    isUmpire,
     role,
     permissions,
     canEditOrg,

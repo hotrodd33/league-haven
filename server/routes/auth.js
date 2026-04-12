@@ -27,7 +27,7 @@ router.post('/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, name: user.name, role: user.role },
+      { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: user.is_umpire || false },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -36,7 +36,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, username: user.username, name: user.name, role: user.role, email: user.email },
+      user: { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: user.is_umpire || false, email: user.email },
       permissions,
     });
   } catch (err) {
@@ -75,7 +75,7 @@ router.post('/register', async (req, res) => {
     sendWelcomeEmail(email, name).catch(() => {});
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, name: user.name, role: user.role },
+      { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: false },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -83,7 +83,7 @@ router.post('/register', async (req, res) => {
     const permissions = { org_ids: [], team_ids: [] };
     res.status(201).json({
       token,
-      user: { id: user.id, username: user.username, name: user.name, role: user.role, email: user.email },
+      user: { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: false, email: user.email },
       permissions,
     });
   } catch (err) {
@@ -115,7 +115,7 @@ router.post('/register-umpire', async (req, res) => {
     
     // Create user with umpire role
     const { rows: userRows } = await pool.query(
-      'INSERT INTO users (username, password_hash, name, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, role, created_at',
+      'INSERT INTO users (username, password_hash, name, email, role, is_umpire) VALUES ($1, $2, $3, $4, $5, TRUE) RETURNING id, username, name, email, role, is_umpire, created_at',
       [username, hash, name, email, 'umpire']
     );
     const user = userRows[0];
@@ -130,7 +130,7 @@ router.post('/register-umpire', async (req, res) => {
     sendWelcomeEmail(email, name).catch(() => {});
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, name: user.name, role: user.role },
+      { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: true },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -138,7 +138,7 @@ router.post('/register-umpire', async (req, res) => {
     const permissions = { org_ids: [], team_ids: [] };
     res.status(201).json({
       token,
-      user: { id: user.id, username: user.username, name: user.name, role: user.role, email: user.email },
+      user: { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: true, email: user.email },
       permissions,
     });
   } catch (err) {
@@ -253,7 +253,7 @@ router.put('/change-password', authMiddleware, async (req, res) => {
 // GET /api/auth/me — return current user info + permissions
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT id, username, name, role, email FROM users WHERE id = $1', [req.user.id]);
+    const { rows } = await pool.query('SELECT id, username, name, role, is_umpire, email FROM users WHERE id = $1', [req.user.id]);
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
     const user = rows[0];
     const permissions = await getUserPermissions(user.id);
