@@ -219,11 +219,11 @@ router.get('/levels', async (req, res) => {
 
 router.post('/levels', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, sort_order } = req.body;
+    const { name, sort_order, ump_required } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
     const { rows } = await pool.query(
-      'INSERT INTO league_levels (name, sort_order) VALUES ($1, $2) RETURNING *',
-      [name.trim(), sort_order ?? 0]
+      'INSERT INTO league_levels (name, sort_order, ump_required) VALUES ($1, $2, $3) RETURNING *',
+      [name.trim(), sort_order ?? 0, ump_required !== false]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -235,11 +235,11 @@ router.post('/levels', authMiddleware, requireAdmin, async (req, res) => {
 
 router.put('/levels/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, sort_order } = req.body;
+    const { name, sort_order, ump_required } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
     const { rows } = await pool.query(
-      'UPDATE league_levels SET name = $1, sort_order = $2 WHERE id = $3 RETURNING *',
-      [name.trim(), sort_order ?? 0, req.params.id]
+      'UPDATE league_levels SET name = $1, sort_order = $2, ump_required = $3 WHERE id = $4 RETURNING *',
+      [name.trim(), sort_order ?? 0, ump_required !== false, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(rows[0]);

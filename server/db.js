@@ -446,6 +446,13 @@ async function migrate() {
 
   // ── Umpire rate per age group ──
   await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS umpire_rate NUMERIC(10, 2) NOT NULL DEFAULT 50;`);
+
+  // ── Allow nullable ump rate (level rate is the default driver) ──
+  await pool.query(`ALTER TABLE officials ALTER COLUMN rate_per_game DROP NOT NULL;`);
+  await pool.query(`ALTER TABLE officials ALTER COLUMN rate_per_game DROP DEFAULT;`);
+
+  // ── Level ump_required flag (e.g. 8U does not need an ump) ──
+  await pool.query(`ALTER TABLE league_levels ADD COLUMN IF NOT EXISTS ump_required BOOLEAN NOT NULL DEFAULT TRUE;`);
 }
 
 // Lazy migration: retries on each request until it succeeds

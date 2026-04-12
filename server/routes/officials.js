@@ -4,10 +4,10 @@ const { authMiddleware, canEditOrg, getUserPermissions } = require('../auth');
 
 const router = express.Router();
 
-function toMoney(value, fallback = 50) {
+function toMoney(value, fallback = null) {
   if (value === undefined || value === null || value === '') return fallback;
   const num = Number(value);
-  if (!Number.isFinite(num) || num < 0) return null;
+  if (!Number.isFinite(num) || num < 0) return { error: true };
   return Math.round(num * 100) / 100;
 }
 
@@ -15,7 +15,7 @@ function normalizeOfficial(row) {
   return {
     ...row,
     scope: row.org_id ? 'org' : 'league',
-    rate_per_game: row.rate_per_game != null ? Number(row.rate_per_game) : 50,
+    rate_per_game: row.rate_per_game != null ? Number(row.rate_per_game) : null,
   };
 }
 
@@ -154,8 +154,8 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'Only super admin can create league officials' });
     }
 
-    const rate = toMoney(rate_per_game, 50);
-    if (rate == null) return res.status(400).json({ error: 'rate_per_game must be a non-negative number' });
+    const rate = toMoney(rate_per_game, null);
+    if (rate?.error) return res.status(400).json({ error: 'rate_per_game must be a non-negative number' });
 
     const { rows } = await pool.query(
       `INSERT INTO officials
@@ -228,8 +228,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'Only super admin can assign league officials' });
     }
 
-    const rate = toMoney(rate_per_game, existing.rate_per_game ?? 50);
-    if (rate == null) return res.status(400).json({ error: 'rate_per_game must be a non-negative number' });
+    const rate = toMoney(rate_per_game, existing.rate_per_game ?? null);
+    if (rate?.error) return res.status(400).json({ error: 'rate_per_game must be a non-negative number' });
 
     const { rows } = await pool.query(
       `UPDATE officials SET
@@ -366,7 +366,7 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
       }
     }
 
-    const defaultRate = Number(official.rate_per_game) || 50;
+    const defaultRate = official.rate_per_game != null ? Number(official.rate_per_game) : null;
 
     const { rows } = await pool.query(
       `SELECT
@@ -405,7 +405,7 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
     // Fee priority: game_fee override > age-group rate > official default rate > $50
     const games = rows.map(r => {
       const ageGroupRate = r.age_group_rate != null ? Number(r.age_group_rate) : null;
-      const fee = r.game_fee != null ? Number(r.game_fee) : (ageGroupRate ?? defaultRate);
+      const fee = r.game_fee != null ? Number(r.game_fee) : (ageGroupRate ?? defaultRate ?? 50);
       const homeName = r.home_team_city
         ? [r.home_team_city, r.home_team_mascot, r.home_team_color].filter(Boolean).join(' ')
         : (r.home_team_name || '(TBD)');

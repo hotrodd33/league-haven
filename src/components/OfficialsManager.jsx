@@ -99,7 +99,7 @@ export default function OfficialsManager({ onBack }) {
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${official.org_id ? 'bg-blue-900/40 text-blue-200' : 'bg-purple-900/35 text-purple-200'}`}>
                       {official.org_id ? official.org_name || 'Organization' : 'League'}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">${Number(official.rate_per_game || 50).toFixed(2)}/game</span>
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">{official.rate_per_game != null ? `$${Number(official.rate_per_game).toFixed(2)}/game` : 'Level Rate'}</span>
                     {official.linked_username && (
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-900/35 text-teal-200">@{official.linked_username}</span>
                     )}
@@ -164,7 +164,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
     state: official?.state || '',
     zip: official?.zip || '',
     venmo_id: official?.venmo_id || '',
-    rate_per_game: official?.rate_per_game != null ? String(official.rate_per_game) : '50',
+    rate_per_game: official?.rate_per_game != null ? String(official.rate_per_game) : '',
     notes: official?.notes || '',
     date_of_birth: official?.date_of_birth || '',
     is_certified: official?.is_certified || false,
@@ -243,7 +243,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
             </div>
             <div>
               <label htmlFor="official-rate" className={labelCls}>Rate Per Game</label>
-              <input id="official-rate" name="rate_per_game" type="number" min="0" step="0.01" value={form.rate_per_game} onChange={handleChange} className={inputCls} />
+              <input id="official-rate" name="rate_per_game" type="number" min="0" step="0.01" value={form.rate_per_game} onChange={handleChange} className={inputCls} placeholder="Level rate" />
             </div>
           </div>
 

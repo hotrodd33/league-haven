@@ -112,7 +112,11 @@ router.get('/available-games', authMiddleware, async (req, res) => {
        LEFT JOIN field_locations fl ON fl.id = g.location_id
        LEFT JOIN game_official_assignments goa ON goa.game_id = g.id
        LEFT JOIN umpire_game_interests ugi ON ugi.game_id = g.id AND ugi.user_id = $1
+       LEFT JOIN league_levels hl ON LOWER(TRIM(hl.name)) = LOWER(TRIM(ht.level))
+       LEFT JOIN league_levels al ON LOWER(TRIM(al.name)) = LOWER(TRIM(at.level))
        ${whereClause}
+       AND COALESCE(hl.ump_required, TRUE) = TRUE
+       AND COALESCE(al.ump_required, TRUE) = TRUE
        GROUP BY g.id, g.season_id, g.game_date, g.game_time, g.status, g.home_team_id, g.away_team_id, g.location_id, ht.id, ht.name, ht.age_group, ht.level, ht.division, at.id, at.name, at.age_group, at.level, at.division, fl.id, fl.name, ugi.id
        HAVING COUNT(DISTINCT goa.official_id) = 0
        ORDER BY g.game_date DESC, g.game_time ASC`,

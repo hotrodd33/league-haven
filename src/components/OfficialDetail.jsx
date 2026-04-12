@@ -143,7 +143,7 @@ export default function OfficialDetail({ officialId, onBack }) {
           </div>
           <div className="shrink-0 text-right">
             <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Default Rate</div>
-            <div className="text-2xl font-bold text-green-400">{formatMoney(official.rate_per_game)}</div>
+            <div className="text-2xl font-bold text-green-400">{official.rate_per_game != null ? formatMoney(official.rate_per_game) : 'Level Rate'}</div>
             <div className="text-xs text-gray-400">per game</div>
           </div>
         </div>
