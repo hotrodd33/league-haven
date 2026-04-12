@@ -85,4 +85,13 @@ async function canScoreGame(user, gameHomeTeamId, gameAwayTeamId) {
   return false;
 }
 
-module.exports = { authMiddleware, requireAdmin, requireRole, getUserPermissions, canEditOrg, canEditTeam, canScoreGame, JWT_SECRET, ROLES };
+/** Validate password strength. Returns error string or null if valid. */
+function validatePassword(pw) {
+  if (!pw || pw.length < 8) return 'Password must be at least 8 characters';
+  if (!/[a-z]/.test(pw)) return 'Password must include a lowercase letter';
+  if (!/[A-Z]/.test(pw)) return 'Password must include an uppercase letter';
+  if (!/[0-9]/.test(pw)) return 'Password must include a number';
+  return null;
+}
+
+module.exports = { authMiddleware, requireAdmin, requireRole, getUserPermissions, canEditOrg, canEditTeam, canScoreGame, validatePassword, JWT_SECRET, ROLES };

@@ -131,8 +131,9 @@ export default function Login({ onResetPassword }) {
               <label htmlFor="reg-password" className={labelCls}>Password</label>
               <input id="reg-password" type="password" value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters" required minLength={6} autoComplete="new-password"
+                placeholder="8+ chars, upper, lower, number" required minLength={8} autoComplete="new-password"
                 className={inputCls} />
+              <p className="text-xs text-gray-500 mt-1">At least 8 characters with uppercase, lowercase, and a number</p>
             </div>
             {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
             <button type="submit" disabled={loading}
@@ -213,8 +214,9 @@ export default function Login({ onResetPassword }) {
               <label htmlFor="ump-password" className={labelCls}>Password</label>
               <input id="ump-password" type="password" value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters" required minLength={6} autoComplete="new-password"
+                placeholder="8+ chars, upper, lower, number" required minLength={8} autoComplete="new-password"
                 className={inputCls} />
+              <p className="text-xs text-gray-500 mt-1">At least 8 characters with uppercase, lowercase, and a number</p>
             </div>
             {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
             <button type="submit" disabled={loading}

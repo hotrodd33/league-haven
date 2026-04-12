@@ -45,14 +45,15 @@ export default function ChangePassword({ onClose }) {
               <label htmlFor="new-pwd" className={labelCls}>New Password</label>
               <input id="new-pwd" type="password" value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="At least 6 characters" required minLength={6}
+                placeholder="8+ chars, upper, lower, number" required minLength={8}
                 autoComplete="new-password" className={inputCls} />
+              <p className="text-xs text-gray-500 mt-1">At least 8 characters with uppercase, lowercase, and a number</p>
             </div>
             <div>
               <label htmlFor="confirm-pwd" className={labelCls}>Confirm New Password</label>
               <input id="confirm-pwd" type="password" value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                required minLength={6} autoComplete="new-password" className={inputCls} />
+                required minLength={8} autoComplete="new-password" className={inputCls} />
             </div>
             {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
             <div className="flex justify-end gap-3 pt-2">

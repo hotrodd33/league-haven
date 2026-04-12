@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
-const { JWT_SECRET, authMiddleware, getUserPermissions } = require('../auth');
+const { JWT_SECRET, authMiddleware, getUserPermissions, validatePassword } = require('../auth');
 const { sendWelcomeEmail, sendPasswordResetEmail, sendPasswordChangedEmail } = require('../email');
 
 const router = express.Router();
@@ -55,9 +55,8 @@ router.post('/register', async (req, res) => {
     if (!username || !password || !name || !email) {
       return res.status(400).json({ error: 'Username, password, name, and email are required' });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
+    const pwErr = validatePassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
 
     // Check username uniqueness
     const { rows: existingUser } = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
@@ -102,9 +101,8 @@ router.post('/register-umpire', async (req, res) => {
     if (!username || !password || !name || !email) {
       return res.status(400).json({ error: 'Username, password, name, and email are required' });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
+    const pwErr = validatePassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
 
     // Check username uniqueness
     const { rows: existingUser } = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
@@ -191,7 +189,8 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { token, password } = req.body;
     if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
-    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    const pwErr = validatePassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const { rows } = await pool.query(
@@ -228,9 +227,8 @@ router.put('/change-password', authMiddleware, async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Current password and new password are required' });
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
-    }
+    const pwErr = validatePassword(newPassword);
+    if (pwErr) return res.status(400).json({ error: pwErr });
 
     const { rows } = await pool.query('SELECT password_hash, name, email FROM users WHERE id = $1', [req.user.id]);
     if (!rows.length) return res.status(404).json({ error: 'User not found' });

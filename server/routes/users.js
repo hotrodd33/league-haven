@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
-const { authMiddleware, requireAdmin, getUserPermissions, ROLES } = require('../auth');
+const { authMiddleware, requireAdmin, getUserPermissions, validatePassword, ROLES } = require('../auth');
 const { sendInviteEmail } = require('../email');
 
 const router = express.Router();
@@ -40,6 +40,8 @@ router.post('/', async (req, res) => {
     if (!username || !password || !name) {
       return res.status(400).json({ error: 'Username, password, and name are required' });
     }
+    const pwErr = validatePassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
     const userRole = sanitizeRole(role);
 
     const { rows: existing } = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
@@ -102,6 +104,8 @@ router.put('/:id', async (req, res) => {
     }
 
     if (password) {
+      const pwErr = validatePassword(password);
+      if (pwErr) return res.status(400).json({ error: pwErr });
       const hash = await bcrypt.hash(password, 10);
       await pool.query(
         'UPDATE users SET name = $1, role = $2, password_hash = $3, email = $4, is_umpire = $5 WHERE id = $6',
