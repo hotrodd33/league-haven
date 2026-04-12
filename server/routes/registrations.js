@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, canEditOrg } = require('../auth');
+const { authMiddleware, canEditOrg, getUserPermissions } = require('../auth');
 
 const router = express.Router();
 
@@ -19,12 +19,22 @@ function requireAdminOrAccountant(req, res, next) {
 }
 
 // ── List all registrations (with team/season/org info + fee resolution) ──
-router.get('/', authMiddleware, requireAdminOrAccountant, async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
     const { season_id, age_group, status, payment } = req.query;
-    let where = '';
     const params = [];
     const conditions = [];
+
+    // Scope by user role: admin/accountant see all, others see only their orgs
+    const role = req.user?.role;
+    const isFullAccess = role === 'super_admin' || role === 'accountant';
+    if (!isFullAccess) {
+      const perms = await getUserPermissions(req.user.id);
+      const userOrgIds = perms.org_ids || [];
+      if (!userOrgIds.length) return res.json({ registrations: [], summary: { total_teams: 0, total_fees: 0, total_collected: 0, total_outstanding: 0 } });
+      params.push(userOrgIds);
+      conditions.push(`t.org_id = ANY($${params.length})`);
+    }
 
     if (season_id) {
       params.push(season_id);
@@ -41,7 +51,7 @@ router.get('/', authMiddleware, requireAdminOrAccountant, async (req, res) => {
     if (payment === 'paid') conditions.push('r.is_paid = TRUE');
     if (payment === 'unpaid') conditions.push('r.is_paid = FALSE');
 
-    if (conditions.length) where = 'WHERE ' + conditions.join(' AND ');
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
     const { rows } = await pool.query(`
       SELECT r.*,

@@ -151,7 +151,7 @@ export default function App() {
                 return (isAdmin || isAccountant || isOrgAdmin) ? <OfficialsManager onBack={() => setPage("dashboard")} /> : null;
 
             case 'fees':
-                return (isAdmin || isAccountant || isOrgAdmin) ? <LeagueFees onBack={() => setPage("dashboard")} /> : null;
+                return (isAdmin || isAccountant) ? <LeagueFees onBack={() => setPage("dashboard")} /> : null;
 
             case 'about':
                 return <HelpPage initialTab="about" onBack={() => setPage("dashboard")} />;

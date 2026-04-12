@@ -27,6 +27,10 @@ const accountantNav = [
   { key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon },
 ];
 
+const orgAdminNav = [
+  { key: 'officials', label: 'Officials', icon: UserGroupIcon },
+];
+
 export default function Sidebar({
   page,
   onNavigate,
@@ -149,7 +153,7 @@ export default function Sidebar({
                   <div className="border-t border-white/10" />
                 )}
               </div>
-              {accountantNav.map((item) => (
+              {orgAdminNav.map((item) => (
                 <NavItem
                   key={item.key}
                   item={item}

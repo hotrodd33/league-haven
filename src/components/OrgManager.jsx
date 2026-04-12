@@ -36,8 +36,7 @@ function summarizeOrgTeams(org) {
   return { ageGroups, levels };
 }
 export default function OrgManager({ onBack, onNavigateToTeam }) {
-  const { isAdmin, isAccountant, isOrgAdmin, canEditOrg } = useAuth();
-  const canViewFinancials = isAdmin || isAccountant || isOrgAdmin;
+  const { isAdmin, isAccountant, canEditOrg } = useAuth();
   const [orgs, setOrgs] = useState([]);
   const [orgStats, setOrgStats] = useState({});
   const [orgPayments, setOrgPayments] = useState({});
@@ -51,7 +50,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   const loadOrgs = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [orgData, games, regData] = await Promise.all([fetchOrganizations(), fetchGames(), canViewFinancials ? fetchRegistrations().catch(() => ({ registrations: [] })) : Promise.resolve({ registrations: [] })]);
+      const [orgData, games, regData] = await Promise.all([fetchOrganizations(), fetchGames(), fetchRegistrations().catch(() => ({ registrations: [] }))]);
       setOrgs(orgData);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -155,7 +154,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
               orgStats={orgStats[org.id]}
               orgPayment={orgPayments.summary?.[org.id]}
               canEdit={canEditOrg(org.id)}
-              canViewFinancials={canViewFinancials}
+              canViewFinancials={isAdmin || isAccountant || canEditOrg(org.id)}
               deleting={deleting === org.id}
               isAdmin={isAdmin}
               onOpen={() => setSelectedOrg(org)}
