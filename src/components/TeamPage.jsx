@@ -18,7 +18,7 @@ const TABS = [
   { key: 'coaches', label: 'Coaches', icon: UserGroupIcon },
 ];
 
-export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer, refreshKey, onNavigateToTeam }) {
+export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer, refreshKey, onNavigateToTeam, onWatermarkLogoChange }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [team, setTeam] = useState(null);
   const [recentGames, setRecentGames] = useState([]);
@@ -52,6 +52,10 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
 
   // Reset tab when team changes
   useEffect(() => { setActiveTab('overview'); }, [teamId]);
+
+  useEffect(() => {
+    onWatermarkLogoChange?.(team?.logo_url || null);
+  }, [team?.logo_url, onWatermarkLogoChange]);
 
   if (!teamId) {
     return (

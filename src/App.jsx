@@ -43,6 +43,17 @@ export default function App() {
         document.documentElement.style.setProperty('--league-logo-watermark', cssValue);
     }, [branding?.logo_url]);
 
+    useEffect(() => {
+        if (page !== 'rosters') {
+            document.documentElement.style.setProperty('--page-logo-watermark', 'none');
+        }
+    }, [page]);
+
+    function handleTeamWatermarkLogoChange(logoUrl) {
+        const cssValue = logoUrl ? `url(\"${logoUrl}\")` : 'none';
+        document.documentElement.style.setProperty('--page-logo-watermark', cssValue);
+    }
+
     function navigateToTeam(teamId, orgId) {
         setSelectedTeam(teamId);
         setSelectedTeamOrgId(orgId || null);
@@ -119,7 +130,15 @@ export default function App() {
                             <TeamSelector selectedTeam={selectedTeam} onSelectTeam={(id, orgId) => { setSelectedTeam(id); setSelectedTeamOrgId(orgId); }} onTeamsChanged={() => setRefreshKey((k) => k + 1)} />
                         </aside>
                         <div className="flex-1 p-4 lg:p-6 overflow-x-auto">
-                            <TeamPage teamId={selectedTeam} teamOrgId={selectedTeamOrgId} onEditPlayer={handleEditPlayer} onAddPlayer={handleAddPlayer} refreshKey={refreshKey} onNavigateToTeam={navigateToTeam} />
+                            <TeamPage
+                                teamId={selectedTeam}
+                                teamOrgId={selectedTeamOrgId}
+                                onEditPlayer={handleEditPlayer}
+                                onAddPlayer={handleAddPlayer}
+                                refreshKey={refreshKey}
+                                onNavigateToTeam={navigateToTeam}
+                                onWatermarkLogoChange={handleTeamWatermarkLogoChange}
+                            />
                         </div>
                     </div>
                 );
