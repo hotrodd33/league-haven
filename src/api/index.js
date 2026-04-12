@@ -746,3 +746,30 @@ export async function expressGameInterest(gameId) {
 export async function removeGameInterest(gameId) {
   return apiFetch(`/umpires/interest/${gameId}`, { method: 'DELETE' });
 }
+
+// ── Registrations (League Fees) ──
+
+export async function fetchRegistrations(filters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, val] of Object.entries(filters)) {
+    if (val != null && val !== '') params.append(key, val);
+  }
+  const qs = params.toString();
+  return apiFetch(`/registrations${qs ? '?' + qs : ''}`);
+}
+
+export async function createRegistration(data) {
+  return apiFetch('/registrations', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function bulkRegisterTeams(seasonId) {
+  return apiFetch('/registrations/bulk', { method: 'POST', body: JSON.stringify({ season_id: seasonId }) });
+}
+
+export async function updateRegistration(id, data) {
+  return apiFetch(`/registrations/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteRegistration(id) {
+  return apiFetch(`/registrations/${id}`, { method: 'DELETE' });
+}

@@ -148,7 +148,7 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
 router.get('/age-groups', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM league_age_groups ORDER BY sort_order, name');
-    res.json(rows.map(r => ({ ...r, umpire_rate: r.umpire_rate != null ? Number(r.umpire_rate) : 50 })));
+    res.json(rows.map(r => ({ ...r, umpire_rate: r.umpire_rate != null ? Number(r.umpire_rate) : 50, league_fee: r.league_fee != null ? Number(r.league_fee) : null })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -157,16 +157,18 @@ router.get('/age-groups', async (req, res) => {
 
 router.post('/age-groups', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, sort_order, umpire_rate, ump_required } = req.body;
+    const { name, sort_order, umpire_rate, ump_required, league_fee } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
     const rate = umpire_rate != null && umpire_rate !== '' ? Number(umpire_rate) : 50;
     if (!Number.isFinite(rate) || rate < 0) return res.status(400).json({ error: 'Umpire rate must be a non-negative number' });
+    const parsedLeagueFee = league_fee != null && league_fee !== '' ? Number(league_fee) : null;
+    if (parsedLeagueFee != null && (!Number.isFinite(parsedLeagueFee) || parsedLeagueFee < 0)) return res.status(400).json({ error: 'League fee must be a non-negative number' });
     const { rows } = await pool.query(
-      'INSERT INTO league_age_groups (name, sort_order, umpire_rate, ump_required) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false]
+      'INSERT INTO league_age_groups (name, sort_order, umpire_rate, ump_required, league_fee) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null]
     );
     const r = rows[0];
-    res.status(201).json({ ...r, umpire_rate: Number(r.umpire_rate) });
+    res.status(201).json({ ...r, umpire_rate: Number(r.umpire_rate), league_fee: r.league_fee != null ? Number(r.league_fee) : null });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Age group already exists' });
     console.error(err);
@@ -176,17 +178,19 @@ router.post('/age-groups', authMiddleware, requireAdmin, async (req, res) => {
 
 router.put('/age-groups/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, sort_order, umpire_rate, ump_required } = req.body;
+    const { name, sort_order, umpire_rate, ump_required, league_fee } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
     const rate = umpire_rate != null && umpire_rate !== '' ? Number(umpire_rate) : 50;
     if (!Number.isFinite(rate) || rate < 0) return res.status(400).json({ error: 'Umpire rate must be a non-negative number' });
+    const parsedLeagueFee = league_fee != null && league_fee !== '' ? Number(league_fee) : null;
+    if (parsedLeagueFee != null && (!Number.isFinite(parsedLeagueFee) || parsedLeagueFee < 0)) return res.status(400).json({ error: 'League fee must be a non-negative number' });
     const { rows } = await pool.query(
-      'UPDATE league_age_groups SET name = $1, sort_order = $2, umpire_rate = $3, ump_required = $4 WHERE id = $5 RETURNING *',
-      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, req.params.id]
+      'UPDATE league_age_groups SET name = $1, sort_order = $2, umpire_rate = $3, ump_required = $4, league_fee = $5 WHERE id = $6 RETURNING *',
+      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     const r = rows[0];
-    res.json({ ...r, umpire_rate: Number(r.umpire_rate) });
+    res.json({ ...r, umpire_rate: Number(r.umpire_rate), league_fee: r.league_fee != null ? Number(r.league_fee) : null });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Age group already exists' });
     console.error(err);

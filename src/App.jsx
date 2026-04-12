@@ -20,6 +20,7 @@ import UmpireDashboard from "./components/UmpireDashboard.jsx";
 import AppShell from "./components/ui/AppShell.jsx";
 import GameChangerImportWizard from "./components/import/GameChangerImportWizard.jsx";
 import HelpPage from "./components/HelpPage.jsx";
+import LeagueFees from "./components/LeagueFees.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, isAccountant, isUmpire, user, logout } = useAuth();
@@ -135,6 +136,9 @@ export default function App() {
 
             case 'officials':
                 return <OfficialsManager onBack={() => setPage("dashboard")} />;
+
+            case 'fees':
+                return <LeagueFees onBack={() => setPage("dashboard")} />;
 
             case 'about':
                 return <HelpPage initialTab="about" onBack={() => setPage("dashboard")} />;

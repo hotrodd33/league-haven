@@ -468,6 +468,28 @@ async function migrate() {
 
   // ── No-show tracking for umpire assignments ──
   await pool.query(`ALTER TABLE game_official_assignments ADD COLUMN IF NOT EXISTS no_show BOOLEAN NOT NULL DEFAULT FALSE;`);
+
+  // ── League fee per age group ──
+  await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS league_fee NUMERIC(10, 2);`);
+
+  // ── Team registrations & fee tracking ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS team_registrations (
+      id SERIAL PRIMARY KEY,
+      team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      season_id INTEGER NOT NULL REFERENCES league_seasons(id) ON DELETE CASCADE,
+      fee NUMERIC(10, 2),
+      is_paid BOOLEAN NOT NULL DEFAULT FALSE,
+      paid_at TIMESTAMPTZ,
+      paid_amount NUMERIC(10, 2),
+      payment_method TEXT DEFAULT 'check',
+      check_number TEXT,
+      payment_notes TEXT,
+      status TEXT NOT NULL DEFAULT 'registered',
+      registered_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(team_id, season_id)
+    );
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds

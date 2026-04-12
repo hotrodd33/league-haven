@@ -2,7 +2,7 @@ import { cn } from '../../lib/cn.js';
 import {
   UsersIcon, BuildingIcon, CalendarIcon, TrophyIcon,
   ClipboardIcon, CogIcon, UserGroupIcon, DatabaseIcon,
-  ChevronLeftIcon, ChevronRightIcon, HomeIcon,
+  ChevronLeftIcon, ChevronRightIcon, HomeIcon, CurrencyDollarIcon,
 } from './icons.jsx';
 
 const mainNav = [
@@ -16,6 +16,7 @@ const mainNav = [
 
 const adminNav = [
   { key: 'officials', label: 'Officials', icon: UserGroupIcon },
+  { key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon },
   { key: 'league', label: 'League Config', icon: CogIcon },
   { key: 'users',  label: 'Users',         icon: UserGroupIcon },
   { key: 'data',   label: 'Data Manager',  icon: DatabaseIcon },
@@ -23,6 +24,7 @@ const adminNav = [
 
 const accountantNav = [
   { key: 'officials', label: 'Officials', icon: UserGroupIcon },
+  { key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon },
 ];
 
 export default function Sidebar({

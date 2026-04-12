@@ -447,12 +447,14 @@ function AgeGroupConfig() {
   const [error, setError] = useState(null);
   const [newName, setNewName] = useState('');
   const [newRate, setNewRate] = useState('50');
+  const [newLeagueFee, setNewLeagueFee] = useState('');
   const [newUmpRequired, setNewUmpRequired] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [editOrder, setEditOrder] = useState(0);
   const [editRate, setEditRate] = useState('50');
+  const [editLeagueFee, setEditLeagueFee] = useState('');
   const [editUmpRequired, setEditUmpRequired] = useState(true);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -471,9 +473,10 @@ function AgeGroupConfig() {
     if (!newName.trim()) return;
     setAdding(true); setError(null);
     try {
-      await createAgeGroup({ name: newName.trim(), sort_order: items.length, umpire_rate: newUmpRequired ? (Number(newRate) || 50) : 0, ump_required: newUmpRequired });
+      await createAgeGroup({ name: newName.trim(), sort_order: items.length, umpire_rate: newUmpRequired ? (Number(newRate) || 50) : 0, ump_required: newUmpRequired, league_fee: newLeagueFee !== '' ? Number(newLeagueFee) : null });
       setNewName('');
       setNewRate('50');
+      setNewLeagueFee('');
       setNewUmpRequired(true);
       await load();
     } catch (err) { setError(err.message); }
@@ -485,6 +488,7 @@ function AgeGroupConfig() {
     setEditName(item.name);
     setEditOrder(item.sort_order ?? 0);
     setEditRate(String(item.umpire_rate ?? 50));
+    setEditLeagueFee(item.league_fee != null ? String(item.league_fee) : '');
     setEditUmpRequired(item.ump_required !== false);
   }
 
@@ -492,7 +496,7 @@ function AgeGroupConfig() {
     if (!editName.trim()) return;
     setSavingEdit(true); setError(null);
     try {
-      await updateAgeGroup(editingId, { name: editName.trim(), sort_order: editOrder, umpire_rate: editUmpRequired ? (Number(editRate) || 50) : 0, ump_required: editUmpRequired });
+      await updateAgeGroup(editingId, { name: editName.trim(), sort_order: editOrder, umpire_rate: editUmpRequired ? (Number(editRate) || 50) : 0, ump_required: editUmpRequired, league_fee: editLeagueFee !== '' ? Number(editLeagueFee) : null });
       setEditingId(null);
       await load();
     } catch (err) { setError(err.message); }
@@ -516,20 +520,27 @@ function AgeGroupConfig() {
       {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
 
       {/* Add form */}
-      <form onSubmit={handleAdd} className="flex gap-2 mb-4 items-center">
+      <form onSubmit={handleAdd} className="flex flex-wrap gap-2 mb-4 items-center">
         <input
           type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
-          placeholder="e.g. 8U, 10U, 12U, 14U" className={`flex-1 ${inputCls}`}
+          placeholder="e.g. 8U, 10U, 12U, 14U" className={`flex-1 min-w-[120px] ${inputCls}`}
         />
         {newUmpRequired && (
           <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-400">$</span>
+            <span className="text-xs text-gray-400">Ump $</span>
             <input
               type="number" min="0" step="0.01" value={newRate} onChange={(e) => setNewRate(e.target.value)}
               placeholder="50" className={`w-20 ${inputCls}`} title="Umpire rate per game"
             />
           </div>
         )}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-gray-400">Fee $</span>
+          <input
+            type="number" min="0" step="0.01" value={newLeagueFee} onChange={(e) => setNewLeagueFee(e.target.value)}
+            placeholder="—" className={`w-20 ${inputCls}`} title="League registration fee"
+          />
+        </div>
         <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
           <input type="checkbox" checked={newUmpRequired} onChange={(e) => setNewUmpRequired(e.target.checked)}
             className="rounded border-gray-600" />
@@ -569,6 +580,13 @@ function AgeGroupConfig() {
                       />
                     </div>
                   )}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-400 whitespace-nowrap">Fee $:</label>
+                    <input
+                      type="number" min="0" step="0.01" value={editLeagueFee} onChange={(e) => setEditLeagueFee(e.target.value)}
+                      placeholder="—" className={`w-24 ${inputCls}`}
+                    />
+                  </div>
                   <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
                     <input type="checkbox" checked={editUmpRequired} onChange={(e) => setEditUmpRequired(e.target.checked)}
                       className="rounded border-gray-600" />
@@ -592,7 +610,12 @@ function AgeGroupConfig() {
                     <span className="text-xs text-gray-400">#{item.sort_order ?? 0}</span>
                     {item.ump_required !== false && (
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">
-                        ${Number(item.umpire_rate ?? 50).toFixed(2)}/game
+                        Ump ${Number(item.umpire_rate ?? 50).toFixed(2)}/game
+                      </span>
+                    )}
+                    {item.league_fee != null && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-900/35 text-amber-300">
+                        Fee ${Number(item.league_fee).toFixed(2)}
                       </span>
                     )}
                     {item.ump_required === false ? (

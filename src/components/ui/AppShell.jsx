@@ -39,6 +39,7 @@ export default function AppShell({
     users: 'User Management',
     data: 'Data Manager',
     officials: 'Officials',
+    fees: 'League Fees',
     about: 'Help',
     guide: 'Help',
   }[page] || 'Dashboard';
