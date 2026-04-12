@@ -150,6 +150,9 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
     venmo_id: official?.venmo_id || '',
     rate_per_game: official?.rate_per_game != null ? String(official.rate_per_game) : '50',
     notes: official?.notes || '',
+    date_of_birth: official?.date_of_birth || '',
+    is_certified: official?.is_certified || false,
+    years_of_experience: official?.years_of_experience != null ? String(official.years_of_experience) : '',
   });
 
   function handleChange(e) {
@@ -173,6 +176,9 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
         venmo_id: form.venmo_id.trim() || null,
         rate_per_game: form.rate_per_game,
         notes: form.notes.trim() || null,
+        date_of_birth: form.date_of_birth.trim() || null,
+        is_certified: form.is_certified === true,
+        years_of_experience: form.years_of_experience ? Number(form.years_of_experience) : null,
       };
       if (!data.name) throw new Error('Name is required');
       if (scope === 'org' && !data.org_id) throw new Error('Organization is required for org-scoped officials');
@@ -235,6 +241,23 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
             <div>
               <label htmlFor="official-venmo" className={labelCls}>Venmo ID</label>
               <input id="official-venmo" name="venmo_id" value={form.venmo_id} onChange={handleChange} className={inputCls} placeholder="@username" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label htmlFor="official-dob" className={labelCls}>Date of Birth</label>
+              <input id="official-dob" name="date_of_birth" type="date" value={form.date_of_birth} onChange={handleChange} className={inputCls} />
+            </div>
+            <div>
+              <label htmlFor="official-experience" className={labelCls}>Years of Experience</label>
+              <input id="official-experience" name="years_of_experience" type="number" min="0" max="99" value={form.years_of_experience} onChange={handleChange} className={inputCls} />
+            </div>
+            <div className="flex items-end">
+              <label htmlFor="official-certified" className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                <input id="official-certified" name="is_certified" type="checkbox" checked={form.is_certified} onChange={handleChange} className="w-4 h-4 rounded bg-gray-700 border-gray-500 accent-blue-600 cursor-pointer" />
+                Certified
+              </label>
             </div>
           </div>
 
