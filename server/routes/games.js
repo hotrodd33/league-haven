@@ -32,7 +32,8 @@ const BASE_SELECT = `
     fl.city AS location_city, fl.state AS location_state,
     ls.name AS season_name, ls.year AS season_year,
     gd.division_id, gd.division_name, gd.division_sort,
-    goa.official_ids, goa.official_names, goa.officials
+    goa.official_ids, goa.official_names, goa.officials,
+    gua.interested_official_ids, gua.interested_umpire_names, gua.interested_umpires
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
@@ -71,6 +72,34 @@ const BASE_SELECT = `
     LEFT JOIN organizations org ON org.id = o.org_id
     WHERE go.game_id = g.id
   ) goa ON true
+  LEFT JOIN LATERAL (
+    SELECT
+      COALESCE(array_agg(i.official_id ORDER BY i.name) FILTER (WHERE i.official_id IS NOT NULL), ARRAY[]::INTEGER[]) AS interested_official_ids,
+      COALESCE(array_agg(i.name ORDER BY i.name) FILTER (WHERE i.name IS NOT NULL), ARRAY[]::TEXT[]) AS interested_umpire_names,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'user_id', i.user_id,
+            'official_id', i.official_id,
+            'name', i.name,
+            'interested_at', i.interested_at
+          )
+          ORDER BY i.name
+        ) FILTER (WHERE i.user_id IS NOT NULL),
+        '[]'::json
+      ) AS interested_umpires
+    FROM (
+      SELECT
+        ugi.user_id,
+        o.id AS official_id,
+        COALESCE(o.name, u.name) AS name,
+        ugi.interested_at
+      FROM umpire_game_interests ugi
+      JOIN users u ON u.id = ugi.user_id
+      LEFT JOIN officials o ON o.user_id = ugi.user_id
+      WHERE ugi.game_id = g.id
+    ) i
+  ) gua ON true
 `;
 
 function enrichGame(row) {
@@ -110,6 +139,9 @@ function enrichGame(row) {
     official_ids: row.official_ids || [],
     official_names: row.official_names || [],
     officials: row.officials || [],
+    interested_official_ids: row.interested_official_ids || [],
+    interested_umpire_names: row.interested_umpire_names || [],
+    interested_umpires: row.interested_umpires || [],
   };
 }
 

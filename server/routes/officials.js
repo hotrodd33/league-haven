@@ -25,8 +25,22 @@ router.get('/assignable', authMiddleware, async (req, res) => {
     const { org_id } = req.query;
     if (!org_id) return res.json([]);
 
-    if (req.user.role !== 'super_admin' && !(await canEditOrg(req.user, org_id))) {
-      return res.status(403).json({ error: 'No permission for this organization' });
+    if (req.user.role !== 'super_admin') {
+      const canEdit = await canEditOrg(req.user, org_id);
+      if (!canEdit) {
+        const perms = await getUserPermissions(req.user.id);
+        const teamIds = perms.team_ids || [];
+        if (!teamIds.length) {
+          return res.status(403).json({ error: 'No permission for this organization' });
+        }
+        const { rows: teamRows } = await pool.query(
+          'SELECT 1 FROM teams WHERE id = ANY($1) AND org_id = $2 LIMIT 1',
+          [teamIds, Number(org_id)]
+        );
+        if (!teamRows.length) {
+          return res.status(403).json({ error: 'No permission for this organization' });
+        }
+      }
     }
 
     const { rows: orgRows } = await pool.query('SELECT id, officials_enabled FROM organizations WHERE id = $1', [org_id]);

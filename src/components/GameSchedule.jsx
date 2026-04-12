@@ -3,6 +3,7 @@ import {
   fetchGames, createGame, updateGame, deleteGame,
   fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
   fetchOrganizations, fetchAssignableOfficials,
+  fetchGameInterests, expressGameInterest, removeGameInterest,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
@@ -56,6 +57,33 @@ function toHHMM(totalMinutes) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+function UmpireStatusList({ officials, interestedUmpires }) {
+  const assignedIds = new Set((officials || []).map(o => Number(o.id)));
+  const items = [];
+  for (const o of (officials || [])) {
+    items.push({ name: o.name, status: 'assigned' });
+  }
+  for (const u of (interestedUmpires || [])) {
+    if (!assignedIds.has(Number(u.official_id))) {
+      items.push({ name: u.name, status: 'interested' });
+    }
+  }
+  if (!items.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {items.map((item, i) => (
+        <span key={i} className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+          item.status === 'assigned'
+            ? 'bg-green-900/50 text-green-300'
+            : 'bg-yellow-900/40 text-yellow-300'
+        }`}>
+          {item.name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function buildTimeSlots(startTime, endTime, increment) {
   const start = toMinutes(startTime);
   const end = toMinutes(endTime);
@@ -69,7 +97,8 @@ function buildTimeSlots(startTime, endTime, increment) {
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam }) {
-  const { isAdmin, canScoreGame } = useAuth();
+  const { isAdmin, canScoreGame, role } = useAuth();
+  const isUmpire = role === 'umpire';
   const [games, setGames] = useState([]);
   const [teams, setTeams] = useState([]);
   const [seasons, setSeasons] = useState([]);
@@ -80,6 +109,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
   const [deleting, setDeleting] = useState(null);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [trackingGameId, setTrackingGameId] = useState(null);
+  const [interestGameIds, setInterestGameIds] = useState([]);
+  const [managingInterest, setManagingInterest] = useState(null);
 
   // Filters
   const [filterTeam, setFilterTeam] = useState('');
@@ -110,8 +141,35 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
     } catch (err) { setError(err.message); }
   }, [filterTeam, filterSeason, filterStatus, filterDivision]);
 
+  const loadInterests = useCallback(async () => {
+    if (!isUmpire) {
+      setInterestGameIds([]);
+      return;
+    }
+    try {
+      const rows = await fetchGameInterests();
+      setInterestGameIds((rows || []).map((g) => Number(g.id)).filter(Number.isFinite));
+    } catch {
+      setInterestGameIds([]);
+    }
+  }, [isUmpire]);
+
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (!loading) loadGames(); }, [loadGames, loading]);
+  useEffect(() => { loadInterests(); }, [loadInterests]);
+
+  async function handleToggleInterest(gameId, currentlyInterested) {
+    setManagingInterest(gameId);
+    try {
+      if (currentlyInterested) await removeGameInterest(gameId);
+      else await expressGameInterest(gameId);
+      await Promise.all([loadGames(), loadInterests()]);
+    } catch (err) {
+      alert(`Failed to update interest: ${err.message}`);
+    } finally {
+      setManagingInterest(null);
+    }
+  }
 
   async function handleDelete(game) {
     const label = `${game.home_team_name} vs ${game.away_team_name} on ${formatDate(game.game_date)}`;
@@ -255,6 +313,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                 <div className="space-y-2">
                   {gamesByDate[dateKey].map(game => {
                     const divisionLabel = gameDivisionLevelLabel(game);
+                    const isInterested = interestGameIds.includes(Number(game.id));
+                    const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
                     return (
                       <div key={game.id} onClick={() => setSelectedGameId(game.id)}
                         className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
@@ -290,10 +350,10 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                               📍 {game.location_name}
                             </span>
                           )}
-                          {!!game.official_names?.length && (
-                            <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[220px]">
-                              👤 {game.official_names.join(', ')}
-                            </span>
+                          {(!!game.officials?.length || !!game.interested_umpires?.length) && (
+                            <div className="hidden lg:flex items-center" onClick={(e) => e.stopPropagation()}>
+                              <UmpireStatusList officials={game.officials} interestedUmpires={game.interested_umpires} />
+                            </div>
                           )}
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                             {game.status_label}
@@ -302,12 +362,25 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                             <button onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
                               className="px-2 py-1 text-xs font-semibold bg-yellow-900/35 text-yellow-300 rounded hover:bg-yellow-800/60">⚾ Track</button>
                           )}
-                          {isAdmin && (
+                          {canEditThisGame && (
                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                               <button onClick={() => { setEditing(game); setShowForm(true); }}
                                 className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
-                              <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
-                                className={btnDanger}>{deleting === game.id ? '…' : 'Del'}</button>
+                              {isAdmin && (
+                                <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
+                                  className={btnDanger}>{deleting === game.id ? '…' : 'Del'}</button>
+                              )}
+                            </div>
+                          )}
+                          {isUmpire && game.status === 'scheduled' && (
+                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => handleToggleInterest(game.id, isInterested)}
+                                disabled={managingInterest === game.id}
+                                className={`px-2 py-1 text-xs font-semibold rounded ${isInterested ? 'bg-green-700 text-white hover:bg-green-600' : 'bg-teal-700 text-white hover:bg-teal-600'} disabled:opacity-60`}
+                              >
+                                {managingInterest === game.id ? '…' : (isInterested ? 'Interested' : 'I\'m Interested')}
+                              </button>
                             </div>
                           )}
                         </div>
@@ -321,6 +394,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
               <div className="md:hidden space-y-2">
                 {gamesByDate[dateKey].map(game => {
                   const divisionLabel = gameDivisionLevelLabel(game);
+                  const isInterested = interestGameIds.includes(Number(game.id));
+                  const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
                   return (
                     <div key={game.id} onClick={() => setSelectedGameId(game.id)}
                       className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
@@ -346,9 +421,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                       {game.location_name && (
                         <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
                       )}
-                      {!!game.official_names?.length && (
-                        <div className="text-xs text-gray-400 mb-1">
-                          {game.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {game.official_names.join(', ')}
+                      {(!!game.officials?.length || !!game.interested_umpires?.length) && (
+                        <div className="mb-1" onClick={(e) => e.stopPropagation()}>
+                          <UmpireStatusList officials={game.officials} interestedUmpires={game.interested_umpires} />
                         </div>
                       )}
                       {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
@@ -357,13 +432,24 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                           <button onClick={() => setTrackingGameId(game.id)}
                             className="px-2.5 py-1 text-xs font-semibold bg-yellow-900/35 text-yellow-300 rounded hover:bg-yellow-800/60">⚾ Track</button>
                         )}
-                        {isAdmin && (
+                        {canEditThisGame && (
                           <>
                             <button onClick={() => { setEditing(game); setShowForm(true); }}
                               className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
-                            <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
-                              className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
+                            {isAdmin && (
+                              <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
+                                className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
+                            )}
                           </>
+                        )}
+                        {isUmpire && game.status === 'scheduled' && (
+                          <button
+                            onClick={() => handleToggleInterest(game.id, isInterested)}
+                            disabled={managingInterest === game.id}
+                            className={`px-2.5 py-1 text-xs font-semibold rounded ${isInterested ? 'bg-green-700 text-white hover:bg-green-600' : 'bg-teal-700 text-white hover:bg-teal-600'} disabled:opacity-60`}
+                          >
+                            {managingInterest === game.id ? '…' : (isInterested ? 'Interested' : 'I\'m Interested')}
+                          </button>
                         )}
                       </div>
                     </div>
@@ -428,6 +514,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   });
 
   const selectedHomeTeam = teams.find((t) => String(t.id) === String(form.home_team_id));
+  const interestedOfficialIds = (game?.interested_official_ids || []).map((id) => Number(id));
+  const interestedOfficialSet = new Set(interestedOfficialIds);
   const homeOrgId = selectedHomeTeam?.org_id || null;
   const officialsEnabled = homeOrgId ? !!orgSettings[homeOrgId]?.officials_enabled : false;
 
@@ -472,9 +560,10 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     fetchAssignableOfficials(homeOrgId).then((rows) => {
       const list = rows || [];
       setOfficials(list);
+      const validIds = new Set(list.map((o) => String(o.id)));
       setForm((prev) => ({
         ...prev,
-        official_ids: (prev.official_ids || []).filter((id) => list.some((o) => String(o.id) === String(id))),
+        official_ids: (prev.official_ids || []).filter((id) => validIds.has(String(id))),
       }));
     }).catch(() => {
       setOfficials([]);
@@ -688,25 +777,38 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
           {officialsEnabled && (
             <div>
-              <label className={labelCls}>Assigned Officials</label>
+              <label className={labelCls}>Umpire Assignment</label>
               {officials.length === 0 ? (
-                <p className="text-xs text-gray-400">No officials available. Add officials in the Officials module.</p>
+                <p className="text-xs text-gray-400">No officials available for this organization. Add officials in the Officials module.</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-900 border border-gray-700 rounded-lg p-3 max-h-44 overflow-y-auto">
+                <div className="space-y-1 bg-gray-900 border border-gray-700 rounded-lg p-3 max-h-52 overflow-y-auto">
                   {officials.map((official) => {
                     const checked = (form.official_ids || []).some((id) => String(id) === String(official.id));
+                    const interested = interestedOfficialSet.has(Number(official.id));
+                    const rowCls = checked
+                      ? 'border border-green-500/40 bg-green-900/20'
+                      : interested
+                        ? 'border border-yellow-500/40 bg-yellow-900/15'
+                        : 'border border-red-500/20 bg-red-900/10';
+                    const dotCls = checked ? 'bg-green-400' : interested ? 'bg-yellow-400' : 'bg-red-500';
                     return (
-                      <label key={official.id} className="flex items-center justify-between gap-2 text-sm text-gray-200">
-                        <span className="truncate">
+                      <label key={official.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${rowCls}`}>
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
+                        <span className="flex-1 text-sm text-gray-200 truncate">
                           {official.name}
                           <span className="text-xs text-gray-400 ml-1">({official.scope === 'league' ? 'League' : (official.org_name || 'Org')})</span>
                         </span>
-                        <input type="checkbox" checked={checked} onChange={() => toggleOfficial(official.id)} />
+                        <input type="checkbox" checked={checked} onChange={() => toggleOfficial(official.id)} className="accent-green-500" />
                       </label>
                     );
                   })}
                 </div>
               )}
+              <div className="flex gap-4 mt-1.5 text-xs text-gray-400">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Assigned</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" /> Interested</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> No status</span>
+              </div>
             </div>
           )}
 
