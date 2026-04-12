@@ -85,6 +85,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
   const [filterTeam, setFilterTeam] = useState('');
   const [filterSeason, setFilterSeason] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterDivision, setFilterDivision] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError(null);
@@ -107,7 +108,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
       if (filterStatus) filters.status = filterStatus;
       setGames(await fetchGames(filters));
     } catch (err) { setError(err.message); }
-  }, [filterTeam, filterSeason, filterStatus]);
+  }, [filterTeam, filterSeason, filterStatus, filterDivision]);
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (!loading) loadGames(); }, [loadGames, loading]);
@@ -127,9 +128,25 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
     setShowForm(false); setEditing(null); loadGames();
   }
 
+  // Extract unique divisions from games
+  const divisions = new Set();
+  for (const g of games) {
+    const divLabel = g.division_name || ([g.home_age_group, g.home_level].filter(Boolean).join(' ')) || null;
+    if (divLabel) divisions.add(divLabel);
+  }
+  const sortedDivisions = Array.from(divisions).sort();
+
+  // Filter games by division if selected
+  const filteredGames = filterDivision 
+    ? games.filter(g => {
+        const divLabel = g.division_name || ([g.home_age_group, g.home_level].filter(Boolean).join(' ')) || null;
+        return divLabel === filterDivision;
+      })
+    : games;
+
   // Group games by date only (newest first)
   const gamesByDate = {};
-  for (const g of games) {
+  for (const g of filteredGames) {
     const dateKey = g.game_date || '__unknown__';
     if (!gamesByDate[dateKey]) gamesByDate[dateKey] = [];
     gamesByDate[dateKey].push(g);
@@ -169,7 +186,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-lg font-bold">Game Schedule ({games.length})</h2>
+        <h2 className="text-lg font-bold">Game Schedule ({filteredGames.length})</h2>
         <div className="flex gap-2">
           {isAdmin && (
             <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Game</button>
@@ -206,9 +223,16 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
           <option value="">All Statuses</option>
           {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
+        <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}
+          className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+          <option value="">All Divisions</option>
+          {sortedDivisions.map(div => (
+            <option key={div} value={div}>{div}</option>
+          ))}
+        </select>
       </div>
 
-      {games.length === 0 ? (
+      {filteredGames.length === 0 ? (
         <div className="py-12 text-center text-gray-400">
           No games found.
           {isAdmin && (
