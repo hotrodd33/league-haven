@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchGame, updateGame,
   fetchPitchCounts, createPitchCount, updatePitchCount, deletePitchCount,
-  fetchPlayersByTeam, createPlayer, fetchPitchEligibility, importGameChanger,
+  fetchPlayersByTeam, createPlayer, fetchPitchEligibility,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
+import GameChangerImportWizard from './import/GameChangerImportWizard.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
@@ -42,10 +43,6 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showGcImport, setShowGcImport] = useState(false);
-  const [gcPasteText, setGcPasteText] = useState('');
-  const [gcFile, setGcFile] = useState(null);
-  const [gcImporting, setGcImporting] = useState(false);
-  const [gcImportMessage, setGcImportMessage] = useState('');
 
   // Pitch tracker mode
   const [showTracker, setShowTracker] = useState(false);
@@ -194,37 +191,6 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
     finally { setSavingNewPlayer(false); }
   }
 
-  async function handleGcImport(e) {
-    e.preventDefault();
-    setError(null);
-    setGcImportMessage('');
-
-    const input = gcPasteText.trim() ? gcPasteText.trim() : gcFile;
-    if (!input) {
-      setError('Paste GameChanger box score text or choose a file to import.');
-      return;
-    }
-
-    setGcImporting(true);
-    try {
-      const result = await importGameChanger(input, 'boxscore', {
-        gameId: game.id,
-        teamId: game.home_team_id,
-        seasonId: game.season_id || undefined,
-        overwrite: true,
-      });
-
-      setGcImportMessage(result?.message || 'Import completed.');
-      setGcPasteText('');
-      setGcFile(null);
-      await loadAll();
-    } catch (err) {
-      setError(err.message || 'GameChanger import failed.');
-    } finally {
-      setGcImporting(false);
-    }
-  }
-
   if (loading) return <div className="py-8 text-center text-gray-400">Loading game…</div>;
   if (!game) return <div className="py-8 text-center text-red-600">Game not found</div>;
 
@@ -251,10 +217,10 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         <button onClick={onBack} className={btnSecondary}>← Back to Schedule</button>
         {canUseGcImport && (
           <button
-            onClick={() => setShowGcImport((prev) => !prev)}
+            onClick={() => setShowGcImport(true)}
             className="px-3 py-2 bg-[#00AEEF] text-white text-sm font-semibold rounded-lg hover:brightness-105 transition"
           >
-            {showGcImport ? 'Hide GC Import' : 'Import from GC'}
+            Import from GC
           </button>
         )}
         {userCanScore && game.status !== 'completed' && (
@@ -317,39 +283,11 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       </div>
 
       {showGcImport && canUseGcImport && (
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
-          <form onSubmit={handleGcImport} className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 p-3 space-y-3">
-            <div className="text-xs font-semibold text-cyan-200">Import score + pitch counts from GameChanger box score</div>
-            <div>
-              <label className={labelCls}>Paste Box Score Text</label>
-              <textarea
-                value={gcPasteText}
-                onChange={(e) => setGcPasteText(e.target.value)}
-                rows={5}
-                className={inputCls}
-                placeholder="Paste copied GameChanger box score text here"
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Or Upload Box Score File</label>
-              <input
-                type="file"
-                accept=".pdf,.txt,.csv"
-                onChange={(e) => setGcFile(e.target.files?.[0] || null)}
-                className="block w-full text-xs text-gray-300 file:mr-3 file:rounded file:border-0 file:bg-gray-700 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gray-100 hover:file:bg-gray-600"
-              />
-            </div>
-            {gcImportMessage && (
-              <div className="text-xs text-green-300">{gcImportMessage}</div>
-            )}
-            <div className="flex gap-2">
-              <button type="submit" disabled={gcImporting} className={btnPrimary}>
-                {gcImporting ? 'Importing…' : 'Run GC Import'}
-              </button>
-              <button type="button" onClick={() => { setGcPasteText(''); setGcFile(null); }} className={btnSecondary}>Clear</button>
-            </div>
-          </form>
-        </div>
+        <GameChangerImportWizard
+          open={showGcImport}
+          onClose={() => { setShowGcImport(false); loadAll(); }}
+          gameId={game.id}
+        />
       )}
 
       {/* Score reporting */}

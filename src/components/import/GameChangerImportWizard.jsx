@@ -52,7 +52,7 @@ const STEPS = [
   { key: 'success',  label: 'Done' },
 ];
 
-export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
+export default function GameChangerImportWizard({ open, onClose, onNavigate, gameId }) {
   const overlayRef = useRef(null);
 
   /* ── State ── */
@@ -108,8 +108,8 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
   /* ── Reset on open/close ── */
   useEffect(() => {
     if (open) {
-      setStep(0);
-      setImportType(null);
+      setStep(gameId ? 1 : 0);
+      setImportType(gameId ? 'boxscore' : null);
       setFile(null);
       setPastedText('');
       setPreviewHeaders([]);
@@ -130,7 +130,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
       setImportResult(null);
       setImportError(null);
     }
-  }, [open]);
+  }, [open, gameId]);
 
   /* ── File parsing ── */
   const handleFileSelect = useCallback((f) => {
@@ -393,6 +393,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
 
       const input = pastedText?.trim() ? pastedText.trim() : file;
       const result = await importGameChanger(input, importType, {
+        gameId: gameId || undefined,
         teamId: settings.teamId,
         seasonId: settings.seasonId,
         overwrite: settings.overwrite,
@@ -419,8 +420,8 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate }) {
 
   /* ── Import another file ── */
   const handleImportAnother = () => {
-    setStep(0);
-    setImportType(null);
+    setStep(gameId ? 1 : 0);
+    setImportType(gameId ? 'boxscore' : null);
     setFile(null);
     setPastedText('');
     setPreviewHeaders([]);
