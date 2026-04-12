@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, canEditOrg, getUserPermissions } = require('../auth');
+const { authMiddleware, getUserPermissions } = require('../auth');
 
 const router = express.Router();
 
@@ -14,7 +14,6 @@ function toMoney(value) {
 function requireAdminOrAccountant(req, res, next) {
   const role = req.user?.role;
   if (role === 'super_admin' || role === 'accountant') return next();
-  if (canEditOrg(req.user)) return next();
   return res.status(403).json({ error: 'Forbidden' });
 }
 

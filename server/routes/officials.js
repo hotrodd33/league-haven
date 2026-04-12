@@ -108,9 +108,11 @@ router.get('/', authMiddleware, async (req, res) => {
       clauses.push(`(o.name ILIKE $${params.length} OR COALESCE(o.email, '') ILIKE $${params.length})`);
     }
 
+    let userOrgIds = null;
     if (req.user.role !== 'super_admin' && req.user.role !== 'accountant') {
       const perms = await getUserPermissions(req.user.id);
       const orgIds = perms.org_ids || [];
+      userOrgIds = orgIds;
       if (orgIds.length) {
         params.push(orgIds);
         clauses.push(`(o.org_id = ANY($${params.length}) OR o.org_id IS NULL)`);
@@ -159,10 +161,12 @@ router.get('/', authMiddleware, async (req, res) => {
       params
     );
 
-    const canSeeFinancials = ['super_admin', 'accountant', 'org_admin'].includes(req.user.role);
+    const isGlobalFinancial = ['super_admin', 'accountant'].includes(req.user.role);
     res.json(rows.map(r => {
       const o = normalizeOfficial(r);
-      if (!canSeeFinancials) {
+      // Admin/accountant see all financials; org_admin sees only their own org's
+      const canSeeThisFinancial = isGlobalFinancial || (userOrgIds && o.org_id && userOrgIds.includes(o.org_id));
+      if (!canSeeThisFinancial) {
         delete o.total_owed;
         delete o.rate_per_game;
         delete o.venmo_id;
@@ -365,10 +369,12 @@ router.get('/:id/detail', authMiddleware, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Official not found' });
     const official = rows[0];
 
-    // Permission check: super admin, or can edit the official's org
-    if (req.user.role !== 'super_admin' && req.user.role !== 'accountant') {
+    // Permission: super admin/accountant see all; others must have org access or be in same org
+    let canSeeFinancials = req.user.role === 'super_admin' || req.user.role === 'accountant';
+    if (!canSeeFinancials) {
       if (official.org_id) {
-        if (!(await canEditOrg(req.user, official.org_id))) {
+        const hasOrgAccess = await canEditOrg(req.user, official.org_id);
+        if (!hasOrgAccess) {
           // Also allow coaches (team-level permissions) if they're in the same org
           const perms = await getUserPermissions(req.user.id);
           const orgTeamCheck = perms.team_ids?.length
@@ -376,13 +382,17 @@ router.get('/:id/detail', authMiddleware, async (req, res) => {
             : { rows: [] };
           if (!orgTeamCheck.rows.length) return res.status(403).json({ error: 'No permission' });
         }
-      } else {
-        // League-scoped official — only super admin
-        return res.status(403).json({ error: 'No permission' });
+        canSeeFinancials = true; // user has permission for this org's official
       }
+      // League-scoped officials: visible to all authenticated users, but no financial data
     }
 
-    res.json(normalizeOfficial(official));
+    const result = normalizeOfficial(official);
+    if (!canSeeFinancials) {
+      delete result.rate_per_game;
+      delete result.venmo_id;
+    }
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -399,21 +409,23 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
     if (!offRows.length) return res.status(404).json({ error: 'Official not found' });
     const official = offRows[0];
 
-    if (req.user.role !== 'super_admin' && req.user.role !== 'accountant') {
+    let canSeeFinancials = req.user.role === 'super_admin' || req.user.role === 'accountant';
+    if (!canSeeFinancials) {
       if (official.org_id) {
-        if (!(await canEditOrg(req.user, official.org_id))) {
+        const hasOrgAccess = await canEditOrg(req.user, official.org_id);
+        if (!hasOrgAccess) {
           const perms = await getUserPermissions(req.user.id);
           const orgTeamCheck = perms.team_ids?.length
             ? await pool.query('SELECT 1 FROM teams WHERE id = ANY($1) AND org_id = $2 LIMIT 1', [perms.team_ids, official.org_id])
             : { rows: [] };
           if (!orgTeamCheck.rows.length) return res.status(403).json({ error: 'No permission' });
         }
-      } else {
-        return res.status(403).json({ error: 'No permission' });
+        canSeeFinancials = true; // user has permission for this org's official
       }
+      // League-scoped: allow viewing games but strip financial data
     }
 
-    const defaultRate = official.rate_per_game != null ? Number(official.rate_per_game) : null;
+    const defaultRate = canSeeFinancials && official.rate_per_game != null ? Number(official.rate_per_game) : null;
 
     const { rows } = await pool.query(
       `SELECT
@@ -479,14 +491,17 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
     const totalDue = totalEarnings - totalPayments;
 
     res.json({
-      games,
-      summary: {
+      games: canSeeFinancials ? games : games.map(({ game_fee, effective_fee, is_paid, paid_at, ...g }) => g),
+      summary: canSeeFinancials ? {
         total_games: games.length,
         completed_games: completedGames.length,
         total_earnings: Math.round(totalEarnings * 100) / 100,
         total_payments: Math.round(totalPayments * 100) / 100,
         total_due: Math.round(totalDue * 100) / 100,
         default_rate: defaultRate,
+      } : {
+        total_games: games.length,
+        completed_games: completedGames.length,
       },
     });
   } catch (err) {
