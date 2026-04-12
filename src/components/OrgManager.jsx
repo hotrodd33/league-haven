@@ -3,6 +3,7 @@ import {
   fetchOrganizations, createOrganization, updateOrganization, deleteOrganization,
   fetchTeams, fetchGames, createTeam, updateTeam, uploadOrgLogo, removeOrgLogo,
   fetchAgeGroups, fetchLevels, fetchSeasons, fetchDivisions, uploadTeamLogo, removeTeamLogo,
+  fetchRegistrations,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldLocations from './FieldLocations.jsx';
@@ -38,6 +39,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   const { isAdmin, canEditOrg } = useAuth();
   const [orgs, setOrgs] = useState([]);
   const [orgStats, setOrgStats] = useState({});
+  const [orgPayments, setOrgPayments] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -48,7 +50,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   const loadOrgs = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [orgData, games] = await Promise.all([fetchOrganizations(), fetchGames()]);
+      const [orgData, games, regData] = await Promise.all([fetchOrganizations(), fetchGames(), fetchRegistrations().catch(() => ({ registrations: [] }))]);
       setOrgs(orgData);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -79,6 +81,26 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
         }
       }
       setOrgStats(stats);
+
+      // Build per-org payment summary from registrations
+      const payments = {};
+      const teamPaymentMap = {};
+      for (const reg of regData.registrations || []) {
+        const oid = reg.org_id;
+        if (!oid) continue;
+        if (!payments[oid]) payments[oid] = { total_fees: 0, collected: 0, outstanding: 0, teams_paid: 0, teams_unpaid: 0 };
+        const fee = reg.effective_fee || 0;
+        payments[oid].total_fees += fee;
+        if (reg.is_paid) {
+          payments[oid].collected += (reg.paid_amount != null ? Number(reg.paid_amount) : fee);
+          payments[oid].teams_paid += 1;
+        } else {
+          payments[oid].outstanding += fee;
+          payments[oid].teams_unpaid += 1;
+        }
+        teamPaymentMap[reg.team_id] = { is_paid: reg.is_paid, fee: reg.effective_fee };
+      }
+      setOrgPayments({ summary: payments, teams: teamPaymentMap });
     }
     catch (err) { setError(err.message); }
     finally { setLoading(false); }
@@ -100,7 +122,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
 
   if (selectedOrg) {
-    return <OrgDetailView org={selectedOrg} onBack={() => { setSelectedOrg(null); loadOrgs(); }} onNavigateToTeam={onNavigateToTeam} />;
+    return <OrgDetailView org={selectedOrg} onBack={() => { setSelectedOrg(null); loadOrgs(); }} onNavigateToTeam={onNavigateToTeam} teamPayments={orgPayments.teams || {}} />;
   }
 
   return (
@@ -130,6 +152,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
               key={org.id}
               org={org}
               orgStats={orgStats[org.id]}
+              orgPayment={orgPayments.summary?.[org.id]}
               canEdit={canEditOrg(org.id)}
               deleting={deleting === org.id}
               isAdmin={isAdmin}
@@ -146,9 +169,10 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   );
 }
 
-function OrgListCard({ org, orgStats, canEdit, deleting, isAdmin, onOpen, onEdit, onDelete }) {
+function OrgListCard({ org, orgStats, orgPayment, canEdit, deleting, isAdmin, onOpen, onEdit, onDelete }) {
   const { ageGroups, levels } = summarizeOrgTeams(org);
   const { scheduled = 0, played = 0, missingScores = 0 } = orgStats || {};
+  const hasPayment = orgPayment && (orgPayment.total_fees > 0 || orgPayment.teams_unpaid > 0);
 
   return (
     <div
@@ -182,6 +206,25 @@ function OrgListCard({ org, orgStats, canEdit, deleting, isAdmin, onOpen, onEdit
           <div className={`font-bold text-sm mt-0.5 ${missingScores > 0 ? 'text-red-400' : 'text-gray-400'}`}>{missingScores}</div>
         </div>
       </div>
+
+      {hasPayment && (
+        <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
+            <div className="text-gray-400 uppercase tracking-wide font-semibold">Fees</div>
+            <div className="text-white font-bold text-sm mt-0.5">${orgPayment.total_fees.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </div>
+          <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
+            <div className="text-gray-400 uppercase tracking-wide font-semibold">Paid</div>
+            <div className="text-green-400 font-bold text-sm mt-0.5">${orgPayment.collected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </div>
+          <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
+            <div className="text-gray-400 uppercase tracking-wide font-semibold">Owed</div>
+            <div className={`font-bold text-sm mt-0.5 ${orgPayment.outstanding > 0 ? 'text-red-400' : 'text-green-400'}`}>
+              ${orgPayment.outstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {(org.city || org.state) && (
         <p className="text-sm text-gray-400 mb-3">{[org.city, org.state].filter(Boolean).join(', ')}</p>
@@ -405,7 +448,7 @@ function OrgForm({ org, onDone, onCancel }) {
   );
 }
 
-function OrgDetailView({ org: initialOrg, onBack, onNavigateToTeam }) {
+function OrgDetailView({ org: initialOrg, onBack, onNavigateToTeam, teamPayments = {} }) {
   const [org, setOrg] = useState(initialOrg);
   const [allTeams, setAllTeams] = useState([]);
 
@@ -424,13 +467,13 @@ function OrgDetailView({ org: initialOrg, onBack, onNavigateToTeam }) {
         ← Back to Organizations
       </button>
       <OrgCard org={org} />
-      <OrgTeams org={org} allTeams={allTeams} onChanged={reload} onNavigateToTeam={onNavigateToTeam} />
+      <OrgTeams org={org} allTeams={allTeams} onChanged={reload} onNavigateToTeam={onNavigateToTeam} teamPayments={teamPayments} />
       <FieldLocations orgId={org.id} orgName={org.name} />
     </div>
   );
 }
 
-function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
+function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {} }) {
   const { isAdmin } = useAuth();
   const canManage = isAdmin;
   const [assigning, setAssigning] = useState(false);
@@ -679,9 +722,14 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
                 {orgTeams.map((t) => (
                   <tr key={t.id} className="hover:bg-gray-900">
                     <td className="px-3 py-2 font-semibold">
-                      <button onClick={() => onNavigateToTeam?.(t.id, t.org_id)} className="text-field-300 hover:text-field-100 hover:underline text-left">
-                        {t.long_name || t.name}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => onNavigateToTeam?.(t.id, t.org_id)} className="text-field-300 hover:text-field-100 hover:underline text-left">
+                          {t.long_name || t.name}
+                        </button>
+                        {teamPayments[t.id] && !teamPayments[t.id].is_paid && (
+                          <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-900/35 text-red-300 whitespace-nowrap">Unpaid</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2">{t.age_group || '—'}</td>
                     <td className="px-3 py-2">{t.level || '—'}</td>
@@ -704,9 +752,14 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam }) {
             {orgTeams.map((t) => (
               <div key={t.id} className="bg-gray-800 rounded-lg border border-gray-700 p-3 flex items-center justify-between text-gray-200">
                 <div>
-                  <button onClick={() => onNavigateToTeam?.(t.id, t.org_id)} className="font-semibold text-sm text-field-300 hover:text-field-100 hover:underline text-left">
-                    {t.long_name || t.name}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => onNavigateToTeam?.(t.id, t.org_id)} className="font-semibold text-sm text-field-300 hover:text-field-100 hover:underline text-left">
+                      {t.long_name || t.name}
+                    </button>
+                    {teamPayments[t.id] && !teamPayments[t.id].is_paid && (
+                      <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-900/35 text-red-300">Unpaid</span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-400">{[t.age_group, t.level, t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : t.division].filter(Boolean).join(' · ') || '—'}</div>
                 </div>
                 {isAdmin && (
