@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   fetchGames, createGame, updateGame, deleteGame,
   fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
@@ -105,6 +105,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
   const [trackingGameId, setTrackingGameId] = useState(null);
   const [interestGameIds, setInterestGameIds] = useState([]);
   const [managingInterest, setManagingInterest] = useState(null);
+  const dateSectionRefs = useRef({});
 
   // Filters
   const [filterTeam, setFilterTeam] = useState('');
@@ -205,6 +206,32 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
   }
   const sortedDateKeys = Object.keys(gamesByDate).sort((a, b) => b.localeCompare(a));
 
+  const anchorDateKey = useMemo(() => {
+    if (!sortedDateKeys.length) return null;
+    const todayKey = new Date().toISOString().slice(0, 10);
+    if (sortedDateKeys.includes(todayKey)) return todayKey;
+
+    // If no exact today section, anchor to the nearest upcoming date first.
+    const upcoming = sortedDateKeys
+      .filter((k) => k !== '__unknown__' && k >= todayKey)
+      .sort((a, b) => a.localeCompare(b));
+    if (upcoming.length) return upcoming[0];
+
+    // Otherwise anchor to the most recent available past date.
+    const known = sortedDateKeys.filter((k) => k !== '__unknown__');
+    return known.length ? known[0] : sortedDateKeys[0];
+  }, [sortedDateKeys]);
+
+  useEffect(() => {
+    if (!anchorDateKey || loading) return;
+    const el = dateSectionRefs.current[anchorDateKey];
+    if (!el) return;
+
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'auto', block: 'start' });
+    });
+  }, [anchorDateKey, loading, filterSeason, filterTeam, filterStatus, filterDivision]);
+
   function gameDivisionLevelLabel(game) {
     if (game.division_name) return game.division_name;
     const fallback = [game.home_age_group, game.home_level].filter(Boolean).join(' ');
@@ -297,7 +324,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
       ) : (
         <div className="space-y-6">
           {sortedDateKeys.map(dateKey => (
-            <div key={dateKey}>
+            <div key={dateKey} ref={(el) => { dateSectionRefs.current[dateKey] = el; }}>
               <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
                 {formatDate(dateKey)}
               </h3>
