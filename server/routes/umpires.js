@@ -7,7 +7,7 @@ const router = express.Router();
 // GET /api/umpires/me — get current umpire's profile
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    if (req.user.role !== 'umpire') {
+    if (req.user.role !== 'umpire' && !req.user.is_umpire) {
       return res.status(403).json({ error: 'Only umpires can access this endpoint' });
     }
 
@@ -33,7 +33,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 // GET /api/umpires/assigned-games — get games assigned to current umpire
 router.get('/assigned-games', authMiddleware, async (req, res) => {
   try {
-    if (req.user.role !== 'umpire') {
+    if (req.user.role !== 'umpire' && !req.user.is_umpire) {
       return res.status(403).json({ error: 'Only umpires can access this endpoint' });
     }
 
@@ -70,13 +70,27 @@ router.get('/assigned-games', authMiddleware, async (req, res) => {
 // GET /api/umpires/available-games — get unassigned games umpire can express interest in
 router.get('/available-games', authMiddleware, async (req, res) => {
   try {
-    if (req.user.role !== 'umpire') {
+    if (req.user.role !== 'umpire' && !req.user.is_umpire) {
       return res.status(403).json({ error: 'Only umpires can access this endpoint' });
     }
 
     const { season_id } = req.query;
+    // Get umpire's official profile to determine org scope
+    const { rows: profileRows } = await pool.query(
+      'SELECT org_id FROM officials WHERE user_id = $1 LIMIT 1',
+      [req.user.id]
+    );
+    const umpireOrgId = profileRows[0]?.org_id ?? null;
+
     const params = [req.user.id];
     let whereClause = 'WHERE g.status = \'scheduled\'';
+
+    // Org-scoped umpires only see games for their organization
+    if (umpireOrgId !== null) {
+      params.push(umpireOrgId);
+      whereClause += ` AND (ht.org_id = $${params.length} OR at.org_id = $${params.length})`;
+    }
+    // League umpires (umpireOrgId = null) see all games
 
     if (season_id) {
       params.push(season_id);
@@ -114,7 +128,7 @@ router.get('/available-games', authMiddleware, async (req, res) => {
 // GET /api/umpires/game-interests — get games umpire has expressed interest in
 router.get('/game-interests', authMiddleware, async (req, res) => {
   try {
-    if (req.user.role !== 'umpire') {
+    if (req.user.role !== 'umpire' && !req.user.is_umpire) {
       return res.status(403).json({ error: 'Only umpires can access this endpoint' });
     }
 
@@ -150,16 +164,33 @@ router.get('/game-interests', authMiddleware, async (req, res) => {
 // POST /api/umpires/interest — express interest in a game
 router.post('/interest', authMiddleware, async (req, res) => {
   try {
-    if (req.user.role !== 'umpire') {
+    if (req.user.role !== 'umpire' && !req.user.is_umpire) {
       return res.status(403).json({ error: 'Only umpires can access this endpoint' });
     }
 
     const { game_id } = req.body;
     if (!game_id) return res.status(400).json({ error: 'Game ID is required' });
 
-    // Verify game exists
-    const { rows: gameRows } = await pool.query('SELECT id FROM games WHERE id = $1', [game_id]);
-    if (!gameRows.length) return res.status(404).json({ error: 'Game not found' });
+    // Verify game exists and is within umpire's org scope
+    const { rows: profileRows } = await pool.query(
+      'SELECT org_id FROM officials WHERE user_id = $1 LIMIT 1',
+      [req.user.id]
+    );
+    const umpireOrgId = profileRows[0]?.org_id ?? null;
+
+    let gameQuery, gameParams;
+    if (umpireOrgId !== null) {
+      gameQuery = `SELECT g.id FROM games g
+        JOIN teams ht ON ht.id = g.home_team_id
+        JOIN teams at ON at.id = g.away_team_id
+        WHERE g.id = $1 AND (ht.org_id = $2 OR at.org_id = $2)`;
+      gameParams = [game_id, umpireOrgId];
+    } else {
+      gameQuery = 'SELECT id FROM games WHERE id = $1';
+      gameParams = [game_id];
+    }
+    const { rows: gameRows } = await pool.query(gameQuery, gameParams);
+    if (!gameRows.length) return res.status(404).json({ error: 'Game not found or not accessible' });
 
     // Insert interest record (upsert via ON CONFLICT DO NOTHING)
     const { rows } = await pool.query(
@@ -180,7 +211,7 @@ router.post('/interest', authMiddleware, async (req, res) => {
 // DELETE /api/umpires/interest/:gameId — remove interest in a game
 router.delete('/interest/:gameId', authMiddleware, async (req, res) => {
   try {
-    if (req.user.role !== 'umpire') {
+    if (req.user.role !== 'umpire' && !req.user.is_umpire) {
       return res.status(403).json({ error: 'Only umpires can access this endpoint' });
     }
 

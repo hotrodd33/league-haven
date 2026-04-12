@@ -349,9 +349,11 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                               📍 {game.location_name}
                             </span>
                           )}
-                          {(!!game.officials?.length || !!game.interested_umpires?.length) && (
-                            <div className="hidden lg:flex items-center" onClick={(e) => e.stopPropagation()}>
-                              <UmpireStatusList officials={game.officials} interestedUmpires={game.interested_umpires} />
+                          {!!game.officials?.length && (
+                            <div className="hidden lg:flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                              {game.officials.map((o, i) => (
+                                <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-green-900/50 text-green-300">{o.name}</span>
+                              ))}
                             </div>
                           )}
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
@@ -420,9 +422,11 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
                       {game.location_name && (
                         <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
                       )}
-                      {(!!game.officials?.length || !!game.interested_umpires?.length) && (
-                        <div className="mb-1" onClick={(e) => e.stopPropagation()}>
-                          <UmpireStatusList officials={game.officials} interestedUmpires={game.interested_umpires} />
+                      {!!game.officials?.length && (
+                        <div className="flex flex-wrap gap-1 mb-1" onClick={(e) => e.stopPropagation()}>
+                          {game.officials.map((o, i) => (
+                            <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-green-900/50 text-green-300">{o.name}</span>
+                          ))}
                         </div>
                       )}
                       {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
