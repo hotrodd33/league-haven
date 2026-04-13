@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
-import { fetchTeams, fetchGames } from '../api/index.js';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchTeams, fetchGames, fetchRegistrations } from '../api/index.js';
 import { cn } from '../lib/cn.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo, { HomePlate, plateLabel } from './TeamLogo.jsx';
 import RosterList from './RosterList.jsx';
 import StaffList from './StaffList.jsx';
 import PitcherRest from './PitcherRest.jsx';
 import PitchLog from './PitchLog.jsx';
 import TeamSchedule from './TeamSchedule.jsx';
+import GameDetail from './GameDetail.jsx';
 import { CalendarIcon, ClipboardIcon, UsersIcon, UserGroupIcon } from './ui/icons.jsx';
 import ContactModal from './ContactModal.jsx';
 
@@ -22,7 +24,10 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
   const [activeTab, setActiveTab] = useState('overview');
   const [team, setTeam] = useState(null);
   const [recentGames, setRecentGames] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
+  const [selectedGameId, setSelectedGameId] = useState(null);
   const [contactModal, setContactModal] = useState(null);
+  const { isSuperAdmin, isAccountant, canEditOrg } = useAuth();
 
   // Load team info
   useEffect(() => {
@@ -42,7 +47,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
       if (!cancelled) {
         const completed = games
           .filter(g => g.status === 'completed')
-          .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+          .sort((a, b) => (b.game_date || '').localeCompare(a.game_date || ''))
           .slice(0, 5);
         setRecentGames(completed);
       }
@@ -50,8 +55,23 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
     return () => { cancelled = true; };
   }, [teamId, refreshKey]);
 
-  // Reset tab when team changes
-  useEffect(() => { setActiveTab('overview'); }, [teamId]);
+  // Load registration/payment info
+  useEffect(() => {
+    if (!teamId) { setRegistrations([]); return; }
+    let cancelled = false;
+    fetchRegistrations().then(data => {
+      if (!cancelled) {
+        const teamRegs = (data.registrations || []).filter(r => r.team_id === teamId);
+        setRegistrations(teamRegs);
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [teamId, refreshKey]);
+
+  // Reset tab and selected game when team changes
+  useEffect(() => { setActiveTab('overview'); setSelectedGameId(null); }, [teamId]);
+
+  const canViewPayment = isSuperAdmin || isAccountant || (teamOrgId && canEditOrg(teamOrgId));
 
   useEffect(() => {
     onWatermarkLogoChange?.(team?.logo_url || null);
@@ -109,8 +129,11 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
 
       {/* Tab content */}
       <div className="pt-4">
-        {activeTab === 'overview' && (
-          <OverviewTab team={team} recentGames={recentGames} />
+        {activeTab === 'overview' && selectedGameId && (
+          <GameDetail gameId={selectedGameId} onBack={() => setSelectedGameId(null)} onNavigateToTeam={onNavigateToTeam} />
+        )}
+        {activeTab === 'overview' && !selectedGameId && (
+          <OverviewTab team={team} recentGames={recentGames} registrations={registrations} canViewPayment={canViewPayment} onSelectGame={setSelectedGameId} />
         )}
         {activeTab === 'schedule' && (
           <TeamSchedule teamId={teamId} onNavigateToTeam={onNavigateToTeam} />
@@ -207,7 +230,7 @@ function TeamHeader({ team, recentGames, onContactTeam }) {
 }
 
 /* ── Overview Tab ── */
-function OverviewTab({ team, recentGames }) {
+function OverviewTab({ team, recentGames, registrations, canViewPayment, onSelectGame }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Team Info */}
@@ -242,11 +265,40 @@ function OverviewTab({ team, recentGames }) {
         ) : (
           <div className="space-y-2">
             {recentGames.map(game => (
-              <RecentGameRow key={game.id} game={game} teamId={team?.id} />
+              <RecentGameRow key={game.id} game={game} teamId={team?.id} onSelect={() => onSelectGame(game.id)} />
             ))}
           </div>
         )}
       </div>
+
+      {/* Payment Status */}
+      {canViewPayment && registrations.length > 0 && (
+        <div className="bg-gray-800 rounded-xl shadow-card p-4 md:col-span-2">
+          <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-3">Payment Status</h3>
+          <div className="space-y-2">
+            {registrations.map(reg => {
+              const fee = reg.effective_fee;
+              const paid = !!reg.is_paid;
+              return (
+                <div key={reg.id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-700 last:border-0">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm text-gray-200">{reg.season_name}{reg.season_year ? ` ${reg.season_year}` : ''}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {fee != null && <span className="text-sm text-gray-300">${fee.toFixed(2)}</span>}
+                    <span className={cn(
+                      'px-2 py-0.5 rounded-full text-[11px] font-bold',
+                      paid ? 'bg-green-900/35 text-green-300' : 'bg-red-900/30 text-red-400'
+                    )}>
+                      {paid ? 'Paid' : 'Unpaid'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -260,7 +312,7 @@ function InfoRow({ label, value }) {
   );
 }
 
-function RecentGameRow({ game, teamId }) {
+function RecentGameRow({ game, teamId, onSelect }) {
   const isHome = game.home_team_id === teamId;
   const ownScore = isHome ? game.home_score : game.away_score;
   const oppScore = isHome ? game.away_score : game.home_score;
@@ -276,11 +328,11 @@ function RecentGameRow({ game, teamId }) {
 
   const resultColors = { W: 'text-green-400 bg-green-900/30', L: 'text-red-400 bg-red-900/30', T: 'text-gray-300 bg-gray-800' };
 
-  const d = game.date ? new Date(game.date + 'T00:00:00') : null;
+  const d = game.game_date ? new Date(game.game_date + 'T00:00:00') : null;
   const dateStr = d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
 
   return (
-    <div className="flex items-center gap-2 py-1.5 border-b border-gray-700 last:border-0">
+    <div onClick={onSelect} className="flex items-center gap-2 py-1.5 border-b border-gray-700 last:border-0 cursor-pointer hover:bg-gray-700/40 rounded -mx-1 px-1 transition-colors">
       <span className="text-xs text-gray-400 w-12 shrink-0">{dateStr}</span>
       {result && (
         <span className={cn('text-xs font-bold w-5 text-center rounded px-1', resultColors[result])}>
