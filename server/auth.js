@@ -40,7 +40,7 @@ function requireRole(...allowedRoles) {
 
 async function getUserPermissions(userId) {
   const { rows } = await pool.query(
-    'SELECT org_id, team_id FROM user_permissions WHERE user_id = $1',
+    'SELECT org_id, team_id FROM user_permissions WHERE user_id = $1 AND is_active = TRUE',
     [userId]
   );
   return {

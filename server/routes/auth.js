@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const { JWT_SECRET, authMiddleware, getUserPermissions, validatePassword } = require('../auth');
-const { sendWelcomeEmail, sendPasswordResetEmail, sendPasswordChangedEmail, sendCoachInviteEmail, sendConfirmationEmail } = require('../email');
+const { sendWelcomeEmail, sendPasswordResetEmail, sendPasswordChangedEmail, sendCoachInviteEmail, sendConfirmationEmail, sendApprovalRequestEmail } = require('../email');
 
 const router = express.Router();
 
@@ -40,6 +40,20 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Please confirm your email address before signing in. Check your inbox for a confirmation link.', unconfirmed: true, email: user.email });
     }
 
+    // Block pending approval users
+    if (user.approval_status === 'pending') {
+      return res.status(403).json({ error: 'Your account is pending approval. You will receive an email once approved.', pending_approval: true });
+    }
+
+    // Block rejected users (30-day lockout)
+    if (user.approval_status === 'rejected') {
+      const rejectedAt = user.approval_rejected_at ? new Date(user.approval_rejected_at) : null;
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      if (rejectedAt && rejectedAt > thirtyDaysAgo) {
+        return res.status(403).json({ error: 'Your account registration was not approved. Please contact a league administrator if you believe this is an error.', rejected: true });
+      }
+    }
+
     // Record last login timestamp
     await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
 
@@ -62,10 +76,10 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// POST /api/auth/register — self-registration (no permissions until admin assigns)
+// POST /api/auth/register — self-registration (scorekeeper — pending approval)
 router.post('/register', async (req, res) => {
   try {
-    const { username, password, name, email } = req.body;
+    const { username, password, name, email, team_ids } = req.body;
     if (!username || !password || !name || !email) {
       return res.status(400).json({ error: 'Username, password, name, and email are required' });
     }
@@ -82,25 +96,47 @@ router.post('/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
-      'INSERT INTO users (username, password_hash, name, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, role, created_at',
-      [username, hash, name, email, 'score_reporter']
+      'INSERT INTO users (username, password_hash, name, email, role, approval_status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, name, email, role, created_at',
+      [username, hash, name, email, 'score_reporter', 'pending']
     );
     const user = rows[0];
+
+    // Create inactive team permissions if teams selected
+    const selectedTeams = Array.isArray(team_ids) ? team_ids.filter(Boolean) : [];
+    for (const teamId of selectedTeams) {
+      await pool.query(
+        'INSERT INTO user_permissions (user_id, team_id, is_active) VALUES ($1, $2, FALSE) ON CONFLICT DO NOTHING',
+        [user.id, teamId]
+      );
+    }
 
     // Send confirmation email
     await generateAndSendConfirmation(user.id, email, name);
 
-    res.status(201).json({ message: 'Registration successful. Please check your email to confirm your account.' });
+    // Notify coaches of the selected teams
+    if (selectedTeams.length) {
+      const { rows: coaches } = await pool.query(
+        `SELECT DISTINCT u.email, u.name FROM users u
+         JOIN user_permissions up ON up.user_id = u.id
+         WHERE up.team_id = ANY($1) AND u.role = 'team_manager' AND u.email IS NOT NULL AND u.approval_status = 'approved'`,
+        [selectedTeams]
+      );
+      for (const coach of coaches) {
+        sendApprovalRequestEmail(coach.email, coach.name, name, 'score_reporter').catch(() => {});
+      }
+    }
+
+    res.status(201).json({ message: 'Registration successful. Please check your email to confirm your account. Your access will be activated once approved by a coach.' });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// POST /api/auth/register-umpire — umpire self-registration with profile creation
+// POST /api/auth/register-umpire — umpire self-registration with profile creation (pending approval)
 router.post('/register-umpire', async (req, res) => {
   try {
-    const { username, password, name, email, phone, org_id, date_of_birth, is_certified, years_of_experience } = req.body;
+    const { username, password, name, email, phone, org_ids, date_of_birth, is_certified, years_of_experience } = req.body;
     if (!username || !password || !name || !email) {
       return res.status(400).json({ error: 'Username, password, name, and email are required' });
     }
@@ -117,23 +153,57 @@ router.post('/register-umpire', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     
-    // Create user with umpire role
+    // Create user with umpire role — pending approval
     const { rows: userRows } = await pool.query(
-      'INSERT INTO users (username, password_hash, name, email, role, is_umpire) VALUES ($1, $2, $3, $4, $5, TRUE) RETURNING id, username, name, email, role, is_umpire, created_at',
-      [username, hash, name, email, 'umpire']
+      'INSERT INTO users (username, password_hash, name, email, role, is_umpire, approval_status) VALUES ($1, $2, $3, $4, $5, TRUE, $6) RETURNING id, username, name, email, role, is_umpire, created_at',
+      [username, hash, name, email, 'umpire', 'pending']
     );
     const user = userRows[0];
 
     // Create official profile linked to user
-    await pool.query(
-      'INSERT INTO officials (user_id, org_id, name, email, phone, date_of_birth, is_certified, years_of_experience, rate_per_game) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 50)',
-      [user.id, org_id || null, name, email, phone || null, date_of_birth || null, is_certified === true, years_of_experience || null]
+    const { rows: officialRows } = await pool.query(
+      'INSERT INTO officials (user_id, name, email, phone, date_of_birth, is_certified, years_of_experience) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+      [user.id, name, email, phone || null, date_of_birth || null, is_certified === true, years_of_experience || null]
     );
+    const officialId = officialRows[0].id;
+
+    // Link official to selected orgs and create inactive org permissions
+    const selectedOrgs = Array.isArray(org_ids) ? org_ids.filter(Boolean) : [];
+    for (const orgId of selectedOrgs) {
+      await pool.query(
+        'INSERT INTO official_organizations (official_id, org_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [officialId, orgId]
+      );
+      await pool.query(
+        'INSERT INTO user_permissions (user_id, org_id, is_active) VALUES ($1, $2, FALSE) ON CONFLICT DO NOTHING',
+        [user.id, orgId]
+      );
+    }
 
     // Send confirmation email
     await generateAndSendConfirmation(user.id, email, name);
 
-    res.status(201).json({ message: 'Registration successful. Please check your email to confirm your account.' });
+    // Notify org admins
+    if (selectedOrgs.length) {
+      const { rows: admins } = await pool.query(
+        `SELECT DISTINCT u.email, u.name FROM users u
+         JOIN user_permissions up ON up.user_id = u.id
+         WHERE up.org_id = ANY($1) AND u.role = 'org_admin' AND u.email IS NOT NULL AND u.approval_status = 'approved'`,
+        [selectedOrgs]
+      );
+      for (const admin of admins) {
+        sendApprovalRequestEmail(admin.email, admin.name, name, 'umpire').catch(() => {});
+      }
+      // Also notify super admins
+      const { rows: superAdmins } = await pool.query(
+        `SELECT email, name FROM users WHERE role = 'super_admin' AND email IS NOT NULL`
+      );
+      for (const sa of superAdmins) {
+        sendApprovalRequestEmail(sa.email, sa.name, name, 'umpire').catch(() => {});
+      }
+    }
+
+    res.status(201).json({ message: 'Registration successful. Please check your email to confirm your account. Your access will be activated once approved.' });
   } catch (err) {
     console.error('Register umpire error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -282,11 +352,11 @@ router.post('/register-coach', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Create user as team_manager
+    // Create user as team_manager — pending approval
     const hash = await bcrypt.hash(password, 10);
     const { rows: userRows } = await client.query(
-      'INSERT INTO users (username, password_hash, name, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, role',
-      [username, hash, name, email, 'team_manager']
+      'INSERT INTO users (username, password_hash, name, email, role, approval_status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, name, email, role',
+      [username, hash, name, email, 'team_manager', 'pending']
     );
     const user = userRows[0];
 
@@ -311,10 +381,20 @@ router.post('/register-coach', async (req, res) => {
     );
     const teamId = teamRows[0].id;
 
-    // Grant team permission
+    // Grant team permission (inactive until approved)
     await client.query(
-      'INSERT INTO user_permissions (user_id, team_id) VALUES ($1, $2)',
+      'INSERT INTO user_permissions (user_id, team_id, is_active) VALUES ($1, $2, FALSE)',
       [user.id, teamId]
+    );
+
+    // Create staff_members record and assign to team
+    const { rows: staffRows } = await client.query(
+      'INSERT INTO staff_members (name, email, phone) VALUES ($1, $2, $3) RETURNING id',
+      [name, email, phone || null]
+    );
+    await client.query(
+      `INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, 'head_coach') ON CONFLICT DO NOTHING`,
+      [teamId, staffRows[0].id]
     );
 
     // Auto-register for active season
@@ -338,8 +418,19 @@ router.post('/register-coach', async (req, res) => {
     // Send confirmation email
     await generateAndSendConfirmation(user.id, email, name);
 
+    // Notify org admins about the new coach
+    const { rows: orgAdmins } = await pool.query(
+      `SELECT DISTINCT u.email, u.name FROM users u
+       JOIN user_permissions up ON up.user_id = u.id
+       WHERE up.org_id = $1 AND u.role = 'org_admin' AND u.email IS NOT NULL AND u.approval_status = 'approved'`,
+      [org_id]
+    );
+    for (const admin of orgAdmins) {
+      sendApprovalRequestEmail(admin.email, admin.name, name, 'team_manager').catch(() => {});
+    }
+
     res.status(201).json({
-      message: 'Registration successful. Please check your email to confirm your account.',
+      message: 'Registration successful. Please check your email to confirm your account. Your access will be activated once approved by your organization.',
       team_name: teamName,
       org_name: orgCheck[0].name,
     });
@@ -356,17 +447,19 @@ router.post('/register-coach', async (req, res) => {
 // GET /api/auth/registration-config — public config for registration forms
 router.get('/registration-config', async (req, res) => {
   try {
-    const [orgs, ageGroups, levels, seasons] = await Promise.all([
+    const [orgs, ageGroups, levels, seasons, teams] = await Promise.all([
       pool.query(`SELECT id, name, city, state FROM organizations ORDER BY name`),
       pool.query(`SELECT id, name FROM league_age_groups ORDER BY sort_order, name`),
       pool.query(`SELECT id, name FROM league_levels ORDER BY sort_order, name`),
       pool.query(`SELECT id, name, year, is_active FROM league_seasons ORDER BY year DESC, name`),
+      pool.query(`SELECT id, name, org_id, age_group FROM teams ORDER BY name`),
     ]);
     res.json({
       organizations: orgs.rows,
       age_groups: ageGroups.rows,
       levels: levels.rows,
       seasons: seasons.rows,
+      teams: teams.rows,
     });
   } catch (err) {
     console.error('Registration config error:', err);
@@ -416,11 +509,11 @@ router.post('/register-director', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // ── 1. Create director user account ──
+    // ── 1. Create director user account — pending approval ──
     const dirHash = await bcrypt.hash(director.password, 10);
     const { rows: dirRows } = await client.query(
-      'INSERT INTO users (username, password_hash, name, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, role',
-      [director.username, dirHash, director.name, director.email, 'org_admin']
+      'INSERT INTO users (username, password_hash, name, email, role, approval_status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, name, email, role',
+      [director.username, dirHash, director.name, director.email, 'org_admin', 'pending']
     );
     const dirUser = dirRows[0];
 
@@ -448,9 +541,9 @@ router.post('/register-director', async (req, res) => {
       orgId = orgRows[0].id;
     }
 
-    // ── 3. Grant director org permission ──
+    // ── 3. Grant director org permission (inactive until approved) ──
     await client.query(
-      'INSERT INTO user_permissions (user_id, org_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      'INSERT INTO user_permissions (user_id, org_id, is_active) VALUES ($1, $2, FALSE) ON CONFLICT DO NOTHING',
       [dirUser.id, orgId]
     );
 
@@ -550,8 +643,16 @@ router.post('/register-director', async (req, res) => {
     // Send confirmation email to director
     await generateAndSendConfirmation(dirUser.id, director.email, director.name);
 
+    // Notify super admins about new org registration
+    const { rows: superAdmins } = await pool.query(
+      `SELECT email, name FROM users WHERE role = 'super_admin' AND email IS NOT NULL`
+    );
+    for (const sa of superAdmins) {
+      sendApprovalRequestEmail(sa.email, sa.name, director.name, 'org_admin').catch(() => {});
+    }
+
     res.status(201).json({
-      message: 'Registration successful. Please check your email to confirm your account.',
+      message: 'Registration successful. Please check your email to confirm your account. Your organization access will be activated once approved by the league.',
       teams_created: teamIds.length,
       coaches_invited: coachEmails.length,
     });

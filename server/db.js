@@ -511,6 +511,12 @@ async function migrate() {
       UNIQUE(team_id, season_id)
     );
   `);
+
+  // ── User approval workflow ──
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS approval_status TEXT NOT NULL DEFAULT 'approved';`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS approval_rejected_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS approval_notes TEXT;`);
+  await pool.query(`ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;`);
 }
 
 // Lazy migration: retries on each request until it succeeds

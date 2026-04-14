@@ -23,14 +23,14 @@ const ROLE_OPTIONS = [
 const STEP_MAP = {
   director:    ['role', 'info', 'org', 'teams', 'review'],
   coach:       ['role', 'info', 'coach-team', 'review'],
-  scorekeeper: ['role', 'info', 'review'],
+  scorekeeper: ['role', 'info', 'scorekeeper-teams', 'review'],
   umpire:      ['role', 'info', 'umpire-details', 'review'],
 };
 
 const STEP_LABELS = {
   director:    ['Role', 'Your Info', 'Organization', 'Teams', 'Review'],
   coach:       ['Role', 'Your Info', 'Your Team', 'Review'],
-  scorekeeper: ['Role', 'Your Info', 'Review'],
+  scorekeeper: ['Role', 'Your Info', 'Teams', 'Review'],
   umpire:      ['Role', 'Your Info', 'Details', 'Review'],
 };
 
@@ -63,8 +63,11 @@ export default function TeamRegistration({ onDone }) {
 
   // Umpire-specific
   const [umpire, setUmpire] = useState({
-    org_id: '', date_of_birth: '', is_certified: false, years_of_experience: '',
+    org_ids: [], date_of_birth: '', is_certified: false, years_of_experience: '',
   });
+
+  // Scorekeeper: selected team IDs
+  const [scorekeeperTeamIds, setScorekeeperTeamIds] = useState([]);
 
   useEffect(() => {
     fetchRegistrationConfig()
@@ -117,7 +120,12 @@ export default function TeamRegistration({ onDone }) {
   }
 
   function validateUmpireDetails() {
-    // All umpire fields are optional
+    if (!umpire.org_ids.length) return 'Please select at least one organization';
+    return null;
+  }
+
+  function validateScorekeeperTeams() {
+    if (!scorekeeperTeamIds.length) return 'Please select at least one team';
     return null;
   }
 
@@ -129,6 +137,7 @@ export default function TeamRegistration({ onDone }) {
       case 'teams': return validateTeams();
       case 'coach-team': return validateCoachTeam();
       case 'umpire-details': return validateUmpireDetails();
+      case 'scorekeeper-teams': return validateScorekeeperTeams();
       case 'review': return null;
       default: return null;
     }
@@ -248,6 +257,7 @@ export default function TeamRegistration({ onDone }) {
           userInfo.password,
           userInfo.name.trim(),
           userInfo.email.trim().toLowerCase(),
+          scorekeeperTeamIds,
         );
       } else if (role === 'umpire') {
         result = await registerAsUmpire(
@@ -256,7 +266,7 @@ export default function TeamRegistration({ onDone }) {
           userInfo.name.trim(),
           userInfo.email.trim().toLowerCase(),
           userInfo.phone.trim() || null,
-          umpire.org_id || null,
+          umpire.org_ids.map(Number),
           umpire.date_of_birth || null,
           umpire.is_certified,
           umpire.years_of_experience ? parseInt(umpire.years_of_experience) : null,
@@ -657,13 +667,25 @@ export default function TeamRegistration({ onDone }) {
         {currentStepKey === 'umpire-details' && (
           <div className="space-y-4">
             <div>
-              <label className={labelCls}>Organization (Optional)</label>
-              <select value={umpire.org_id} onChange={e => setUmpire(u => ({ ...u, org_id: e.target.value }))} className={inputCls}>
-                <option value="">— Select an organization —</option>
+              <label className={labelCls}>Organizations *</label>
+              <p className="text-[10px] text-gray-500 mb-2">Select the organization(s) you want to umpire for.</p>
+              <div className="space-y-1 max-h-48 overflow-y-auto bg-gray-900 border border-gray-700 rounded-lg p-2">
                 {config?.organizations?.map(o => (
-                  <option key={o.id} value={o.id}>{o.name}</option>
+                  <label key={o.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800 cursor-pointer">
+                    <input type="checkbox" checked={umpire.org_ids.includes(String(o.id))}
+                      onChange={e => {
+                        setUmpire(u => ({
+                          ...u,
+                          org_ids: e.target.checked
+                            ? [...u.org_ids, String(o.id)]
+                            : u.org_ids.filter(id => id !== String(o.id))
+                        }));
+                      }}
+                      className="w-4 h-4 bg-gray-900 border border-gray-600 rounded accent-purple-500" />
+                    <span className="text-sm text-gray-200">{o.name}{o.city ? ` (${o.city}${o.state ? ', ' + o.state : ''})` : ''}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -685,6 +707,37 @@ export default function TeamRegistration({ onDone }) {
                 className="w-4 h-4 bg-gray-900 border border-gray-600 rounded" />
               <span className="text-sm text-gray-300">I am a certified umpire</span>
             </label>
+          </div>
+        )}
+
+        {/* ─── Scorekeeper: Team Selection ─── */}
+        {currentStepKey === 'scorekeeper-teams' && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-400">Select the team(s) you will be keeping score for.</p>
+            <div className="space-y-1 max-h-64 overflow-y-auto bg-gray-900 border border-gray-700 rounded-lg p-2">
+              {config?.organizations?.map(org => {
+                const orgTeams = config.teams?.filter(t => t.org_id === org.id) || [];
+                if (!orgTeams.length) return null;
+                return (
+                  <div key={org.id} className="mb-2">
+                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-2 py-1">{org.name}</div>
+                    {orgTeams.map(t => (
+                      <label key={t.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800 cursor-pointer ml-2">
+                        <input type="checkbox" checked={scorekeeperTeamIds.includes(t.id)}
+                          onChange={e => {
+                            setScorekeeperTeamIds(prev =>
+                              e.target.checked ? [...prev, t.id] : prev.filter(id => id !== t.id)
+                            );
+                          }}
+                          className="w-4 h-4 bg-gray-900 border border-gray-600 rounded accent-green-500" />
+                        <span className="text-sm text-gray-200">{t.name}</span>
+                        {t.age_group && <span className="text-xs text-gray-500">{t.age_group}</span>}
+                      </label>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -768,9 +821,9 @@ export default function TeamRegistration({ onDone }) {
               <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Umpire Details</h3>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-300">
-                  {umpire.org_id && (
-                    <><span className="text-gray-500">Organization:</span>
-                    <span>{config?.organizations?.find(o => o.id === Number(umpire.org_id))?.name || '—'}</span></>
+                  {umpire.org_ids.length > 0 && (
+                    <><span className="text-gray-500">Organizations:</span>
+                    <span>{umpire.org_ids.map(id => config?.organizations?.find(o => o.id === Number(id))?.name).filter(Boolean).join(', ') || '—'}</span></>
                   )}
                   {umpire.date_of_birth && <><span className="text-gray-500">Date of Birth:</span><span>{umpire.date_of_birth}</span></>}
                   <span className="text-gray-500">Certified:</span><span>{umpire.is_certified ? 'Yes' : 'No'}</span>
@@ -779,10 +832,19 @@ export default function TeamRegistration({ onDone }) {
               </div>
             )}
 
-            {/* Scorekeeper: Note */}
+            {/* Scorekeeper: Teams summary */}
             {role === 'scorekeeper' && (
-              <div className="bg-blue-900/20 border border-blue-800/40 rounded-lg px-3 py-2 text-xs text-blue-300">
-                Your account will be created as a Scorekeeper. A league administrator will assign you to specific teams for score reporting.
+              <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Selected Teams</h3>
+                <div className="space-y-1">
+                  {scorekeeperTeamIds.map(id => {
+                    const team = config?.teams?.find(t => t.id === id);
+                    return team ? (
+                      <div key={id} className="text-sm text-gray-300">{team.name}{team.age_group ? ` (${team.age_group})` : ''}</div>
+                    ) : null;
+                  })}
+                </div>
+                <p className="text-[10px] text-gray-500 mt-2">Your access will be activated once approved by a coach.</p>
               </div>
             )}
 

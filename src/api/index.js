@@ -55,10 +55,10 @@ export async function login(username, password) {
   });
 }
 
-export async function register(username, password, name, email) {
+export async function register(username, password, name, email, team_ids) {
   return apiFetch('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ username, password, name, email }),
+    body: JSON.stringify({ username, password, name, email, team_ids }),
   });
 }
 
@@ -729,10 +729,10 @@ export async function fetchUmpireUsers() {
   return apiFetch('/officials/umpire-users');
 }
 
-export async function registerAsUmpire(username, password, name, email, phone, org_id, date_of_birth, is_certified, years_of_experience) {
+export async function registerAsUmpire(username, password, name, email, phone, org_ids, date_of_birth, is_certified, years_of_experience) {
   return apiFetch('/auth/register-umpire', {
     method: 'POST',
-    body: JSON.stringify({ username, password, name, email, phone, org_id, date_of_birth, is_certified, years_of_experience }),
+    body: JSON.stringify({ username, password, name, email, phone, org_ids, date_of_birth, is_certified, years_of_experience }),
   });
 }
 
@@ -820,4 +820,25 @@ export async function resendConfirmation(email) {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
+}
+
+// ── Approval Workflow ──
+
+export async function fetchPendingApprovals() {
+  return apiFetch('/users/pending');
+}
+
+export async function approveUser(userId) {
+  return apiFetch(`/users/${userId}/approve`, { method: 'POST' });
+}
+
+export async function rejectUser(userId, notes) {
+  return apiFetch(`/users/${userId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ notes }),
+  });
+}
+
+export async function resetUserApproval(userId) {
+  return apiFetch(`/users/${userId}/reset-approval`, { method: 'POST' });
 }

@@ -25,7 +25,8 @@ import TeamRegistration from "./components/TeamRegistration.jsx";
 import ConfirmEmail from "./components/ConfirmEmail.jsx";
 
 export default function App() {
-    const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, user, logout } = useAuth();
+    const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, user, role, logout } = useAuth();
+    const isTeamManager = role === 'team_manager';
     const [selectedTeam, setSelectedTeam] = useState(null);
     const [selectedTeamOrgId, setSelectedTeamOrgId] = useState(null);
     const [showForm, setShowForm] = useState(false);
@@ -132,6 +133,11 @@ export default function App() {
             case 'users':
                 return isAdmin ? <UserManager onBack={() => setPage("dashboard")} /> : null;
 
+            case 'approvals':
+                return (isAdmin || isOrgAdmin || isTeamManager)
+                  ? <UserManager onBack={() => setPage("dashboard")} initialTab="approvals" showUsersTab={isAdmin} />
+                  : null;
+
             case 'league':
                 return isAdmin ? <LeagueConfig onBack={() => setPage("dashboard")} /> : null;
 
@@ -190,6 +196,7 @@ export default function App() {
                 isAdmin={isAdmin}
                 isAccountant={isAccountant}
                 isOrgAdmin={isOrgAdmin}
+                isTeamManager={isTeamManager}
                 user={user}
                 branding={branding}
                 onChangePassword={() => setShowChangePassword(true)}

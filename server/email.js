@@ -211,6 +211,67 @@ function sendConfirmationEmail(to, name, confirmToken) {
   });
 }
 
+const ROLE_DISPLAY = {
+  score_reporter: 'Scorekeeper',
+  team_manager: 'Coach',
+  org_admin: 'Organization Admin',
+  umpire: 'Umpire',
+};
+
+function sendApprovalRequestEmail(to, approverName, registrantName, registrantRole) {
+  const roleLabel = ROLE_DISPLAY[registrantRole] || registrantRole;
+  return sendEmail({
+    to,
+    subject: `ZVBL — New ${roleLabel} Registration Pending Approval`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+        <h2 style="color:#1e3a5f;">⚾ Approval Needed</h2>
+        <p>Hi ${esc(approverName)},</p>
+        <p><strong>${esc(registrantName)}</strong> has registered as a <strong>${esc(roleLabel)}</strong> and needs your approval.</p>
+        <p style="margin:16px 0;">
+          <a href="${APP_URL}" style="display:inline-block;padding:10px 24px;background:#1e3a5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
+            Review in ZVBL
+          </a>
+        </p>
+        <p style="font-size:13px;color:#888;">Log in to review and approve or reject this registration.</p>
+      </div>
+    `,
+  });
+}
+
+function sendApprovalEmail(to, name) {
+  return sendEmail({
+    to,
+    subject: 'ZVBL — Your Account Has Been Approved!',
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+        <h2 style="color:#1e3a5f;">⚾ You're Approved!</h2>
+        <p>Hi ${esc(name)}, your ZVBL account has been approved. You can now sign in and access all your features.</p>
+        <p style="margin:16px 0;">
+          <a href="${APP_URL}" style="display:inline-block;padding:10px 24px;background:#1e3a5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
+            Sign In
+          </a>
+        </p>
+      </div>
+    `,
+  });
+}
+
+function sendRejectionEmail(to, name) {
+  return sendEmail({
+    to,
+    subject: 'ZVBL — Registration Not Approved',
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+        <h2 style="color:#1e3a5f;">⚾ Registration Update</h2>
+        <p>Hi ${esc(name)}, unfortunately your ZVBL registration was not approved at this time.</p>
+        <p>If you believe this is an error, please contact a league administrator.</p>
+        <p style="font-size:13px;color:#888;">You may re-apply after 30 days.</p>
+      </div>
+    `,
+  });
+}
+
 module.exports = {
   sendEmail,
   sendWelcomeEmail,
@@ -220,4 +281,7 @@ module.exports = {
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
   sendGameChangeEmail,
+  sendApprovalRequestEmail,
+  sendApprovalEmail,
+  sendRejectionEmail,
 };

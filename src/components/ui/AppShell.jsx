@@ -19,6 +19,7 @@ export default function AppShell({
   isAdmin,
   isAccountant,
   isOrgAdmin,
+  isTeamManager,
   user,
   branding,
   onChangePassword,
@@ -38,6 +39,7 @@ export default function AppShell({
     directory: 'Directory',
     league: 'League Config',
     users: 'User Management',
+    approvals: 'Approvals',
     data: 'Data Manager',
     officials: 'Officials',
     fees: 'League Fees',
@@ -54,6 +56,7 @@ export default function AppShell({
         isAdmin={isAdmin}
         isAccountant={isAccountant}
         isOrgAdmin={isOrgAdmin}
+        isTeamManager={isTeamManager}
         branding={branding}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}

@@ -29,6 +29,11 @@ const accountantNav = [
 
 const orgAdminNav = [
   { key: 'officials', label: 'Officials', icon: UserGroupIcon },
+  { key: 'approvals', label: 'Approvals', icon: ClipboardIcon },
+];
+
+const teamManagerNav = [
+  { key: 'approvals', label: 'Approvals', icon: ClipboardIcon },
 ];
 
 export default function Sidebar({
@@ -37,6 +42,7 @@ export default function Sidebar({
   isAdmin = false,
   isAccountant = false,
   isOrgAdmin = false,
+  isTeamManager = false,
   branding,
   collapsed = false,
   onToggleCollapse,
@@ -154,6 +160,29 @@ export default function Sidebar({
                 )}
               </div>
               {orgAdminNav.map((item) => (
+                <NavItem
+                  key={item.key}
+                  item={item}
+                  active={page === item.key}
+                  collapsed={collapsed}
+                  onClick={() => { onNavigate(item.key); onCloseMobile?.(); }}
+                />
+              ))}
+            </>
+          )}
+
+          {!isAdmin && !isAccountant && !isOrgAdmin && isTeamManager && (
+            <>
+              <div className={cn('pt-5 pb-2', collapsed ? 'px-2' : 'px-3')}>
+                {!collapsed ? (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
+                    Management
+                  </p>
+                ) : (
+                  <div className="border-t border-white/10" />
+                )}
+              </div>
+              {teamManagerNav.map((item) => (
                 <NavItem
                   key={item.key}
                   item={item}

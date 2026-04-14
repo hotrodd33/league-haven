@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchUsers, createUser, updateUser, deleteUser, updateUserPermissions,
   fetchOrganizations, fetchTeams, inviteUser,
+  fetchPendingApprovals, approveUser, rejectUser, resetUserApproval,
 } from '../api/index.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
@@ -36,7 +37,8 @@ const ROLE_COLORS = {
   umpire: 'bg-teal-900/35 text-teal-200',
 };
 
-export default function UserManager({ onBack }) {
+export default function UserManager({ onBack, initialTab, showUsersTab = true }) {
+  const [tab, setTab] = useState(initialTab || (showUsersTab ? 'users' : 'approvals'));
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -52,7 +54,7 @@ export default function UserManager({ onBack }) {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { loadUsers(); }, [loadUsers]);
+  useEffect(() => { if (tab === 'users' && showUsersTab) loadUsers(); }, [loadUsers, tab, showUsersTab]);
 
   async function handleDelete(user) {
     if (!window.confirm(`Delete user "${user.username}"? This cannot be undone.`)) return;
@@ -75,22 +77,46 @@ export default function UserManager({ onBack }) {
     finally { setInviting(null); }
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-400">Loading users…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
-
   if (editingPerms) {
     return <PermissionsEditor user={editingPerms} onBack={() => { setEditingPerms(null); loadUsers(); }} />;
   }
 
+  const tabs = [];
+  if (showUsersTab) tabs.push({ key: 'users', label: 'Users' });
+  tabs.push({ key: 'approvals', label: 'Approvals' });
+
   return (
     <div>
+      {/* Tab bar + header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-xl font-heading font-bold text-white">User Accounts ({users.length})</h2>
+        <div className="flex items-center gap-4">
+          {tabs.length > 1 && (
+            <div className="flex border border-gray-700 rounded-lg overflow-hidden">
+              {tabs.map(t => (
+                <button key={t.key} onClick={() => setTab(t.key)}
+                  className={`px-4 py-2 text-sm font-semibold transition-colors ${
+                    tab === t.key ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
+                  }`}>{t.label}</button>
+              ))}
+            </div>
+          )}
+          {tab === 'users' && <h2 className="text-xl font-heading font-bold text-white">User Accounts ({users.length})</h2>}
+          {tab === 'approvals' && <h2 className="text-xl font-heading font-bold text-white">Approvals</h2>}
+        </div>
         <div className="flex gap-2">
-          <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add User</button>
-          {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
+          {tab === 'users' && <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add User</button>}
+          {onBack && <button onClick={onBack} className={btnSecondary}>← Back</button>}
         </div>
       </div>
+
+      {/* Approvals tab */}
+      {tab === 'approvals' && <PendingApprovals />}
+
+      {/* Users tab */}
+      {tab === 'users' && (<>
+      {loading && <div className="py-8 text-center text-gray-400">Loading users…</div>}
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>}
+      {!loading && !error && (<>
 
       {users.length === 0 ? (
         <div className="py-12 text-center text-gray-400">
@@ -214,8 +240,10 @@ export default function UserManager({ onBack }) {
           </div>
         </>
       )}
+      </>)}
+      </>)}
 
-      {showForm && (
+      {tab === 'users' && showForm && (
         <UserForm
           user={editing}
           onDone={() => { setShowForm(false); setEditing(null); loadUsers(); }}
@@ -492,6 +520,169 @@ function PermissionsEditor({ user, onBack }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PendingApprovals() {
+  const [pending, setPending] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [acting, setActing] = useState(null);
+  const [rejectModal, setRejectModal] = useState(null);
+  const [rejectNotes, setRejectNotes] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try { setPending(await fetchPendingApprovals()); }
+    catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleApprove(user) {
+    setActing(user.id);
+    try {
+      await approveUser(user.id);
+      setPending(prev => prev.filter(u => u.id !== user.id));
+    } catch (err) { alert(`Failed to approve: ${err.message}`); }
+    finally { setActing(null); }
+  }
+
+  async function handleReject() {
+    if (!rejectModal) return;
+    setActing(rejectModal.id);
+    try {
+      await rejectUser(rejectModal.id, rejectNotes || null);
+      setPending(prev => prev.filter(u => u.id !== rejectModal.id));
+      setRejectModal(null);
+      setRejectNotes('');
+    } catch (err) { alert(`Failed to reject: ${err.message}`); }
+    finally { setActing(null); }
+  }
+
+  async function handleReset(user) {
+    setActing(user.id);
+    try {
+      await resetUserApproval(user.id);
+      load();
+    } catch (err) { alert(`Failed to reset: ${err.message}`); }
+    finally { setActing(null); }
+  }
+
+  if (loading) return <div className="py-8 text-center text-gray-400">Loading approvals…</div>;
+  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+
+  const pendingUsers = pending.filter(u => u.approval_status === 'pending');
+  const rejectedUsers = pending.filter(u => u.approval_status === 'rejected');
+
+  if (!pending.length) {
+    return <div className="py-12 text-center text-gray-400">No pending approvals.</div>;
+  }
+
+  function renderUserCard(u) {
+    const isPending = u.approval_status === 'pending';
+    const perms = u.pending_permissions || [];
+    return (
+      <div key={u.id} className={`bg-gray-800 rounded-lg border p-4 text-gray-200 ${isPending ? 'border-gray-700' : 'border-red-900/40'}`}>
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <div className="font-semibold">{u.name}</div>
+            <div className="text-sm text-gray-400">{u.email}</div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              Registered {new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </div>
+          </div>
+          <div className="flex gap-1 items-center">
+            <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full ${ROLE_COLORS[u.role] || 'bg-gray-800 text-gray-300'}`}>
+              {ROLE_LABELS[u.role] || u.role}
+            </span>
+            {!isPending && (
+              <span className="inline-block px-2 py-0.5 text-xs font-bold rounded-full bg-red-900/40 text-red-300">Rejected</span>
+            )}
+          </div>
+        </div>
+
+        {/* Show requested permissions */}
+        {perms.length > 0 && (
+          <div className="text-xs text-gray-400 mb-3">
+            Requested: {perms.filter(p => p.team_id).length > 0 && `${perms.filter(p => p.team_id).length} team(s)`}
+            {perms.filter(p => p.org_id).length > 0 && `${perms.filter(p => p.team_id).length > 0 ? ', ' : ''}${perms.filter(p => p.org_id).length} org(s)`}
+          </div>
+        )}
+
+        {u.approval_notes && (
+          <div className="text-xs text-red-400/80 mb-3 bg-red-900/20 rounded px-2 py-1">
+            Rejection note: {u.approval_notes}
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-2 border-t border-gray-700">
+          {isPending && (
+            <>
+              <button onClick={() => handleApprove(u)} disabled={acting === u.id}
+                className={`${btnSm} bg-green-900/40 text-green-300 hover:bg-green-800/60`}>
+                {acting === u.id ? '…' : 'Approve'}
+              </button>
+              <button onClick={() => { setRejectModal(u); setRejectNotes(''); }} disabled={acting === u.id}
+                className={`${btnSm} bg-red-900/40 text-red-300 hover:bg-red-900/60`}>
+                Reject
+              </button>
+            </>
+          )}
+          {!isPending && (
+            <button onClick={() => handleReset(u)} disabled={acting === u.id}
+              className={`${btnSm} bg-amber-900/40 text-amber-300 hover:bg-amber-800/60`}>
+              {acting === u.id ? '…' : 'Reset to Pending'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {pendingUsers.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Pending ({pendingUsers.length})</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {pendingUsers.map(renderUserCard)}
+          </div>
+        </div>
+      )}
+
+      {rejectedUsers.length > 0 && (
+        <div>
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Rejected ({rejectedUsers.length})</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {rejectedUsers.map(renderUserCard)}
+          </div>
+        </div>
+      )}
+
+      {/* Reject modal */}
+      {rejectModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-5 text-gray-200">
+            <h3 className="text-lg font-heading font-bold text-white mb-3">Reject {rejectModal.name}?</h3>
+            <p className="text-sm text-gray-400 mb-3">This user will be blocked from logging in for 30 days.</p>
+            <div className="mb-4">
+              <label className={labelCls}>Reason (optional)</label>
+              <textarea value={rejectNotes} onChange={e => setRejectNotes(e.target.value)}
+                placeholder="Reason for rejection…" rows={3}
+                className={inputCls + ' resize-none'} />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => { setRejectModal(null); setRejectNotes(''); }} className={btnSecondary}>Cancel</button>
+              <button onClick={handleReject} disabled={acting === rejectModal.id} className={btnDanger}>
+                {acting === rejectModal.id ? 'Rejecting…' : 'Reject User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

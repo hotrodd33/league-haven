@@ -2,13 +2,13 @@ const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
-const { authMiddleware, requireAdmin, getUserPermissions, validatePassword, ROLES } = require('../auth');
-const { sendInviteEmail } = require('../email');
+const { authMiddleware, requireAdmin, requireRole, getUserPermissions, validatePassword, ROLES, canEditOrg, canEditTeam } = require('../auth');
+const { sendInviteEmail, sendApprovalEmail, sendRejectionEmail, sendApprovalRequestEmail } = require('../email');
 
 const router = express.Router();
 
-// All routes require super_admin
-router.use(authMiddleware, requireAdmin);
+// Admin-only middleware (applied per-route below, NOT globally)
+const adminOnly = [authMiddleware, requireAdmin];
 
 const VALID_ROLES = [...ROLES]; // umpire access is handled via is_umpire flag, not role
 
@@ -17,7 +17,7 @@ function sanitizeRole(role) {
 }
 
 // GET /api/users — list all users with their permissions
-router.get('/', async (req, res) => {
+router.get('/', adminOnly, async (req, res) => {
   try {
     const { rows: users } = await pool.query(
       'SELECT id, username, name, email, role, is_umpire, created_at, last_login_at FROM users ORDER BY name'
@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/users — create a new user (admin-created)
-router.post('/', async (req, res) => {
+router.post('/', adminOnly, async (req, res) => {
   try {
     const { username, password, name, email, role, is_umpire } = req.body;
     if (!username || !password || !name) {
@@ -65,7 +65,7 @@ router.post('/', async (req, res) => {
 });
 
 // POST /api/users/:id/invite — send invite email with temp password
-router.post('/:id/invite', async (req, res) => {
+router.post('/:id/invite', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query('SELECT id, name, email, username FROM users WHERE id = $1', [id]);
@@ -88,7 +88,7 @@ router.post('/:id/invite', async (req, res) => {
 });
 
 // PUT /api/users/:id — update user profile (name, role, email, optional password reset)
-router.put('/:id', async (req, res) => {
+router.put('/:id', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows: existing } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
@@ -130,7 +130,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/users/:id — delete a user
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     // Prevent self-deletion
@@ -149,7 +149,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // PUT /api/users/:id/permissions — replace all permissions for a user
-router.put('/:id/permissions', async (req, res) => {
+router.put('/:id/permissions', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows: existing } = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
@@ -191,5 +191,193 @@ router.put('/:id/permissions', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+/* ═══════════════════════════════════════════════════════
+   Approval workflow endpoints
+   These have their own auth — NOT super_admin only
+   ═══════════════════════════════════════════════════════ */
+
+// GET /api/users/pending — get pending approvals visible to the current user
+router.get('/pending', authMiddleware, requireRole('super_admin', 'org_admin', 'team_manager'), async (req, res) => {
+  try {
+    const user = req.user;
+    let query;
+    let params = [];
+
+    if (user.role === 'super_admin') {
+      // Super admin sees ALL pending users
+      query = `
+        SELECT u.id, u.username, u.name, u.email, u.role, u.is_umpire, u.approval_status, u.created_at,
+               u.approval_notes,
+               json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
+        FROM users u
+        LEFT JOIN user_permissions up ON up.user_id = u.id
+        WHERE u.approval_status IN ('pending', 'rejected')
+        GROUP BY u.id
+        ORDER BY u.approval_status = 'pending' DESC, u.created_at DESC
+      `;
+    } else if (user.role === 'org_admin') {
+      // Org admin sees pending coaches (team_manager) and umpires for their orgs
+      const perms = await getUserPermissions(user.id);
+      if (!perms.org_ids.length) return res.json([]);
+      query = `
+        SELECT DISTINCT u.id, u.username, u.name, u.email, u.role, u.is_umpire, u.approval_status, u.created_at,
+               u.approval_notes,
+               json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
+        FROM users u
+        JOIN user_permissions up ON up.user_id = u.id
+        WHERE u.approval_status IN ('pending', 'rejected')
+          AND (
+            (u.role = 'team_manager' AND up.team_id IN (SELECT id FROM teams WHERE org_id = ANY($1)))
+            OR (u.role = 'umpire' AND up.org_id = ANY($1))
+          )
+        GROUP BY u.id
+        ORDER BY u.approval_status = 'pending' DESC, u.created_at DESC
+      `;
+      params = [perms.org_ids];
+    } else if (user.role === 'team_manager') {
+      // Team manager sees pending scorekeepers for their teams
+      const perms = await getUserPermissions(user.id);
+      if (!perms.team_ids.length) return res.json([]);
+      query = `
+        SELECT DISTINCT u.id, u.username, u.name, u.email, u.role, u.is_umpire, u.approval_status, u.created_at,
+               u.approval_notes,
+               json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
+        FROM users u
+        JOIN user_permissions up ON up.user_id = u.id
+        WHERE u.approval_status IN ('pending', 'rejected')
+          AND u.role = 'score_reporter'
+          AND up.team_id = ANY($1)
+        GROUP BY u.id
+        ORDER BY u.approval_status = 'pending' DESC, u.created_at DESC
+      `;
+      params = [perms.team_ids];
+    }
+
+    const { rows } = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('Pending approvals error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/users/:id/approve — approve a pending user
+router.post('/:id/approve', authMiddleware, requireRole('super_admin', 'org_admin', 'team_manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query('SELECT id, name, email, role, approval_status FROM users WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    const target = rows[0];
+    if (target.approval_status !== 'pending') return res.status(400).json({ error: 'User is not pending approval' });
+
+    // Verify the approver has authority over this user
+    const allowed = await canApprove(req.user, target);
+    if (!allowed) return res.status(403).json({ error: 'You do not have permission to approve this user' });
+
+    // Approve: set status and activate permissions
+    await pool.query('UPDATE users SET approval_status = $1 WHERE id = $2', ['approved', id]);
+    await pool.query('UPDATE user_permissions SET is_active = TRUE WHERE user_id = $1', [id]);
+
+    // Send approval email
+    if (target.email) {
+      sendApprovalEmail(target.email, target.name).catch(() => {});
+    }
+
+    res.json({ success: true, message: `${target.name} has been approved` });
+  } catch (err) {
+    console.error('Approve user error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/users/:id/reject — reject a pending user
+router.post('/:id/reject', authMiddleware, requireRole('super_admin', 'org_admin', 'team_manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+    const { rows } = await pool.query('SELECT id, name, email, role, approval_status FROM users WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    const target = rows[0];
+    if (target.approval_status !== 'pending') return res.status(400).json({ error: 'User is not pending approval' });
+
+    const allowed = await canApprove(req.user, target);
+    if (!allowed) return res.status(403).json({ error: 'You do not have permission to reject this user' });
+
+    await pool.query(
+      'UPDATE users SET approval_status = $1, approval_rejected_at = NOW(), approval_notes = $2 WHERE id = $3',
+      ['rejected', notes || null, id]
+    );
+
+    if (target.email) {
+      sendRejectionEmail(target.email, target.name).catch(() => {});
+    }
+
+    res.json({ success: true, message: `${target.name} has been rejected` });
+  } catch (err) {
+    console.error('Reject user error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/users/:id/reset-approval — reset a rejected user back to pending (admin only)
+router.post('/:id/reset-approval', authMiddleware, requireRole('super_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query('SELECT id, name, approval_status FROM users WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    if (rows[0].approval_status !== 'rejected') return res.status(400).json({ error: 'User is not rejected' });
+
+    await pool.query(
+      'UPDATE users SET approval_status = $1, approval_rejected_at = NULL, approval_notes = NULL WHERE id = $2',
+      ['pending', id]
+    );
+
+    res.json({ success: true, message: `${rows[0].name} has been reset to pending` });
+  } catch (err) {
+    console.error('Reset approval error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Check if the approver has authority over the target user.
+ * Hierarchy: super_admin approves org_admin; org_admin approves team_manager + umpire; team_manager approves score_reporter
+ */
+async function canApprove(approver, target) {
+  if (approver.role === 'super_admin') return true;
+
+  const perms = await getUserPermissions(approver.id);
+
+  if (approver.role === 'org_admin') {
+    if (target.role === 'team_manager') {
+      // Check if the team_manager's teams are under the org_admin's orgs
+      const { rows } = await pool.query(
+        'SELECT up.team_id FROM user_permissions up JOIN teams t ON t.id = up.team_id WHERE up.user_id = $1 AND t.org_id = ANY($2)',
+        [target.id, perms.org_ids]
+      );
+      return rows.length > 0;
+    }
+    if (target.role === 'umpire') {
+      // Check if the umpire requested orgs that belong to this org_admin
+      const { rows } = await pool.query(
+        'SELECT org_id FROM user_permissions WHERE user_id = $1 AND org_id = ANY($2)',
+        [target.id, perms.org_ids]
+      );
+      return rows.length > 0;
+    }
+  }
+
+  if (approver.role === 'team_manager' && target.role === 'score_reporter') {
+    // Check if the scorekeeper's teams overlap with the manager's teams
+    const { rows } = await pool.query(
+      'SELECT team_id FROM user_permissions WHERE user_id = $1 AND team_id = ANY($2)',
+      [target.id, perms.team_ids]
+    );
+    return rows.length > 0;
+  }
+
+  return false;
+}
 
 module.exports = router;
