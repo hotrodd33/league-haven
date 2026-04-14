@@ -678,6 +678,23 @@ export async function previewGameChanger(fileOrText, importType) {
 }
 
 /* ── Team Name Aliases ── */
+
+/* ── Schedule Import ── */
+export async function previewScheduleImport(csvText) {
+  return apiFetch('/import/schedule/preview', {
+    method: 'POST',
+    body: JSON.stringify({ csvText }),
+  });
+}
+
+export async function importSchedule(games, seasonId, teamMappings, venueMappings) {
+  return apiFetch('/import/schedule', {
+    method: 'POST',
+    body: JSON.stringify({ games, seasonId, teamMappings, venueMappings }),
+  });
+}
+
+/* ── Team Name Aliases (legacy) ── */
 export async function fetchTeamAliases() {
   return apiFetch('/import/team-aliases');
 }

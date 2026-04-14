@@ -836,4 +836,228 @@ router.get('/game-import-log', authMiddleware, requireAdmin, async (req, res) =>
   }
 });
 
+/* ═══════════════════════════════════════════════════════
+   POST /api/import/schedule/preview
+   Parse CSV schedule text, return preview with team matching.
+   ═══════════════════════════════════════════════════════ */
+router.post('/schedule/preview', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { csvText } = req.body;
+    if (!csvText || typeof csvText !== 'string') {
+      return res.status(400).json({ error: 'csvText is required' });
+    }
+
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return res.status(400).json({ error: 'CSV must have a header row and at least one data row' });
+
+    // Parse header
+    const header = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+    const colDate = header.indexOf('date');
+    const colTime = header.indexOf('time');
+    const colHome = header.indexOf('home');
+    const colAway = header.indexOf('away');
+    const colVenue = Math.max(header.indexOf('venue'), header.indexOf('location'), header.indexOf('field'));
+    const colNotes = Math.max(header.indexOf('notes'), header.indexOf('match day'));
+    const colSeason = Math.max(header.indexOf('season'), header.indexOf('year'));
+
+    if (colDate < 0 || colHome < 0 || colAway < 0) {
+      return res.status(400).json({ error: 'CSV must have Date, Home, and Away columns' });
+    }
+
+    // Build lookups
+    const teamLookup = await buildTeamLookup();
+    const { rows: locationRows } = await pool.query('SELECT id, name FROM field_locations ORDER BY name');
+    const locationLookup = {};
+    for (const loc of locationRows) {
+      locationLookup[loc.name.toLowerCase()] = loc.id;
+    }
+
+    // Parse data rows
+    const games = [];
+    const unmatchedTeams = new Set();
+    const unmatchedVenues = new Set();
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i]);
+      if (cols.length < Math.max(colDate, colHome, colAway) + 1) continue;
+
+      const date = cols[colDate]?.trim();
+      const time = cols[colTime]?.trim() || null;
+      const homeName = cols[colHome]?.trim();
+      const awayName = cols[colAway]?.trim();
+      const venueName = colVenue >= 0 ? (cols[colVenue]?.trim() || null) : null;
+      const notes = colNotes >= 0 ? (cols[colNotes]?.trim() || null) : null;
+      const seasonYear = colSeason >= 0 ? (cols[colSeason]?.trim() || null) : null;
+
+      if (!date || !homeName || !awayName) continue;
+
+      const homeId = teamLookup[homeName.toLowerCase()] || null;
+      const awayId = teamLookup[awayName.toLowerCase()] || null;
+      const locationId = venueName ? (locationLookup[venueName.toLowerCase()] || null) : null;
+
+      if (!homeId) unmatchedTeams.add(homeName);
+      if (!awayId) unmatchedTeams.add(awayName);
+      if (venueName && !locationId) unmatchedVenues.add(venueName);
+
+      games.push({
+        row: i + 1,
+        date,
+        time,
+        home_name: homeName,
+        away_name: awayName,
+        home_team_id: homeId,
+        away_team_id: awayId,
+        venue_name: venueName,
+        location_id: locationId,
+        notes,
+        seasonYear,
+      });
+    }
+
+    // Get team list for mapping UI
+    const teamsList = await getTeamsList();
+    const { rows: seasonsList } = await pool.query('SELECT id, year, name, is_active FROM league_seasons ORDER BY year DESC, name');
+
+    // Detect season year from CSV data
+    const detectedYear = games.length > 0 && games[0].seasonYear ? parseInt(games[0].seasonYear) : null;
+    const suggestedSeason = detectedYear ? seasonsList.find(s => s.year === detectedYear) : seasonsList.find(s => s.is_active);
+
+    res.json({
+      games,
+      unmatchedTeams: [...unmatchedTeams],
+      unmatchedVenues: [...unmatchedVenues],
+      teamsList,
+      locationsList: locationRows,
+      seasonsList,
+      suggestedSeasonId: suggestedSeason?.id || null,
+      totalRows: games.length,
+    });
+  } catch (err) {
+    console.error('Schedule preview error:', err);
+    res.status(400).json({ error: err.message || 'Failed to parse schedule' });
+  }
+});
+
+/* ═══════════════════════════════════════════════════════
+   POST /api/import/schedule
+   Create games from previewed CSV data.
+   ═══════════════════════════════════════════════════════ */
+router.post('/schedule', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { games, seasonId, teamMappings, venueMappings } = req.body;
+    if (!Array.isArray(games) || !games.length) {
+      return res.status(400).json({ error: 'No games to import' });
+    }
+    if (!seasonId) {
+      return res.status(400).json({ error: 'Season is required' });
+    }
+
+    // Validate season exists
+    const { rows: seasonRows } = await pool.query('SELECT id FROM league_seasons WHERE id = $1', [seasonId]);
+    if (!seasonRows.length) return res.status(400).json({ error: 'Invalid season' });
+
+    // Team mapping overrides: { "External Name" => team_id }
+    const tMap = {};
+    if (teamMappings && typeof teamMappings === 'object') {
+      for (const [name, id] of Object.entries(teamMappings)) {
+        if (id) tMap[name.toLowerCase()] = Number(id);
+      }
+    }
+    // Venue mapping overrides: { "External Name" => location_id }
+    const vMap = {};
+    if (venueMappings && typeof venueMappings === 'object') {
+      for (const [name, id] of Object.entries(venueMappings)) {
+        if (id) vMap[name.toLowerCase()] = Number(id);
+      }
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      let created = 0;
+      let skipped = 0;
+      const errors = [];
+
+      for (const g of games) {
+        const homeId = tMap[g.home_name?.toLowerCase()] || g.home_team_id;
+        const awayId = tMap[g.away_name?.toLowerCase()] || g.away_team_id;
+        const locationId = (g.venue_name ? vMap[g.venue_name.toLowerCase()] : null) || g.location_id || null;
+
+        if (!homeId || !awayId) {
+          skipped++;
+          errors.push(`Row ${g.row}: Missing team match for "${!homeId ? g.home_name : g.away_name}"`);
+          continue;
+        }
+        if (homeId === awayId) {
+          skipped++;
+          errors.push(`Row ${g.row}: Home and away team are the same`);
+          continue;
+        }
+
+        // Check for duplicate (same date + same teams)
+        const { rows: dupes } = await client.query(
+          `SELECT id FROM games
+           WHERE game_date = $1 AND home_team_id = $2 AND away_team_id = $3 AND season_id = $4`,
+          [g.date, homeId, awayId, seasonId]
+        );
+        if (dupes.length) {
+          skipped++;
+          errors.push(`Row ${g.row}: Duplicate game (already exists)`);
+          continue;
+        }
+
+        await client.query(
+          `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, 'scheduled', $7)`,
+          [seasonId, homeId, awayId, locationId, g.date, g.time || null, g.notes || null]
+        );
+        created++;
+      }
+
+      // Save any new team alias mappings for future imports
+      for (const [externalName, teamId] of Object.entries(tMap)) {
+        await client.query(
+          `INSERT INTO team_name_aliases (external_name, team_id, source)
+           VALUES ($1, $2, 'schedule_import')
+           ON CONFLICT (external_name, source) DO UPDATE SET team_id = $2`,
+          [externalName, teamId]
+        );
+      }
+
+      await client.query('COMMIT');
+      res.json({ created, skipped, errors, total: games.length });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Schedule import error:', err);
+    res.status(500).json({ error: err.message || 'Import failed' });
+  }
+});
+
+/** Simple CSV line parser that handles quoted fields */
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else current += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { result.push(current); current = ''; }
+      else current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
 module.exports = router;
