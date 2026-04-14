@@ -221,7 +221,7 @@ router.get('/pending', authMiddleware, requireRole('super_admin', 'org_admin', '
       const perms = await getUserPermissions(user.id);
       if (!perms.org_ids.length) return res.json([]);
       query = `
-        SELECT DISTINCT u.id, u.username, u.name, u.email, u.role, u.is_umpire, u.approval_status, u.created_at,
+        SELECT u.id, u.username, u.name, u.email, u.role, u.is_umpire, u.approval_status, u.created_at,
                u.approval_notes,
                json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
         FROM users u
@@ -240,7 +240,7 @@ router.get('/pending', authMiddleware, requireRole('super_admin', 'org_admin', '
       const perms = await getUserPermissions(user.id);
       if (!perms.team_ids.length) return res.json([]);
       query = `
-        SELECT DISTINCT u.id, u.username, u.name, u.email, u.role, u.is_umpire, u.approval_status, u.created_at,
+        SELECT u.id, u.username, u.name, u.email, u.role, u.is_umpire, u.approval_status, u.created_at,
                u.approval_notes,
                json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
         FROM users u
