@@ -4,6 +4,7 @@ import {
   fetchPlayerNotes, createPlayerNote, updatePlayerNote, deletePlayerNote,
   fetchPlayerDocuments, uploadPlayerDocument, downloadPlayerDocument, deletePlayerDocument,
   fetchPlayerStats, fetchStatDefinitions,
+  updatePlayer, fetchPositions,
 } from '../api/index.js';
 import { ChevronLeftIcon, PlusIcon, TrashIcon, PencilIcon, DocumentIcon, ChatBubbleIcon, UserIcon, ChartBarIcon } from './ui/icons.jsx';
 
@@ -17,8 +18,11 @@ const TABS = [
 
 export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit = true }) {
   const [tab, setTab] = useState('info');
+  const [currentPlayer, setCurrentPlayer] = useState(player);
 
-  if (!player) return null;
+  useEffect(() => { setCurrentPlayer(player); }, [player]);
+
+  if (!currentPlayer) return null;
 
   return (
     <div className="space-y-4">
@@ -31,9 +35,9 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit
           <UserIcon className="w-6 h-6 text-blue-400" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-white">{player.first_name} {player.last_name}</h2>
+          <h2 className="text-xl font-bold text-white">{currentPlayer.first_name} {currentPlayer.last_name}</h2>
           <p className="text-sm text-gray-400">
-            {player.teams?.length ? player.teams.map(t => t.name || t.team_name).join(', ') : 'No team'}
+            {currentPlayer.teams?.length ? currentPlayer.teams.map(t => t.name || t.team_name).join(', ') : 'No team'}
           </p>
         </div>
         {!canEdit && (
@@ -59,21 +63,175 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit
       </div>
 
       {/* Tab content */}
-      {tab === 'info' && <InfoTab player={player} onNavigateToTeam={onNavigateToTeam} />}
-      {tab === 'contacts' && <ContactsTab playerId={player.id} canEdit={canEdit} />}
-      {tab === 'stats' && <StatsTab playerId={player.id} />}
-      {tab === 'documents' && <DocumentsTab playerId={player.id} canEdit={canEdit} />}
-      {tab === 'notes' && <NotesTab playerId={player.id} canEdit={canEdit} />}
+      {tab === 'info' && <InfoTab player={currentPlayer} onNavigateToTeam={onNavigateToTeam} canEdit={canEdit} onPlayerUpdated={setCurrentPlayer} />}
+      {tab === 'contacts' && <ContactsTab playerId={currentPlayer.id} canEdit={canEdit} />}
+      {tab === 'stats' && <StatsTab playerId={currentPlayer.id} />}
+      {tab === 'documents' && <DocumentsTab playerId={currentPlayer.id} canEdit={canEdit} />}
+      {tab === 'notes' && <NotesTab playerId={currentPlayer.id} canEdit={canEdit} />}
     </div>
   );
 }
 
 /* ─── Info Tab ─── */
-function InfoTab({ player, onNavigateToTeam }) {
+const BATTING_OPTIONS = ['R', 'L', 'S'];
+const THROWING_OPTIONS = ['R', 'L'];
+const GRADE_OPTIONS = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
+  const [editing, setEditing] = useState(false);
+  const [positions, setPositions] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [form, setForm] = useState({});
+
+  useEffect(() => {
+    if (editing) fetchPositions().then(setPositions).catch(() => setPositions([]));
+  }, [editing]);
+
+  function startEdit() {
+    setForm({
+      first_name: player.first_name || '',
+      last_name: player.last_name || '',
+      date_of_birth: player.date_of_birth || '',
+      grade: player.grade || '',
+      batting_hand: player.batting_hand || '',
+      throwing_hand: player.throwing_hand || '',
+      parent_email: player.parent_email || '',
+      parent_phone: player.parent_phone || '',
+      position_ids: (player.positions || []).map(p => p.id),
+    });
+    setError(null);
+    setEditing(true);
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updatePlayer(player.id, {
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        date_of_birth: form.date_of_birth || null,
+        grade: form.grade || null,
+        batting_hand: form.batting_hand || null,
+        throwing_hand: form.throwing_hand || null,
+        parent_email: form.parent_email.trim() || null,
+        parent_phone: form.parent_phone.trim() || null,
+        position_ids: form.position_ids,
+      });
+      onPlayerUpdated({ ...player, ...updated });
+      setEditing(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handlePositionToggle(posId) {
+    const numId = Number(posId);
+    setForm(f => ({
+      ...f,
+      position_ids: f.position_ids.includes(numId)
+        ? f.position_ids.filter(id => id !== numId)
+        : [...f.position_ids, numId],
+    }));
+  }
+
   function calculateAge(dob) {
     if (!dob) return null;
     const birth = new Date(dob);
     return Math.floor((Date.now() - birth.getTime()) / (365.25 * 86400000));
+  }
+
+  const inputCls = 'w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+
+  if (editing) {
+    return (
+      <div className="space-y-4">
+        <form onSubmit={handleSave} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Edit Player Info</h3>
+          </div>
+
+          {error && <p className="text-sm text-red-400 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">First Name *</label>
+              <input required value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Last Name *</label>
+              <input required value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Date of Birth</label>
+              <input type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Grade</label>
+              <select value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))} className={inputCls}>
+                <option value="">—</option>
+                {GRADE_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Bats</label>
+              <select value={form.batting_hand} onChange={e => setForm(f => ({ ...f, batting_hand: e.target.value }))} className={inputCls}>
+                <option value="">—</option>
+                {BATTING_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Throws</label>
+              <select value={form.throwing_hand} onChange={e => setForm(f => ({ ...f, throwing_hand: e.target.value }))} className={inputCls}>
+                <option value="">—</option>
+                {THROWING_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Parent Email</label>
+              <input type="email" value={form.parent_email} onChange={e => setForm(f => ({ ...f, parent_email: e.target.value }))} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Parent Phone</label>
+              <input value={form.parent_phone} onChange={e => setForm(f => ({ ...f, parent_phone: e.target.value }))} className={inputCls} />
+            </div>
+          </div>
+
+          {positions.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Positions</label>
+              <div className="flex flex-wrap gap-2">
+                {positions.map(p => (
+                  <button
+                    type="button"
+                    key={p.id}
+                    onClick={() => handlePositionToggle(p.id)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                      form.position_ids.includes(p.id)
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'bg-gray-700/40 border-gray-600 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    {p.abbreviation || p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-end pt-2">
+            <button type="button" onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
+            <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
   }
 
   const age = calculateAge(player.date_of_birth);
@@ -91,7 +249,14 @@ function InfoTab({ player, onNavigateToTeam }) {
   return (
     <div className="space-y-4">
       <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Player Info</h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Player Info</h3>
+          {canEdit && (
+            <button onClick={startEdit} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors">
+              <PencilIcon className="w-3.5 h-3.5" /> Edit
+            </button>
+          )}
+        </div>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
           {fields.map(f => (
             <div key={f.label}>
