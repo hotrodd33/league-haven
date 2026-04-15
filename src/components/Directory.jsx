@@ -7,7 +7,8 @@ import ContactModal from './ContactModal.jsx';
 const ROLE_LABELS = {
   head_coach: 'Head Coach',
   assistant_coach: 'Asst. Coach',
-  travel_director: 'Travel Dir.',
+  scorekeeper: 'Scorekeeper',
+  org_admin: 'Org Admin',
 };
 
 function OrgLogo({ src, name, size = 'w-10 h-10' }) {

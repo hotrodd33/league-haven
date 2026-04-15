@@ -625,7 +625,7 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const teamCol = findCol(headers, 'team', 'team_name', 'teams');
         const roleCol = findCol(headers, 'role', 'roles', 'position');
 
-        const VALID_ROLES = ['head_coach', 'assistant_coach', 'travel_director'];
+        const VALID_ROLES = ['head_coach', 'assistant_coach', 'scorekeeper', 'org_admin'];
         const teamLookup = await buildTeamLookup();
 
         const { rows: existing } = await pool.query('SELECT id, name FROM staff_members');

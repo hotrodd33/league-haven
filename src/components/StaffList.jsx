@@ -6,7 +6,6 @@ import ContactModal from './ContactModal.jsx';
 const ROLE_OPTIONS = [
   { value: 'head_coach', label: 'Head Coach' },
   { value: 'assistant_coach', label: 'Assistant Coach' },
-  { value: 'travel_director', label: 'Travel Director' },
   { value: 'scorekeeper', label: 'Scorekeeper' },
 ];
 

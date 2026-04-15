@@ -4,11 +4,10 @@ const { authMiddleware, canEditTeam } = require('../auth');
 
 const router = express.Router();
 
-const VALID_ROLES = ['head_coach', 'assistant_coach', 'travel_director', 'scorekeeper', 'org_admin'];
+const VALID_ROLES = ['head_coach', 'assistant_coach', 'scorekeeper', 'org_admin'];
 const ROLE_LABELS = {
   head_coach: 'Head Coach',
   assistant_coach: 'Assistant Coach',
-  travel_director: 'Travel Director',
   scorekeeper: 'Scorekeeper',
   org_admin: 'Org Administrator',
 };

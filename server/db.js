@@ -105,7 +105,7 @@ async function migrate() {
       id SERIAL PRIMARY KEY,
       team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('head_coach','assistant_coach','travel_director')),
+      role TEXT NOT NULL CHECK(role IN ('head_coach','assistant_coach')),
       email TEXT,
       phone TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
@@ -124,7 +124,7 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS team_staff_assignments (
       team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
       staff_id INTEGER NOT NULL REFERENCES staff_members(id) ON DELETE CASCADE,
-      role TEXT NOT NULL CHECK(role IN ('head_coach','assistant_coach','travel_director','scorekeeper','org_admin')),
+      role TEXT NOT NULL CHECK(role IN ('head_coach','assistant_coach','scorekeeper','org_admin')),
       added_at TIMESTAMPTZ DEFAULT NOW(),
       PRIMARY KEY (team_id, staff_id)
     );
@@ -518,12 +518,15 @@ async function migrate() {
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS approval_notes TEXT;`);
   await pool.query(`ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;`);
 
+  // ── Remove travel_director role: convert existing to assistant_coach ──
+  await pool.query(`UPDATE team_staff_assignments SET role = 'assistant_coach' WHERE role = 'travel_director'`);
+
   // ── Expand team_staff_assignments role CHECK to include 'scorekeeper' ──
   await pool.query(`
     DO $$ BEGIN
       ALTER TABLE team_staff_assignments DROP CONSTRAINT IF EXISTS team_staff_assignments_role_check;
       ALTER TABLE team_staff_assignments ADD CONSTRAINT team_staff_assignments_role_check
-        CHECK (role IN ('head_coach','assistant_coach','travel_director','scorekeeper','org_admin'));
+        CHECK (role IN ('head_coach','assistant_coach','scorekeeper','org_admin'));
     EXCEPTION WHEN undefined_object THEN NULL;
     END $$;
   `);
