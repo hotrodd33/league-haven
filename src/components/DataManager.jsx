@@ -24,7 +24,7 @@ const CLEAR_GROUPS = [
   { label: 'League Config', desc: 'Divisions, seasons, age groups, levels', entities: ['divisions', 'seasons', 'age_groups', 'levels'] },
 ];
 
-export default function DataManager() {
+export default function DataManager({ onOpenImport }) {
   const [tab, setTab] = useState('import');
   const [selectedEntity, setSelectedEntity] = useState('teams');
   const [csv, setCsv] = useState('');
@@ -111,6 +111,22 @@ export default function DataManager() {
         {/* ── IMPORT TAB ── */}
         {tab === 'import' && (
           <div className="space-y-4">
+            {/* GameChanger wizard shortcut */}
+            {onOpenImport && (
+              <div className="flex items-center justify-between bg-dirt-900/20 border border-dirt-700 rounded-xl px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-100">Import from GameChanger</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Box scores, rosters, and schedules with guided team &amp; player mapping.</p>
+                </div>
+                <button
+                  onClick={onOpenImport}
+                  className="ml-4 shrink-0 px-4 py-2 bg-dirt-700 hover:bg-dirt-600 text-white text-sm font-semibold rounded-lg transition-colors"
+                >
+                  Open Wizard
+                </button>
+              </div>
+            )}
+
             {/* Entity selector */}
             <div>
               <label className={labelCls}>What to import</label>

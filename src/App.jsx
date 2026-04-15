@@ -161,7 +161,7 @@ export default function App() {
                 return <FieldsPage onViewGame={navigateToGame} />;
 
             case 'data':
-                return isAdmin ? <DataManager /> : null;
+                return isAdmin ? <DataManager onOpenImport={() => setShowImportWizard(true)} /> : null;
 
             case 'officials':
                 return (isAdmin || isAccountant || isOrgAdmin) ? <OfficialsManager onBack={() => setPage("dashboard")} /> : null;
