@@ -527,6 +527,44 @@ async function migrate() {
     EXCEPTION WHEN undefined_object THEN NULL;
     END $$;
   `);
+
+  // ── Backfill staff records for existing users ──
+  // Coaches & scorekeepers: create staff_members + team_staff_assignments from user_permissions
+  await pool.query(`
+    INSERT INTO staff_members (name, email)
+    SELECT u.name, u.email FROM users u
+    WHERE u.role IN ('team_manager', 'score_reporter')
+      AND u.email IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM staff_members sm WHERE LOWER(sm.email) = LOWER(u.email))
+  `);
+  await pool.query(`
+    INSERT INTO team_staff_assignments (team_id, staff_id, role)
+    SELECT up.team_id, sm.id,
+           CASE WHEN u.role = 'team_manager' THEN 'head_coach' ELSE 'scorekeeper' END
+    FROM users u
+    JOIN user_permissions up ON up.user_id = u.id AND up.team_id IS NOT NULL
+    JOIN staff_members sm ON LOWER(sm.email) = LOWER(u.email)
+    WHERE u.role IN ('team_manager', 'score_reporter')
+    ON CONFLICT (team_id, staff_id) DO NOTHING
+  `);
+  // Org admins: add as travel_director to all teams in their orgs
+  await pool.query(`
+    INSERT INTO staff_members (name, email)
+    SELECT u.name, u.email FROM users u
+    WHERE u.role = 'org_admin'
+      AND u.email IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM staff_members sm WHERE LOWER(sm.email) = LOWER(u.email))
+  `);
+  await pool.query(`
+    INSERT INTO team_staff_assignments (team_id, staff_id, role)
+    SELECT t.id, sm.id, 'travel_director'
+    FROM users u
+    JOIN user_permissions up ON up.user_id = u.id AND up.org_id IS NOT NULL
+    JOIN teams t ON t.org_id = up.org_id
+    JOIN staff_members sm ON LOWER(sm.email) = LOWER(u.email)
+    WHERE u.role = 'org_admin'
+    ON CONFLICT (team_id, staff_id) DO NOTHING
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds
