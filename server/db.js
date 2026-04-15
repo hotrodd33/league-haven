@@ -361,14 +361,6 @@ async function migrate() {
       FOREIGN KEY (away_team_id) REFERENCES teams(id) ON DELETE SET NULL;
   `);
 
-  // Fix: Change game_pitch_counts team FK from CASCADE to SET NULL
-  await pool.query(`
-    ALTER TABLE game_pitch_counts ALTER COLUMN team_id DROP NOT NULL;
-    ALTER TABLE game_pitch_counts DROP CONSTRAINT IF EXISTS game_pitch_counts_team_id_fkey;
-    ALTER TABLE game_pitch_counts ADD CONSTRAINT game_pitch_counts_team_id_fkey
-      FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL;
-  `);
-
   // Pitch counts per game per pitcher
   await pool.query(`
     CREATE TABLE IF NOT EXISTS game_pitch_counts (
@@ -380,6 +372,24 @@ async function migrate() {
       innings_pitched TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+  `);
+
+  // Fix: Change game_pitch_counts team FK from CASCADE to SET NULL.
+  // Guard this for fresh databases so startup does not fail before the table exists.
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'game_pitch_counts'
+      ) THEN
+        ALTER TABLE game_pitch_counts ALTER COLUMN team_id DROP NOT NULL;
+        ALTER TABLE game_pitch_counts DROP CONSTRAINT IF EXISTS game_pitch_counts_team_id_fkey;
+        ALTER TABLE game_pitch_counts ADD CONSTRAINT game_pitch_counts_team_id_fkey
+          FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL;
+      END IF;
+    END $$;
   `);
 
   // Seed default positions if empty
