@@ -25,6 +25,7 @@ export default function AppShell({
   onChangePassword,
   onLogout,
   onNavigateToTeam,
+  onMyAccount,
   children,
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -47,6 +48,7 @@ export default function AppShell({
     about: 'Help',
     guide: 'Help',
     fields: 'Fields',
+    account: 'My Account',
   }[page] || 'Dashboard';
 
   return (
@@ -82,6 +84,7 @@ export default function AppShell({
           onChangePassword={onChangePassword}
           onLogout={onLogout}
           onNavigateToTeam={onNavigateToTeam}
+          onMyAccount={onMyAccount}
           onShowAbout={() => onNavigate('about')}
           onShowGuide={() => onNavigate('guide')}
         />

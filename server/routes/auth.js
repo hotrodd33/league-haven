@@ -316,11 +316,33 @@ router.put('/change-password', authMiddleware, async (req, res) => {
 // GET /api/auth/me — return current user info + permissions
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT id, username, name, role, is_umpire, email FROM users WHERE id = $1', [req.user.id]);
+    const { rows } = await pool.query('SELECT id, username, name, role, is_umpire, email, created_at, last_login_at FROM users WHERE id = $1', [req.user.id]);
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
     const user = rows[0];
     const permissions = await getUserPermissions(user.id);
-    res.json({ user, permissions });
+
+    // Resolve org and team names for the account panel
+    let organizations = [];
+    let teams = [];
+    if (permissions.org_ids.length) {
+      const { rows: orgs } = await pool.query('SELECT id, name FROM organizations WHERE id = ANY($1) ORDER BY name', [permissions.org_ids]);
+      organizations = orgs;
+    }
+    const allTeamIds = [...new Set([...permissions.team_ids, ...(permissions.team_org_ids ? [] : [])])];
+    if (allTeamIds.length) {
+      const { rows: tms } = await pool.query('SELECT t.id, t.name, t.age_group, t.level, o.name AS org_name FROM teams t LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = ANY($1) ORDER BY t.name', [allTeamIds]);
+      teams = tms;
+    }
+    // Also include teams from orgs the user manages
+    if (permissions.org_ids.length) {
+      const { rows: orgTeams } = await pool.query('SELECT t.id, t.name, t.age_group, t.level, o.name AS org_name FROM teams t LEFT JOIN organizations o ON o.id = t.org_id WHERE t.org_id = ANY($1) ORDER BY t.name', [permissions.org_ids]);
+      const existingIds = new Set(teams.map(t => t.id));
+      for (const t of orgTeams) {
+        if (!existingIds.has(t.id)) teams.push(t);
+      }
+    }
+
+    res.json({ user, permissions, organizations, teams });
   } catch (err) {
     console.error('Me error:', err);
     res.status(500).json({ error: 'Internal server error' });
