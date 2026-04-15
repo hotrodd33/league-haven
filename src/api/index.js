@@ -1,5 +1,13 @@
 const API_BASE = '/api';
 
+function isAuthBootstrapEndpoint(endpoint) {
+  return endpoint.startsWith('/auth/login')
+    || endpoint.startsWith('/auth/register')
+    || endpoint.startsWith('/auth/forgot-password')
+    || endpoint.startsWith('/auth/reset-password')
+    || endpoint.startsWith('/auth/resend-confirmation');
+}
+
 function getToken() {
   try {
     const saved = localStorage.getItem('zvbl_roster_auth');
@@ -32,6 +40,13 @@ async function apiFetch(endpoint, options = {}) {
   });
 
   if (response.status === 401) {
+    if (isAuthBootstrapEndpoint(endpoint)) {
+      const errorBody = await response.json().catch(() => ({}));
+      const err = new Error(errorBody.error || 'Invalid credentials');
+      err.status = response.status;
+      err.details = errorBody;
+      throw err;
+    }
     localStorage.removeItem('zvbl_roster_auth');
     window.location.reload();
     throw new Error('Session expired');
