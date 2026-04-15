@@ -7,6 +7,7 @@ import {
   fetchOrganizations,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import FieldCalendar from './FieldCalendar.jsx';
 
 // Fix default marker icons for bundled builds
 delete L.Icon.Default.prototype._getIconUrl;
@@ -83,6 +84,7 @@ export default function FieldsPage() {
   const [formOrgId, setFormOrgId] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [highlightedId, setHighlightedId] = useState(null);
+  const [calendarField, setCalendarField] = useState(null);
   const markerRefs = useRef({});
 
   // Determine which orgs the user can edit
@@ -255,6 +257,8 @@ export default function FieldsPage() {
                             <td className="px-3 py-2 text-gray-300">{loc.comments || '—'}</td>
                             <td className="px-3 py-2">
                               <div className="flex gap-1.5 flex-wrap">
+                                <button onClick={e => { e.stopPropagation(); setCalendarField(loc); }}
+                                  className="px-2.5 py-1 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Calendar</button>
                                 {hasPin && (
                                   <a href={directionsUrl(loc)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                                     className="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 no-underline">Directions</a>
@@ -291,6 +295,8 @@ export default function FieldsPage() {
                         {(loc.address || loc.city) && <p className="text-sm text-gray-300 mb-1">{[loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ')}</p>}
                         {loc.comments && <p className="text-xs text-gray-400 mb-2">{loc.comments}</p>}
                         <div className="flex gap-2 pt-2 border-t border-gray-700" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => setCalendarField(loc)}
+                            className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Calendar</button>
                           {hasPin && (
                             <a href={directionsUrl(loc)} target="_blank" rel="noopener noreferrer"
                               className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 no-underline">Directions</a>
@@ -321,6 +327,10 @@ export default function FieldsPage() {
           onDone={() => { setShowForm(false); setEditing(null); setFormOrgId(null); load(); }}
           onCancel={() => { setShowForm(false); setEditing(null); setFormOrgId(null); }}
         />
+      )}
+
+      {calendarField && (
+        <FieldCalendar field={calendarField} onClose={() => setCalendarField(null)} />
       )}
     </div>
   );

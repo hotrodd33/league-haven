@@ -437,6 +437,35 @@ export async function deleteLocation(locId) {
   });
 }
 
+// ── Reservations ──
+
+export async function fetchReservations(locationId, from, to) {
+  const params = new URLSearchParams({ location_id: locationId });
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  return apiFetch(`/reservations?${params}`);
+}
+
+export async function createReservation(data) {
+  return apiFetch('/reservations', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateReservation(id, data) {
+  return apiFetch(`/reservations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteReservation(id) {
+  return apiFetch(`/reservations/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 // ── League Config ──
 
 export async function fetchAgeGroups() {

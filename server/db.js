@@ -189,6 +189,21 @@ async function migrate() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS field_reservations (
+      id SERIAL PRIMARY KEY,
+      location_id INTEGER NOT NULL REFERENCES field_locations(id) ON DELETE CASCADE,
+      team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      event_type TEXT NOT NULL DEFAULT 'practice' CHECK(event_type IN ('practice','game_hold','event','maintenance')),
+      event_date DATE NOT NULL,
+      start_time TIME NOT NULL,
+      end_time TIME NOT NULL,
+      game_id INTEGER REFERENCES games(id) ON DELETE CASCADE,
+      notes TEXT,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS officials (
       id SERIAL PRIMARY KEY,
       org_id INTEGER REFERENCES organizations(id) ON DELETE SET NULL,
