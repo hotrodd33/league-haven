@@ -3,13 +3,14 @@ import {
   UsersIcon, BuildingIcon, CalendarIcon, TrophyIcon,
   ClipboardIcon, CogIcon, UserGroupIcon, DatabaseIcon,
   ChevronLeftIcon, ChevronRightIcon, HomeIcon, CurrencyDollarIcon,
-  MapPinIcon,
+  MapPinIcon, UserIcon,
 } from './icons.jsx';
 
 const mainNav = [
   { key: 'dashboard',     label: 'Dashboard',     icon: HomeIcon },
   { key: 'organizations', label: 'Organizations', icon: BuildingIcon },
   { key: 'rosters',       label: 'Teams',         icon: UsersIcon },
+  { key: 'players',       label: 'Players',       icon: UserIcon },
   { key: 'schedule',      label: 'Schedule',      icon: CalendarIcon },
   { key: 'standings',     label: 'Standings',      icon: TrophyIcon },
   { key: 'directory',     label: 'Directory',      icon: ClipboardIcon },

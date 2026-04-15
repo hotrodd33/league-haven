@@ -1,0 +1,170 @@
+import { useState, useEffect, useMemo } from 'react';
+import { fetchAllPlayers, fetchOrganizations, fetchTeams } from '../api/index.js';
+import { MagnifyingGlassIcon, UserIcon } from './ui/icons.jsx';
+
+export default function PlayersPage({ onSelectPlayer }) {
+  const [players, setPlayers] = useState([]);
+  const [orgs, setOrgs] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterOrg, setFilterOrg] = useState('');
+  const [filterTeam, setFilterTeam] = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      fetchAllPlayers(),
+      fetchOrganizations(),
+      fetchTeams(),
+    ]).then(([p, o, t]) => {
+      setPlayers(p);
+      setOrgs(o);
+      setTeams(t);
+    }).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  // Teams filtered by org
+  const filteredTeamOptions = useMemo(() => {
+    if (!filterOrg) return teams;
+    return teams.filter(t => String(t.org_id) === filterOrg);
+  }, [teams, filterOrg]);
+
+  const filtered = useMemo(() => {
+    let list = players;
+    if (filterOrg) {
+      list = list.filter(p => p.teams?.some(t => String(t.org_id) === filterOrg));
+    }
+    if (filterTeam) {
+      list = list.filter(p => p.teams?.some(t => String(t.team_id) === filterTeam));
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(p =>
+        `${p.first_name} ${p.last_name}`.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [players, filterOrg, filterTeam, search]);
+
+  function calculateAge(dob) {
+    if (!dob) return '';
+    const birth = new Date(dob);
+    const diff = Date.now() - birth.getTime();
+    return Math.floor(diff / (365.25 * 86400000));
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-400 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search players..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <select
+          value={filterOrg}
+          onChange={e => { setFilterOrg(e.target.value); setFilterTeam(''); }}
+          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">All Organizations</option>
+          {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+        <select
+          value={filterTeam}
+          onChange={e => setFilterTeam(e.target.value)}
+          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">All Teams</option>
+          {filteredTeamOptions.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      </div>
+
+      <p className="text-sm text-gray-400">{filtered.length} player{filtered.length !== 1 ? 's' : ''}</p>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-800 text-gray-400 text-left text-xs uppercase tracking-wider">
+              <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Age</th>
+              <th className="px-4 py-3">Grade</th>
+              <th className="px-4 py-3">B/T</th>
+              <th className="px-4 py-3">Team(s)</th>
+              <th className="px-4 py-3">Organization</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-700/50">
+            {filtered.map(p => (
+              <tr
+                key={p.id}
+                className="hover:bg-gray-700/30 cursor-pointer transition-colors"
+                onClick={() => onSelectPlayer(p.id)}
+              >
+                <td className="px-4 py-3 font-medium text-white">
+                  {p.first_name} {p.last_name}
+                </td>
+                <td className="px-4 py-3 text-gray-300">{calculateAge(p.date_of_birth) || '—'}</td>
+                <td className="px-4 py-3 text-gray-300">{p.grade || '—'}</td>
+                <td className="px-4 py-3 text-gray-300">{p.batting_hand || '—'}/{p.throwing_hand || '—'}</td>
+                <td className="px-4 py-3 text-gray-300">
+                  {p.teams?.length ? p.teams.map(t => t.team_name).join(', ') : '—'}
+                </td>
+                <td className="px-4 py-3 text-gray-300">
+                  {p.teams?.length ? [...new Set(p.teams.map(t => t.org_name).filter(Boolean))].join(', ') : '—'}
+                </td>
+              </tr>
+            ))}
+            {!filtered.length && (
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No players found</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-2">
+        {filtered.map(p => (
+          <div
+            key={p.id}
+            className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 cursor-pointer hover:bg-gray-700/40 transition-colors"
+            onClick={() => onSelectPlayer(p.id)}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                <UserIcon className="w-5 h-5 text-blue-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-white truncate">{p.first_name} {p.last_name}</p>
+                <p className="text-xs text-gray-400 truncate">
+                  {p.teams?.length ? p.teams.map(t => t.team_name).join(', ') : 'Unassigned'}
+                </p>
+              </div>
+              <div className="text-right text-xs text-gray-400">
+                {calculateAge(p.date_of_birth) ? `${calculateAge(p.date_of_birth)}y` : ''}{' '}
+                {p.grade ? `Gr ${p.grade}` : ''}
+              </div>
+            </div>
+          </div>
+        ))}
+        {!filtered.length && (
+          <p className="text-center text-gray-500 py-8">No players found</p>
+        )}
+      </div>
+    </div>
+  );
+}

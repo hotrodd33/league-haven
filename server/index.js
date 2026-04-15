@@ -27,6 +27,10 @@ const umpireRoutes = require('./routes/umpires');
 const registrationsRoutes = require('./routes/registrations');
 const reservationsRoutes = require('./routes/reservations');
 const calendarRoutes = require('./routes/calendar');
+const playerContactsRoutes = require('./routes/player-contacts');
+const playerNotesRoutes = require('./routes/player-notes');
+const playerDocumentsRoutes = require('./routes/player-documents');
+const statsRoutes = require('./routes/stats');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -64,6 +68,10 @@ app.use('/api/umpires', umpireRoutes);
 app.use('/api/registrations', registrationsRoutes);
 app.use('/api/reservations', reservationsRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/player-contacts', playerContactsRoutes);
+app.use('/api/player-notes', playerNotesRoutes);
+app.use('/api/player-documents', playerDocumentsRoutes);
+app.use('/api/stats', statsRoutes);
 
 // ── Serve React build in local dev only (Vercel serves static files itself) ──
 if (!process.env.VERCEL) {

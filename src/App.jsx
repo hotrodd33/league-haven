@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "./context/AuthContext.jsx";
-import { fetchBranding } from "./api/index.js";
+import { fetchBranding, fetchPlayer } from "./api/index.js";
 import Login from "./components/Login.jsx";
 import ResetPassword from "./components/ResetPassword.jsx";
 import ChangePassword from "./components/ChangePassword.jsx";
@@ -24,6 +24,8 @@ import LeagueFees from "./components/LeagueFees.jsx";
 import FieldsPage from "./components/FieldsPage.jsx";
 import TeamRegistration from "./components/TeamRegistration.jsx";
 import ConfirmEmail from "./components/ConfirmEmail.jsx";
+import PlayersPage from "./components/PlayersPage.jsx";
+import PlayerDetail from "./components/PlayerDetail.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, user, role, logout } = useAuth();
@@ -39,6 +41,8 @@ export default function App() {
     const [showImportWizard, setShowImportWizard] = useState(false);
     const [importWizardGameId, setImportWizardGameId] = useState(null);
     const [branding, setBranding] = useState({ app_name: 'ZVBL', logo_url: null });
+    const [selectedPlayerId, setSelectedPlayerId] = useState(null);
+    const [selectedPlayerData, setSelectedPlayerData] = useState(null);
 
     function openImportWizard(gameId = null) {
         setImportWizardGameId(gameId || null);
@@ -60,6 +64,10 @@ export default function App() {
     useEffect(() => {
         if (page !== 'rosters') {
             document.documentElement.style.removeProperty('--page-logo-watermark');
+        }
+        if (page !== 'players') {
+            setSelectedPlayerId(null);
+            setSelectedPlayerData(null);
         }
     }, [page]);
 
@@ -165,6 +173,18 @@ export default function App() {
 
             case 'fields':
                 return <FieldsPage onViewGame={navigateToGame} />;
+
+            case 'players':
+                if (selectedPlayerData) {
+                    return <PlayerDetail player={selectedPlayerData} onBack={() => { setSelectedPlayerId(null); setSelectedPlayerData(null); }} onNavigateToTeam={navigateToTeam} />;
+                }
+                return <PlayersPage onSelectPlayer={async (id) => {
+                    setSelectedPlayerId(id);
+                    try {
+                        const p = await fetchPlayer(id);
+                        setSelectedPlayerData(p);
+                    } catch (err) { console.error(err); }
+                }} />;
 
             case 'data':
                 return isAdmin ? <DataManager onOpenImport={() => openImportWizard()} /> : null;

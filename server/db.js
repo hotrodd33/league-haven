@@ -497,6 +497,77 @@ async function migrate() {
     );
   `);
 
+  // ── Player contacts (multiple per player) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS player_contacts (
+      id SERIAL PRIMARY KEY,
+      player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      relationship TEXT NOT NULL DEFAULT 'parent',
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      email TEXT,
+      phone TEXT,
+      is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // ── Player notes ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS player_notes (
+      id SERIAL PRIMARY KEY,
+      player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      note TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // ── Player documents (birth cert, etc.) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS player_documents (
+      id SERIAL PRIMARY KEY,
+      player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      doc_type TEXT NOT NULL DEFAULT 'birth_certificate',
+      file_name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      data_url TEXT NOT NULL,
+      uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // ── Configurable stat definitions ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS stat_definitions (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      abbreviation TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'batting' CHECK(category IN ('batting','pitching','fielding','other')),
+      data_type TEXT NOT NULL DEFAULT 'integer' CHECK(data_type IN ('integer','decimal','text')),
+      sort_order INTEGER DEFAULT 0,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      gc_column_name TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // ── Player game stats (per-game stat values) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS player_game_stats (
+      id SERIAL PRIMARY KEY,
+      player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+      stat_definition_id INTEGER NOT NULL REFERENCES stat_definitions(id) ON DELETE CASCADE,
+      value TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(player_id, game_id, stat_definition_id)
+    );
+  `);
+
   // ── No-show tracking for umpire assignments ──
   await pool.query(`ALTER TABLE game_official_assignments ADD COLUMN IF NOT EXISTS no_show BOOLEAN NOT NULL DEFAULT FALSE;`);
 

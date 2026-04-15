@@ -18,7 +18,7 @@ async function withPositions(player) {
 // GET players, optionally filtered by team_id (via team_players junction)
 router.get('/', async (req, res) => {
   try {
-    const { team_id, search } = req.query;
+    const { team_id, org_id, search, with_teams } = req.query;
     let result;
     if (team_id) {
       result = await pool.query(
@@ -27,6 +27,15 @@ router.get('/', async (req, res) => {
          JOIN team_players tp ON tp.player_id = p.id
          WHERE tp.team_id = $1
          ORDER BY p.last_name, p.first_name`, [team_id]
+      );
+    } else if (org_id) {
+      result = await pool.query(
+        `SELECT DISTINCT p.*
+         FROM players p
+         JOIN team_players tp ON tp.player_id = p.id
+         JOIN teams t ON t.id = tp.team_id
+         WHERE t.org_id = $1
+         ORDER BY p.last_name, p.first_name`, [org_id]
       );
     } else if (search) {
       // Search players not on a specific team (for "add existing" flow)
@@ -38,7 +47,32 @@ router.get('/', async (req, res) => {
     } else {
       result = await pool.query('SELECT * FROM players ORDER BY last_name, first_name');
     }
-    const players = await Promise.all(result.rows.map(withPositions));
+    let players = await Promise.all(result.rows.map(withPositions));
+
+    // Optionally include team assignments for each player
+    if (with_teams === 'true') {
+      const playerIds = players.map(p => p.id);
+      if (playerIds.length) {
+        const { rows: teamRows } = await pool.query(
+          `SELECT tp.player_id, t.id AS team_id, t.name AS team_name, t.org_id,
+                  o.name AS org_name, tp.jersey_number
+           FROM team_players tp
+           JOIN teams t ON t.id = tp.team_id
+           LEFT JOIN organizations o ON o.id = t.org_id
+           WHERE tp.player_id = ANY($1)
+           ORDER BY t.name`, [playerIds]
+        );
+        const teamMap = {};
+        for (const tr of teamRows) {
+          if (!teamMap[tr.player_id]) teamMap[tr.player_id] = [];
+          teamMap[tr.player_id].push(tr);
+        }
+        players = players.map(p => ({ ...p, teams: teamMap[p.id] || [] }));
+      } else {
+        players = players.map(p => ({ ...p, teams: [] }));
+      }
+    }
+
     res.json(players);
   } catch (err) {
     console.error(err);

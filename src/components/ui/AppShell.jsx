@@ -34,6 +34,7 @@ export default function AppShell({
     dashboard: 'Dashboard',
     organizations: 'Organizations',
     rosters: 'Teams',
+    players: 'Players',
     schedule: 'Schedule',
     standings: 'Standings',
     directory: 'Directory',

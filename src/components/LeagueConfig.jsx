@@ -6,6 +6,7 @@ import {
   fetchSeasons, createSeason, updateSeason, deleteSeason,
   fetchBranding, updateBranding, uploadBrandingLogo, deleteBrandingLogo,
   fetchScheduleSettings, updateScheduleSettings,
+  fetchStatDefinitions, createStatDefinition, updateStatDefinition, deleteStatDefinition,
 } from '../api/index.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
@@ -36,6 +37,7 @@ export default function LeagueConfig({ onBack }) {
         <button className={tabCls('age_groups')} onClick={() => setTab('age_groups')}>Age Groups</button>
         <button className={tabCls('levels')} onClick={() => setTab('levels')}>Levels</button>
         <button className={tabCls('divisions')} onClick={() => setTab('divisions')}>Divisions</button>
+        <button className={tabCls('stats')} onClick={() => setTab('stats')}>Stats</button>
       </div>
       {tab === 'branding' && <BrandingConfig />}
       {tab === 'scheduling' && <SchedulingConfig />}
@@ -49,6 +51,7 @@ export default function LeagueConfig({ onBack }) {
         />
       )}
       {tab === 'divisions' && <DivisionTree />}
+      {tab === 'stats' && <StatDefinitionsConfig />}
     </div>
   );
 }
@@ -1061,6 +1064,161 @@ function DivisionNode({
             />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Stat Definitions Config ── */
+function StatDefinitionsConfig() {
+  const [defs, setDefs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ name: '', abbreviation: '', category: 'batting', data_type: 'integer', sort_order: 0, gc_column_name: '' });
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(() => {
+    fetchStatDefinitions().then(setDefs).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(load, [load]);
+
+  function startEdit(d) {
+    setEditing(d);
+    setForm({ name: d.name, abbreviation: d.abbreviation, category: d.category, data_type: d.data_type, sort_order: d.sort_order, gc_column_name: d.gc_column_name || '' });
+    setShowForm(true);
+  }
+
+  function startNew() {
+    setEditing(null);
+    setForm({ name: '', abbreviation: '', category: 'batting', data_type: 'integer', sort_order: 0, gc_column_name: '' });
+    setShowForm(true);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (editing) {
+        await updateStatDefinition(editing.id, form);
+      } else {
+        await createStatDefinition(form);
+      }
+      setShowForm(false);
+      setEditing(null);
+      load();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('Delete this stat definition? All recorded values will be lost.')) return;
+    try {
+      await deleteStatDefinition(id);
+      load();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function handleToggleActive(d) {
+    try {
+      await updateStatDefinition(d.id, { is_active: !d.is_active });
+      load();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  if (loading) return <p className="text-gray-400 py-4">Loading...</p>;
+
+  const categories = ['batting', 'pitching', 'fielding', 'other'];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-bold text-white">Stat Definitions</h3>
+          <p className="text-sm text-gray-400">Configure which stats can be tracked per player per game. Set a GC Column Name to auto-map from GameChanger imports.</p>
+        </div>
+        <button onClick={startNew} className={btnPrimary}>+ Add Stat</button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className={labelCls}>Name</label>
+              <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="e.g. Hits" />
+            </div>
+            <div>
+              <label className={labelCls}>Abbreviation</label>
+              <input required value={form.abbreviation} onChange={e => setForm(f => ({ ...f, abbreviation: e.target.value }))} className={inputCls} placeholder="e.g. H" />
+            </div>
+            <div>
+              <label className={labelCls}>Category</label>
+              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className={inputCls}>
+                {categories.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Data Type</label>
+              <select value={form.data_type} onChange={e => setForm(f => ({ ...f, data_type: e.target.value }))} className={inputCls}>
+                <option value="integer">Integer</option>
+                <option value="decimal">Decimal</option>
+                <option value="text">Text</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Sort Order</label>
+              <input type="number" value={form.sort_order} onChange={e => setForm(f => ({ ...f, sort_order: parseInt(e.target.value) || 0 }))} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>GC Column Name</label>
+              <input value={form.gc_column_name} onChange={e => setForm(f => ({ ...f, gc_column_name: e.target.value }))} className={inputCls} placeholder="e.g. H, AB, RBI" />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => { setShowForm(false); setEditing(null); }} className={btnSecondary}>Cancel</button>
+            <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
+          </div>
+        </form>
+      )}
+
+      {categories.map(cat => {
+        const items = defs.filter(d => d.category === cat);
+        if (!items.length) return null;
+        return (
+          <div key={cat}>
+            <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">{cat}</h4>
+            <div className="bg-gray-800/50 border border-gray-700 rounded-xl divide-y divide-gray-700/50">
+              {items.map(d => (
+                <div key={d.id} className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm font-medium ${d.is_active ? 'text-white' : 'text-gray-500 line-through'}`}>{d.name}</span>
+                    <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">{d.abbreviation}</span>
+                    {d.gc_column_name && <span className="text-xs text-green-400">GC: {d.gc_column_name}</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleToggleActive(d)} className={`text-xs px-2 py-1 rounded ${d.is_active ? 'text-yellow-400 hover:bg-yellow-500/10' : 'text-green-400 hover:bg-green-500/10'}`}>
+                      {d.is_active ? 'Disable' : 'Enable'}
+                    </button>
+                    <button onClick={() => startEdit(d)} className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1">Edit</button>
+                    <button onClick={() => handleDelete(d.id)} className="text-xs text-red-400 hover:text-red-300 px-2 py-1">Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {!defs.length && !showForm && (
+        <p className="text-sm text-gray-500 py-4 text-center">No stat definitions yet. Click "Add Stat" to create one.</p>
       )}
     </div>
   );

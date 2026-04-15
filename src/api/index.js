@@ -153,6 +153,10 @@ export async function fetchPlayersByTeam(teamId) {
   return apiFetch(`/players?team_id=${teamId}`);
 }
 
+export async function fetchPlayer(playerId) {
+  return apiFetch(`/players/${playerId}`);
+}
+
 export async function createPlayer(data) {
   return apiFetch('/players', {
     method: 'POST',
@@ -189,6 +193,134 @@ export async function unassignPlayerFromTeam(teamId, playerId) {
     method: 'POST',
     body: JSON.stringify({ team_id: teamId, player_id: playerId }),
   });
+}
+
+export async function fetchAllPlayers(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.org_id) params.set('org_id', filters.org_id);
+  if (filters.team_id) params.set('team_id', filters.team_id);
+  if (filters.search) params.set('search', filters.search);
+  params.set('with_teams', 'true');
+  return apiFetch(`/players?${params}`);
+}
+
+// ── Player Contacts ──
+
+export async function fetchPlayerContacts(playerId) {
+  return apiFetch(`/player-contacts/${playerId}`);
+}
+
+export async function createPlayerContact(playerId, data) {
+  return apiFetch(`/player-contacts/${playerId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updatePlayerContact(playerId, contactId, data) {
+  return apiFetch(`/player-contacts/${playerId}/${contactId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deletePlayerContact(playerId, contactId) {
+  return apiFetch(`/player-contacts/${playerId}/${contactId}`, { method: 'DELETE' });
+}
+
+// ── Player Notes ──
+
+export async function fetchPlayerNotes(playerId) {
+  return apiFetch(`/player-notes/${playerId}`);
+}
+
+export async function createPlayerNote(playerId, note) {
+  return apiFetch(`/player-notes/${playerId}`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  });
+}
+
+export async function updatePlayerNote(playerId, noteId, note) {
+  return apiFetch(`/player-notes/${playerId}/${noteId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ note }),
+  });
+}
+
+export async function deletePlayerNote(playerId, noteId) {
+  return apiFetch(`/player-notes/${playerId}/${noteId}`, { method: 'DELETE' });
+}
+
+// ── Player Documents ──
+
+export async function fetchPlayerDocuments(playerId) {
+  return apiFetch(`/player-documents/${playerId}`);
+}
+
+export async function uploadPlayerDocument(playerId, file, docType = 'birth_certificate') {
+  const fd = new FormData();
+  fd.append('document', file);
+  fd.append('doc_type', docType);
+  return apiFetch(`/player-documents/${playerId}`, { method: 'POST', body: fd });
+}
+
+export async function downloadPlayerDocument(playerId, docId) {
+  return apiFetch(`/player-documents/${playerId}/${docId}/download`);
+}
+
+export async function deletePlayerDocument(playerId, docId) {
+  return apiFetch(`/player-documents/${playerId}/${docId}`, { method: 'DELETE' });
+}
+
+// ── Stat Definitions ──
+
+export async function fetchStatDefinitions(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.category) params.set('category', filters.category);
+  if (filters.active_only) params.set('active_only', 'true');
+  const qs = params.toString();
+  return apiFetch(`/stats/definitions${qs ? '?' + qs : ''}`);
+}
+
+export async function createStatDefinition(data) {
+  return apiFetch('/stats/definitions', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateStatDefinition(id, data) {
+  return apiFetch(`/stats/definitions/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteStatDefinition(id) {
+  return apiFetch(`/stats/definitions/${id}`, { method: 'DELETE' });
+}
+
+// ── Player Game Stats ──
+
+export async function fetchPlayerStats(playerId, gameId) {
+  const params = gameId ? `?game_id=${gameId}` : '';
+  return apiFetch(`/stats/player/${playerId}${params}`);
+}
+
+export async function fetchGameStats(gameId) {
+  return apiFetch(`/stats/game/${gameId}`);
+}
+
+export async function savePlayerGameStats(playerId, gameId, stats, teamId) {
+  return apiFetch(`/stats/player/${playerId}/game/${gameId}`, {
+    method: 'POST',
+    body: JSON.stringify({ stats, team_id: teamId }),
+  });
+}
+
+export async function clearPlayerGameStats(playerId, gameId) {
+  return apiFetch(`/stats/player/${playerId}/game/${gameId}`, { method: 'DELETE' });
 }
 
 // ── Staff ──
