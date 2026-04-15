@@ -60,10 +60,10 @@ export default function PlayersPage({ onSelectPlayer }) {
     const rest = pitchRest[playerId];
     if (!rest) return null;
     if (rest.eligible_today) {
-      return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/20 text-green-300">Available</span>;
+      return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/20 text-green-300">Avail: Today</span>;
     }
     const avail = rest.available_date;
-    const label = avail ? new Date(avail + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Resting';
+    const label = avail ? `Avail: ${new Date(avail + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Resting';
     return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500/20 text-red-300">{label}</span>;
   }
 
