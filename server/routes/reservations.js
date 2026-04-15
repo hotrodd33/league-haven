@@ -5,9 +5,9 @@ const { authMiddleware, canEditOrg, canEditTeam } = require('../auth');
 const router = express.Router();
 
 // Default game prep time in minutes (blocked before a game)
-const GAME_PREP_MINUTES = 60;
+const GAME_PREP_MINUTES = 180;
 // Default game duration in minutes
-const GAME_DURATION_MINUTES = 120;
+const GAME_DURATION_MINUTES = 150;
 
 // ── GET /reservations?location_id=&from=&to= ──
 // Returns reservations + game holds for a field in a date range
@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
     // 1) Manual reservations (practices, events, maintenance)
     const { rows: reservations } = await pool.query(
       `SELECT r.*, t.name AS team_name,
-              u.name AS created_by_name
+              u.name AS created_by_name, u.email AS created_by_email
        FROM field_reservations r
        LEFT JOIN teams t ON t.id = r.team_id
        LEFT JOIN users u ON u.id = r.created_by
@@ -70,7 +70,7 @@ router.get('/', async (req, res) => {
         start_time: fmt(prepStartMin),
         end_time: fmt(gameEndMin),
         game_id: g.game_id,
-        notes: `Game at ${gameTime.slice(0, 5)} — field reserved from ${fmt(prepStartMin)} for prep`,
+        notes: `Game at ${gameTime.slice(0, 5)} — field reserved 3 hrs prior for prep`,
         team_name: g.home_team_name,
         is_game: true,
       };
@@ -101,11 +101,15 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'No permission for this field' });
     }
 
-    // Conflict check: overlapping reservations
+    // Conflict check: overlapping reservations (include contact info for notifications)
     const { rows: conflicts } = await pool.query(
-      `SELECT id, title, start_time, end_time FROM field_reservations
-       WHERE location_id = $1 AND event_date = $2
-         AND start_time < $4 AND end_time > $3`,
+      `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type, r.team_id,
+              t.name AS team_name, u.name AS created_by_name, u.email AS created_by_email
+       FROM field_reservations r
+       LEFT JOIN teams t ON t.id = r.team_id
+       LEFT JOIN users u ON u.id = r.created_by
+       WHERE r.location_id = $1 AND r.event_date = $2
+         AND r.start_time < $4 AND r.end_time > $3`,
       [location_id, event_date, start_time, end_time]
     );
 
@@ -135,10 +139,17 @@ router.post('/', authMiddleware, async (req, res) => {
     if (conflicts.length > 0 || gameOverlaps.length > 0) {
       const msgs = [];
       conflicts.forEach(c => msgs.push(`"${c.title}" (${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)})`));
-      gameOverlaps.forEach(() => msgs.push('a scheduled game (including prep time)'));
+      gameOverlaps.forEach(() => msgs.push('a scheduled game (including 3-hr prep)'));
       return res.status(409).json({
         error: `Time conflict with ${msgs.join(' and ')}`,
-        conflicts: [...conflicts, ...gameOverlaps.map(g => ({ id: g.id, type: 'game' }))],
+        conflicts: conflicts.map(c => ({
+          id: c.id, type: c.event_type, title: c.title,
+          start_time: c.start_time, end_time: c.end_time,
+          team_name: c.team_name,
+          created_by_name: c.created_by_name,
+          created_by_email: c.created_by_email,
+        })),
+        game_conflicts: gameOverlaps.map(g => ({ id: g.id, type: 'game' })),
       });
     }
 
@@ -187,9 +198,13 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Conflict check (excluding self)
     const { rows: conflicts } = await pool.query(
-      `SELECT id, title, start_time, end_time FROM field_reservations
-       WHERE location_id = $1 AND event_date = $2 AND id != $3
-         AND start_time < $5 AND end_time > $4`,
+      `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type,
+              t.name AS team_name, u.name AS created_by_name, u.email AS created_by_email
+       FROM field_reservations r
+       LEFT JOIN teams t ON t.id = r.team_id
+       LEFT JOIN users u ON u.id = r.created_by
+       WHERE r.location_id = $1 AND r.event_date = $2 AND r.id != $3
+         AND r.start_time < $5 AND r.end_time > $4`,
       [old.location_id, event_date, id, start_time, end_time]
     );
 
@@ -213,8 +228,18 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (conflicts.length > 0 || gameOverlaps.length > 0) {
       const msgs = [];
       conflicts.forEach(c => msgs.push(`"${c.title}" (${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)})`));
-      gameOverlaps.forEach(() => msgs.push('a scheduled game'));
-      return res.status(409).json({ error: `Time conflict with ${msgs.join(' and ')}` });
+      gameOverlaps.forEach(() => msgs.push('a scheduled game (including 3-hr prep)'));
+      return res.status(409).json({
+        error: `Time conflict with ${msgs.join(' and ')}`,
+        conflicts: conflicts.map(c => ({
+          id: c.id, type: c.event_type, title: c.title,
+          start_time: c.start_time, end_time: c.end_time,
+          team_name: c.team_name,
+          created_by_name: c.created_by_name,
+          created_by_email: c.created_by_email,
+        })),
+        game_conflicts: gameOverlaps.map(g => ({ id: g.id, type: 'game' })),
+      });
     }
 
     const validTypes = ['practice', 'event', 'maintenance'];
@@ -253,6 +278,60 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Delete reservation error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /reservations/check-game-conflicts ──
+// Check for existing reservations that would conflict with a game hold.
+// Used by the game scheduler to warn about displaced practices.
+router.get('/check-game-conflicts', async (req, res) => {
+  try {
+    const { location_id, game_date, game_time } = req.query;
+    if (!location_id || !game_date || !game_time) {
+      return res.status(400).json({ error: 'location_id, game_date, and game_time are required' });
+    }
+
+    const [gh, gm] = game_time.split(':').map(Number);
+    const gameStartMin = gh * 60 + gm;
+    const prepStartMin = Math.max(0, gameStartMin - GAME_PREP_MINUTES);
+    const gameEndMin = gameStartMin + GAME_DURATION_MINUTES;
+
+    const fmt = (mins) => {
+      const h = Math.floor(Math.max(0, mins) / 60);
+      const m = Math.max(0, mins) % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
+    const holdStart = fmt(prepStartMin);
+    const holdEnd = fmt(gameEndMin);
+
+    // Find overlapping reservations
+    const { rows: conflicts } = await pool.query(
+      `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type, r.team_id,
+              t.name AS team_name, u.name AS created_by_name, u.email AS created_by_email
+       FROM field_reservations r
+       LEFT JOIN teams t ON t.id = r.team_id
+       LEFT JOIN users u ON u.id = r.created_by
+       WHERE r.location_id = $1 AND r.event_date = $2
+         AND r.start_time < $4 AND r.end_time > $3`,
+      [location_id, game_date, holdStart, holdEnd]
+    );
+
+    res.json({
+      has_conflicts: conflicts.length > 0,
+      hold_start: holdStart,
+      hold_end: holdEnd,
+      conflicts: conflicts.map(c => ({
+        id: c.id, title: c.title, event_type: c.event_type,
+        start_time: c.start_time, end_time: c.end_time,
+        team_name: c.team_name,
+        created_by_name: c.created_by_name,
+        created_by_email: c.created_by_email,
+      })),
+    });
+  } catch (err) {
+    console.error('Check game conflicts error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

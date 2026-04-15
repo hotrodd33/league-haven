@@ -5,6 +5,7 @@ import {
   fetchOrganizations, fetchAssignableOfficials,
   fetchGameInterests, expressGameInterest, removeGameInterest,
   previewScheduleImport, importSchedule,
+  checkGameConflicts,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
@@ -563,6 +564,9 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     comments: '',
   });
 
+  const [fieldConflicts, setFieldConflicts] = useState(null);
+  const [confirmSave, setConfirmSave] = useState(false);
+
   const selectedHomeTeam = teams.find((t) => String(t.id) === String(form.home_team_id));
   const interestedOfficialIds = (game?.interested_official_ids || []).map((id) => Number(id));
   const interestedOfficialSet = new Set(interestedOfficialIds);
@@ -713,12 +717,35 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       official_ids: form.official_ids || [],
       notes: form.notes.trim() || null,
     };
+
+    // Check for field reservation conflicts when scheduling a game with location + time
+    if (data.location_id && data.game_time && !confirmSave) {
+      try {
+        const result = await checkGameConflicts(data.location_id, data.game_date, data.game_time);
+        if (result.has_conflicts) {
+          setFieldConflicts(result);
+          setSaving(false);
+          return;
+        }
+      } catch { /* proceed if check fails */ }
+    }
+
     try {
       if (isEditing) await updateGame(game.id, data);
       else await createGame(data);
+      setConfirmSave(false);
+      setFieldConflicts(null);
       onDone();
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
+  }
+
+  function handleConfirmSave() {
+    setConfirmSave(true);
+    setFieldConflicts(null);
+    // Re-trigger submit
+    const fakeEvent = { preventDefault: () => {} };
+    handleSubmit(fakeEvent);
   }
 
   // Build team optgroups
@@ -893,6 +920,43 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
           </div>
 
           {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+
+          {fieldConflicts && (
+            <div className="bg-amber-900/30 border border-amber-600 text-amber-200 text-sm px-4 py-3 rounded-lg space-y-2">
+              <div className="font-bold text-amber-100">Field Conflict Detected</div>
+              <p className="text-xs text-amber-300">
+                This game will reserve the field from {formatTime(fieldConflicts.hold_start)} to {formatTime(fieldConflicts.hold_end)} (includes 3-hr prep). The following existing reservations conflict:
+              </p>
+              {fieldConflicts.conflicts.map((c, i) => (
+                <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
+                  <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
+                  <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
+                  {c.created_by_name && (
+                    <div className="text-amber-200">
+                      Booked by: <span className="font-semibold text-white">{c.created_by_name}</span>
+                      {c.created_by_email && (
+                        <> — <a href={`mailto:${c.created_by_email}?subject=Field%20Reservation%20Conflict&body=Hi%20${encodeURIComponent(c.created_by_name)}%2C%0A%0AYour%20reservation%20%22${encodeURIComponent(c.title)}%22%20on%20${encodeURIComponent(form.game_date)}%20conflicts%20with%20a%20scheduled%20game.%20Games%20have%20priority%20so%20your%20reservation%20will%20need%20to%20be%20moved.%0A%0AThank%20you.`}
+                          className="text-blue-400 underline hover:text-blue-300">
+                          {c.created_by_email}
+                        </a></>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <p className="text-xs text-amber-400">Games always have priority. Please contact the person(s) above to notify them their reservation needs to move.</p>
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={handleConfirmSave}
+                  className="px-3 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded hover:bg-amber-700">
+                  Schedule Anyway
+                </button>
+                <button type="button" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}
+                  className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>

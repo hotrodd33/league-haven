@@ -31,6 +31,23 @@ function formatTime(t) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+// Generate time options in 15-minute increments (12-hour display, 24-hour value)
+function generateTimeOptions() {
+  const options = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      const label = `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+      options.push({ value, label });
+    }
+  }
+  return options;
+}
+
+const TIME_OPTIONS = generateTimeOptions();
+
 function getMonthDays(year, month) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -308,6 +325,14 @@ function EventCard({ ev, editable, showDate, onEdit, onDelete, deleting }) {
             {formatTime(ev.start_time)} – {formatTime(ev.end_time)}
             {ev.team_name && <span className="text-gray-400 ml-2">• {ev.team_name}</span>}
           </div>
+          {ev.created_by_name && !ev.is_game && (
+            <div className="text-[10px] text-gray-500 mt-0.5">
+              Booked by {ev.created_by_name}
+              {ev.created_by_email && (
+                <> — <a href={`mailto:${ev.created_by_email}`} className="text-blue-400 underline hover:text-blue-300">{ev.created_by_email}</a></>
+              )}
+            </div>
+          )}
           {ev.notes && <div className="text-xs text-gray-400 mt-1">{ev.notes}</div>}
         </div>
         {editable && (
@@ -328,6 +353,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
   const isEditing = !!reservation;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [conflictDetails, setConflictDetails] = useState(null);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
@@ -343,8 +369,9 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
   function handleChange(e) { setForm(prev => ({ ...prev, [e.target.name]: e.target.value })); }
 
   async function handleSubmit(e) {
-    e.preventDefault(); setSaving(true); setError(null);
+    e.preventDefault(); setSaving(true); setError(null); setConflictDetails(null);
     if (!form.title.trim()) { setSaving(false); setError('Title is required.'); return; }
+    if (!form.start_time || !form.end_time) { setSaving(false); setError('Start and end times are required.'); return; }
     if (form.start_time >= form.end_time) { setSaving(false); setError('End time must be after start time.'); return; }
 
     const data = {
@@ -364,6 +391,9 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
       onDone();
     } catch (err) {
       setError(err.message);
+      if (err.status === 409 && err.details) {
+        setConflictDetails(err.details);
+      }
     } finally { setSaving(false); }
   }
 
@@ -408,13 +438,19 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="res-start" className={labelCls}>Start Time *</label>
-              <input id="res-start" name="start_time" type="time" value={form.start_time} onChange={handleChange}
-                required className={inputCls} />
+              <select id="res-start" name="start_time" value={form.start_time} onChange={handleChange}
+                required className={inputCls}>
+                <option value="">— Select —</option>
+                {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
             </div>
             <div>
               <label htmlFor="res-end" className={labelCls}>End Time *</label>
-              <input id="res-end" name="end_time" type="time" value={form.end_time} onChange={handleChange}
-                required className={inputCls} />
+              <select id="res-end" name="end_time" value={form.end_time} onChange={handleChange}
+                required className={inputCls}>
+                <option value="">— Select —</option>
+                {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
             </div>
           </div>
 
@@ -426,6 +462,27 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
           </div>
 
           {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+
+          {conflictDetails && (
+            <div className="bg-amber-900/30 border border-amber-600 rounded-lg px-3 py-2 space-y-2">
+              {(conflictDetails.conflicts || []).map((c, i) => (
+                <div key={i} className="text-xs text-amber-200 space-y-0.5">
+                  <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
+                  <div>{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
+                  {c.created_by_name && (
+                    <div>Booked by: <span className="font-semibold text-white">{c.created_by_name}</span>
+                      {c.created_by_email && (
+                        <> — <a href={`mailto:${c.created_by_email}`} className="text-blue-400 underline hover:text-blue-300">{c.created_by_email}</a></>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {(conflictDetails.game_conflicts || []).length > 0 && (
+                <div className="text-xs text-red-300 font-semibold">A scheduled game (including 3-hr prep) blocks this time. Games always have priority.</div>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>

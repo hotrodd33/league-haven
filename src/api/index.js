@@ -39,7 +39,10 @@ async function apiFetch(endpoint, options = {}) {
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.error || `API error: ${response.status}`);
+    const err = new Error(errorBody.error || `API error: ${response.status}`);
+    err.status = response.status;
+    err.details = errorBody;
+    throw err;
   }
 
   if (response.status === 204) return null;
@@ -464,6 +467,10 @@ export async function deleteReservation(id) {
   return apiFetch(`/reservations/${id}`, {
     method: 'DELETE',
   });
+}
+
+export async function checkGameConflicts(locationId, gameDate, gameTime) {
+  return apiFetch(`/reservations/check-game-conflicts?location_id=${locationId}&game_date=${gameDate}&game_time=${gameTime}`);
 }
 
 // ── League Config ──
