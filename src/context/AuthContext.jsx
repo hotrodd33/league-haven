@@ -97,8 +97,10 @@ export function AuthProvider({ children }) {
     if (isSuperAdmin) return true;
     if (role === 'score_reporter') return false;
     if (isAccountant) return true;
-    return permissions.org_ids.includes(Number(orgId));
-  }, [isSuperAdmin, isAccountant, role, permissions.org_ids]);
+    if (permissions.org_ids.includes(Number(orgId))) return true;
+    if (permissions.team_org_ids?.includes(Number(orgId))) return true;
+    return false;
+  }, [isSuperAdmin, isAccountant, role, permissions.org_ids, permissions.team_org_ids]);
 
   const canEditTeam = useCallback((teamId, orgId) => {
     if (isSuperAdmin) return true;

@@ -3,6 +3,7 @@ import {
   UsersIcon, BuildingIcon, CalendarIcon, TrophyIcon,
   ClipboardIcon, CogIcon, UserGroupIcon, DatabaseIcon,
   ChevronLeftIcon, ChevronRightIcon, HomeIcon, CurrencyDollarIcon,
+  MapPinIcon,
 } from './icons.jsx';
 
 const mainNav = [
@@ -12,6 +13,7 @@ const mainNav = [
   { key: 'schedule',      label: 'Schedule',      icon: CalendarIcon },
   { key: 'standings',     label: 'Standings',      icon: TrophyIcon },
   { key: 'directory',     label: 'Directory',      icon: ClipboardIcon },
+  { key: 'fields',        label: 'Fields',          icon: MapPinIcon },
 ];
 
 const adminNav = [

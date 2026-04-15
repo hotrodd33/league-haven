@@ -266,6 +266,7 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [locatingByAddress, setLocatingByAddress] = useState(false);
   const [locatingByDevice, setLocatingByDevice] = useState(false);
+  const [reverseGeocoding, setReverseGeocoding] = useState(false);
   const [error, setError] = useState(null);
   const [form, setForm] = useState({
     name: location?.name || '', address: location?.address || '',
@@ -285,6 +286,29 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
       latitude: Number(lat).toFixed(6),
       longitude: Number(lng).toFixed(6),
     }));
+  }
+
+  async function setCoordinatesAndReverse(lat, lng) {
+    setCoordinates(lat, lng);
+    setReverseGeocoding(true);
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.address) {
+          const a = data.address;
+          setForm(prev => ({
+            ...prev,
+            address: [a.house_number, a.road].filter(Boolean).join(' ') || prev.address,
+            city: a.city || a.town || a.village || a.hamlet || prev.city,
+            state: a.state ? (a['ISO3166-2-lvl4']?.split('-')[1] || a.state) : prev.state,
+            zip: a.postcode || prev.zip,
+          }));
+        }
+      }
+    } catch { /* ignore */ }
+    finally { setReverseGeocoding(false); }
   }
 
   // Auto-use device location for new fields
@@ -340,7 +364,7 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
     setError(null);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setCoordinates(position.coords.latitude, position.coords.longitude);
+        setCoordinatesAndReverse(position.coords.latitude, position.coords.longitude);
         setLocatingByDevice(false);
       },
       (geoErr) => {
@@ -411,11 +435,13 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
             </div>
           </div>
 
+          {reverseGeocoding && <p className="text-xs text-blue-400">Looking up address from pin…</p>}
+
           <div className="rounded-lg border border-gray-700 bg-gray-900/40 p-3 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold text-gray-100">Pin this field on map</p>
-                <p className="text-xs text-gray-400">Click anywhere on the map to drop a pin, then drag it for exact placement.</p>
+                <p className="text-xs text-gray-400">Click the map or drag the pin — address auto-fills from the pin location.</p>
               </div>
               <div className="flex gap-2">
                 <button
@@ -451,7 +477,7 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <MapRecenter center={mapCenter} />
-                <MapClickPicker onPick={setCoordinates} />
+                <MapClickPicker onPick={setCoordinatesAndReverse} />
                 {hasValidPin && (
                   <Marker
                     position={mapCenter}
@@ -460,7 +486,7 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
                       dragend: (event) => {
                         const marker = event.target;
                         const pos = marker.getLatLng();
-                        setCoordinates(pos.lat, pos.lng);
+                        setCoordinatesAndReverse(pos.lat, pos.lng);
                       },
                     }}
                   >

@@ -45,6 +45,7 @@ export default function AppShell({
     fees: 'League Fees',
     about: 'Help',
     guide: 'Help',
+    fields: 'Fields',
   }[page] || 'Dashboard';
 
   return (

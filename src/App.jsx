@@ -21,6 +21,7 @@ import AppShell from "./components/ui/AppShell.jsx";
 import GameChangerImportWizard from "./components/import/GameChangerImportWizard.jsx";
 import HelpPage from "./components/HelpPage.jsx";
 import LeagueFees from "./components/LeagueFees.jsx";
+import FieldsPage from "./components/FieldsPage.jsx";
 import TeamRegistration from "./components/TeamRegistration.jsx";
 import ConfirmEmail from "./components/ConfirmEmail.jsx";
 
@@ -149,6 +150,9 @@ export default function App() {
 
             case 'directory':
                 return <Directory onEditTeam={navigateToTeam} />;
+
+            case 'fields':
+                return <FieldsPage />;
 
             case 'data':
                 return isAdmin ? <DataManager /> : null;

@@ -43,9 +43,23 @@ async function getUserPermissions(userId) {
     'SELECT org_id, team_id FROM user_permissions WHERE user_id = $1 AND is_active = TRUE',
     [userId]
   );
+  const orgIds = rows.filter(r => r.org_id != null).map(r => r.org_id);
+  const teamIds = rows.filter(r => r.team_id != null).map(r => r.team_id);
+
+  // Resolve orgs that the user's teams belong to
+  let teamOrgIds = [];
+  if (teamIds.length > 0) {
+    const { rows: teamOrgs } = await pool.query(
+      'SELECT DISTINCT org_id FROM teams WHERE id = ANY($1) AND org_id IS NOT NULL',
+      [teamIds]
+    );
+    teamOrgIds = teamOrgs.map(r => r.org_id);
+  }
+
   return {
-    org_ids: rows.filter(r => r.org_id != null).map(r => r.org_id),
-    team_ids: rows.filter(r => r.team_id != null).map(r => r.team_id),
+    org_ids: orgIds,
+    team_ids: teamIds,
+    team_org_ids: teamOrgIds,
   };
 }
 
@@ -54,7 +68,16 @@ async function canEditOrg(user, orgId) {
   if (user.role === 'score_reporter') return false;
   if (user.role === 'accountant') return true; // accountants can view all orgs for payment management
   const perms = await getUserPermissions(user.id);
-  return perms.org_ids.includes(Number(orgId));
+  if (perms.org_ids.includes(Number(orgId))) return true;
+  // Team managers can edit fields for their team's org
+  if (perms.team_ids.length > 0) {
+    const { rows } = await pool.query(
+      'SELECT 1 FROM teams WHERE id = ANY($1) AND org_id = $2 LIMIT 1',
+      [perms.team_ids, orgId]
+    );
+    if (rows.length > 0) return true;
+  }
+  return false;
 }
 
 async function canEditTeam(user, teamId) {
