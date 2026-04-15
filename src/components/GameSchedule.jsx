@@ -110,6 +110,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [managingInterest, setManagingInterest] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const dateSectionRefs = useRef({});
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
 
   // Consume initialGameId so it doesn't re-trigger on re-renders
   useEffect(() => {
@@ -277,6 +280,16 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
           <h2 className="text-xl font-heading font-bold text-white">Game Schedule ({filteredGames.length})</h2>
           <div className="flex gap-2">
+            <div className="flex items-center gap-1 mr-2">
+              <button onClick={() => setViewMode('list')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                List
+              </button>
+              <button onClick={() => setViewMode('calendar')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded ${viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                Calendar
+              </button>
+            </div>
             {isAdmin && (
               <>
                 <button onClick={() => setShowImportModal(true)} className={btnSecondary}>⬆ Import</button>
@@ -325,16 +338,18 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
         </div>
       </div>
 
-      {filteredGames.length === 0 ? (
-        <div className="py-12 text-center text-gray-400">
-          No games found.
-          {isAdmin && (
-            <>
-              <br />
-              <button onClick={() => setShowForm(true)} className="text-field-300 underline mt-1 inline-block">Schedule the first game</button>
-            </>
-          )}
-        </div>
+      {viewMode === 'list' ? (
+        <>
+          {filteredGames.length === 0 ? (
+            <div className="py-12 text-center text-gray-400">
+              No games found.
+              {isAdmin && (
+                <>
+                  <br />
+                  <button onClick={() => setShowForm(true)} className="text-field-300 underline mt-1 inline-block">Schedule the first game</button>
+                </>
+              )}
+            </div>
       ) : (
         <div className="space-y-6">
           {sortedDateKeys.map(dateKey => (
@@ -509,6 +524,19 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
           ))}
         </div>
       )}
+        </>
+      ) : (
+        <ScheduleCalendar
+          games={filteredGames}
+          year={calYear}
+          month={calMonth}
+          onPrevMonth={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); } else setCalMonth(m => m - 1); }}
+          onNextMonth={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); } else setCalMonth(m => m + 1); }}
+          onToday={() => { setCalYear(new Date().getFullYear()); setCalMonth(new Date().getMonth()); }}
+          onSelectGame={setSelectedGameId}
+          onNavigateToTeam={onNavigateToTeam}
+        />
+      )}
 
       {showForm && (
         <GameForm
@@ -526,6 +554,159 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
           onClose={() => setShowImportModal(false)}
           onImported={() => { setShowImportModal(false); loadGames(); }}
         />
+      )}
+    </div>
+  );
+}
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToday, onSelectGame, onNavigateToTeam }) {
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  // Build calendar grid
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days = [];
+  for (let i = 0; i < firstDay; i++) days.push(null);
+  for (let d = 1; d <= daysInMonth; d++) days.push(d);
+
+  const dk = (d) => `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const todayKey = new Date().toISOString().slice(0, 10);
+
+  // Group games by date
+  const gamesByDate = {};
+  for (const g of games) {
+    const d = g.game_date;
+    if (!d) continue;
+    if (!gamesByDate[d]) gamesByDate[d] = [];
+    gamesByDate[d].push(g);
+  }
+  // Sort games within each date by time
+  Object.values(gamesByDate).forEach(arr => arr.sort((a, b) => (a.game_time || '').localeCompare(b.game_time || '')));
+
+  const selectedGames = selectedDate ? (gamesByDate[selectedDate] || []) : [];
+
+  return (
+    <div>
+      {/* Month nav */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <button onClick={onPrevMonth} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <button onClick={onToday} className="px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 rounded">Today</button>
+          <span className="text-sm font-semibold text-white min-w-[140px] text-center">{MONTH_NAMES[month]} {year}</span>
+          <button onClick={onNextMonth} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </div>
+        <div className="text-xs text-gray-400">
+          {Object.values(gamesByDate).reduce((sum, arr) => sum + arr.length, 0)} games this period
+        </div>
+      </div>
+
+      {/* Day headers */}
+      <div className="grid grid-cols-7 gap-px mb-1">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+          <div key={d} className="text-center text-[10px] font-bold uppercase text-gray-500 py-1">{d}</div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 gap-px">
+        {days.map((day, i) => {
+          if (day === null) return <div key={`pad-${i}`} className="min-h-[80px]" />;
+          const dateStr = dk(day);
+          const dayGames = gamesByDate[dateStr] || [];
+          const isToday = dateStr === todayKey;
+          const isSelected = selectedDate === dateStr;
+          return (
+            <button key={dateStr} type="button"
+              onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+              className={`min-h-[80px] p-1 text-left rounded transition-colors
+                ${isToday ? 'ring-1 ring-blue-500' : ''}
+                ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}
+              `}>
+              <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-blue-400' : 'text-gray-300'}`}>{day}</div>
+              <div className="space-y-0.5">
+                {dayGames.slice(0, 3).map((g, j) => {
+                  const statusColor =
+                    g.status === 'completed' ? 'bg-green-900/40 text-green-300' :
+                    g.status === 'cancelled' ? 'bg-red-900/40 text-red-300 line-through' :
+                    g.status === 'postponed' ? 'bg-amber-900/40 text-amber-300' :
+                    'bg-blue-900/40 text-blue-300';
+                  return (
+                    <div key={g.id || j} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${statusColor}`}>
+                      {formatTime(g.game_time)} {g.home_team_name} vs {g.away_team_name}
+                    </div>
+                  );
+                })}
+                {dayGames.length > 3 && (
+                  <div className="text-[9px] text-gray-400">+{dayGames.length - 3} more</div>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Selected date detail */}
+      {selectedDate && (
+        <div className="mt-4 border-t border-gray-700 pt-4">
+          <h3 className="text-sm font-bold text-white mb-3">
+            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            <span className="ml-2 text-gray-400 font-normal">({selectedGames.length} game{selectedGames.length !== 1 ? 's' : ''})</span>
+          </h3>
+          {selectedGames.length === 0 ? (
+            <p className="text-sm text-gray-400">No games scheduled.</p>
+          ) : (
+            <div className="space-y-2">
+              {selectedGames.map(game => {
+                const statusColor = STATUS_COLORS[game.status] || 'bg-gray-800';
+                return (
+                  <div key={game.id}
+                    onClick={() => onSelectGame(game.id)}
+                    className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-gray-300 w-20 shrink-0 text-center">
+                          {formatTime(game.game_time) || 'TBD'}
+                        </div>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }}
+                              className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline">{game.home_team_name}</button>
+                          </div>
+                          <span className="text-xs text-gray-500 shrink-0">
+                            {game.status === 'completed'
+                              ? <span className="font-extrabold text-white">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
+                              : 'vs'}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }}
+                              className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline">{game.away_team_name}</button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {game.location_name && (
+                          <span className="text-xs text-gray-400 hidden sm:inline">📍 {game.location_name}</span>
+                        )}
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor}`}>
+                          {game.status_label}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
