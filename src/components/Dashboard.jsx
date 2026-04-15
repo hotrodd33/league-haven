@@ -5,8 +5,9 @@ import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations } from '../api
 import { Card, CardHeader, CardBody, StatCard, Scoreboard, Button } from './ui/index.js';
 import {
   UsersIcon, CalendarIcon, TrophyIcon, BuildingIcon,
-  PlusIcon, ArrowUpTrayIcon, MegaphoneIcon, BellIcon,
+  PlusIcon, MegaphoneIcon, BellIcon,
   ClockIcon, ChartBarIcon, SparklesIcon, EyeIcon, MapPinIcon,
+  DatabaseIcon,
 } from './ui/icons.jsx';
 
 /* ═══════════════════════════════════════════════════════
@@ -44,7 +45,7 @@ function cityAbbr(city) {
    Dashboard
    ═══════════════════════════════════════════════════════ */
 
-export default function Dashboard({ onNavigate, onOpenImport }) {
+export default function Dashboard({ onNavigate }) {
   const { user } = useAuth();
   const [teams, setTeams] = useState([]);
   const [games, setGames] = useState([]);
@@ -146,11 +147,11 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
               <Button
                 variant="primary"
                 size="sm"
-                icon={<ArrowUpTrayIcon className="w-4 h-4" />}
-                onClick={() => onOpenImport?.()}
+                icon={<DatabaseIcon className="w-4 h-4" />}
+                onClick={() => onNavigate?.('data')}
                 className="bg-field-600/80 hover:bg-field-600 backdrop-blur-sm border border-white/10"
               >
-                Import from GameChanger
+                Data Manager
               </Button>
             </div>
           </div>
@@ -282,9 +283,9 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
                 color="blue"
               />
               <QuickAction
-                icon={<ArrowUpTrayIcon className="w-4 h-4" />}
-                label="Import from GameChanger"
-                onClick={() => onOpenImport?.()}
+                icon={<DatabaseIcon className="w-4 h-4" />}
+                label="Data Manager"
+                onClick={() => onNavigate?.('data')}
                 color="dirt"
               />
               <QuickAction
@@ -380,29 +381,29 @@ export default function Dashboard({ onNavigate, onOpenImport }) {
         </section>
       )}
 
-      {/* ── Data Import Card ── */}
-      <section aria-label="Data import">
+      {/* ── Data Manager Card ── */}
+      <section aria-label="Data management">
         <Card variant="dirt" className="overflow-hidden">
           <div className="flex flex-col sm:flex-row items-center gap-6 p-6 sm:p-8">
             <div className="shrink-0 w-16 h-16 rounded-2xl bg-dirt-900/30 flex items-center justify-center">
-              <ArrowUpTrayIcon className="w-8 h-8 text-dirt-300" />
+              <DatabaseIcon className="w-8 h-8 text-dirt-300" />
             </div>
             <div className="flex-1 text-center sm:text-left">
               <h3 className="font-heading text-lg font-bold text-gray-100">
-                Import from GameChanger
+                Data Manager
               </h3>
               <p className="mt-1 text-sm text-gray-400">
-                Bring your stats, rosters, schedules, and box scores over from GameChanger in minutes.
-                The easiest migration in youth sports.
+                Import, export, and manage all league data in one place.
+                CSV imports, GameChanger integration, and bulk operations.
               </p>
             </div>
             <Button
               variant="dirt"
               size="md"
-              icon={<ArrowUpTrayIcon className="w-4 h-4" />}
-              onClick={() => onOpenImport?.()}
+              icon={<DatabaseIcon className="w-4 h-4" />}
+              onClick={() => onNavigate?.('data')}
             >
-              Start Import
+              Open Data Manager
             </Button>
           </div>
         </Card>

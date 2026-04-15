@@ -4,7 +4,6 @@ import {
   fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
   fetchOrganizations, fetchAssignableOfficials,
   fetchGameInterests, expressGameInterest, removeGameInterest,
-  previewScheduleImport, importSchedule,
   checkGameConflicts,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -108,7 +107,6 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [trackingGameId, setTrackingGameId] = useState(null);
   const [interestGameIds, setInterestGameIds] = useState([]);
   const [managingInterest, setManagingInterest] = useState(null);
-  const [showImportModal, setShowImportModal] = useState(false);
   const dateSectionRefs = useRef({});
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   const [calYear, setCalYear] = useState(new Date().getFullYear());
@@ -297,7 +295,6 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
             </div>
             {isAdmin && (
               <>
-                <button onClick={() => setShowImportModal(true)} className={btnSecondary}>⬆ Import</button>
                 <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Game</button>
               </>
             )}
@@ -559,13 +556,6 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
           filterTeam={filterTeam}
           filterSeason={filterSeason}
           onClose={() => setShowSubscribe(false)}
-        />
-      )}
-
-      {showImportModal && (
-        <ScheduleImportModal
-          onClose={() => setShowImportModal(false)}
-          onImported={() => { setShowImportModal(false); loadGames(); }}
         />
       )}
     </div>
@@ -1291,256 +1281,6 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
             </div>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════
-   Schedule Import Modal
-   ═══════════════════════════════════════════════════════ */
-function ScheduleImportModal({ onClose, onImported }) {
-  const [step, setStep] = useState('input'); // input | preview | result
-  const [csvText, setCsvText] = useState('');
-  const [preview, setPreview] = useState(null);
-  const [seasonId, setSeasonId] = useState('');
-  const [teamMappings, setTeamMappings] = useState({});
-  const [venueMappings, setVenueMappings] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [result, setResult] = useState(null);
-
-  async function handlePreview() {
-    if (!csvText.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await previewScheduleImport(csvText);
-      setPreview(data);
-      if (data.suggestedSeasonId) setSeasonId(String(data.suggestedSeasonId));
-      setStep('preview');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleImport() {
-    if (!seasonId) { setError('Please select a season'); return; }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await importSchedule(preview.games, Number(seasonId), teamMappings, venueMappings);
-      setResult(res);
-      setStep('result');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleFileUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setCsvText(ev.target.result);
-    reader.readAsText(file);
-  }
-
-  const hasUnmapped = preview && (
-    preview.unmatchedTeams.some(t => !teamMappings[t]) ||
-    preview.unmatchedVenues.some(v => !venueMappings[v])
-  );
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-lg font-heading font-bold text-white">Import Schedule</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl leading-none">&times;</button>
-        </div>
-
-        <div className="p-6 space-y-4">
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
-
-          {step === 'input' && (
-            <>
-              <p className="text-sm text-gray-400">
-                Paste CSV or upload a file. Required columns: <span className="text-gray-200">Date, Home, Away</span>.
-                Optional: <span className="text-gray-200">Time, Field, Notes, Season</span>.
-              </p>
-
-              <div className="flex items-center gap-3">
-                <label className="cursor-pointer px-3 py-1.5 bg-gray-700 text-gray-200 text-sm rounded-lg hover:bg-gray-600">
-                  Upload CSV
-                  <input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileUpload} />
-                </label>
-                {csvText && <span className="text-xs text-green-400">✓ Content loaded</span>}
-              </div>
-
-              <textarea
-                value={csvText}
-                onChange={e => setCsvText(e.target.value)}
-                placeholder={"Date,Time,Home,Away,Field,Notes\n2026-06-01,18:00,Team A,Team B,Field 1,Week 1"}
-                className={`${inputCls} h-48 font-mono text-xs`}
-              />
-
-              <div className="flex justify-end gap-3">
-                <button onClick={onClose} className={btnSecondary}>Cancel</button>
-                <button onClick={handlePreview} disabled={loading || !csvText.trim()} className={btnPrimary}>
-                  {loading ? 'Parsing…' : 'Preview'}
-                </button>
-              </div>
-            </>
-          )}
-
-          {step === 'preview' && preview && (
-            <>
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="text-sm text-gray-300">
-                  <span className="font-semibold text-white">{preview.totalRows}</span> games found
-                </div>
-                <div>
-                  <label className={labelCls}>Season</label>
-                  <select value={seasonId} onChange={e => setSeasonId(e.target.value)}
-                    className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-900">
-                    <option value="">Select season…</option>
-                    {preview.seasonsList.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Unmatched teams */}
-              {preview.unmatchedTeams.length > 0 && (
-                <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-4 space-y-3">
-                  <h4 className="text-sm font-semibold text-yellow-300">⚠ Unmatched Teams ({preview.unmatchedTeams.length})</h4>
-                  <p className="text-xs text-gray-400">Map these to existing teams. Mappings will be saved for future imports.</p>
-                  {preview.unmatchedTeams.map(name => (
-                    <div key={name} className="flex items-center gap-3">
-                      <span className="text-sm text-gray-200 min-w-[180px] truncate">{name}</span>
-                      <span className="text-gray-500">→</span>
-                      <select
-                        value={teamMappings[name] || ''}
-                        onChange={e => setTeamMappings(prev => ({ ...prev, [name]: e.target.value }))}
-                        className="flex-1 px-2 py-1 border border-gray-600 rounded text-sm text-gray-100 bg-gray-900"
-                      >
-                        <option value="">Skip</option>
-                        {preview.teamsList.map(t => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}{t.age_group ? ` (${t.age_group})` : ''}{t.org_name ? ` — ${t.org_name}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Unmatched fields */}
-              {preview.unmatchedVenues.length > 0 && (
-                <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-4 space-y-3">
-                  <h4 className="text-sm font-semibold text-yellow-300">⚠ Unmatched Fields ({preview.unmatchedVenues.length})</h4>
-                  {preview.unmatchedVenues.map(name => (
-                    <div key={name} className="flex items-center gap-3">
-                      <span className="text-sm text-gray-200 min-w-[180px] truncate">{name}</span>
-                      <span className="text-gray-500">→</span>
-                      <select
-                        value={venueMappings[name] || ''}
-                        onChange={e => setVenueMappings(prev => ({ ...prev, [name]: e.target.value }))}
-                        className="flex-1 px-2 py-1 border border-gray-600 rounded text-sm text-gray-100 bg-gray-900"
-                      >
-                        <option value="">Skip</option>
-                        {preview.locationsList.map(l => (
-                          <option key={l.id} value={l.id}>{l.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Preview table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-gray-400 border-b border-gray-700">
-                      <th className="py-2 px-2">Date</th>
-                      <th className="py-2 px-2">Time</th>
-                      <th className="py-2 px-2">Home</th>
-                      <th className="py-2 px-2">Away</th>
-                      <th className="py-2 px-2">Field</th>
-                      <th className="py-2 px-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.games.slice(0, 50).map((g, i) => (
-                      <tr key={i} className="border-b border-gray-700/50">
-                        <td className="py-1.5 px-2 text-gray-300">{g.date}</td>
-                        <td className="py-1.5 px-2 text-gray-400">{g.time || '—'}</td>
-                        <td className={`py-1.5 px-2 ${g.home_team_id ? 'text-green-400' : 'text-red-400'}`}>
-                          {g.home_name}
-                        </td>
-                        <td className={`py-1.5 px-2 ${g.away_team_id ? 'text-green-400' : 'text-red-400'}`}>
-                          {g.away_name}
-                        </td>
-                        <td className={`py-1.5 px-2 ${!g.venue_name ? 'text-gray-600' : g.location_id ? 'text-green-400' : 'text-yellow-400'}`}>
-                          {g.venue_name || '—'}
-                        </td>
-                        <td className="py-1.5 px-2">
-                          {g.home_team_id && g.away_team_id ? (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-green-900/50 text-green-300">Ready</span>
-                          ) : (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-red-900/50 text-red-300">Missing</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {preview.games.length > 50 && (
-                  <p className="text-xs text-gray-500 mt-2">Showing first 50 of {preview.games.length} games</p>
-                )}
-              </div>
-
-              <div className="flex justify-between items-center pt-2">
-                <button onClick={() => setStep('input')} className={btnSecondary}>← Back</button>
-                <div className="flex gap-3">
-                  <button onClick={onClose} className={btnSecondary}>Cancel</button>
-                  <button onClick={handleImport} disabled={loading || !seasonId} className={btnPrimary}>
-                    {loading ? 'Importing…' : `Import ${preview.totalRows} Games`}
-                  </button>
-                </div>
-              </div>
-
-              {hasUnmapped && (
-                <p className="text-xs text-yellow-400">Unmapped teams/fields will be skipped during import. Map them above to include those games.</p>
-              )}
-            </>
-          )}
-
-          {step === 'result' && result && (
-            <>
-              <div className="space-y-3">
-                <div className="text-sm text-gray-300 space-y-1">
-                  <p><span className="font-semibold text-green-400">{result.created}</span> games created</p>
-                  {result.skipped > 0 && <p><span className="font-semibold text-yellow-400">{result.skipped}</span> skipped</p>}
-                </div>
-                {result.errors?.length > 0 && (
-                  <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-3 max-h-40 overflow-y-auto">
-                    {result.errors.map((e, i) => <p key={i} className="text-xs text-yellow-300">{e}</p>)}
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-end pt-2">
-                <button onClick={onImported} className={btnPrimary}>Done</button>
-              </div>
-            </>
-          )}
-        </div>
       </div>
     </div>
   );

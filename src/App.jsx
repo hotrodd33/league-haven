@@ -129,7 +129,7 @@ export default function App() {
 
         switch (page) {
             case 'dashboard':
-                return <Dashboard onNavigate={setPage} onOpenImport={() => setShowImportWizard(true)} />;
+                return <Dashboard onNavigate={setPage} />;
 
             case 'umpire':
                 return <UmpireDashboard onBack={() => setPage("dashboard")} />;

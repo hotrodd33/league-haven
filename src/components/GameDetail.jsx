@@ -7,7 +7,6 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
-import GameChangerImportWizard from './import/GameChangerImportWizard.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
@@ -42,7 +41,6 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [showGcImport, setShowGcImport] = useState(false);
 
   // Pitch tracker mode
   const [showTracker, setShowTracker] = useState(false);
@@ -200,7 +198,6 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
 
   const userCanEdit = canEdit(game);
   const userCanScore = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
-  const canUseGcImport = userCanScore || userCanEdit;
   const homePC = pitchCounts.filter(pc => pc.team_id === game.home_team_id);
   const awayPC = pitchCounts.filter(pc => pc.team_id === game.away_team_id);
 
@@ -215,14 +212,6 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       {/* Back button + tracker */}
       <div className="flex items-center gap-2 mb-4">
         <button onClick={onBack} className={btnSecondary}>← Back to Schedule</button>
-        {canUseGcImport && (
-          <button
-            onClick={() => setShowGcImport(true)}
-            className="px-3 py-2 bg-[#00AEEF] text-white text-sm font-semibold rounded-lg hover:brightness-105 transition"
-          >
-            Import from GC
-          </button>
-        )}
         {userCanScore && game.status !== 'completed' && (
           <button onClick={() => setShowTracker(true)} className="px-4 py-2 bg-amber-500 text-gray-900 text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
             ⚾ Pitch Tracker
@@ -281,14 +270,6 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
         )}
         {game.notes && <div className="text-xs text-gray-400 italic text-center mt-1">{game.notes}</div>}
       </div>
-
-      {showGcImport && canUseGcImport && (
-        <GameChangerImportWizard
-          open={showGcImport}
-          onClose={() => { setShowGcImport(false); loadAll(); }}
-          gameId={game.id}
-        />
-      )}
 
       {/* Score reporting */}
       {userCanScore && (
