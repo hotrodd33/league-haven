@@ -466,7 +466,7 @@ export default function TeamRegistration({ onDone }) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
       <div className="bg-gray-800 rounded-lg shadow-card p-6 sm:p-8 w-full max-w-2xl border-t-4 border-baseball-600">
-        <h1 className="font-heading text-2xl font-bold mb-1 tracking-wide text-blue-300">⚾ ZVBL Registration</h1>
+        <h1 className="font-heading text-2xl font-bold mb-1 tracking-wide text-blue-300">⚾ LeagueHaven Registration</h1>
         <p className="text-gray-400 mb-6 text-sm">
           {!role ? 'What best describes your role?' : 'Create your account'}
         </p>

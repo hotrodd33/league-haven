@@ -88,7 +88,7 @@ export default function Sidebar({
           )}
           {!collapsed && (
             <span className="ml-3 font-heading text-xl font-bold tracking-wide">
-              {branding?.app_name || 'ZVBL'}
+              {branding?.app_name || 'LeagueHaven'}
             </span>
           )}
         </div>

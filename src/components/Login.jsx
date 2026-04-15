@@ -50,7 +50,7 @@ export default function Login({ onResetPassword }) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
       <div className="bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md border-t-4 border-baseball-600">
-        <h1 className="font-heading text-3xl font-bold mb-1 tracking-wide text-blue-300">⚾ ZVBL</h1>
+        <h1 className="font-heading text-3xl font-bold mb-1 tracking-wide text-blue-300">⚾ LeagueHaven</h1>
         <p className="text-gray-400 mb-6 text-sm">
           {mode === 'login' ? 'Sign in to manage your team' : 'Reset your password'}
         </p>

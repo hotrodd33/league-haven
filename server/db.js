@@ -35,7 +35,7 @@ async function migrate() {
 
     CREATE TABLE IF NOT EXISTS app_branding (
       id INTEGER PRIMARY KEY,
-      app_name TEXT NOT NULL DEFAULT 'ZVBL',
+      app_name TEXT NOT NULL DEFAULT 'LeagueHaven',
       logo_url TEXT,
       game_start_time TIME NOT NULL DEFAULT '08:00',
       game_end_time TIME NOT NULL DEFAULT '20:00',
@@ -262,7 +262,7 @@ async function migrate() {
   // Ensure app branding defaults exist
   await pool.query(`
     INSERT INTO app_branding (id, app_name)
-    VALUES (1, 'ZVBL')
+    VALUES (1, 'LeagueHaven')
     ON CONFLICT (id) DO NOTHING;
   `);
 

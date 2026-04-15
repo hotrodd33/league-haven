@@ -11,7 +11,7 @@ async function getBranding() {
     `SELECT app_name, logo_url, game_start_time, game_end_time, game_time_increment_minutes
      FROM app_branding WHERE id = 1`
   );
-  return rows[0] || { app_name: 'ZVBL', logo_url: null };
+  return rows[0] || { app_name: 'LeagueHaven', logo_url: null };
 }
 
 function toMinutes(hhmm) {

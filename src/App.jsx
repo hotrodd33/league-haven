@@ -40,7 +40,7 @@ export default function App() {
     const [showChangePassword, setShowChangePassword] = useState(false);
     const [showImportWizard, setShowImportWizard] = useState(false);
     const [importWizardGameId, setImportWizardGameId] = useState(null);
-    const [branding, setBranding] = useState({ app_name: 'ZVBL', logo_url: null });
+    const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null });
     const [selectedPlayerId, setSelectedPlayerId] = useState(null);
     const [selectedPlayerData, setSelectedPlayerData] = useState(null);
 
@@ -52,7 +52,7 @@ export default function App() {
     useEffect(() => {
         if (!isAuthenticated) return;
         fetchBranding()
-            .then((data) => setBranding({ app_name: data?.app_name || 'ZVBL', logo_url: data?.logo_url || null }))
+            .then((data) => setBranding({ app_name: data?.app_name || 'LeagueHaven', logo_url: data?.logo_url || null }))
             .catch(() => { /* non-blocking */ });
     }, [isAuthenticated]);
 

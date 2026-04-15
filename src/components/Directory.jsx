@@ -265,10 +265,10 @@ function buildPrintHTML(orgs) {
     </div>`;
   }).join('');
 
-  return `<!DOCTYPE html><html><head><title>ZVBL Team Directory</title>
+  return `<!DOCTYPE html><html><head><title>LeagueHaven Team Directory</title>
 <style>@media print{body{margin:0.5in;}}</style></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#222;max-width:800px;margin:0 auto;padding:20px;">
-<h1 style="font-size:22px;color:#1e3a5f;margin-bottom:4px;">ZVBL Team Directory</h1>
+<h1 style="font-size:22px;color:#1e3a5f;margin-bottom:4px;">LeagueHaven Team Directory</h1>
 <div style="font-size:12px;color:#999;margin-bottom:20px;">Printed ${new Date().toLocaleDateString()}</div>
 ${rows}
 </body></html>`;

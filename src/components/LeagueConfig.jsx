@@ -62,7 +62,7 @@ function BrandingConfig() {
   const [savingName, setSavingName] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [removingLogo, setRemovingLogo] = useState(false);
-  const [form, setForm] = useState({ app_name: 'ZVBL', logo_url: null });
+  const [form, setForm] = useState({ app_name: 'LeagueHaven', logo_url: null });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,7 +70,7 @@ function BrandingConfig() {
     try {
       const data = await fetchBranding();
       setForm({
-        app_name: data?.app_name || 'ZVBL',
+        app_name: data?.app_name || 'LeagueHaven',
         logo_url: data?.logo_url || null,
       });
     } catch (err) {

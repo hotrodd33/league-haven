@@ -39,11 +39,11 @@ function formatICSDate(dateStr, timeStr) {
 }
 
 function uid(gameId) {
-  return `game-${gameId}@zvbl`;
+  return `game-${gameId}@leaguehaven`;
 }
 
 function practiceUid(reservationId) {
-  return `practice-${reservationId}@zvbl`;
+  return `practice-${reservationId}@leaguehaven`;
 }
 
 /* ── GET /games.ics ── */
@@ -104,20 +104,20 @@ router.get('/games.ics', async (req, res) => {
     const { rows } = await pool.query(sql, params);
 
     // Build calendar title
-    let calName = 'ZVBL Games';
+    let calName = 'LeagueHaven Games';
     if (team_id && rows.length) {
       // Find team name from first appearance
       const r = rows[0];
       const teamName = String(r.home_team_name).includes(team_id)
         ? r.home_team_name : (r.away_team_name || 'Team');
       // Better: just label with first row's perspective
-      calName = 'ZVBL Games';
+      calName = 'LeagueHaven Games';
     }
 
     const lines = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//ZVBL//Game Schedule//EN',
+      'PRODID:-//LeagueHaven//Game Schedule//EN',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
       `X-WR-CALNAME:${esc(calName)}`,
@@ -273,7 +273,7 @@ router.get('/games.ics', async (req, res) => {
 
     res.set({
       'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': 'inline; filename="zvbl-games.ics"',
+      'Content-Disposition': 'inline; filename="leaguehaven-games.ics"',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
     });
     res.send(ical);

@@ -13,11 +13,11 @@ const TABS = [
 export default function App() {
   const [page, setPage] = useState('standings');
   const [menuOpen, setMenuOpen] = useState(false);
-  const [branding, setBranding] = useState({ app_name: 'ZVBL', logo_url: null });
+  const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null });
 
   useEffect(() => {
     fetchBranding()
-      .then((data) => setBranding({ app_name: data?.app_name || 'ZVBL', logo_url: data?.logo_url || null }))
+      .then((data) => setBranding({ app_name: data?.app_name || 'LeagueHaven', logo_url: data?.logo_url || null }))
       .catch(() => {});
   }, []);
 
@@ -31,7 +31,7 @@ export default function App() {
       {/* Header */}
       <header className="bg-blue-800 text-white shadow-lg border-t-4 border-baseball-600">
         <div className="flex items-center justify-between px-4 py-3 max-w-6xl mx-auto">
-          <h1 className="font-heading text-xl font-bold whitespace-nowrap tracking-wide">⚾ {branding.app_name || 'ZVBL'}</h1>
+          <h1 className="font-heading text-xl font-bold whitespace-nowrap tracking-wide">⚾ {branding.app_name || 'LeagueHaven'}</h1>
 
           {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-1">

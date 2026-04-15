@@ -108,15 +108,15 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 
     // Build HTML body
-    const senderName = req.user.name || 'ZVBL Admin';
+    const senderName = req.user.name || 'LeagueHaven Admin';
     const html = `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;">
         <div style="border-bottom:3px solid #1e3a5f;padding-bottom:12px;margin-bottom:16px;">
-          <h2 style="color:#1e3a5f;margin:0;">⚾ ZVBL</h2>
+          <h2 style="color:#1e3a5f;margin:0;">⚾ LeagueHaven</h2>
         </div>
         <div style="white-space:pre-wrap;line-height:1.6;color:#333;">${escapeHtml(body.trim())}</div>
         <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;color:#888;font-size:13px;">
-          Sent by ${escapeHtml(senderName)} via <a href="${process.env.APP_URL || 'https://portal.zvbl.org'}" style="color:#1d4ed8;">ZVBL</a>
+          Sent by ${escapeHtml(senderName)} via <a href="${process.env.APP_URL || 'https://portal.zvbl.org'}" style="color:#1d4ed8;">LeagueHaven</a>
         </div>
       </div>
     `;
