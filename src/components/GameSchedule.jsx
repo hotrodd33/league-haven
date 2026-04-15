@@ -113,6 +113,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [showSubscribe, setShowSubscribe] = useState(false);
 
   // Consume initialGameId so it doesn't re-trigger on re-renders
   useEffect(() => {
@@ -288,6 +289,10 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
               <button onClick={() => setViewMode('calendar')}
                 className={`px-3 py-1.5 text-xs font-semibold rounded ${viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
                 Calendar
+              </button>
+              <button onClick={() => setShowSubscribe(true)}
+                className="px-3 py-1.5 text-xs font-semibold rounded bg-gray-700 text-gray-300 hover:bg-gray-600" title="Subscribe to calendar feed">
+                📅
               </button>
             </div>
             {isAdmin && (
@@ -549,12 +554,96 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
         />
       )}
 
+      {showSubscribe && (
+        <SubscribeModal
+          filterTeam={filterTeam}
+          filterSeason={filterSeason}
+          onClose={() => setShowSubscribe(false)}
+        />
+      )}
+
       {showImportModal && (
         <ScheduleImportModal
           onClose={() => setShowImportModal(false)}
           onImported={() => { setShowImportModal(false); loadGames(); }}
         />
       )}
+    </div>
+  );
+}
+
+/* ── Subscribe Modal ── */
+
+function SubscribeModal({ filterTeam, filterSeason, onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  // Build .ics URL with current filters
+  const icsUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (filterTeam) params.set('team_id', filterTeam);
+    if (filterSeason) params.set('season_id', filterSeason);
+    const qs = params.toString();
+    const origin = window.location.origin;
+    return `${origin}/api/calendar/games.ics${qs ? '?' + qs : ''}`;
+  }, [filterTeam, filterSeason]);
+
+  const webcalUrl = icsUrl.replace(/^https?:/, 'webcal:');
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(icsUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* fallback: select text */ }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-heading font-bold text-white">Subscribe to Calendar</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl leading-none">&times;</button>
+        </div>
+
+        <p className="text-sm text-gray-400 mb-4">
+          Subscribe to this game schedule in your calendar app. Games will sync automatically as they're added or updated.
+          {(filterTeam || filterSeason) && (
+            <span className="block mt-1 text-blue-400">Your current filters are included in this feed.</span>
+          )}
+        </p>
+
+        {/* Quick subscribe button */}
+        <a href={webcalUrl}
+          className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors mb-4">
+          📅 Open in Calendar App
+        </a>
+
+        {/* Manual URL copy */}
+        <div className="mb-4">
+          <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+            Or copy the feed URL
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              readOnly
+              value={icsUrl}
+              className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-gray-300 font-mono select-all focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              onClick={e => e.target.select()}
+            />
+            <button onClick={handleCopy}
+              className="px-3 py-2 bg-gray-700 text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-600 transition-colors shrink-0">
+              {copied ? '✓ Copied' : 'Copy'}
+            </button>
+          </div>
+        </div>
+
+        <div className="text-xs text-gray-500 space-y-1">
+          <p><strong>Google Calendar:</strong> Settings → Add calendar → From URL → paste the link</p>
+          <p><strong>Apple Calendar:</strong> Click "Open in Calendar App" above, or File → New Subscription</p>
+          <p><strong>Outlook:</strong> Add calendar → Subscribe from web → paste the link</p>
+        </div>
+      </div>
     </div>
   );
 }
