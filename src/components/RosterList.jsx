@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchPlayersByTeam, deletePlayer, unassignPlayerFromTeam, searchPlayers, assignPlayerToTeam, createPlayer } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
-export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlayer, refreshKey }) {
+export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlayer, onViewPlayer, refreshKey }) {
   const { canEditTeam: canEdit } = useAuth();
   const editable = teamId ? canEdit(teamId, teamOrgId) : false;
   const [players, setPlayers] = useState([]);
@@ -186,7 +186,11 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                 {players.map((player) => (
                   <tr key={player.id} className="hover:bg-gray-900">
                     <td className="px-3 py-2 font-bold text-blue-300">{player.jersey_number ?? '—'}</td>
-                    <td className="px-3 py-2 font-semibold">{player.first_name} {player.last_name}</td>
+                    <td className="px-3 py-2 font-semibold">
+                      <button onClick={() => onViewPlayer?.(player.id)} className="text-left hover:text-blue-300 transition-colors underline decoration-gray-600 hover:decoration-blue-400">
+                        {player.first_name} {player.last_name}
+                      </button>
+                    </td>
                     <td className="px-3 py-2">{formatPositions(player)}</td>
                     {editable && <td className="px-3 py-2">{calcAge(player.date_of_birth)}</td>}
                     {editable && <td className="px-3 py-2">{player.grade || '—'}</td>}
@@ -224,7 +228,9 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <span className="text-blue-300 font-bold text-lg mr-2">#{player.jersey_number ?? '—'}</span>
-                    <span className="font-semibold text-base">{player.first_name} {player.last_name}</span>
+                    <button onClick={() => onViewPlayer?.(player.id)} className="font-semibold text-base hover:text-blue-300 transition-colors underline decoration-gray-600 hover:decoration-blue-400">
+                      {player.first_name} {player.last_name}
+                    </button>
                   </div>
                   {editable && (
                     <div className="flex gap-1.5 shrink-0">

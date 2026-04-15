@@ -15,7 +15,7 @@ const TABS = [
   { key: 'notes', label: 'Notes' },
 ];
 
-export default function PlayerDetail({ player, onBack, onNavigateToTeam }) {
+export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit = true }) {
   const [tab, setTab] = useState('info');
 
   if (!player) return null;
@@ -36,6 +36,9 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam }) {
             {player.teams?.length ? player.teams.map(t => t.name || t.team_name).join(', ') : 'No team'}
           </p>
         </div>
+        {!canEdit && (
+          <span className="ml-auto text-xs bg-gray-700 text-gray-400 px-2 py-1 rounded-full">View Only</span>
+        )}
       </div>
 
       {/* Tabs */}
@@ -57,10 +60,10 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam }) {
 
       {/* Tab content */}
       {tab === 'info' && <InfoTab player={player} onNavigateToTeam={onNavigateToTeam} />}
-      {tab === 'contacts' && <ContactsTab playerId={player.id} />}
+      {tab === 'contacts' && <ContactsTab playerId={player.id} canEdit={canEdit} />}
       {tab === 'stats' && <StatsTab playerId={player.id} />}
-      {tab === 'documents' && <DocumentsTab playerId={player.id} />}
-      {tab === 'notes' && <NotesTab playerId={player.id} />}
+      {tab === 'documents' && <DocumentsTab playerId={player.id} canEdit={canEdit} />}
+      {tab === 'notes' && <NotesTab playerId={player.id} canEdit={canEdit} />}
     </div>
   );
 }
@@ -124,7 +127,7 @@ function InfoTab({ player, onNavigateToTeam }) {
 }
 
 /* ─── Contacts Tab ─── */
-function ContactsTab({ playerId }) {
+function ContactsTab({ playerId, canEdit }) {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -144,12 +147,14 @@ function ContactsTab({ playerId }) {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Contacts</h3>
-        <button
-          onClick={() => { setEditing(null); setShowForm(true); }}
-          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
-        >
-          <PlusIcon className="w-3.5 h-3.5" /> Add
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => { setEditing(null); setShowForm(true); }}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+          >
+            <PlusIcon className="w-3.5 h-3.5" /> Add
+          </button>
+        )}
       </div>
 
       {!contacts.length && !showForm && (
@@ -169,18 +174,20 @@ function ContactsTab({ playerId }) {
               {c.phone && <p className="text-sm text-gray-400">{c.phone}</p>}
               {c.notes && <p className="text-xs text-gray-500 mt-1 italic">{c.notes}</p>}
             </div>
-            <div className="flex gap-1">
-              <button onClick={() => { setEditing(c); setShowForm(true); }} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
-                <PencilIcon className="w-4 h-4 text-gray-400" />
-              </button>
-              <button onClick={async () => {
-                if (!confirm('Remove this contact?')) return;
-                await deletePlayerContact(playerId, c.id);
-                load();
-              }} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
-                <TrashIcon className="w-4 h-4 text-red-400" />
-              </button>
-            </div>
+            {canEdit && (
+              <div className="flex gap-1">
+                <button onClick={() => { setEditing(c); setShowForm(true); }} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
+                  <PencilIcon className="w-4 h-4 text-gray-400" />
+                </button>
+                <button onClick={async () => {
+                  if (!confirm('Remove this contact?')) return;
+                  await deletePlayerContact(playerId, c.id);
+                  load();
+                }} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
+                  <TrashIcon className="w-4 h-4 text-red-400" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -340,7 +347,7 @@ function StatsTab({ playerId }) {
 }
 
 /* ─── Documents Tab ─── */
-function DocumentsTab({ playerId }) {
+function DocumentsTab({ playerId, canEdit }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -370,7 +377,6 @@ function DocumentsTab({ playerId }) {
   async function handleDownload(doc) {
     try {
       const result = await downloadPlayerDocument(playerId, doc.id);
-      // Create download link from data URL
       const a = document.createElement('a');
       a.href = result.data_url;
       a.download = result.file_name;
@@ -405,11 +411,13 @@ function DocumentsTab({ playerId }) {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Documents</h3>
-        <label className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors cursor-pointer">
-          <PlusIcon className="w-3.5 h-3.5" />
-          {uploading ? 'Uploading...' : 'Upload'}
-          <input type="file" className="hidden" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf" onChange={handleUpload} disabled={uploading} />
-        </label>
+        {canEdit && (
+          <label className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors cursor-pointer">
+            <PlusIcon className="w-3.5 h-3.5" />
+            {uploading ? 'Uploading...' : 'Upload'}
+            <input type="file" className="hidden" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf" onChange={handleUpload} disabled={uploading} />
+          </label>
+        )}
       </div>
 
       {!docs.length && (
@@ -427,9 +435,11 @@ function DocumentsTab({ playerId }) {
           </div>
           <div className="flex gap-1">
             <button onClick={() => handleDownload(d)} className="px-3 py-1 text-xs text-blue-400 hover:text-blue-300 transition-colors">Download</button>
-            <button onClick={() => handleDelete(d.id)} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
-              <TrashIcon className="w-4 h-4 text-red-400" />
-            </button>
+            {canEdit && (
+              <button onClick={() => handleDelete(d.id)} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
+                <TrashIcon className="w-4 h-4 text-red-400" />
+              </button>
+            )}
           </div>
         </div>
       ))}
@@ -438,7 +448,7 @@ function DocumentsTab({ playerId }) {
 }
 
 /* ─── Notes Tab ─── */
-function NotesTab({ playerId }) {
+function NotesTab({ playerId, canEdit }) {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newNote, setNewNote] = useState('');
@@ -493,17 +503,19 @@ function NotesTab({ playerId }) {
   return (
     <div className="space-y-3">
       {/* Add note form */}
-      <form onSubmit={handleAdd} className="flex gap-2">
-        <input
-          value={newNote}
-          onChange={e => setNewNote(e.target.value)}
-          placeholder="Add a note..."
-          className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        <button type="submit" disabled={saving || !newNote.trim()} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
-          {saving ? '...' : 'Add'}
-        </button>
-      </form>
+      {canEdit && (
+        <form onSubmit={handleAdd} className="flex gap-2">
+          <input
+            value={newNote}
+            onChange={e => setNewNote(e.target.value)}
+            placeholder="Add a note..."
+            className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <button type="submit" disabled={saving || !newNote.trim()} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+            {saving ? '...' : 'Add'}
+          </button>
+        </form>
+      )}
 
       {!notes.length && (
         <p className="text-sm text-gray-500 py-4 text-center">No notes yet</p>
@@ -533,14 +545,16 @@ function NotesTab({ playerId }) {
                   {n.updated_at !== n.created_at && ' (edited)'}
                 </p>
               </div>
-              <div className="flex gap-1 shrink-0">
-                <button onClick={() => { setEditingId(n.id); setEditText(n.note); }} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
-                  <PencilIcon className="w-4 h-4 text-gray-400" />
-                </button>
-                <button onClick={() => handleDelete(n.id)} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
-                  <TrashIcon className="w-4 h-4 text-red-400" />
-                </button>
-              </div>
+              {canEdit && (
+                <div className="flex gap-1 shrink-0">
+                  <button onClick={() => { setEditingId(n.id); setEditText(n.note); }} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
+                    <PencilIcon className="w-4 h-4 text-gray-400" />
+                  </button>
+                  <button onClick={() => handleDelete(n.id)} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
+                    <TrashIcon className="w-4 h-4 text-red-400" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

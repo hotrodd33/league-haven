@@ -28,7 +28,7 @@ import PlayersPage from "./components/PlayersPage.jsx";
 import PlayerDetail from "./components/PlayerDetail.jsx";
 
 export default function App() {
-    const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, user, role, logout } = useAuth();
+    const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, user, role, logout, canEditTeam, isSuperAdmin, permissions } = useAuth();
     const isTeamManager = role === 'team_manager';
     const [selectedTeam, setSelectedTeam] = useState(null);
     const [selectedTeamOrgId, setSelectedTeamOrgId] = useState(null);
@@ -134,6 +134,22 @@ export default function App() {
         setEditingPlayer(null);
     }
 
+    async function handleViewPlayer(playerId) {
+        setSelectedPlayerId(playerId);
+        try {
+            const p = await fetchPlayer(playerId);
+            setSelectedPlayerData(p);
+            setPage('players');
+        } catch (err) { console.error(err); }
+    }
+
+    function canEditSelectedPlayer() {
+        if (!selectedPlayerData) return false;
+        if (isSuperAdmin) return true;
+        const teams = selectedPlayerData.teams || [];
+        return teams.some(t => canEditTeam(t.team_id || t.id, t.org_id));
+    }
+
     /* ── Page content renderer ── */
     function renderPage() {
         // Umpires get their own dashboard by default
@@ -176,7 +192,7 @@ export default function App() {
 
             case 'players':
                 if (selectedPlayerData) {
-                    return <PlayerDetail player={selectedPlayerData} onBack={() => { setSelectedPlayerId(null); setSelectedPlayerData(null); }} onNavigateToTeam={navigateToTeam} />;
+                    return <PlayerDetail player={selectedPlayerData} onBack={() => { setSelectedPlayerId(null); setSelectedPlayerData(null); }} onNavigateToTeam={navigateToTeam} canEdit={canEditSelectedPlayer()} />;
                 }
                 return <PlayersPage onSelectPlayer={async (id) => {
                     setSelectedPlayerId(id);
@@ -214,6 +230,7 @@ export default function App() {
                                 teamOrgId={selectedTeamOrgId}
                                 onEditPlayer={handleEditPlayer}
                                 onAddPlayer={handleAddPlayer}
+                                onViewPlayer={handleViewPlayer}
                                 refreshKey={refreshKey}
                                 onNavigateToTeam={navigateToTeam}
                                 onWatermarkLogoChange={handleTeamWatermarkLogoChange}

@@ -20,7 +20,7 @@ const TABS = [
   { key: 'coaches', label: 'Coaches', icon: UserGroupIcon },
 ];
 
-export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer, refreshKey, onNavigateToTeam, onWatermarkLogoChange }) {
+export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer, onViewPlayer, refreshKey, onNavigateToTeam, onWatermarkLogoChange }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [team, setTeam] = useState(null);
   const [recentGames, setRecentGames] = useState([]);
@@ -145,7 +145,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
           </div>
         )}
         {activeTab === 'roster' && (
-          <RosterList teamId={teamId} teamOrgId={teamOrgId} onEditPlayer={onEditPlayer} onAddPlayer={onAddPlayer} refreshKey={refreshKey} />
+          <RosterList teamId={teamId} teamOrgId={teamOrgId} onEditPlayer={onEditPlayer} onAddPlayer={onAddPlayer} onViewPlayer={onViewPlayer} refreshKey={refreshKey} />
         )}
         {activeTab === 'coaches' && (
           <StaffList teamId={teamId} teamOrgId={teamOrgId} refreshKey={refreshKey} />
