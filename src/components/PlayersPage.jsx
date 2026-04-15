@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { fetchAllPlayers, fetchOrganizations, fetchTeams } from '../api/index.js';
+import { fetchAllPlayers, fetchOrganizations, fetchTeams, fetchAllPitchRest } from '../api/index.js';
 import { MagnifyingGlassIcon, UserIcon } from './ui/icons.jsx';
 
 export default function PlayersPage({ onSelectPlayer }) {
   const [players, setPlayers] = useState([]);
   const [orgs, setOrgs] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [pitchRest, setPitchRest] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterOrg, setFilterOrg] = useState('');
@@ -16,10 +17,12 @@ export default function PlayersPage({ onSelectPlayer }) {
       fetchAllPlayers(),
       fetchOrganizations(),
       fetchTeams(),
-    ]).then(([p, o, t]) => {
+      fetchAllPitchRest().catch(() => ({})),
+    ]).then(([p, o, t, pr]) => {
       setPlayers(p);
       setOrgs(o);
       setTeams(t);
+      setPitchRest(pr);
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -51,6 +54,17 @@ export default function PlayersPage({ onSelectPlayer }) {
     const birth = new Date(dob);
     const diff = Date.now() - birth.getTime();
     return Math.floor(diff / (365.25 * 86400000));
+  }
+
+  function PitchRestBadge({ playerId }) {
+    const rest = pitchRest[playerId];
+    if (!rest) return null;
+    if (rest.eligible_today) {
+      return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/20 text-green-300">Available</span>;
+    }
+    const avail = rest.available_date;
+    const label = avail ? new Date(avail + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Resting';
+    return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500/20 text-red-300">{label}</span>;
   }
 
   if (loading) {
@@ -101,6 +115,7 @@ export default function PlayersPage({ onSelectPlayer }) {
           <thead>
             <tr className="bg-gray-800 text-gray-400 text-left text-xs uppercase tracking-wider">
               <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Pitching</th>
               <th className="px-4 py-3">Age</th>
               <th className="px-4 py-3">Grade</th>
               <th className="px-4 py-3">B/T</th>
@@ -118,6 +133,7 @@ export default function PlayersPage({ onSelectPlayer }) {
                 <td className="px-4 py-3 font-medium text-white">
                   {p.first_name} {p.last_name}
                 </td>
+                <td className="px-4 py-3"><PitchRestBadge playerId={p.id} /></td>
                 <td className="px-4 py-3 text-gray-300">{calculateAge(p.date_of_birth) || '—'}</td>
                 <td className="px-4 py-3 text-gray-300">{p.grade || '—'}</td>
                 <td className="px-4 py-3 text-gray-300">{p.batting_hand || '—'}/{p.throwing_hand || '—'}</td>
@@ -130,7 +146,7 @@ export default function PlayersPage({ onSelectPlayer }) {
               </tr>
             ))}
             {!filtered.length && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No players found</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No players found</td></tr>
             )}
           </tbody>
         </table>
@@ -149,7 +165,10 @@ export default function PlayersPage({ onSelectPlayer }) {
                 <UserIcon className="w-5 h-5 text-blue-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-white truncate">{p.first_name} {p.last_name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-white truncate">{p.first_name} {p.last_name}</p>
+                  <PitchRestBadge playerId={p.id} />
+                </div>
                 <p className="text-xs text-gray-400 truncate">
                   {p.teams?.length ? p.teams.map(t => t.team_name).join(', ') : 'Unassigned'}
                 </p>

@@ -446,6 +446,10 @@ export async function fetchTeamPitcherStats(teamId) {
   return apiFetch(`/pitch-rules/team-stats?team_id=${teamId}`);
 }
 
+export async function fetchAllPitchRest() {
+  return apiFetch('/pitch-rules/all-rest');
+}
+
 // ── Organizations ──
 
 export async function fetchOrganizations() {

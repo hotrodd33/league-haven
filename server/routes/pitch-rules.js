@@ -374,4 +374,99 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/pitch-rules/all-rest
+// Returns a lightweight map of player_id → { eligible_today, available_date } for all players
+router.get('/all-rest', authMiddleware, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const lookback7 = datePlusDays(today, -7);
+    const yesterday = datePlusDays(today, -1);
+    const dayBefore = datePlusDays(today, -2);
+
+    // Get all players with their team's age_group
+    const { rows: playerTeams } = await pool.query(
+      `SELECT DISTINCT tp.player_id, t.age_group
+       FROM team_players tp
+       JOIN teams t ON t.id = tp.team_id`
+    );
+
+    const playerIds = [...new Set(playerTeams.map(r => r.player_id))];
+    if (playerIds.length === 0) return res.json({});
+
+    // Build player → rules map (use most restrictive age category if on multiple teams)
+    const playerRulesMap = {};
+    for (const pt of playerTeams) {
+      const cat = getAgeCategory(pt.age_group);
+      if (!cat) continue;
+      const existing = playerRulesMap[pt.player_id];
+      if (!existing || (cat === '9u-12u' && existing !== '9u-12u')) {
+        playerRulesMap[pt.player_id] = cat;
+      }
+    }
+
+    // Recent pitch counts (last 7 days)
+    const { rows: recent } = await pool.query(
+      `SELECT gpc.player_id, gpc.pitch_count, g.game_date::text AS game_date
+       FROM game_pitch_counts gpc
+       JOIN games g ON g.id = gpc.game_id
+       WHERE gpc.player_id = ANY($1)
+         AND g.game_date >= $2::date
+         AND g.game_date <= $3::date
+         AND g.status != 'cancelled'
+       ORDER BY g.game_date DESC`,
+      [playerIds, lookback7, today]
+    );
+
+    // Group by player → date → total pitches
+    const byPlayer = {};
+    for (const pc of recent) {
+      if (!byPlayer[pc.player_id]) byPlayer[pc.player_id] = {};
+      byPlayer[pc.player_id][pc.game_date] = (byPlayer[pc.player_id][pc.game_date] || 0) + pc.pitch_count;
+    }
+
+    // Compute rest status per player
+    const result = {};
+    for (const pid of playerIds) {
+      const dateMap = byPlayer[pid] || {};
+      const pitchDates = Object.keys(dateMap).sort().reverse();
+      const cat = playerRulesMap[pid];
+      const rules = cat ? RULES[cat] : null;
+
+      let eligible = true;
+      let availableDate = today;
+      let restDays = 0;
+
+      if (rules) {
+        const todayPitches = dateMap[today] || 0;
+        if (todayPitches >= rules.dailyLimit) eligible = false;
+
+        const priorDates = pitchDates.filter(d => d < today);
+        if (priorDates.length > 0) {
+          const lastDate = priorDates[0];
+          const total = dateMap[lastDate];
+          const rest = getRestDays(total, rules);
+          if (rest > 0) {
+            const avail = datePlusDays(lastDate, rest + 1);
+            restDays = rest;
+            availableDate = avail;
+            if (today < avail) eligible = false;
+          }
+        }
+
+        if (dateMap[yesterday] && dateMap[dayBefore]) eligible = false;
+      }
+
+      // Only include players who have actually pitched recently (skip those with no data)
+      if (pitchDates.length > 0) {
+        result[pid] = { eligible_today: eligible, available_date: availableDate, rest_days: restDays };
+      }
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('Pitch rules all-rest error:', err);
+    res.status(500).json({ error: 'Failed to fetch rest data' });
+  }
+});
+
 module.exports = router;
