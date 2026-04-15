@@ -607,8 +607,12 @@ function PendingApprovals() {
         {/* Show requested permissions */}
         {perms.length > 0 && (
           <div className="text-xs text-gray-400 mb-3">
-            Requested: {perms.filter(p => p.team_id).length > 0 && `${perms.filter(p => p.team_id).length} team(s)`}
-            {perms.filter(p => p.org_id).length > 0 && `${perms.filter(p => p.team_id).length > 0 ? ', ' : ''}${perms.filter(p => p.org_id).length} org(s)`}
+            {perms.filter(p => p.team_name).length > 0 && (
+              <div>Teams: {perms.filter(p => p.team_name).map(p => p.team_name).join(', ')}</div>
+            )}
+            {perms.filter(p => p.org_name).length > 0 && (
+              <div>Orgs: {perms.filter(p => p.org_name).map(p => p.org_name).join(', ')}</div>
+            )}
           </div>
         )}
 

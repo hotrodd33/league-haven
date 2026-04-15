@@ -209,9 +209,11 @@ router.get('/pending', authMiddleware, requireRole('super_admin', 'org_admin', '
       query = `
         SELECT u.id, u.username, u.name, u.email, u.role, u.is_umpire, u.approval_status, u.created_at,
                u.approval_notes,
-               json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
+               json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id, 'team_name', t.name, 'org_name', o.name)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
         FROM users u
         LEFT JOIN user_permissions up ON up.user_id = u.id
+        LEFT JOIN teams t ON t.id = up.team_id
+        LEFT JOIN organizations o ON o.id = up.org_id
         WHERE u.approval_status IN ('pending', 'rejected')
         GROUP BY u.id
         ORDER BY u.approval_status = 'pending' DESC, u.created_at DESC
@@ -223,9 +225,11 @@ router.get('/pending', authMiddleware, requireRole('super_admin', 'org_admin', '
       query = `
         SELECT u.id, u.username, u.name, u.email, u.role, u.is_umpire, u.approval_status, u.created_at,
                u.approval_notes,
-               json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
+               json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id, 'team_name', t.name, 'org_name', o.name)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
         FROM users u
         JOIN user_permissions up ON up.user_id = u.id
+        LEFT JOIN teams t ON t.id = up.team_id
+        LEFT JOIN organizations o ON o.id = up.org_id
         WHERE u.approval_status IN ('pending', 'rejected')
           AND (
             (u.role = 'team_manager' AND up.team_id IN (SELECT id FROM teams WHERE org_id = ANY($1)))
@@ -242,9 +246,11 @@ router.get('/pending', authMiddleware, requireRole('super_admin', 'org_admin', '
       query = `
         SELECT u.id, u.username, u.name, u.email, u.role, u.is_umpire, u.approval_status, u.created_at,
                u.approval_notes,
-               json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
+               json_agg(json_build_object('org_id', up.org_id, 'team_id', up.team_id, 'team_name', t.name, 'org_name', o.name)) FILTER (WHERE up.id IS NOT NULL) AS pending_permissions
         FROM users u
         JOIN user_permissions up ON up.user_id = u.id
+        LEFT JOIN teams t ON t.id = up.team_id
+        LEFT JOIN organizations o ON o.id = up.org_id
         WHERE u.approval_status IN ('pending', 'rejected')
           AND u.role = 'score_reporter'
           AND up.team_id = ANY($1)
