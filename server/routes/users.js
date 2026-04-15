@@ -152,8 +152,9 @@ router.delete('/:id', adminOnly, async (req, res) => {
 router.put('/:id/permissions', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows: existing } = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
+    const { rows: existing } = await pool.query('SELECT id, name, email, role FROM users WHERE id = $1', [id]);
     if (!existing.length) return res.status(404).json({ error: 'User not found' });
+    const user = existing[0];
 
     const { org_ids = [], team_ids = [] } = req.body;
 
@@ -173,6 +174,36 @@ router.put('/:id/permissions', adminOnly, async (req, res) => {
         await client.query(
           'INSERT INTO user_permissions (user_id, team_id) VALUES ($1, $2)',
           [id, teamId]
+        );
+      }
+
+      // Sync staff records for coaches and scorekeepers
+      if ((user.role === 'team_manager' || user.role === 'score_reporter') && team_ids.length) {
+        let staffId;
+        const { rows: existingStaff } = await client.query(
+          'SELECT id FROM staff_members WHERE LOWER(email) = LOWER($1)',
+          [user.email]
+        );
+        if (existingStaff.length) {
+          staffId = existingStaff[0].id;
+        } else {
+          const { rows: newStaff } = await client.query(
+            'INSERT INTO staff_members (name, email) VALUES ($1, $2) RETURNING id',
+            [user.name, user.email]
+          );
+          staffId = newStaff[0].id;
+        }
+        const staffRole = user.role === 'team_manager' ? 'head_coach' : 'scorekeeper';
+        for (const teamId of team_ids) {
+          await client.query(
+            'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3) ON CONFLICT (team_id, staff_id) DO UPDATE SET role = $3',
+            [teamId, staffId, staffRole]
+          );
+        }
+        // Remove staff assignments for teams no longer in permissions
+        await client.query(
+          'DELETE FROM team_staff_assignments WHERE staff_id = $1 AND team_id != ALL($2)',
+          [staffId, team_ids]
         );
       }
 
