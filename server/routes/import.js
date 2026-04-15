@@ -340,13 +340,53 @@ router.post(
         return res.status(400).json({ error: 'File appears to be empty' });
       }
 
-      const headerLine = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const headerLine = parseCSVLine(lines[0]).map(h => h.trim());
       const previewRows = lines.slice(1, 11).map(line => {
-        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const vals = parseCSVLine(line).map(v => v.trim());
         const row = {};
         headerLine.forEach((h, i) => { row[h] = vals[i] || ''; });
         return row;
       });
+
+      // For roster imports: detect Team column and return unmatched teams for mapping UI
+      if (importType === 'roster') {
+        const teamColIndex = headerLine.findIndex(h =>
+          ['team', 'club', 'team name', 'teamname'].includes(h.toLowerCase())
+        );
+
+        if (teamColIndex >= 0) {
+          const teamLookup = await buildTeamLookup();
+          const teamsList = await getTeamsList();
+          const teamColHeader = headerLine[teamColIndex];
+
+          const allRows = lines.slice(1).map(line => {
+            const vals = parseCSVLine(line).map(v => v.trim());
+            return vals[teamColIndex] || '';
+          });
+
+          const csvTeamNames = [...new Set(allRows.filter(Boolean))];
+          const unmatchedTeams = [];
+          const matchedTeams = {};
+          for (const name of csvTeamNames) {
+            const id = teamLookup[name.toLowerCase()];
+            if (id) {
+              matchedTeams[name] = id;
+            } else {
+              unmatchedTeams.push(name);
+            }
+          }
+
+          return res.json({
+            headers: headerLine,
+            rows: previewRows,
+            detectedType: importType,
+            unmatchedTeams,
+            matchedTeams,
+            teamsList,
+            teamColumnName: teamColHeader,
+          });
+        }
+      }
 
       return res.json({
         headers: headerLine,
@@ -408,7 +448,18 @@ router.post(
         });
       }
 
-      // Future: CSV stat imports, schedule imports, roster imports
+      if (importType === 'roster') {
+        if (!req.file) {
+          return res.status(400).json({ error: 'Roster import requires a file upload' });
+        }
+        return await importRoster(req, res, {
+          teamId,
+          overwrite,
+          teamMappings,
+        });
+      }
+
+      // Future: CSV stat imports, schedule imports
       return res.status(400).json({ error: `Import type "${importType}" is not yet supported` });
 
     } catch (err) {
@@ -744,6 +795,205 @@ async function upsertPitchCount(gameId, playerId, teamId, pitchCount, overwrite)
       [gameId, playerId, teamId, pitchCount || 0]
     );
   }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Roster CSV Import Logic
+   ═══════════════════════════════════════════════════════ */
+async function importRoster(req, res, opts) {
+  const { teamId: defaultTeamId, overwrite, teamMappings } = opts;
+
+  const text = req.file.buffer.toString('utf8');
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) {
+    return res.status(400).json({ error: 'File appears to be empty' });
+  }
+
+  const headerLine = parseCSVLine(lines[0]).map(h => h.trim());
+
+  // Build index map: lowercase header → column position
+  const idx = {};
+  headerLine.forEach((h, i) => { idx[h.toLowerCase()] = i; });
+  const col = (...names) => {
+    for (const n of names) {
+      if (idx[n.toLowerCase()] !== undefined) return idx[n.toLowerCase()];
+    }
+    return -1;
+  };
+
+  const iFirst   = col('first', 'first name', 'firstname');
+  const iLast    = col('last', 'last name', 'lastname');
+  const iName    = col('player', 'name', 'full name', 'fullname');
+  const iJersey  = col('#', 'jersey', 'number', 'jersey number', 'jersey #', 'uniform', 'uniform #');
+  const iTeam    = col('team', 'club', 'team name', 'teamname');
+  const iDOB     = col('dob', 'date of birth', 'birthday', 'birth date', 'birthdate');
+  const iEmail   = col('parent email', 'email', 'contact email', 'parent_email');
+  const iPhone   = col('parent phone', 'phone', 'contact phone', 'parent_phone');
+  const iBats    = col('bats', 'batting hand', 'batting', 'bat hand');
+  const iThrows  = col('throws', 'throwing hand', 'throwing', 'throw hand');
+  const iGrade   = col('grade', 'year', 'school year');
+
+  // Build combined team lookup: user mappings take priority
+  const teamLookup = await buildTeamLookup();
+  const tMap = {};
+  if (teamMappings && typeof teamMappings === 'object') {
+    for (const [name, id] of Object.entries(teamMappings)) {
+      if (id) tMap[name.toLowerCase()] = Number(id);
+    }
+  }
+
+  const results = {
+    success: true,
+    players: 0,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+  };
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i]).map(v => v.trim());
+      if (!cols.length || (cols.length === 1 && !cols[0])) continue;
+
+      const get = (colIdx) => (colIdx >= 0 ? cols[colIdx] || '' : '');
+
+      // Resolve first/last name
+      let firstName = get(iFirst);
+      let lastName = get(iLast);
+      if (!firstName && !lastName && iName >= 0) {
+        const parts = get(iName).split(/\s+/);
+        firstName = parts[0] || '';
+        lastName = parts.slice(1).join(' ') || '';
+      }
+
+      if (!firstName && !lastName) {
+        results.skipped++;
+        continue;
+      }
+
+      const jerseyRaw = get(iJersey);
+      const jerseyNum = jerseyRaw ? (parseInt(jerseyRaw) || null) : null;
+
+      // Determine team for this row
+      const csvTeamName = get(iTeam);
+      let rowTeamId = defaultTeamId || null;
+      if (csvTeamName) {
+        rowTeamId = tMap[csvTeamName.toLowerCase()]
+          ?? teamLookup[csvTeamName.toLowerCase()]
+          ?? defaultTeamId
+          ?? null;
+      }
+
+      // Validate enumerated fields
+      const batsRaw = get(iBats).toUpperCase()[0] || '';
+      const throwsRaw = get(iThrows).toUpperCase()[0] || '';
+      const battingHand  = ['R', 'L', 'S'].includes(batsRaw)  ? batsRaw  : null;
+      const throwingHand = ['R', 'L'].includes(throwsRaw)     ? throwsRaw : null;
+      const gradeRaw = get(iGrade);
+      const grade = ['K','1','2','3','4','5','6','7','8','9'].includes(gradeRaw) ? gradeRaw : null;
+
+      try {
+        // Find existing player — jersey within team first, then name globally
+        let existingId = null;
+
+        if (rowTeamId && jerseyNum !== null) {
+          const { rows: byJersey } = await client.query(
+            `SELECT p.id FROM players p
+             JOIN team_players tp ON tp.player_id = p.id
+             WHERE tp.team_id = $1 AND tp.jersey_number = $2
+             LIMIT 1`,
+            [rowTeamId, jerseyNum]
+          );
+          if (byJersey.length) existingId = byJersey[0].id;
+        }
+
+        if (!existingId) {
+          const { rows: byName } = await client.query(
+            `SELECT id FROM players
+             WHERE LOWER(first_name) = LOWER($1) AND LOWER(last_name) = LOWER($2)
+             LIMIT 1`,
+            [firstName, lastName]
+          );
+          if (byName.length) existingId = byName[0].id;
+        }
+
+        let playerId;
+        if (existingId && !overwrite) {
+          playerId = existingId;
+          results.skipped++;
+        } else if (existingId && overwrite) {
+          await client.query(
+            `UPDATE players SET
+               first_name      = $1,
+               last_name       = $2,
+               date_of_birth   = COALESCE(NULLIF($3,''), date_of_birth),
+               batting_hand    = COALESCE($4,            batting_hand),
+               throwing_hand   = COALESCE($5,            throwing_hand),
+               parent_email    = COALESCE(NULLIF($6,''), parent_email),
+               parent_phone    = COALESCE(NULLIF($7,''), parent_phone),
+               grade           = COALESCE($8,            grade),
+               updated_at      = NOW()
+             WHERE id = $9`,
+            [firstName, lastName,
+             get(iDOB)   || null,
+             battingHand, throwingHand,
+             get(iEmail) || null,
+             get(iPhone) || null,
+             grade,
+             existingId]
+          );
+          playerId = existingId;
+          results.updated++;
+        } else {
+          const { rows: newP } = await client.query(
+            `INSERT INTO players
+               (first_name, last_name, date_of_birth, batting_hand, throwing_hand,
+                parent_email, parent_phone, grade)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING id`,
+            [firstName, lastName,
+             get(iDOB)   || null,
+             battingHand, throwingHand,
+             get(iEmail) || null,
+             get(iPhone) || null,
+             grade]
+          );
+          playerId = newP[0].id;
+          results.created++;
+        }
+
+        // Upsert team membership
+        if (rowTeamId && playerId) {
+          await client.query(
+            `INSERT INTO team_players (team_id, player_id, jersey_number)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (team_id, player_id) DO UPDATE
+               SET jersey_number = COALESCE($3, team_players.jersey_number)`,
+            [rowTeamId, playerId, jerseyNum]
+          );
+        }
+
+        results.players++;
+      } catch (rowErr) {
+        results.errors.push(`Row ${i}: ${rowErr.message}`);
+        results.skipped++;
+      }
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  results.message = `Imported ${results.created} new player${results.created !== 1 ? 's' : ''}, updated ${results.updated}, skipped ${results.skipped}.`;
+  return res.json(results);
 }
 
 /* ═══════════════════════════════════════════════════════
