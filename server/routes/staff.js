@@ -4,11 +4,12 @@ const { authMiddleware, canEditTeam } = require('../auth');
 
 const router = express.Router();
 
-const VALID_ROLES = ['head_coach', 'assistant_coach', 'travel_director'];
+const VALID_ROLES = ['head_coach', 'assistant_coach', 'travel_director', 'scorekeeper'];
 const ROLE_LABELS = {
   head_coach: 'Head Coach',
   assistant_coach: 'Assistant Coach',
   travel_director: 'Travel Director',
+  scorekeeper: 'Scorekeeper',
 };
 
 function addLabel(s) { return { ...s, role_label: ROLE_LABELS[s.role] || s.role }; }

@@ -285,6 +285,38 @@ router.post('/:id/approve', authMiddleware, requireRole('super_admin', 'org_admi
     await pool.query('UPDATE users SET approval_status = $1 WHERE id = $2', ['approved', id]);
     await pool.query('UPDATE user_permissions SET is_active = TRUE WHERE user_id = $1', [id]);
 
+    // Ensure staff record exists so they show under Coaches & Staff
+    if (target.role === 'score_reporter' || target.role === 'team_manager') {
+      const { rows: perms } = await pool.query(
+        'SELECT team_id FROM user_permissions WHERE user_id = $1 AND team_id IS NOT NULL',
+        [id]
+      );
+      if (perms.length) {
+        // Find or create staff_members record
+        let staffId;
+        const { rows: existingStaff } = await pool.query(
+          'SELECT id FROM staff_members WHERE LOWER(email) = LOWER($1)',
+          [target.email]
+        );
+        if (existingStaff.length) {
+          staffId = existingStaff[0].id;
+        } else {
+          const { rows: newStaff } = await pool.query(
+            'INSERT INTO staff_members (name, email) VALUES ($1, $2) RETURNING id',
+            [target.name, target.email]
+          );
+          staffId = newStaff[0].id;
+        }
+        const staffRole = target.role === 'team_manager' ? 'head_coach' : 'scorekeeper';
+        for (const p of perms) {
+          await pool.query(
+            'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+            [p.team_id, staffId, staffRole]
+          );
+        }
+      }
+    }
+
     // Send approval email
     if (target.email) {
       sendApprovalEmail(target.email, target.name).catch(() => {});
