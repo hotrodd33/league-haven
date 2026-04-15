@@ -14,7 +14,7 @@ const EMPTY_TEAM = {
 };
 
 const ROLE_OPTIONS = [
-  { key: 'coach', label: 'Coach / Team Manager', desc: 'I coach or manage a team and want to register it', icon: '⚾', accent: 'blue' },
+  { key: 'coach', label: 'Coach / Team Manager', desc: 'I coach or manage a team', icon: '⚾', accent: 'blue' },
   { key: 'director', label: 'Travel Director / Org Admin', desc: 'I manage an organization with multiple teams', icon: '★', accent: 'amber' },
   { key: 'scorekeeper', label: 'Scorekeeper', desc: 'I report game scores for my assigned teams', icon: '✎', accent: 'green' },
   { key: 'umpire', label: 'Umpire', desc: 'I officiate games and manage my availability', icon: '⚖', accent: 'purple' },
@@ -58,8 +58,10 @@ export default function TeamRegistration({ onDone }) {
   // Director: Teams (array) / Coach: single team (teams[0])
   const [teams, setTeams] = useState([{ ...EMPTY_TEAM }]);
 
-  // Coach: selected org
+  // Coach: selected org + team mode
   const [coachOrgId, setCoachOrgId] = useState('');
+  const [coachTeamMode, setCoachTeamMode] = useState('existing');
+  const [coachTeamId, setCoachTeamId] = useState('');
 
   // Umpire-specific
   const [umpire, setUmpire] = useState({
@@ -113,9 +115,13 @@ export default function TeamRegistration({ onDone }) {
 
   function validateCoachTeam() {
     if (!coachOrgId) return 'Please select an organization';
-    const t = teams[0];
-    if (!t.team_city.trim()) return 'Team city is required';
-    if (!t.age_group) return 'Age group is required';
+    if (coachTeamMode === 'existing') {
+      if (!coachTeamId) return 'Please select a team';
+    } else {
+      const t = teams[0];
+      if (!t.team_city.trim()) return 'Team city is required';
+      if (!t.age_group) return 'Age group is required';
+    }
     return null;
   }
 
@@ -233,15 +239,19 @@ export default function TeamRegistration({ onDone }) {
           })),
         });
       } else if (role === 'coach') {
-        const t = teams[0];
-        result = await registerCoach({
+        const payload = {
           username: userInfo.username.trim(),
           password: userInfo.password,
           name: userInfo.name.trim(),
           email: userInfo.email.trim().toLowerCase(),
           phone: userInfo.phone.trim() || null,
           org_id: Number(coachOrgId),
-          team: {
+        };
+        if (coachTeamMode === 'existing') {
+          payload.team_id = Number(coachTeamId);
+        } else {
+          const t = teams[0];
+          payload.team = {
             team_city: t.team_city.trim(),
             team_mascot: t.team_mascot.trim() || null,
             team_color: t.team_color.trim() || null,
@@ -249,8 +259,9 @@ export default function TeamRegistration({ onDone }) {
             level: t.level || null,
             primary_color: t.primary_color || null,
             secondary_color: t.secondary_color || null,
-          },
-        });
+          };
+        }
+        result = await registerCoach(payload);
       } else if (role === 'scorekeeper') {
         result = await register(
           userInfo.username.trim(),
@@ -649,7 +660,7 @@ export default function TeamRegistration({ onDone }) {
           <div className="space-y-4">
             <div>
               <label className={labelCls}>Organization *</label>
-              <select value={coachOrgId} onChange={e => setCoachOrgId(e.target.value)} className={inputCls}>
+              <select value={coachOrgId} onChange={e => { setCoachOrgId(e.target.value); setCoachTeamId(''); }} className={inputCls}>
                 <option value="">— Select your organization —</option>
                 {config?.organizations?.map(o => (
                   <option key={o.id} value={o.id}>
@@ -659,7 +670,40 @@ export default function TeamRegistration({ onDone }) {
               </select>
               <p className="text-[10px] text-gray-500 mt-1">Select the organization your team plays under. Contact a league admin if your organization is not listed.</p>
             </div>
-            {renderTeamCard(teams[0], 0, { showHeader: false, showCoachFields: false, showActions: false })}
+
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setCoachTeamMode('existing')}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  coachTeamMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}>
+                Join Existing Team
+              </button>
+              <button type="button" onClick={() => setCoachTeamMode('new')}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  coachTeamMode === 'new' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}>
+                Create New Team
+              </button>
+            </div>
+
+            {coachTeamMode === 'existing' ? (
+              <div>
+                <label className={labelCls}>Select Team *</label>
+                <select value={coachTeamId} onChange={e => setCoachTeamId(e.target.value)} className={inputCls}>
+                  <option value="">— Choose a team —</option>
+                  {(config?.teams?.filter(t => t.org_id === Number(coachOrgId)) || []).map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}{t.age_group ? ` (${t.age_group})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {coachOrgId && !(config?.teams?.filter(t => t.org_id === Number(coachOrgId)) || []).length && (
+                  <p className="text-[10px] text-amber-400 mt-1">No teams found for this organization. Switch to "Create New Team" to register one.</p>
+                )}
+              </div>
+            ) : (
+              renderTeamCard(teams[0], 0, { showHeader: false, showCoachFields: false, showActions: false })
+            )}
           </div>
         )}
 
@@ -805,14 +849,21 @@ export default function TeamRegistration({ onDone }) {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-300">
                   <span className="text-gray-500">Organization:</span>
                   <span>{config?.organizations?.find(o => o.id === Number(coachOrgId))?.name || '—'}</span>
-                  <span className="text-gray-500">Team:</span>
-                  <span>{[teams[0].team_city, teams[0].team_color, teams[0].age_group, teams[0].level].filter(Boolean).join(' ') || '—'}</span>
-                  {teams[0].team_mascot && <><span className="text-gray-500">Mascot:</span><span>{teams[0].team_mascot}</span></>}
+                  {coachTeamMode === 'existing' ? (<>
+                    <span className="text-gray-500">Team:</span>
+                    <span>{config?.teams?.find(t => t.id === Number(coachTeamId))?.name || '—'}</span>
+                  </>) : (<>
+                    <span className="text-gray-500">Team (new):</span>
+                    <span>{[teams[0].team_city, teams[0].team_color, teams[0].age_group, teams[0].level].filter(Boolean).join(' ') || '—'}</span>
+                    {teams[0].team_mascot && <><span className="text-gray-500">Mascot:</span><span>{teams[0].team_mascot}</span></>}
+                  </>)}
                 </div>
-                <div className="flex gap-1 mt-2">
-                  <span className="w-5 h-5 rounded-full border border-gray-600" style={{ backgroundColor: teams[0].primary_color }} />
-                  <span className="w-5 h-5 rounded-full border border-gray-600" style={{ backgroundColor: teams[0].secondary_color }} />
-                </div>
+                {coachTeamMode === 'new' && (
+                  <div className="flex gap-1 mt-2">
+                    <span className="w-5 h-5 rounded-full border border-gray-600" style={{ backgroundColor: teams[0].primary_color }} />
+                    <span className="w-5 h-5 rounded-full border border-gray-600" style={{ backgroundColor: teams[0].secondary_color }} />
+                  </div>
+                )}
               </div>
             )}
 
