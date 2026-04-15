@@ -37,7 +37,13 @@ export default function App() {
     const [pendingGameId, setPendingGameId] = useState(null);
     const [showChangePassword, setShowChangePassword] = useState(false);
     const [showImportWizard, setShowImportWizard] = useState(false);
+    const [importWizardGameId, setImportWizardGameId] = useState(null);
     const [branding, setBranding] = useState({ app_name: 'ZVBL', logo_url: null });
+
+    function openImportWizard(gameId = null) {
+        setImportWizardGameId(gameId || null);
+        setShowImportWizard(true);
+    }
 
     useEffect(() => {
         if (!isAuthenticated) return;
@@ -149,7 +155,7 @@ export default function App() {
                 return isAdmin ? <LeagueConfig onBack={() => setPage("dashboard")} /> : null;
 
             case 'schedule':
-                return <GameSchedule onBack={() => setPage("dashboard")} onNavigateToTeam={navigateToTeam} initialGameId={pendingGameId} onGameIdConsumed={() => setPendingGameId(null)} />;
+                return <GameSchedule onBack={() => setPage("dashboard")} onNavigateToTeam={navigateToTeam} initialGameId={pendingGameId} onGameIdConsumed={() => setPendingGameId(null)} onOpenImport={openImportWizard} />;
 
             case 'standings':
                 return <Standings onBack={() => setPage("dashboard")} onNavigateToTeam={navigateToTeam} />;
@@ -161,7 +167,7 @@ export default function App() {
                 return <FieldsPage onViewGame={navigateToGame} />;
 
             case 'data':
-                return isAdmin ? <DataManager onOpenImport={() => setShowImportWizard(true)} /> : null;
+                return isAdmin ? <DataManager onOpenImport={() => openImportWizard()} /> : null;
 
             case 'officials':
                 return (isAdmin || isAccountant || isOrgAdmin) ? <OfficialsManager onBack={() => setPage("dashboard")} /> : null;
@@ -220,8 +226,9 @@ export default function App() {
             {showChangePassword && <ChangePassword onClose={() => setShowChangePassword(false)} />}
             <GameChangerImportWizard
                 open={showImportWizard}
-                onClose={() => setShowImportWizard(false)}
+                onClose={() => { setShowImportWizard(false); setImportWizardGameId(null); }}
                 onNavigate={setPage}
+                gameId={importWizardGameId}
             />
         </>
     );

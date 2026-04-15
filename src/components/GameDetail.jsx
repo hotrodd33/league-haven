@@ -32,7 +32,7 @@ function formatTime(timeStr) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
+export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImport }) {
   const { isAdmin, canEditTeam, canScoreGame } = useAuth();
   const [game, setGame] = useState(null);
   const [pitchCounts, setPitchCounts] = useState([]);
@@ -212,6 +212,14 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       {/* Back button + tracker */}
       <div className="flex items-center gap-2 mb-4">
         <button onClick={onBack} className={btnSecondary}>← Back to Schedule</button>
+        {onOpenImport && (userCanScore || userCanEdit) && (
+          <button
+            onClick={() => onOpenImport(game.id)}
+            className="px-3 py-2 bg-[#00AEEF] text-white text-sm font-semibold rounded-lg hover:brightness-105 transition"
+          >
+            Import from GC
+          </button>
+        )}
         {userCanScore && game.status !== 'completed' && (
           <button onClick={() => setShowTracker(true)} className="px-4 py-2 bg-amber-500 text-gray-900 text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
             ⚾ Pitch Tracker

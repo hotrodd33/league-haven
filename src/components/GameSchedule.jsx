@@ -93,7 +93,7 @@ function buildTimeSlots(startTime, endTime, increment) {
   return slots;
 }
 
-export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed }) {
+export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport }) {
   const { isAdmin, canScoreGame, role, isUmpire } = useAuth();
   const [games, setGames] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -270,7 +270,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   }
 
   if (selectedGameId) {
-    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} onNavigateToTeam={onNavigateToTeam} />;
+    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} onNavigateToTeam={onNavigateToTeam} onOpenImport={onOpenImport} />;
   }
 
   return (
