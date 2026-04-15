@@ -60,6 +60,13 @@ router.get('/', async (req, res) => {
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
       };
 
+      const fmt12 = (timeStr) => {
+        const [hh, mm] = timeStr.split(':').map(Number);
+        const ampm = hh >= 12 ? 'PM' : 'AM';
+        const h12 = hh % 12 || 12;
+        return `${h12}:${String(mm).padStart(2, '0')} ${ampm}`;
+      };
+
       return {
         id: `game-${g.game_id}`,
         location_id: Number(location_id),
@@ -70,7 +77,7 @@ router.get('/', async (req, res) => {
         start_time: fmt(prepStartMin),
         end_time: fmt(gameEndMin),
         game_id: g.game_id,
-        notes: `Game at ${gameTime.slice(0, 5)} — field reserved 3 hrs prior for prep`,
+        notes: `Game at ${fmt12(gameTime)} — field reserved 3 hrs prior for prep`,
         team_name: g.home_team_name,
         is_game: true,
       };
