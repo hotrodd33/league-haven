@@ -6,37 +6,17 @@ import {
   MapPinIcon, UserIcon,
 } from './icons.jsx';
 
-const mainNav = [
-  { key: 'dashboard',     label: 'Dashboard',     icon: HomeIcon },
-  { key: 'organizations', label: 'Organizations', icon: BuildingIcon },
-  { key: 'rosters',       label: 'Teams',         icon: UsersIcon },
-  { key: 'players',       label: 'Players',       icon: UserIcon },
-  { key: 'schedule',      label: 'Schedule',      icon: CalendarIcon },
-  { key: 'standings',     label: 'Standings',      icon: TrophyIcon },
-  { key: 'directory',     label: 'Directory',      icon: ClipboardIcon },
-  { key: 'fields',        label: 'Fields',          icon: MapPinIcon },
+const leagueNav = [
+  { key: 'dashboard', label: 'Dashboard', icon: HomeIcon },
+  { key: 'schedule',  label: 'Schedule',  icon: CalendarIcon },
+  { key: 'standings', label: 'Standings', icon: TrophyIcon },
+  { key: 'directory', label: 'Directory', icon: ClipboardIcon },
+  { key: 'fields',    label: 'Fields',    icon: MapPinIcon },
 ];
 
-const adminNav = [
-  { key: 'officials', label: 'Officials', icon: UserGroupIcon },
-  { key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon },
-  { key: 'league', label: 'League Config', icon: CogIcon },
-  { key: 'users',  label: 'Users',         icon: UserGroupIcon },
-  { key: 'data',   label: 'Data Manager',  icon: DatabaseIcon },
-];
-
-const accountantNav = [
-  { key: 'officials', label: 'Officials', icon: UserGroupIcon },
-  { key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon },
-];
-
-const orgAdminNav = [
-  { key: 'officials', label: 'Officials', icon: UserGroupIcon },
-  { key: 'approvals', label: 'Approvals', icon: ClipboardIcon },
-];
-
-const teamManagerNav = [
-  { key: 'approvals', label: 'Approvals', icon: ClipboardIcon },
+const teamNav = [
+  { key: 'rosters', label: 'Teams',   icon: UsersIcon },
+  { key: 'players', label: 'Players', icon: UserIcon },
 ];
 
 export default function Sidebar({
@@ -52,6 +32,27 @@ export default function Sidebar({
   mobileOpen = false,
   onCloseMobile,
 }) {
+  // Build Organization items based on role
+  const orgItems = [];
+  orgItems.push({ key: 'organizations', label: 'Organizations', icon: BuildingIcon });
+  if (isAdmin || isOrgAdmin || isAccountant) {
+    orgItems.push({ key: 'officials', label: 'Officials', icon: UserGroupIcon });
+  }
+  if (isAdmin || isOrgAdmin || isTeamManager) {
+    orgItems.push({ key: 'approvals', label: 'Approvals', icon: ClipboardIcon });
+  }
+
+  // Build Administration items based on role
+  const adminItems = [];
+  if (isAdmin || isAccountant) {
+    adminItems.push({ key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon });
+  }
+  if (isAdmin) {
+    adminItems.push({ key: 'league', label: 'League Config', icon: CogIcon });
+    adminItems.push({ key: 'users', label: 'Users', icon: UserGroupIcon });
+    adminItems.push({ key: 'data', label: 'Data Manager', icon: DatabaseIcon });
+  }
+
   return (
     <>
       {/* Mobile overlay */}
@@ -95,107 +96,14 @@ export default function Sidebar({
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 scrollbar-thin">
-          {mainNav.map((item) => (
-            <NavItem
-              key={item.key}
-              item={item}
-              active={page === item.key}
-              collapsed={collapsed}
-              onClick={() => { onNavigate(item.key); onCloseMobile?.(); }}
-            />
-          ))}
-
-          {isAdmin && (
-            <>
-              <div className={cn('pt-5 pb-2', collapsed ? 'px-2' : 'px-3')}>
-                {!collapsed ? (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
-                    Administration
-                  </p>
-                ) : (
-                  <div className="border-t border-white/10" />
-                )}
-              </div>
-              {adminNav.map((item) => (
-                <NavItem
-                  key={item.key}
-                  item={item}
-                  active={page === item.key}
-                  collapsed={collapsed}
-                  onClick={() => { onNavigate(item.key); onCloseMobile?.(); }}
-                />
-              ))}
-            </>
-          )}
-
-          {!isAdmin && isAccountant && (
-            <>
-              <div className={cn('pt-5 pb-2', collapsed ? 'px-2' : 'px-3')}>
-                {!collapsed ? (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
-                    Management
-                  </p>
-                ) : (
-                  <div className="border-t border-white/10" />
-                )}
-              </div>
-              {accountantNav.map((item) => (
-                <NavItem
-                  key={item.key}
-                  item={item}
-                  active={page === item.key}
-                  collapsed={collapsed}
-                  onClick={() => { onNavigate(item.key); onCloseMobile?.(); }}
-                />
-              ))}
-            </>
-          )}
-
-          {!isAdmin && !isAccountant && isOrgAdmin && (
-            <>
-              <div className={cn('pt-5 pb-2', collapsed ? 'px-2' : 'px-3')}>
-                {!collapsed ? (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
-                    Management
-                  </p>
-                ) : (
-                  <div className="border-t border-white/10" />
-                )}
-              </div>
-              {orgAdminNav.map((item) => (
-                <NavItem
-                  key={item.key}
-                  item={item}
-                  active={page === item.key}
-                  collapsed={collapsed}
-                  onClick={() => { onNavigate(item.key); onCloseMobile?.(); }}
-                />
-              ))}
-            </>
-          )}
-
-          {!isAdmin && !isAccountant && !isOrgAdmin && isTeamManager && (
-            <>
-              <div className={cn('pt-5 pb-2', collapsed ? 'px-2' : 'px-3')}>
-                {!collapsed ? (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
-                    Management
-                  </p>
-                ) : (
-                  <div className="border-t border-white/10" />
-                )}
-              </div>
-              {teamManagerNav.map((item) => (
-                <NavItem
-                  key={item.key}
-                  item={item}
-                  active={page === item.key}
-                  collapsed={collapsed}
-                  onClick={() => { onNavigate(item.key); onCloseMobile?.(); }}
-                />
-              ))}
-            </>
-          )}
+          <NavGroup label="League" items={leagueNav} page={page} collapsed={collapsed}
+            onNavigate={onNavigate} onCloseMobile={onCloseMobile} />
+          <NavGroup label="Teams & Players" items={teamNav} page={page} collapsed={collapsed}
+            onNavigate={onNavigate} onCloseMobile={onCloseMobile} />
+          <NavGroup label="Organization" items={orgItems} page={page} collapsed={collapsed}
+            onNavigate={onNavigate} onCloseMobile={onCloseMobile} />
+          <NavGroup label="Administration" items={adminItems} page={page} collapsed={collapsed}
+            onNavigate={onNavigate} onCloseMobile={onCloseMobile} />
         </nav>
 
         {/* Collapse toggle — desktop only */}
@@ -236,5 +144,31 @@ function NavItem({ item, active, collapsed, onClick }) {
       <Icon className="w-5 h-5 shrink-0" />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </button>
+  );
+}
+
+function NavGroup({ label, items, page, collapsed, onNavigate, onCloseMobile }) {
+  if (!items.length) return null;
+  return (
+    <>
+      <div className={cn('pt-5 pb-2', collapsed ? 'px-2' : 'px-3')}>
+        {!collapsed ? (
+          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
+            {label}
+          </p>
+        ) : (
+          <div className="border-t border-white/10" />
+        )}
+      </div>
+      {items.map((item) => (
+        <NavItem
+          key={item.key}
+          item={item}
+          active={page === item.key}
+          collapsed={collapsed}
+          onClick={() => { onNavigate(item.key); onCloseMobile?.(); }}
+        />
+      ))}
+    </>
   );
 }
