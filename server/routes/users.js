@@ -205,7 +205,7 @@ router.put('/:id/permissions', adminOnly, async (req, res) => {
             );
             staffId = newStaff[0].id;
           }
-          const staffRole = user.role === 'org_admin' ? 'travel_director'
+          const staffRole = user.role === 'org_admin' ? 'org_admin'
             : user.role === 'team_manager' ? 'head_coach' : 'scorekeeper';
           for (const teamId of staffTeamIds) {
             await client.query(
@@ -368,7 +368,7 @@ router.post('/:id/approve', authMiddleware, requireRole('super_admin', 'org_admi
           );
           staffId = newStaff[0].id;
         }
-        const staffRole = target.role === 'org_admin' ? 'travel_director'
+        const staffRole = target.role === 'org_admin' ? 'org_admin'
           : target.role === 'team_manager' ? 'head_coach' : 'scorekeeper';
         for (const teamId of staffTeamIds) {
           await pool.query(

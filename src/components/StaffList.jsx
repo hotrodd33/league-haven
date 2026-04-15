@@ -7,6 +7,7 @@ const ROLE_OPTIONS = [
   { value: 'head_coach', label: 'Head Coach' },
   { value: 'assistant_coach', label: 'Assistant Coach' },
   { value: 'travel_director', label: 'Travel Director' },
+  { value: 'scorekeeper', label: 'Scorekeeper' },
 ];
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
@@ -84,10 +85,13 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
   if (loading) return <div className="py-8 text-center text-gray-400">Loading staff…</div>;
   if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>;
 
+  const teamStaff = staff.filter(s => s.role !== 'org_admin');
+  const orgAdmins = staff.filter(s => s.role === 'org_admin');
+
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xl font-heading font-bold text-white">Coaches &amp; Staff ({staff.length})</h2>
+        <h2 className="text-xl font-heading font-bold text-white">Coaches &amp; Staff ({teamStaff.length})</h2>
         {editable && (
           <div className="flex gap-2">
             <button onClick={() => setShowAddExisting(!showAddExisting)}
@@ -145,7 +149,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
         </div>
       )}
 
-      {staff.length === 0 ? (
+      {teamStaff.length === 0 && orgAdmins.length === 0 ? (
         <div className="py-12 text-center text-gray-400">
           No coaches or staff assigned yet.
           {editable && (
@@ -172,7 +176,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
-                {staff.map((m) => (
+                {teamStaff.map((m) => (
                   <tr key={m.id} className="hover:bg-gray-900">
                     <td className="px-3 py-2">{m.role_label}</td>
                     <td className="px-3 py-2 font-semibold">{m.name}</td>
@@ -215,7 +219,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
-            {staff.map((m) => (
+            {teamStaff.map((m) => (
               <div key={m.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4 text-gray-200">
                 <div className="flex items-start justify-between mb-1">
                   <div>
@@ -254,6 +258,68 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
             ))}
           </div>
         </>
+      )}
+
+      {orgAdmins.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-heading font-bold text-white mb-2">Org Administrators ({orgAdmins.length})</h3>
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
+              <thead>
+                <tr className="bg-gray-800 border-b-2 border-gray-700">
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Email</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Phone</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {orgAdmins.map((m) => (
+                  <tr key={m.id} className="hover:bg-gray-900">
+                    <td className="px-3 py-2 font-semibold">{m.name}</td>
+                    <td className="px-3 py-2 break-all">
+                      <div className="flex items-center gap-1.5">
+                        <span>{m.email || '—'}</span>
+                        {m.email && (
+                          <button onClick={() => setContactModal({ scope: 'individual', scopeId: m.id, scopeLabel: m.name })}
+                            className="p-1 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded transition-colors" title="Email">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">{m.phone || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {orgAdmins.map((m) => (
+              <div key={m.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4 text-gray-200">
+                <div className="font-semibold">{m.name}</div>
+                <div className="text-sm text-gray-400 mb-1">Org Administrator</div>
+                <div className="text-sm text-gray-300 space-y-0.5">
+                  {m.email && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate">{m.email}</span>
+                      <button onClick={() => setContactModal({ scope: 'individual', scopeId: m.id, scopeLabel: m.name })}
+                        className="p-1 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded transition-colors shrink-0" title="Email">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  {m.phone && <div>{m.phone}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {showForm && (

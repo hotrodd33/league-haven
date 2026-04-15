@@ -124,7 +124,7 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS team_staff_assignments (
       team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
       staff_id INTEGER NOT NULL REFERENCES staff_members(id) ON DELETE CASCADE,
-      role TEXT NOT NULL CHECK(role IN ('head_coach','assistant_coach','travel_director','scorekeeper')),
+      role TEXT NOT NULL CHECK(role IN ('head_coach','assistant_coach','travel_director','scorekeeper','org_admin')),
       added_at TIMESTAMPTZ DEFAULT NOW(),
       PRIMARY KEY (team_id, staff_id)
     );
@@ -523,7 +523,7 @@ async function migrate() {
     DO $$ BEGIN
       ALTER TABLE team_staff_assignments DROP CONSTRAINT IF EXISTS team_staff_assignments_role_check;
       ALTER TABLE team_staff_assignments ADD CONSTRAINT team_staff_assignments_role_check
-        CHECK (role IN ('head_coach','assistant_coach','travel_director','scorekeeper'));
+        CHECK (role IN ('head_coach','assistant_coach','travel_director','scorekeeper','org_admin'));
     EXCEPTION WHEN undefined_object THEN NULL;
     END $$;
   `);
@@ -547,7 +547,7 @@ async function migrate() {
     WHERE u.role IN ('team_manager', 'score_reporter')
     ON CONFLICT (team_id, staff_id) DO NOTHING
   `);
-  // Org admins: add as travel_director to all teams in their orgs
+  // Org admins: add as org_admin to all teams in their orgs
   await pool.query(`
     INSERT INTO staff_members (name, email)
     SELECT u.name, u.email FROM users u
@@ -557,13 +557,13 @@ async function migrate() {
   `);
   await pool.query(`
     INSERT INTO team_staff_assignments (team_id, staff_id, role)
-    SELECT t.id, sm.id, 'travel_director'
+    SELECT t.id, sm.id, 'org_admin'
     FROM users u
     JOIN user_permissions up ON up.user_id = u.id AND up.org_id IS NOT NULL
     JOIN teams t ON t.org_id = up.org_id
     JOIN staff_members sm ON LOWER(sm.email) = LOWER(u.email)
     WHERE u.role = 'org_admin'
-    ON CONFLICT (team_id, staff_id) DO NOTHING
+    ON CONFLICT (team_id, staff_id) DO UPDATE SET role = 'org_admin'
   `);
 }
 
