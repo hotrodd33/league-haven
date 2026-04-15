@@ -34,6 +34,7 @@ export default function App() {
     const [editingPlayer, setEditingPlayer] = useState(null);
     const [refreshKey, setRefreshKey] = useState(0);
     const [page, setPage] = useState("dashboard");
+    const [pendingGameId, setPendingGameId] = useState(null);
     const [showChangePassword, setShowChangePassword] = useState(false);
     const [showImportWizard, setShowImportWizard] = useState(false);
     const [branding, setBranding] = useState({ app_name: 'ZVBL', logo_url: null });
@@ -69,6 +70,11 @@ export default function App() {
         setSelectedTeam(teamId);
         setSelectedTeamOrgId(orgId || null);
         setPage("rosters");
+    }
+
+    function navigateToGame(gameId) {
+        setPendingGameId(gameId);
+        setPage("schedule");
     }
 
     // Handle password reset token in URL (?reset=TOKEN)
@@ -143,7 +149,7 @@ export default function App() {
                 return isAdmin ? <LeagueConfig onBack={() => setPage("dashboard")} /> : null;
 
             case 'schedule':
-                return <GameSchedule onBack={() => setPage("dashboard")} onNavigateToTeam={navigateToTeam} />;
+                return <GameSchedule onBack={() => setPage("dashboard")} onNavigateToTeam={navigateToTeam} initialGameId={pendingGameId} onGameIdConsumed={() => setPendingGameId(null)} />;
 
             case 'standings':
                 return <Standings onBack={() => setPage("dashboard")} onNavigateToTeam={navigateToTeam} />;
@@ -152,7 +158,7 @@ export default function App() {
                 return <Directory onEditTeam={navigateToTeam} />;
 
             case 'fields':
-                return <FieldsPage />;
+                return <FieldsPage onViewGame={navigateToGame} />;
 
             case 'data':
                 return isAdmin ? <DataManager /> : null;

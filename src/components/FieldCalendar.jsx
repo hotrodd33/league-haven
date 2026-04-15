@@ -65,7 +65,7 @@ function dateKey(year, month, day) {
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
-export default function FieldCalendar({ field, onClose }) {
+export default function FieldCalendar({ field, onClose, onViewGame }) {
   const { canEditOrg } = useAuth();
   const editable = canEditOrg(field.org_id);
   const today = new Date();
@@ -251,6 +251,7 @@ export default function FieldCalendar({ field, onClose }) {
                         <EventCard key={ev.id} ev={ev} editable={editable && !ev.is_game}
                           onEdit={() => { setEditing(ev); setShowForm(true); }}
                           onDelete={() => handleDelete(ev)}
+                          onViewGame={onViewGame}
                           deleting={deleting} />
                       ))}
                     </div>
@@ -269,6 +270,7 @@ export default function FieldCalendar({ field, onClose }) {
                     <EventCard key={ev.id} ev={ev} editable={editable && !ev.is_game} showDate
                       onEdit={() => { setEditing(ev); setShowForm(true); }}
                       onDelete={() => handleDelete(ev)}
+                      onViewGame={onViewGame}
                       deleting={deleting} />
                   ))}
                 </div>
@@ -305,11 +307,16 @@ export default function FieldCalendar({ field, onClose }) {
   );
 }
 
-function EventCard({ ev, editable, showDate, onEdit, onDelete, deleting }) {
+function EventCard({ ev, editable, showDate, onEdit, onDelete, onViewGame, deleting }) {
   const c = EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
   const label = EVENT_LABELS[ev.event_type] || ev.event_type;
+  const gameClickable = ev.is_game && ev.game_id && onViewGame;
   return (
-    <div className={`rounded-lg border ${c.border} ${c.bg} px-4 py-3`}>
+    <div className={`rounded-lg border ${c.border} ${c.bg} px-4 py-3 ${gameClickable ? 'cursor-pointer hover:brightness-125 transition-all' : ''}`}
+      onClick={gameClickable ? () => onViewGame(ev.game_id) : undefined}
+      role={gameClickable ? 'button' : undefined}
+      tabIndex={gameClickable ? 0 : undefined}
+      onKeyDown={gameClickable ? (e) => { if (e.key === 'Enter') onViewGame(ev.game_id); } : undefined}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
@@ -318,6 +325,9 @@ function EventCard({ ev, editable, showDate, onEdit, onDelete, deleting }) {
               <span className="text-[10px] text-gray-400">
                 {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </span>
+            )}
+            {gameClickable && (
+              <span className="text-[10px] text-gray-400 underline">View Game →</span>
             )}
           </div>
           <div className="font-semibold text-sm text-white truncate">{ev.title}</div>

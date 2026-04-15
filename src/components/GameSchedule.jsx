@@ -94,7 +94,7 @@ function buildTimeSlots(startTime, endTime, increment) {
   return slots;
 }
 
-export default function GameSchedule({ onBack, onNavigateToTeam }) {
+export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed }) {
   const { isAdmin, canScoreGame, role, isUmpire } = useAuth();
   const [games, setGames] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -104,12 +104,17 @@ export default function GameSchedule({ onBack, onNavigateToTeam }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  const [selectedGameId, setSelectedGameId] = useState(null);
+  const [selectedGameId, setSelectedGameId] = useState(initialGameId || null);
   const [trackingGameId, setTrackingGameId] = useState(null);
   const [interestGameIds, setInterestGameIds] = useState([]);
   const [managingInterest, setManagingInterest] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const dateSectionRefs = useRef({});
+
+  // Consume initialGameId so it doesn't re-trigger on re-renders
+  useEffect(() => {
+    if (initialGameId && onGameIdConsumed) onGameIdConsumed();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filters
   const [filterTeam, setFilterTeam] = useState('');

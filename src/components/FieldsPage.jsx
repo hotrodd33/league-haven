@@ -74,7 +74,7 @@ function orgMarkerIcon(color) {
   });
 }
 
-export default function FieldsPage() {
+export default function FieldsPage({ onViewGame }) {
   const { canEditOrg, isAdmin, isAccountant, isOrgAdmin, role, permissions } = useAuth();
   const [locations, setLocations] = useState([]);
   const [orgs, setOrgs] = useState([]);
@@ -330,7 +330,7 @@ export default function FieldsPage() {
       )}
 
       {calendarField && (
-        <FieldCalendar field={calendarField} onClose={() => setCalendarField(null)} />
+        <FieldCalendar field={calendarField} onClose={() => setCalendarField(null)} onViewGame={onViewGame} />
       )}
     </div>
   );
