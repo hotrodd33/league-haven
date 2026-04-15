@@ -177,34 +177,48 @@ router.put('/:id/permissions', adminOnly, async (req, res) => {
         );
       }
 
-      // Sync staff records for coaches and scorekeepers
-      if ((user.role === 'team_manager' || user.role === 'score_reporter') && team_ids.length) {
-        let staffId;
-        const { rows: existingStaff } = await client.query(
-          'SELECT id FROM staff_members WHERE LOWER(email) = LOWER($1)',
-          [user.email]
-        );
-        if (existingStaff.length) {
-          staffId = existingStaff[0].id;
-        } else {
-          const { rows: newStaff } = await client.query(
-            'INSERT INTO staff_members (name, email) VALUES ($1, $2) RETURNING id',
-            [user.name, user.email]
+      // Sync staff records for coaches, scorekeepers, and org admins
+      const syncRoles = ['team_manager', 'score_reporter', 'org_admin'];
+      if (syncRoles.includes(user.role)) {
+        // Determine which teams this user should be staff on
+        let staffTeamIds = [...team_ids];
+        if (user.role === 'org_admin' && org_ids.length) {
+          const { rows: orgTeams } = await client.query(
+            'SELECT id FROM teams WHERE org_id = ANY($1)',
+            [org_ids]
           );
-          staffId = newStaff[0].id;
+          staffTeamIds = orgTeams.map(t => t.id);
         }
-        const staffRole = user.role === 'team_manager' ? 'head_coach' : 'scorekeeper';
-        for (const teamId of team_ids) {
+
+        if (staffTeamIds.length) {
+          let staffId;
+          const { rows: existingStaff } = await client.query(
+            'SELECT id FROM staff_members WHERE LOWER(email) = LOWER($1)',
+            [user.email]
+          );
+          if (existingStaff.length) {
+            staffId = existingStaff[0].id;
+          } else {
+            const { rows: newStaff } = await client.query(
+              'INSERT INTO staff_members (name, email) VALUES ($1, $2) RETURNING id',
+              [user.name, user.email]
+            );
+            staffId = newStaff[0].id;
+          }
+          const staffRole = user.role === 'org_admin' ? 'travel_director'
+            : user.role === 'team_manager' ? 'head_coach' : 'scorekeeper';
+          for (const teamId of staffTeamIds) {
+            await client.query(
+              'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3) ON CONFLICT (team_id, staff_id) DO UPDATE SET role = $3',
+              [teamId, staffId, staffRole]
+            );
+          }
+          // Remove staff assignments for teams no longer in permissions
           await client.query(
-            'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3) ON CONFLICT (team_id, staff_id) DO UPDATE SET role = $3',
-            [teamId, staffId, staffRole]
+            'DELETE FROM team_staff_assignments WHERE staff_id = $1 AND team_id != ALL($2)',
+            [staffId, staffTeamIds]
           );
         }
-        // Remove staff assignments for teams no longer in permissions
-        await client.query(
-          'DELETE FROM team_staff_assignments WHERE staff_id = $1 AND team_id != ALL($2)',
-          [staffId, team_ids]
-        );
       }
 
       await client.query('COMMIT');
@@ -317,12 +331,28 @@ router.post('/:id/approve', authMiddleware, requireRole('super_admin', 'org_admi
     await pool.query('UPDATE user_permissions SET is_active = TRUE WHERE user_id = $1', [id]);
 
     // Ensure staff record exists so they show under Coaches & Staff
-    if (target.role === 'score_reporter' || target.role === 'team_manager') {
-      const { rows: perms } = await pool.query(
-        'SELECT team_id FROM user_permissions WHERE user_id = $1 AND team_id IS NOT NULL',
-        [id]
-      );
-      if (perms.length) {
+    if (target.role === 'score_reporter' || target.role === 'team_manager' || target.role === 'org_admin') {
+      let staffTeamIds = [];
+      if (target.role === 'org_admin') {
+        // Org admins get added to all teams in their orgs
+        const { rows: orgPerms } = await pool.query(
+          'SELECT org_id FROM user_permissions WHERE user_id = $1 AND org_id IS NOT NULL', [id]
+        );
+        if (orgPerms.length) {
+          const { rows: orgTeams } = await pool.query(
+            'SELECT id FROM teams WHERE org_id = ANY($1)',
+            [orgPerms.map(p => p.org_id)]
+          );
+          staffTeamIds = orgTeams.map(t => t.id);
+        }
+      } else {
+        const { rows: perms } = await pool.query(
+          'SELECT team_id FROM user_permissions WHERE user_id = $1 AND team_id IS NOT NULL', [id]
+        );
+        staffTeamIds = perms.map(p => p.team_id);
+      }
+
+      if (staffTeamIds.length) {
         // Find or create staff_members record
         let staffId;
         const { rows: existingStaff } = await pool.query(
@@ -338,11 +368,12 @@ router.post('/:id/approve', authMiddleware, requireRole('super_admin', 'org_admi
           );
           staffId = newStaff[0].id;
         }
-        const staffRole = target.role === 'team_manager' ? 'head_coach' : 'scorekeeper';
-        for (const p of perms) {
+        const staffRole = target.role === 'org_admin' ? 'travel_director'
+          : target.role === 'team_manager' ? 'head_coach' : 'scorekeeper';
+        for (const teamId of staffTeamIds) {
           await pool.query(
             'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-            [p.team_id, staffId, staffRole]
+            [teamId, staffId, staffRole]
           );
         }
       }
