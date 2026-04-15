@@ -940,6 +940,9 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                           {c.created_by_email}
                         </a></>
                       )}
+                      {c.created_at && (
+                        <span className="ml-1 text-amber-400">on {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                      )}
                     </div>
                   )}
                 </div>

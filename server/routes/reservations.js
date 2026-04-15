@@ -103,7 +103,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Conflict check: overlapping reservations (include contact info for notifications)
     const { rows: conflicts } = await pool.query(
-      `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type, r.team_id,
+      `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type, r.team_id, r.created_at,
               t.name AS team_name, u.name AS created_by_name, u.email AS created_by_email
        FROM field_reservations r
        LEFT JOIN teams t ON t.id = r.team_id
@@ -148,6 +148,7 @@ router.post('/', authMiddleware, async (req, res) => {
           team_name: c.team_name,
           created_by_name: c.created_by_name,
           created_by_email: c.created_by_email,
+          created_at: c.created_at,
         })),
         game_conflicts: gameOverlaps.map(g => ({ id: g.id, type: 'game' })),
       });
@@ -198,7 +199,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Conflict check (excluding self)
     const { rows: conflicts } = await pool.query(
-      `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type,
+      `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type, r.created_at,
               t.name AS team_name, u.name AS created_by_name, u.email AS created_by_email
        FROM field_reservations r
        LEFT JOIN teams t ON t.id = r.team_id
@@ -237,6 +238,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
           team_name: c.team_name,
           created_by_name: c.created_by_name,
           created_by_email: c.created_by_email,
+          created_at: c.created_at,
         })),
         game_conflicts: gameOverlaps.map(g => ({ id: g.id, type: 'game' })),
       });
@@ -308,7 +310,7 @@ router.get('/check-game-conflicts', async (req, res) => {
 
     // Find overlapping reservations
     const { rows: conflicts } = await pool.query(
-      `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type, r.team_id,
+      `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type, r.team_id, r.created_at,
               t.name AS team_name, u.name AS created_by_name, u.email AS created_by_email
        FROM field_reservations r
        LEFT JOIN teams t ON t.id = r.team_id
@@ -328,6 +330,7 @@ router.get('/check-game-conflicts', async (req, res) => {
         team_name: c.team_name,
         created_by_name: c.created_by_name,
         created_by_email: c.created_by_email,
+        created_at: c.created_at,
       })),
     });
   } catch (err) {

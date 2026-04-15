@@ -331,6 +331,9 @@ function EventCard({ ev, editable, showDate, onEdit, onDelete, deleting }) {
               {ev.created_by_email && (
                 <> — <a href={`mailto:${ev.created_by_email}`} className="text-blue-400 underline hover:text-blue-300">{ev.created_by_email}</a></>
               )}
+              {ev.created_at && (
+                <span className="ml-1">on {new Date(ev.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(ev.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+              )}
             </div>
           )}
           {ev.notes && <div className="text-xs text-gray-400 mt-1">{ev.notes}</div>}
@@ -473,6 +476,9 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
                     <div>Booked by: <span className="font-semibold text-white">{c.created_by_name}</span>
                       {c.created_by_email && (
                         <> — <a href={`mailto:${c.created_by_email}`} className="text-blue-400 underline hover:text-blue-300">{c.created_by_email}</a></>
+                      )}
+                      {c.created_at && (
+                        <span className="ml-1 text-amber-400">on {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
                       )}
                     </div>
                   )}
