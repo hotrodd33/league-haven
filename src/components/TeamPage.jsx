@@ -103,7 +103,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
       )}
 
       {/* Tab bar */}
-      <div className="border-b border-gray-700 bg-gray-800 sticky top-0 z-10">
+      <div className="border-b border-gray-700 bg-gray-800">
         <nav className="flex -mb-px overflow-x-auto" aria-label="Team tabs">
           {TABS.map(tab => {
             const Icon = tab.icon;
