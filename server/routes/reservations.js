@@ -346,4 +346,25 @@ router.get('/check-game-conflicts', async (req, res) => {
   }
 });
 
+// ── GET /reservations/team/:teamId ──
+// Returns practices/events for a specific team (no auth required, public data)
+router.get('/team/:teamId', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { rows } = await pool.query(
+      `SELECT r.*, fl.name AS location_name, fl.address AS location_address,
+              fl.city AS location_city, fl.state AS location_state
+       FROM field_reservations r
+       LEFT JOIN field_locations fl ON fl.id = r.location_id
+       WHERE r.team_id = $1
+       ORDER BY r.event_date, r.start_time`,
+      [teamId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Fetch team reservations error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

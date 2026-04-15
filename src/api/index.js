@@ -449,6 +449,10 @@ export async function fetchReservations(locationId, from, to) {
   return apiFetch(`/reservations?${params}`);
 }
 
+export async function fetchTeamPractices(teamId) {
+  return apiFetch(`/reservations/team/${teamId}`);
+}
+
 export async function createReservation(data) {
   return apiFetch('/reservations', {
     method: 'POST',

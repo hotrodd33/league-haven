@@ -42,6 +42,10 @@ function uid(gameId) {
   return `game-${gameId}@zvbl`;
 }
 
+function practiceUid(reservationId) {
+  return `practice-${reservationId}@zvbl`;
+}
+
 /* ── GET /games.ics ── */
 
 router.get('/games.ics', async (req, res) => {
@@ -197,6 +201,70 @@ router.get('/games.ics', async (req, res) => {
       else lines.push('STATUS:TENTATIVE');
 
       lines.push('END:VEVENT');
+    }
+
+    // ── Practices / team events (when team_id is specified) ──
+    if (team_id) {
+      const { rows: practices } = await pool.query(
+        `SELECT r.id, r.title, r.event_type, r.event_date, r.start_time, r.end_time,
+                r.notes, r.created_at,
+                fl.name AS location_name, fl.address AS location_address,
+                fl.city AS location_city, fl.state AS location_state
+         FROM field_reservations r
+         LEFT JOIN field_locations fl ON fl.id = r.location_id
+         WHERE r.team_id = $1
+         ORDER BY r.event_date, r.start_time`,
+        [team_id]
+      );
+
+      for (const p of practices) {
+        let eventDate = p.event_date;
+        if (eventDate instanceof Date) eventDate = eventDate.toISOString().slice(0, 10);
+        else if (typeof eventDate === 'string' && eventDate.length > 10) eventDate = eventDate.slice(0, 10);
+
+        const typeLabel = p.event_type === 'practice' ? 'Practice'
+          : p.event_type === 'event' ? 'Event' : p.event_type || 'Practice';
+        const summary = `[${typeLabel}] ${p.title}`;
+
+        const locParts = [p.location_name, p.location_address, p.location_city, p.location_state].filter(Boolean);
+        const location = locParts.join(', ');
+
+        const descParts = [`Type: ${typeLabel}`];
+        if (p.notes) descParts.push(`Notes: ${p.notes}`);
+        const description = descParts.join('\\n');
+
+        const startTime = p.start_time ? String(p.start_time).slice(0, 5) : null;
+        const endTime = p.end_time ? String(p.end_time).slice(0, 5) : null;
+
+        const dtstart = formatICSDate(eventDate, startTime);
+        const pStamp = p.created_at
+          ? new Date(p.created_at).toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
+          : new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+
+        lines.push('BEGIN:VEVENT');
+        lines.push(foldLine(`UID:${practiceUid(p.id)}`));
+        lines.push(foldLine(`DTSTAMP:${pStamp}`));
+
+        if (!startTime) {
+          lines.push(foldLine(`DTSTART;VALUE=DATE:${dtstart}`));
+          const nextDay = new Date(eventDate + 'T00:00:00');
+          nextDay.setDate(nextDay.getDate() + 1);
+          const nd = nextDay.toISOString().slice(0, 10).replace(/-/g, '');
+          lines.push(foldLine(`DTEND;VALUE=DATE:${nd}`));
+        } else {
+          lines.push(foldLine(`DTSTART;TZID=America/New_York:${dtstart}`));
+          if (endTime) {
+            const dtend = formatICSDate(eventDate, endTime);
+            lines.push(foldLine(`DTEND;TZID=America/New_York:${dtend}`));
+          }
+        }
+
+        lines.push(foldLine(`SUMMARY:${esc(summary)}`));
+        if (location) lines.push(foldLine(`LOCATION:${esc(location)}`));
+        if (description) lines.push(foldLine(`DESCRIPTION:${esc(description)}`));
+        lines.push('STATUS:CONFIRMED');
+        lines.push('END:VEVENT');
+      }
     }
 
     lines.push('END:VCALENDAR');
