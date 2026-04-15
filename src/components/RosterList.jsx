@@ -201,7 +201,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                     {editable && (
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex gap-1">
-                          <button onClick={() => onEditPlayer(player)} className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
+                          <button onClick={() => onViewPlayer?.(player.id)} className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
                           <button onClick={() => handleRemoveFromTeam(player)} disabled={deleting === player.id}
                             className="px-2 py-1 text-xs font-semibold bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-60"
                             title="Remove from this team only">
@@ -234,7 +234,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                   </div>
                   {editable && (
                     <div className="flex gap-1.5 shrink-0">
-                      <button onClick={() => onEditPlayer(player)} className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
+                      <button onClick={() => onViewPlayer?.(player.id)} className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
                       <button onClick={() => handleRemoveFromTeam(player)} disabled={deleting === player.id}
                         className="px-2.5 py-1 text-xs font-semibold bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-60">
                         {deleting === player.id ? '…' : 'Remove'}
