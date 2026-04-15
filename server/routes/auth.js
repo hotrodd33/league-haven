@@ -486,6 +486,7 @@ router.post('/register-director', async (req, res) => {
   const client = await pool.connect();
   try {
     const { director, organization, teams } = req.body;
+    const teamList = Array.isArray(teams) ? teams : [];
 
     // ── Validate director ──
     if (!director?.username || !director?.password || !director?.name || !director?.email) {
@@ -502,15 +503,12 @@ router.post('/register-director', async (req, res) => {
       return res.status(400).json({ error: 'Please select an existing organization or provide a name for a new one' });
     }
 
-    // ── Validate teams ──
-    if (!teams || !teams.length) {
-      return res.status(400).json({ error: 'At least one team is required' });
-    }
-    for (let i = 0; i < teams.length; i++) {
-      if (!teams[i].team_city) {
+    // ── Validate teams (optional) ──
+    for (let i = 0; i < teamList.length; i++) {
+      if (!teamList[i].team_city) {
         return res.status(400).json({ error: `Team ${i + 1}: city is required` });
       }
-      if (!teams[i].age_group) {
+      if (!teamList[i].age_group) {
         return res.status(400).json({ error: `Team ${i + 1}: age group is required` });
       }
     }
@@ -571,7 +569,7 @@ router.post('/register-director', async (req, res) => {
     const coachEmails = []; // track to send emails after commit
     const teamIds = [];
 
-    for (const t of teams) {
+    for (const t of teamList) {
       // Build team name
       const name = [t.team_city, t.team_color, t.age_group, t.level].filter(Boolean).join(' ');
       let abbr = '';
@@ -669,6 +667,7 @@ router.post('/register-director', async (req, res) => {
       message: 'Registration successful. Please check your email to confirm your account. Your organization access will be activated once approved by the league.',
       teams_created: teamIds.length,
       coaches_invited: coachEmails.length,
+      teams_skipped: teamList.length === 0,
     });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});

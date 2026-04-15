@@ -57,6 +57,7 @@ export default function TeamRegistration({ onDone }) {
 
   // Director: Teams (array) / Coach: single team (teams[0])
   const [teams, setTeams] = useState([{ ...EMPTY_TEAM }]);
+  const [directorSkipTeams, setDirectorSkipTeams] = useState(false);
 
   // Coach: selected org + team mode
   const [coachOrgId, setCoachOrgId] = useState('');
@@ -103,6 +104,7 @@ export default function TeamRegistration({ onDone }) {
   }
 
   function validateTeams() {
+    if (directorSkipTeams) return null;
     for (let i = 0; i < teams.length; i++) {
       if (!teams[i].team_city.trim()) return `Team ${i + 1}: city is required`;
       if (!teams[i].age_group) return `Team ${i + 1}: age group is required`;
@@ -225,7 +227,7 @@ export default function TeamRegistration({ onDone }) {
                 contact_email: newOrg.contact_email.trim() || null,
                 contact_phone: newOrg.contact_phone.trim() || null,
               },
-          teams: teams.map(t => ({
+          teams: directorSkipTeams ? [] : teams.map(t => ({
             team_city: t.team_city.trim(),
             team_mascot: t.team_mascot.trim() || null,
             team_color: t.team_color.trim() || null,
@@ -647,11 +649,29 @@ export default function TeamRegistration({ onDone }) {
         {/* ─── Director: Teams ─── */}
         {currentStepKey === 'teams' && (
           <div className="space-y-4">
-            {teams.map((team, i) => renderTeamCard(team, i, { showCoachFields: true, showActions: true }))}
-            <button type="button" onClick={addTeam}
-              className="w-full py-2 border-2 border-dashed border-gray-600 rounded-lg text-sm font-semibold text-gray-400 hover:border-blue-500 hover:text-blue-400 transition-colors">
-              + Add Another Team
-            </button>
+            <label className="flex items-center gap-2 cursor-pointer bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
+              <input
+                type="checkbox"
+                checked={directorSkipTeams}
+                onChange={(e) => setDirectorSkipTeams(e.target.checked)}
+                className="w-4 h-4 bg-gray-900 border border-gray-600 rounded"
+              />
+              <span className="text-sm text-gray-300">I don't have teams to register yet (skip for now)</span>
+            </label>
+
+            {directorSkipTeams ? (
+              <p className="text-xs text-gray-400 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
+                You can complete org admin registration now and add teams later from the Teams page.
+              </p>
+            ) : (
+              <>
+                {teams.map((team, i) => renderTeamCard(team, i, { showCoachFields: true, showActions: true }))}
+                <button type="button" onClick={addTeam}
+                  className="w-full py-2 border-2 border-dashed border-gray-600 rounded-lg text-sm font-semibold text-gray-400 hover:border-blue-500 hover:text-blue-400 transition-colors">
+                  + Add Another Team
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -821,24 +841,28 @@ export default function TeamRegistration({ onDone }) {
             {role === 'director' && (
               <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Teams ({teams.length})</h3>
-                <div className="space-y-3">
-                  {teams.map((t, i) => {
-                    const teamName = [t.team_city, t.team_color, t.age_group, t.level].filter(Boolean).join(' ');
-                    return (
-                      <div key={i} className="flex items-start justify-between border-b border-gray-700 pb-2 last:border-0 last:pb-0">
-                        <div>
-                          <p className="text-gray-200 font-semibold">{teamName || `Team ${i + 1}`}</p>
-                          {t.team_mascot && <p className="text-xs text-gray-400">Mascot: {t.team_mascot}</p>}
-                          {t.coach_name && <p className="text-xs text-gray-400">Coach: {t.coach_name} {t.coach_email ? `(${t.coach_email})` : ''}</p>}
+                {directorSkipTeams ? (
+                  <p className="text-gray-300 text-sm">No teams will be created right now. You can add teams later.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {teams.map((t, i) => {
+                      const teamName = [t.team_city, t.team_color, t.age_group, t.level].filter(Boolean).join(' ');
+                      return (
+                        <div key={i} className="flex items-start justify-between border-b border-gray-700 pb-2 last:border-0 last:pb-0">
+                          <div>
+                            <p className="text-gray-200 font-semibold">{teamName || `Team ${i + 1}`}</p>
+                            {t.team_mascot && <p className="text-xs text-gray-400">Mascot: {t.team_mascot}</p>}
+                            {t.coach_name && <p className="text-xs text-gray-400">Coach: {t.coach_name} {t.coach_email ? `(${t.coach_email})` : ''}</p>}
+                          </div>
+                          <div className="flex gap-1">
+                            <span className="w-5 h-5 rounded-full border border-gray-600" style={{ backgroundColor: t.primary_color }} />
+                            <span className="w-5 h-5 rounded-full border border-gray-600" style={{ backgroundColor: t.secondary_color }} />
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <span className="w-5 h-5 rounded-full border border-gray-600" style={{ backgroundColor: t.primary_color }} />
-                          <span className="w-5 h-5 rounded-full border border-gray-600" style={{ backgroundColor: t.secondary_color }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
