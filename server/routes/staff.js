@@ -1,6 +1,9 @@
 const express = require('express');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
 const { authMiddleware, canEditTeam } = require('../auth');
+const { sendCoachInviteEmail } = require('../email');
 
 const router = express.Router();
 
@@ -59,39 +62,128 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Map staff role to user role
+const STAFF_ROLE_TO_USER_ROLE = {
+  head_coach: 'team_manager',
+  assistant_coach: 'team_manager',
+  scorekeeper: 'score_reporter',
+};
+
 // Create a new staff member and optionally assign to a team
 router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { team_id, name, role, email, phone } = req.body;
+    const { team_id, name, role, email, phone, create_account } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
     if (team_id) {
       if (!role) return res.status(400).json({ error: 'role is required when assigning to a team' });
       if (!VALID_ROLES.includes(role)) return res.status(400).json({ error: 'role must be one of: ' + VALID_ROLES.join(', ') });
       if (!(await canEditTeam(req.user, team_id))) return res.status(403).json({ error: 'No permission for this team' });
-      const { rows: teamCheck } = await client.query('SELECT id FROM teams WHERE id = $1', [team_id]);
+      const { rows: teamCheck } = await client.query('SELECT id, name as team_name FROM teams WHERE id = $1', [team_id]);
       if (!teamCheck.length) return res.status(400).json({ error: 'Team not found' });
     }
 
     await client.query('BEGIN');
-    const { rows } = await client.query(
-      'INSERT INTO staff_members (name, email, phone) VALUES ($1, $2, $3) RETURNING *',
-      [name, email || null, phone || null]
-    );
-    const staffId = rows[0].id;
+
+    // Check for existing staff with same email to avoid duplicates
+    let staffId;
+    let staffRow;
+    if (email) {
+      const { rows: existingStaff } = await client.query(
+        'SELECT * FROM staff_members WHERE LOWER(email) = LOWER($1)', [email]
+      );
+      if (existingStaff.length) {
+        staffRow = existingStaff[0];
+        staffId = staffRow.id;
+        // Update name/phone if provided
+        await client.query(
+          'UPDATE staff_members SET name = $1, phone = COALESCE($2, phone) WHERE id = $3',
+          [name, phone || null, staffId]
+        );
+        staffRow.name = name;
+        if (phone) staffRow.phone = phone;
+      }
+    }
+
+    if (!staffId) {
+      const { rows } = await client.query(
+        'INSERT INTO staff_members (name, email, phone) VALUES ($1, $2, $3) RETURNING *',
+        [name, email || null, phone || null]
+      );
+      staffRow = rows[0];
+      staffId = rows[0].id;
+    }
 
     if (team_id) {
       await client.query(
-        'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3)',
+        'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3) ON CONFLICT (team_id, staff_id) DO UPDATE SET role = $3',
         [team_id, staffId, role]
       );
     }
+
+    // Create user account if requested and email is provided
+    let account_created = false;
+    let account_existing = false;
+    if (create_account && email && team_id) {
+      const userRole = STAFF_ROLE_TO_USER_ROLE[role] || 'score_reporter';
+
+      // Check if user already exists with this email
+      const { rows: existingUser } = await client.query(
+        'SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]
+      );
+
+      if (existingUser.length) {
+        // User exists — just add team permission
+        await client.query(
+          'INSERT INTO user_permissions (user_id, team_id, is_active) VALUES ($1, $2, TRUE) ON CONFLICT DO NOTHING',
+          [existingUser[0].id, team_id]
+        );
+        account_existing = true;
+      } else {
+        // Create new user account with temp password
+        const emailLower = email.toLowerCase().trim();
+        const { rows: usernameCheck } = await client.query('SELECT id FROM users WHERE username = $1', [emailLower]);
+        const username = usernameCheck.length ? `staff_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` : emailLower;
+
+        const tempPassword = crypto.randomBytes(6).toString('base64url').slice(0, 10);
+        const hash = await bcrypt.hash(tempPassword, 10);
+
+        const { rows: userRows } = await client.query(
+          `INSERT INTO users (username, password_hash, name, email, role, email_confirmed, approval_status)
+           VALUES ($1, $2, $3, $4, $5, TRUE, 'approved') RETURNING id`,
+          [username, hash, name, emailLower, userRole]
+        );
+
+        // Grant team permission (active immediately since admin-created)
+        await client.query(
+          'INSERT INTO user_permissions (user_id, team_id, is_active) VALUES ($1, $2, TRUE) ON CONFLICT DO NOTHING',
+          [userRows[0].id, team_id]
+        );
+
+        // Send invite email with credentials (after commit)
+        const { rows: teamInfo } = await client.query('SELECT name FROM teams WHERE id = $1', [team_id]);
+        const teamName = teamInfo[0]?.name || 'your team';
+        // Defer email sending until after commit
+        client._pendingInvite = { email: emailLower, name, tempPassword, teamName };
+        account_created = true;
+      }
+    }
+
     await client.query('COMMIT');
 
-    res.status(201).json(addLabel({ ...rows[0], role }));
+    // Send invite email after successful commit
+    if (client._pendingInvite) {
+      const inv = client._pendingInvite;
+      sendCoachInviteEmail(inv.email, inv.name, inv.tempPassword, inv.teamName).catch((err) => {
+        console.error('[STAFF] Failed to send invite email:', err);
+      });
+    }
+
+    res.status(201).json(addLabel({ ...staffRow, role, account_created, account_existing }));
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
+    if (err.code === '23505') return res.status(409).json({ error: 'A duplicate entry was detected.' });
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
@@ -173,13 +265,27 @@ router.post('/assign', authMiddleware, async (req, res) => {
     if (!VALID_ROLES.includes(role)) return res.status(400).json({ error: 'role must be one of: ' + VALID_ROLES.join(', ') });
     if (!(await canEditTeam(req.user, team_id))) return res.status(403).json({ error: 'No permission for this team' });
 
-    const { rows: staffCheck } = await pool.query('SELECT id FROM staff_members WHERE id = $1', [staff_id]);
+    const { rows: staffCheck } = await pool.query('SELECT id, email FROM staff_members WHERE id = $1', [staff_id]);
     if (!staffCheck.length) return res.status(404).json({ error: 'Staff member not found' });
 
     await pool.query(
       'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
       [team_id, staff_id, role]
     );
+
+    // Sync user permissions if staff has a linked user account
+    if (staffCheck[0].email) {
+      const { rows: linkedUser } = await pool.query(
+        'SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [staffCheck[0].email]
+      );
+      if (linkedUser.length) {
+        await pool.query(
+          'INSERT INTO user_permissions (user_id, team_id, is_active) VALUES ($1, $2, TRUE) ON CONFLICT DO NOTHING',
+          [linkedUser[0].id, team_id]
+        );
+      }
+    }
+
     res.status(201).json({ success: true });
   } catch (err) {
     console.error(err);

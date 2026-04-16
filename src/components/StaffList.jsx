@@ -345,20 +345,38 @@ function StaffForm({ teamId, staff, onDone, onCancel }) {
   const isEditing = !!staff;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
   const [form, setForm] = useState({
     name: staff?.name || '', role: staff?.role || 'head_coach',
     email: staff?.email || '', phone: staff?.phone || '',
+    create_account: true,
   });
 
   function handleChange(e) { setForm((prev) => ({ ...prev, [e.target.name]: e.target.value })); }
 
   async function handleSubmit(e) {
-    e.preventDefault(); setSaving(true); setError(null);
-    const data = { team_id: teamId, name: form.name.trim(), role: form.role, email: form.email.trim() || null, phone: form.phone.trim() || null };
+    e.preventDefault(); setSaving(true); setError(null); setResult(null);
+    const data = {
+      team_id: teamId, name: form.name.trim(), role: form.role,
+      email: form.email.trim() || null, phone: form.phone.trim() || null,
+      create_account: !isEditing && form.create_account && !!form.email.trim(),
+    };
     try {
-      if (isEditing) await updateStaff(staff.id, data);
-      else await createStaff(data);
-      onDone();
+      if (isEditing) {
+        await updateStaff(staff.id, data);
+        onDone();
+      } else {
+        const res = await createStaff(data);
+        if (res.account_created) {
+          setResult('Staff member added and user account created. An invite email has been sent with login credentials.');
+          setTimeout(onDone, 2500);
+        } else if (res.account_existing) {
+          setResult('Staff member added. An existing user account was found and team access has been granted.');
+          setTimeout(onDone, 2500);
+        } else {
+          onDone();
+        }
+      }
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   }
@@ -391,7 +409,22 @@ function StaffForm({ teamId, staff, onDone, onCancel }) {
             </div>
           </div>
 
+          {!isEditing && form.email.trim() && (
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.create_account}
+                onChange={e => setForm(prev => ({ ...prev, create_account: e.target.checked }))}
+                className="mt-0.5 rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500/30" />
+              <div>
+                <span className="text-sm font-semibold text-gray-200">Create user account</span>
+                <p className="text-xs text-gray-400">
+                  A login account will be created using their email. They will receive an invite email with temporary credentials.
+                </p>
+              </div>
+            </label>
+          )}
+
           {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {result && <div className="bg-green-900/30 text-green-400 text-sm px-3 py-2 rounded-lg">{result}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
