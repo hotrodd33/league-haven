@@ -81,7 +81,7 @@ async function migrate() {
       throwing_hand TEXT CHECK(throwing_hand IN ('R','L') OR throwing_hand IS NULL),
       parent_email TEXT,
       parent_phone TEXT,
-      grade TEXT CHECK(grade IN ('K','1','2','3','4','5','6','7','8','9') OR grade IS NULL),
+      grade TEXT CHECK(grade IN ('Pre K','K','1','2','3','4','5','6','7','8','9','10','11','12') OR grade IS NULL),
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );

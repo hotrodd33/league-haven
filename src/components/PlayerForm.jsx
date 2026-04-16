@@ -3,7 +3,7 @@ import { fetchPositions, createPlayer, updatePlayer } from '../api/index.js';
 
 const BATTING_OPTIONS = ['R', 'L', 'S'];
 const THROWING_OPTIONS = ['R', 'L'];
-const GRADE_OPTIONS = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+const GRADE_OPTIONS = ['Pre K', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 const RELATIONSHIP_OPTIONS = ['parent', 'guardian', 'emergency', 'other'];
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";

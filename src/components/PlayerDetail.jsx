@@ -75,7 +75,7 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit
 /* ─── Info Tab ─── */
 const BATTING_OPTIONS = ['R', 'L', 'S'];
 const THROWING_OPTIONS = ['R', 'L'];
-const GRADE_OPTIONS = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+const GRADE_OPTIONS = ['Pre K', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
   const [editing, setEditing] = useState(false);
