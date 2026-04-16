@@ -145,7 +145,7 @@ router.post('/', authMiddleware, async (req, res) => {
         </div>
         <div style="white-space:pre-wrap;line-height:1.6;color:#333;">${escapeHtml(body.trim())}</div>
         <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;color:#888;font-size:13px;">
-          Sent by ${escapeHtml(senderName)} via <a href="${process.env.APP_URL || 'https://portal.zvbl.org'}" style="color:#1d4ed8;">LeagueHaven</a>
+          Sent by ${escapeHtml(senderName)} via <a href="${process.env.APP_URL || 'https://leaguehaven.com'}" style="color:#1d4ed8;">LeagueHaven</a>
         </div>
       </div>
     `;
@@ -156,7 +156,7 @@ router.post('/', authMiddleware, async (req, res) => {
     } else {
       // Send as BCC so recipients don't see each other's emails
       await sendEmail({
-        to: process.env.FROM_EMAIL || 'noreply@zvbl.org',
+        to: process.env.FROM_EMAIL || 'noreply@leaguehaven.com',
         bcc: unique.map(r => r.email),
         subject: subject.trim(),
         html,

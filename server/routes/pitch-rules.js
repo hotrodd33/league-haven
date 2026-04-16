@@ -4,7 +4,7 @@ const { authMiddleware } = require('../auth');
 
 const router = express.Router();
 
-// ── ZVBL Pitch Count Rules ──
+// ── Pitch Count Rules ──
 const RULES = {
   '9u-12u': {
     dailyLimit: 50,

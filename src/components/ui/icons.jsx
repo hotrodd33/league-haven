@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   ZVBL Icon Set — Clean SVG icons (Heroicons-inspired)
+   LeagueHaven Icon Set — Clean SVG icons (Heroicons-inspired)
    Usage: <IconName className="w-5 h-5" />
    ═══════════════════════════════════════════════════════ */
 

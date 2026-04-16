@@ -107,7 +107,7 @@ export async function validateCredentials(credentials) {
   return response.json();
 }
 
-// ── Custom meta via ZVBL plugin ──
+// ── Custom meta via LeagueHaven plugin ──
 
 async function savePlayerMeta(credentials, playerId, meta) {
   const url = `${credentials.siteUrl}/wp-json/zvbl/v1/player-meta/${playerId}`;
@@ -155,7 +155,7 @@ function buildPlayerBody(data) {
     body.number = Number(data.jerseyNumber);
   }
 
-  // Custom meta fields — saved via ZVBL plugin endpoint
+  // Custom meta fields — saved via LeagueHaven plugin endpoint
   const meta = {};
   if (data.dateOfBirth !== undefined) {
     meta.zvbl_date_of_birth = data.dateOfBirth;

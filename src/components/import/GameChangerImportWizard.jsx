@@ -21,7 +21,7 @@ import { importGameChanger, previewGameChanger, fetchPlayersByTeam, fetchTeams }
    GameChanger Import Wizard
    ═══════════════════════════════════════════════════════
    A polished 6-step drawer wizard for importing data
-   from GameChanger into the ZVBL system.
+   from GameChanger into the LeagueHaven system.
 
    Steps:
      1. Choose Import Type

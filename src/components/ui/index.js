@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   ZVBL Design System — Barrel Export
+   LeagueHaven Design System — Barrel Export
    import { Button, Card, CardBody, Badge } from './ui';
    ═══════════════════════════════════════════════════════ */
 

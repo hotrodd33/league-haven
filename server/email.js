@@ -4,8 +4,8 @@ if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-const FROM_EMAIL = process.env.FROM_EMAIL || 'ZVBL <noreply@zvbl.org>';
-const APP_URL = process.env.APP_URL || 'https://portal.zvbl.org';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'LeagueHaven <noreply@leaguehaven.com>';
+const APP_URL = process.env.APP_URL || 'https://leaguehaven.com';
 
 async function sendEmail({ to, bcc, subject, html }) {
   if (!process.env.SENDGRID_API_KEY) {
@@ -28,10 +28,10 @@ async function sendEmail({ to, bcc, subject, html }) {
 function sendWelcomeEmail(to, name) {
   return sendEmail({
     to,
-    subject: 'Welcome to ZVBL!',
+    subject: 'Welcome to LeagueHaven!',
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
-        <h2 style="color:#1e3a5f;">⚾ Welcome to ZVBL, ${esc(name)}!</h2>
+        <h2 style="color:#1e3a5f;">Welcome to LeagueHaven, ${esc(name)}!</h2>
         <p>Your account has been created. You can sign in at:</p>
         <p><a href="${APP_URL}" style="color:#1d4ed8;">${APP_URL}</a></p>
         <p style="color:#888;font-size:13px;">If you didn't register for this account, you can ignore this email.</p>
@@ -43,10 +43,10 @@ function sendWelcomeEmail(to, name) {
 function sendInviteEmail(to, name, tempPassword) {
   return sendEmail({
     to,
-    subject: 'You\'ve been invited to ZVBL',
+    subject: 'You\'ve been invited to LeagueHaven',
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
-        <h2 style="color:#1e3a5f;">⚾ Welcome to ZVBL, ${esc(name)}!</h2>
+        <h2 style="color:#1e3a5f;">Welcome to LeagueHaven, ${esc(name)}!</h2>
         <p>An account has been created for you. Sign in with these credentials:</p>
         <div style="background:#f3f4f6;padding:12px 16px;border-radius:8px;margin:12px 0;">
           <p style="margin:4px 0;"><strong>Username:</strong> ${esc(to)}</p>
@@ -63,10 +63,10 @@ function sendPasswordResetEmail(to, name, resetToken) {
   const resetUrl = `${APP_URL}?reset=${resetToken}`;
   return sendEmail({
     to,
-    subject: 'ZVBL — Password Reset Request',
+    subject: 'LeagueHaven — Password Reset Request',
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
-        <h2 style="color:#1e3a5f;">⚾ Password Reset</h2>
+        <h2 style="color:#1e3a5f;">Password Reset</h2>
         <p>Hi ${esc(name)}, we received a request to reset your password.</p>
         <p style="margin:16px 0;">
           <a href="${resetUrl}" style="display:inline-block;padding:10px 24px;background:#1e3a5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
@@ -83,11 +83,11 @@ function sendPasswordResetEmail(to, name, resetToken) {
 function sendPasswordChangedEmail(to, name) {
   return sendEmail({
     to,
-    subject: 'ZVBL — Your password was changed',
+    subject: 'LeagueHaven — Your password was changed',
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
-        <h2 style="color:#1e3a5f;">⚾ Password Changed</h2>
-        <p>Hi ${esc(name)}, your ZVBL password was just changed.</p>
+        <h2 style="color:#1e3a5f;">Password Changed</h2>
+        <p>Hi ${esc(name)}, your LeagueHaven password was just changed.</p>
         <p style="font-size:13px;color:#888;">If you didn't make this change, please contact a league administrator immediately.</p>
       </div>
     `,
@@ -134,17 +134,17 @@ function sendGameChangeEmail(emails, { homeTeam, awayTeam, oldDate, newDate, old
         <tbody>${changes.join('')}</tbody>
       </table>
       <p style="font-size:13px;color:#888;margin-top:16px;">Changed by ${esc(changedBy)}</p>
-      <p style="margin-top:12px;"><a href="${APP_URL}" style="color:#1d4ed8;">View in ZVBL</a></p>
+      <p style="margin-top:12px;"><a href="${APP_URL}" style="color:#1d4ed8;">View in LeagueHaven</a></p>
     </div>
   `;
 
   if (emails.length === 1) {
-    return sendEmail({ to: emails[0], subject: 'ZVBL — Game Schedule Change', html });
+    return sendEmail({ to: emails[0], subject: 'LeagueHaven — Game Schedule Change', html });
   }
   return sendEmail({
     to: FROM_EMAIL,
     bcc: emails,
-    subject: 'ZVBL — Game Schedule Change',
+    subject: 'LeagueHaven — Game Schedule Change',
     html,
   });
 }
@@ -173,10 +173,10 @@ function esc(s) {
 function sendCoachInviteEmail(to, name, tempPassword, teamName) {
   return sendEmail({
     to,
-    subject: `ZVBL — You've been added as coach for ${teamName}`,
+    subject: `LeagueHaven — You've been added as coach for ${teamName}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
-        <h2 style="color:#1e3a5f;">⚾ Welcome to ZVBL, ${esc(name)}!</h2>
+        <h2 style="color:#1e3a5f;">Welcome to LeagueHaven, ${esc(name)}!</h2>
         <p>You've been registered as the coach for <strong>${esc(teamName)}</strong>.</p>
         <p>An account has been created for you. Sign in with these credentials:</p>
         <div style="background:#f3f4f6;padding:12px 16px;border-radius:8px;margin:12px 0;">
@@ -194,10 +194,10 @@ function sendConfirmationEmail(to, name, confirmToken) {
   const confirmUrl = `${APP_URL}?confirm=${confirmToken}`;
   return sendEmail({
     to,
-    subject: 'ZVBL — Confirm Your Email',
+    subject: 'LeagueHaven — Confirm Your Email',
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
-        <h2 style="color:#1e3a5f;">⚾ Welcome to ZVBL, ${esc(name)}!</h2>
+        <h2 style="color:#1e3a5f;">Welcome to LeagueHaven, ${esc(name)}!</h2>
         <p>Thanks for registering! Please confirm your email address to activate your account.</p>
         <p style="margin:16px 0;">
           <a href="${confirmUrl}" style="display:inline-block;padding:10px 24px;background:#1e3a5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
@@ -222,15 +222,15 @@ function sendApprovalRequestEmail(to, approverName, registrantName, registrantRo
   const roleLabel = ROLE_DISPLAY[registrantRole] || registrantRole;
   return sendEmail({
     to,
-    subject: `ZVBL — New ${roleLabel} Registration Pending Approval`,
+    subject: `LeagueHaven — New ${roleLabel} Registration Pending Approval`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
-        <h2 style="color:#1e3a5f;">⚾ Approval Needed</h2>
+        <h2 style="color:#1e3a5f;">Approval Needed</h2>
         <p>Hi ${esc(approverName)},</p>
         <p><strong>${esc(registrantName)}</strong> has registered as a <strong>${esc(roleLabel)}</strong> and needs your approval.</p>
         <p style="margin:16px 0;">
           <a href="${APP_URL}" style="display:inline-block;padding:10px 24px;background:#1e3a5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
-            Review in ZVBL
+            Review in LeagueHaven
           </a>
         </p>
         <p style="font-size:13px;color:#888;">Log in to review and approve or reject this registration.</p>
@@ -242,11 +242,11 @@ function sendApprovalRequestEmail(to, approverName, registrantName, registrantRo
 function sendApprovalEmail(to, name) {
   return sendEmail({
     to,
-    subject: 'ZVBL — Your Account Has Been Approved!',
+    subject: 'LeagueHaven — Your Account Has Been Approved!',
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
-        <h2 style="color:#1e3a5f;">⚾ You're Approved!</h2>
-        <p>Hi ${esc(name)}, your ZVBL account has been approved. You can now sign in and access all your features.</p>
+        <h2 style="color:#1e3a5f;">You're Approved!</h2>
+        <p>Hi ${esc(name)}, your LeagueHaven account has been approved. You can now sign in and access all your features.</p>
         <p style="margin:16px 0;">
           <a href="${APP_URL}" style="display:inline-block;padding:10px 24px;background:#1e3a5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
             Sign In
@@ -260,11 +260,11 @@ function sendApprovalEmail(to, name) {
 function sendRejectionEmail(to, name) {
   return sendEmail({
     to,
-    subject: 'ZVBL — Registration Not Approved',
+    subject: 'LeagueHaven — Registration Not Approved',
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
-        <h2 style="color:#1e3a5f;">⚾ Registration Update</h2>
-        <p>Hi ${esc(name)}, unfortunately your ZVBL registration was not approved at this time.</p>
+        <h2 style="color:#1e3a5f;">Registration Update</h2>
+        <p>Hi ${esc(name)}, unfortunately your LeagueHaven registration was not approved at this time.</p>
         <p>If you believe this is an error, please contact a league administrator.</p>
         <p style="font-size:13px;color:#888;">You may re-apply after 30 days.</p>
       </div>
