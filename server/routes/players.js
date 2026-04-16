@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware, canEditTeam } = require('../auth');
+const { normalizeDOB } = require('../utils/dob');
 
 const router = express.Router();
 
@@ -142,7 +143,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const { rows } = await client.query(
       `INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [first_name, last_name, date_of_birth || null, batting_hand || null, throwing_hand || null,
+      [first_name, last_name, normalizeDOB(date_of_birth), batting_hand || null, throwing_hand || null,
        parent_email || null, parent_phone || null, grade || null]
     );
     const playerId = rows[0].id;
@@ -225,7 +226,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       [
         first_name ?? existing.first_name,
         last_name ?? existing.last_name,
-        date_of_birth ?? existing.date_of_birth,
+        date_of_birth != null ? (normalizeDOB(date_of_birth) ?? existing.date_of_birth) : existing.date_of_birth,
         batting_hand ?? existing.batting_hand,
         throwing_hand ?? existing.throwing_hand,
         parent_email ?? existing.parent_email,

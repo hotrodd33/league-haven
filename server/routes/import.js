@@ -8,6 +8,7 @@ const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin } = require('../auth');
 const { parseBoxScorePDF, parseBoxScoreText } = require('../parsers/boxscore-pdf');
+const { normalizeDOB } = require('../utils/dob');
 
 const router = express.Router();
 
@@ -964,7 +965,7 @@ async function importRoster(req, res, opts) {
                updated_at      = NOW()
              WHERE id = $7`,
             [firstName, lastName,
-             get(iDOB) || null,
+             normalizeDOB(get(iDOB)) || null,
              battingHand, throwingHand,
              grade,
              existingId]
@@ -978,7 +979,7 @@ async function importRoster(req, res, opts) {
              VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING id`,
             [firstName, lastName,
-             get(iDOB) || null,
+             normalizeDOB(get(iDOB)) || null,
              battingHand, throwingHand,
              grade]
           );

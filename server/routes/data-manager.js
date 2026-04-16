@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin } = require('../auth');
+const { normalizeDOB } = require('../utils/dob');
 
 const router = express.Router();
 
@@ -587,14 +588,14 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
                   batting_hand = COALESCE($2, batting_hand), throwing_hand = COALESCE($3, throwing_hand),
                   grade = COALESCE($4, grade), updated_at = NOW()
                 WHERE id = $5`,
-                [dobCol ? r[dobCol] : '', hand(batCol ? r[batCol] : ''), hand(thrCol ? r[thrCol] : ''),
+                [dobCol ? (normalizeDOB(r[dobCol]) || '') : '', hand(batCol ? r[batCol] : ''), hand(thrCol ? r[thrCol] : ''),
                  grade(gradeCol ? r[gradeCol] : ''), exId]
               );
               results.updated++;
             } else if (!exId) {
               const { rows: nr } = await pool.query(
                 'INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, grade) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-                [fn, ln, (dobCol ? r[dobCol] : null) || null, hand(batCol ? r[batCol] : ''), hand(thrCol ? r[thrCol] : ''),
+                [fn, ln, dobCol ? normalizeDOB(r[dobCol]) : null, hand(batCol ? r[batCol] : ''), hand(thrCol ? r[thrCol] : ''),
                  grade(gradeCol ? r[gradeCol] : '')]
               );
               playerLookup[key] = nr[0].id;

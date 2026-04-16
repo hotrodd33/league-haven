@@ -4,6 +4,7 @@ import {
   expressGameInterest, removeGameInterest, fetchSeasons, fetchUmpireProfile,
 } from '../api/index.js';
 import { DARK_BADGES } from '../constants/statusClasses.js';
+import { calculateAge } from '../utils/dob.js';
 
 const btnPrimary = "px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 transition-colors disabled:opacity-60";
 const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 transition-colors disabled:opacity-60";
@@ -25,18 +26,6 @@ function formatTime(timeStr) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-}
-
-function calculateAge(dateOfBirth) {
-  if (!dateOfBirth) return null;
-  const today = new Date();
-  const birthDate = new Date(dateOfBirth + 'T00:00:00');
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age >= 0 ? age : null;
 }
 
 export default function UmpireDashboard({ onBack }) {

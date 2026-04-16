@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchRegistrationConfig, registerDirector, registerCoach, register, registerAsUmpire, resendConfirmation } from '../api/index.js';
+import { formatDOB } from '../utils/dob.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
@@ -900,7 +901,7 @@ export default function TeamRegistration({ onDone }) {
                     <><span className="text-gray-500">Organizations:</span>
                     <span>{umpire.org_ids.map(id => config?.organizations?.find(o => o.id === Number(id))?.name).filter(Boolean).join(', ') || '—'}</span></>
                   )}
-                  {umpire.date_of_birth && <><span className="text-gray-500">Date of Birth:</span><span>{umpire.date_of_birth}</span></>}
+                  {umpire.date_of_birth && <><span className="text-gray-500">Date of Birth:</span><span>{formatDOB(umpire.date_of_birth)}</span></>}
                   <span className="text-gray-500">Certified:</span><span>{umpire.is_certified ? 'Yes' : 'No'}</span>
                   {umpire.years_of_experience && <><span className="text-gray-500">Experience:</span><span>{umpire.years_of_experience} years</span></>}
                 </div>

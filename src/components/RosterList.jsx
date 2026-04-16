@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchPlayersByTeam, deletePlayer, unassignPlayerFromTeam, searchPlayers, assignPlayerToTeam, createPlayer } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ContactModal from './ContactModal.jsx';
+import { formatDOB, calculateAge } from '../utils/dob.js';
 
 export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlayer, onViewPlayer, refreshKey }) {
   const { canEditTeam: canEdit } = useAuth();
@@ -32,7 +33,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
         case 'number': va = a.jersey_number ?? ''; vb = b.jersey_number ?? ''; break;
         case 'name': va = `${a.first_name} ${a.last_name}`.toLowerCase(); vb = `${b.first_name} ${b.last_name}`.toLowerCase(); break;
         case 'position': va = formatPositions(a); vb = formatPositions(b); break;
-        case 'age': va = calcAge(a.date_of_birth); vb = calcAge(b.date_of_birth); va = va === '—' ? -1 : Number(va); vb = vb === '—' ? -1 : Number(vb); break;
+        case 'age': va = calculateAge(a.date_of_birth); vb = calculateAge(b.date_of_birth); va = va == null ? -1 : Number(va); vb = vb == null ? -1 : Number(vb); break;
         case 'grade': va = a.grade ?? ''; vb = b.grade ?? ''; break;
         case 'dob': va = a.date_of_birth || ''; vb = b.date_of_birth || ''; break;
         case 'bt': va = formatBatThrow(a); vb = formatBatThrow(b); break;
@@ -228,9 +229,9 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                       </button>
                     </td>
                     <td className="px-3 py-2">{formatPositions(player)}</td>
-                    {editable && <td className="px-3 py-2">{calcAge(player.date_of_birth)}</td>}
+                    {editable && <td className="px-3 py-2">{calculateAge(player.date_of_birth) ?? '—'}</td>}
                     {editable && <td className="px-3 py-2">{player.grade || '—'}</td>}
-                    {editable && <td className="px-3 py-2">{player.date_of_birth || '—'}</td>}
+                    {editable && <td className="px-3 py-2">{formatDOB(player.date_of_birth)}</td>}
                     {editable && <td className="px-3 py-2">{formatBatThrow(player)}</td>}
                     {editable && <td className="px-3 py-2 break-all">{player.parent_email ? <a href={`mailto:${player.parent_email}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_email}</a> : '—'}</td>}
                     {editable && <td className="px-3 py-2">{player.parent_phone ? <a href={`tel:${player.parent_phone}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_phone}</a> : '—'}</td>}
@@ -285,7 +286,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-300">
                   <div><span className="font-medium text-gray-200">Pos:</span> {formatPositions(player)}</div>
                   {editable && <div><span className="font-medium text-gray-200">B/T:</span> {formatBatThrow(player)}</div>}
-                  {editable && <div><span className="font-medium text-gray-200">Age:</span> {calcAge(player.date_of_birth)}</div>}
+                  {editable && <div><span className="font-medium text-gray-200">Age:</span> {calculateAge(player.date_of_birth) ?? '—'}</div>}
                   {editable && <div><span className="font-medium text-gray-200">Grade:</span> {player.grade || '—'}</div>}
                   {editable && player.parent_email && <div className="col-span-2 truncate"><span className="font-medium text-gray-200">Email:</span> <a href={`mailto:${player.parent_email}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_email}</a></div>}
                   {editable && player.parent_phone && <div className="col-span-2"><span className="font-medium text-gray-200">Phone:</span> <a href={`tel:${player.parent_phone}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_phone}</a></div>}
@@ -306,29 +307,6 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
       )}
     </div>
   );
-}
-
-function parseDOB(dob) {
-  if (!dob || typeof dob !== 'string') return null;
-  const s = dob.trim();
-  // YYYY-MM-DD or ISO timestamp
-  let match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (match) return { y: +match[1], m: +match[2], d: +match[3] };
-  // MM/DD/YYYY or M/D/YYYY
-  match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (match) return { y: +match[3], m: +match[1], d: +match[2] };
-  return null;
-}
-
-function calcAge(dob) {
-  const parsed = parseDOB(dob);
-  if (!parsed) return '—';
-  const { y, m, d } = parsed;
-  const today = new Date();
-  let age = today.getFullYear() - y;
-  const mDiff = (today.getMonth() + 1) - m;
-  if (mDiff < 0 || (mDiff === 0 && today.getDate() < d)) age--;
-  return age >= 0 ? age : '—';
 }
 
 function formatPositions(player) {

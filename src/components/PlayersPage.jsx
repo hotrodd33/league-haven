@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { fetchAllPlayers, fetchOrganizations, fetchTeams, fetchAllPitchRest } from '../api/index.js';
 import { MagnifyingGlassIcon, UserIcon } from './ui/icons.jsx';
+import { calculateAge } from '../utils/dob.js';
 
 export default function PlayersPage({ onSelectPlayer }) {
   const [players, setPlayers] = useState([]);
@@ -62,7 +63,7 @@ export default function PlayersPage({ onSelectPlayer }) {
       let va, vb;
       switch (sortCol) {
         case 'name': va = `${a.first_name} ${a.last_name}`.toLowerCase(); vb = `${b.first_name} ${b.last_name}`.toLowerCase(); break;
-        case 'age': va = calculateAge(a.date_of_birth); vb = calculateAge(b.date_of_birth); va = va === '' ? -1 : Number(va); vb = vb === '' ? -1 : Number(vb); break;
+        case 'age': va = calculateAge(a.date_of_birth); vb = calculateAge(b.date_of_birth); va = va == null ? -1 : Number(va); vb = vb == null ? -1 : Number(vb); break;
         case 'grade': va = a.grade ?? ''; vb = b.grade ?? ''; break;
         case 'bt': va = `${a.batting_hand || ''}/${a.throwing_hand || ''}`; vb = `${b.batting_hand || ''}/${b.throwing_hand || ''}`; break;
         case 'team': va = a.teams?.map(t => t.team_name).join(', ') || ''; vb = b.teams?.map(t => t.team_name).join(', ') || ''; break;
@@ -74,20 +75,6 @@ export default function PlayersPage({ onSelectPlayer }) {
     });
     return sortDir === 'desc' ? s.reverse() : s;
   }, [filtered, sortCol, sortDir]);
-
-  function calculateAge(dob) {
-    if (!dob || typeof dob !== 'string') return '';
-    const s = dob.trim();
-    let match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (!match) { match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (match) match = [, match[3], match[1], match[2]]; }
-    if (!match) return '';
-    const [, y, m, d] = match.map(Number);
-    const today = new Date();
-    let age = today.getFullYear() - y;
-    const mDiff = (today.getMonth() + 1) - m;
-    if (mDiff < 0 || (mDiff === 0 && today.getDate() < d)) age--;
-    return age >= 0 ? age : '';
-  }
 
   function PitchRestBadge({ playerId }) {
     const rest = pitchRest[playerId];
@@ -167,7 +154,7 @@ export default function PlayersPage({ onSelectPlayer }) {
                   {p.first_name} {p.last_name}
                 </td>
                 <td className="px-4 py-3"><PitchRestBadge playerId={p.id} /></td>
-                <td className="px-4 py-3 text-gray-300">{calculateAge(p.date_of_birth) || '—'}</td>
+                <td className="px-4 py-3 text-gray-300">{calculateAge(p.date_of_birth) ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-300">{p.grade || '—'}</td>
                 <td className="px-4 py-3 text-gray-300">{p.batting_hand || '—'}/{p.throwing_hand || '—'}</td>
                 <td className="px-4 py-3 text-gray-300">
@@ -207,7 +194,7 @@ export default function PlayersPage({ onSelectPlayer }) {
                 </p>
               </div>
               <div className="text-right text-xs text-gray-400">
-                {calculateAge(p.date_of_birth) ? `${calculateAge(p.date_of_birth)}y` : ''}{' '}
+                {calculateAge(p.date_of_birth) != null ? `${calculateAge(p.date_of_birth)}y` : ''}{' '}
                 {p.grade ? `Gr ${p.grade}` : ''}
               </div>
             </div>

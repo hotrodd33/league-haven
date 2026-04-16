@@ -8,6 +8,7 @@ import {
   fetchTeams, fetchOrganizations, assignPlayerToTeam, unassignPlayerFromTeam,
 } from '../api/index.js';
 import { ChevronLeftIcon, PlusIcon, TrashIcon, PencilIcon, DocumentIcon, ChatBubbleIcon, UserIcon, ChartBarIcon } from './ui/icons.jsx';
+import { formatDOB, calculateAge } from '../utils/dob.js';
 
 const TABS = [
   { key: 'info', label: 'Info' },
@@ -136,20 +137,6 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
     }));
   }
 
-  function calculateAge(dob) {
-    if (!dob || typeof dob !== 'string') return null;
-    const s = dob.trim();
-    let match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (!match) { match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (match) match = [, match[3], match[1], match[2]]; }
-    if (!match) return null;
-    const [, y, m, d] = match.map(Number);
-    const today = new Date();
-    let age = today.getFullYear() - y;
-    const mDiff = (today.getMonth() + 1) - m;
-    if (mDiff < 0 || (mDiff === 0 && today.getDate() < d)) age--;
-    return age >= 0 ? age : null;
-  }
-
   const inputCls = 'w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent';
 
   if (editing) {
@@ -235,7 +222,7 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
   const age = calculateAge(player.date_of_birth);
 
   const fields = [
-    { label: 'Date of Birth', value: player.date_of_birth || '—' },
+    { label: 'Date of Birth', value: formatDOB(player.date_of_birth) },
     { label: 'Age', value: age != null ? age : '—' },
     { label: 'Grade', value: player.grade || '—' },
     { label: 'Bats / Throws', value: `${player.batting_hand || '—'} / ${player.throwing_hand || '—'}` },
