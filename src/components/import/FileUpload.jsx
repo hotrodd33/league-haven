@@ -50,12 +50,11 @@ const INSTRUCTIONS = {
     ],
   },
   roster: {
-    title: 'Export your roster from GameChanger',
+    title: 'Upload a roster CSV from any source',
     steps: [
-      'Go to your team\'s Roster in GameChanger',
-      'Click "Export" or "Download" roster',
-      'Save the CSV file to your computer',
-      'Upload it here to import all players',
+      'Export your roster from GameChanger, Data Manager, or any spreadsheet',
+      'Save the file as CSV (.csv)',
+      'Upload it here — you\'ll map columns in the next step',
     ],
   },
 };

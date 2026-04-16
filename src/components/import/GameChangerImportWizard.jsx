@@ -10,6 +10,7 @@ import FileUpload from './FileUpload.jsx';
 import PreviewTable from './PreviewTable.jsx';
 import TeamMapper from './TeamMapper.jsx';
 import PlayerMapper from './PlayerMapper.jsx';
+import ColumnMapper, { autoMapColumns } from './ColumnMapper.jsx';
 import ImportSettings from './ImportSettings.jsx';
 import ImportProgress from './ImportProgress.jsx';
 import SuccessScreen from './SuccessScreen.jsx';
@@ -45,6 +46,7 @@ const STEPS = [
   { key: 'type',     label: 'Import Type' },
   { key: 'upload',   label: 'Upload File' },
   { key: 'preview',  label: 'Preview' },
+  { key: 'columns',  label: 'Map Columns' },
   { key: 'teams',    label: 'Map Teams' },
   { key: 'players',  label: 'Map Players' },
   { key: 'settings', label: 'Settings' },
@@ -76,6 +78,9 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
     onlyNew: true,
   });
 
+  // Column mapping (for roster imports)
+  const [columnMappings, setColumnMappings] = useState({});
+
   // Team mapping (for unmatched GameChanger team names)
   const [unmatchedTeams, setUnmatchedTeams] = useState([]);
   const [matchedTeams, setMatchedTeams] = useState({});
@@ -96,7 +101,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
   /* ── Escape to close ── */
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => { if (e.key === 'Escape' && step < 6) onClose?.(); };
+    const handler = (e) => { if (e.key === 'Escape' && step < 7) onClose?.(); };
     document.addEventListener('keydown', handler);
     document.body.style.overflow = 'hidden';
     return () => {
@@ -118,6 +123,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
       setParsing(false);
       setParseError(null);
       setSettings({ teamId: null, seasonId: null, overwrite: false, onlyNew: true });
+      setColumnMappings({});
       setUnmatchedTeams([]);
       setMatchedTeams({});
       setTeamMappings({});
@@ -252,11 +258,15 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
       case 0: return !!importType;
       case 1: return !!file || (pastedText && pastedText.trim().length > 20);
       case 2: return previewRows.length > 0;
-      case 3: // Map Teams — all unmatched teams must have a mapping
+      case 3: { // Map Columns — need at least first+last OR full name
+        const m = columnMappings;
+        return (m.first_name && m.last_name) || m.full_name;
+      }
+      case 4: // Map Teams — all unmatched teams must have a mapping
         return unmatchedTeams.length === 0 ||
           unmatchedTeams.every(t => teamMappings[t]);
-      case 4: return true; // Map Players — always allow (auto-create is fine)
-      case 5: return true; // Settings
+      case 5: return true; // Map Players — always allow (auto-create is fine)
+      case 6: return true; // Settings
       default: return false;
     }
   };
@@ -269,18 +279,30 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
       await parseFile();
     }
 
-    // Auto-skip "Map Teams" step if no unmatched teams
-    if (next === 3 && unmatchedTeams.length === 0) {
+    // Auto-populate column mappings when entering Map Columns
+    if (next === 3 && importType === 'roster' && previewHeaders.length > 0) {
+      if (Object.keys(columnMappings).length === 0) {
+        setColumnMappings(autoMapColumns(previewHeaders));
+      }
+    }
+
+    // Auto-skip "Map Columns" step for non-roster imports
+    if (next === 3 && importType !== 'roster') {
       next = 4;
     }
 
-    // Auto-skip "Map Players" step if no pitchers detected
-    if (next === 4 && pitcherMappings.length === 0) {
+    // Auto-skip "Map Teams" step if no unmatched teams
+    if (next === 4 && unmatchedTeams.length === 0) {
       next = 5;
     }
 
+    // Auto-skip "Map Players" step if no pitchers detected
+    if (next === 5 && pitcherMappings.length === 0) {
+      next = 6;
+    }
+
     // When entering "Map Players", resolve team IDs from mappings and fetch player lists
-    if (next === 4 && pitcherMappings.length > 0) {
+    if (next === 5 && pitcherMappings.length > 0) {
       // Build resolved team IDs: merge auto-matched teams + user-mapped teams
       const resolvedTeamIds = new Set();
       for (const pm of pitcherMappings) {
@@ -327,7 +349,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
     }
 
     // Execute import when moving from Settings → Progress
-    if (step === 5 && next === 6) {
+    if (step === 6 && next === 7) {
       executeImport();
     }
 
@@ -335,19 +357,23 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
   }, [step, parseFile, unmatchedTeams, pitcherMappings]);
 
   const prevStep = useCallback(() => {
-    if (step > 0 && step < 6) {
+    if (step > 0 && step < 7) {
       let prev = step - 1;
       // Skip back over "Map Players" if it was skipped going forward
-      if (prev === 4 && pitcherMappings.length === 0) {
-        prev = 3;
+      if (prev === 5 && pitcherMappings.length === 0) {
+        prev = 4;
       }
       // Skip back over "Map Teams" if it was skipped going forward
-      if (prev === 3 && unmatchedTeams.length === 0) {
+      if (prev === 4 && unmatchedTeams.length === 0) {
+        prev = 3;
+      }
+      // Skip back over "Map Columns" if it was skipped going forward
+      if (prev === 3 && importType !== 'roster') {
         prev = 2;
       }
       setStep(prev);
     }
-  }, [step, unmatchedTeams, pitcherMappings]);
+  }, [step, unmatchedTeams, pitcherMappings, importType]);
 
   /* ── Accept all matches ── */
   const handleAcceptAll = () => {
@@ -400,6 +426,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
         onlyNew: settings.onlyNew,
         teamMappings: Object.keys(teamMappings).length > 0 ? teamMappings : undefined,
         playerMappings: Object.keys(resolvedPlayerMappings).length > 0 ? resolvedPlayerMappings : undefined,
+        columnMappings: Object.values(columnMappings).some(Boolean) ? columnMappings : undefined,
       });
 
       clearInterval(progressInterval);
@@ -409,7 +436,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
       // Short delay for UX satisfaction
       setTimeout(() => {
         setImportResult(result);
-        setStep(7); // Success step
+        setStep(8); // Success step
       }, 600);
     } catch (err) {
       clearInterval(progressInterval);
@@ -430,6 +457,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
     setParsing(false);
     setParseError(null);
     setSettings({ teamId: null, seasonId: null, overwrite: false, onlyNew: true });
+    setColumnMappings({});
     setUnmatchedTeams([]);
     setMatchedTeams({});
     setTeamMappings({});
@@ -507,6 +535,15 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
 
       case 3:
         return (
+          <ColumnMapper
+            headers={previewHeaders}
+            mappings={columnMappings}
+            onChange={setColumnMappings}
+          />
+        );
+
+      case 4:
+        return (
           <TeamMapper
             unmatchedTeams={unmatchedTeams}
             matchedTeams={matchedTeams}
@@ -516,7 +553,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
           />
         );
 
-      case 4:
+      case 5:
         return (
           <PlayerMapper
             pitcherMappings={pitcherMappings}
@@ -526,7 +563,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
           />
         );
 
-      case 5:
+      case 6:
         return (
           <ImportSettings
             importType={importType}
@@ -535,7 +572,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
           />
         );
 
-      case 6:
+      case 7:
         return (
           <>
             <ImportProgress progress={progress} status={progressStatus} />
@@ -546,7 +583,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
                   size="sm"
                   variant="danger"
                   className="mt-3"
-                  onClick={() => { setStep(5); setImportError(null); }}
+                  onClick={() => { setStep(6); setImportError(null); }}
                 >
                   Go Back & Try Again
                 </Button>
@@ -555,7 +592,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
           </>
         );
 
-      case 7:
+      case 8:
         return (
           <SuccessScreen
             result={importResult}
@@ -571,8 +608,8 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
   }
 
   const typeMeta = IMPORT_TYPES.find(t => t.key === importType);
-  const isImporting = step === 6;
-  const isDone = step === 7;
+  const isImporting = step === 7;
+  const isDone = step === 8;
   const showFooter = !isImporting && !isDone;
 
   return (
@@ -645,9 +682,9 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
               size="sm"
               disabled={!canAdvance()}
               onClick={nextStep}
-              className={step === 3 ? 'bg-field-700 hover:bg-field-800' : ''}
+              className={step === 6 ? 'bg-field-700 hover:bg-field-800' : ''}
             >
-              {step === 3 ? (
+              {step === 6 ? (
                 <>
                   <ArrowUpTrayIcon className="w-4 h-4" />
                   Start Import

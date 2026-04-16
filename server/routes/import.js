@@ -435,6 +435,12 @@ router.post(
         try { playerMappings = JSON.parse(req.body.playerMappings); } catch { /* ignore */ }
       }
 
+      // Parse column mappings from frontend (JSON string: { fieldKey: "CSV Header Name", ... })
+      let columnMappings = {};
+      if (req.body.columnMappings) {
+        try { columnMappings = JSON.parse(req.body.columnMappings); } catch { /* ignore */ }
+      }
+
       if (importType === 'boxscore') {
         const parsed = await parseBoxScoreInput(req);
         return await importBoxScore(req, res, {
@@ -456,6 +462,7 @@ router.post(
           teamId,
           overwrite,
           teamMappings,
+          columnMappings,
         });
       }
 
@@ -801,7 +808,7 @@ async function upsertPitchCount(gameId, playerId, teamId, pitchCount, overwrite)
    Roster CSV Import Logic
    ═══════════════════════════════════════════════════════ */
 async function importRoster(req, res, opts) {
-  const { teamId: defaultTeamId, overwrite, teamMappings } = opts;
+  const { teamId: defaultTeamId, overwrite, teamMappings, columnMappings } = opts;
 
   const text = req.file.buffer.toString('utf8');
   const lines = text.split(/\r?\n/).filter(l => l.trim());
@@ -814,24 +821,41 @@ async function importRoster(req, res, opts) {
   // Build index map: lowercase header → column position
   const idx = {};
   headerLine.forEach((h, i) => { idx[h.toLowerCase()] = i; });
-  const col = (...names) => {
-    for (const n of names) {
+
+  // If columnMappings provided by frontend, use those; otherwise fall back to auto-detect
+  const colFromMappings = (fieldKey, ...fallbackNames) => {
+    if (columnMappings && columnMappings[fieldKey]) {
+      const mapped = idx[columnMappings[fieldKey].toLowerCase()];
+      if (mapped !== undefined) return mapped;
+    }
+    // Fall back to alias matching
+    for (const n of fallbackNames) {
       if (idx[n.toLowerCase()] !== undefined) return idx[n.toLowerCase()];
     }
     return -1;
   };
 
-  const iFirst   = col('first', 'first name', 'firstname');
-  const iLast    = col('last', 'last name', 'lastname');
-  const iName    = col('player', 'name', 'full name', 'fullname');
-  const iJersey  = col('#', 'jersey', 'number', 'jersey number', 'jersey #', 'uniform', 'uniform #');
-  const iTeam    = col('team', 'club', 'team name', 'teamname');
-  const iDOB     = col('dob', 'date of birth', 'birthday', 'birth date', 'birthdate');
-  const iEmail   = col('parent email', 'email', 'contact email', 'parent_email');
-  const iPhone   = col('parent phone', 'phone', 'contact phone', 'parent_phone');
-  const iBats    = col('bats', 'batting hand', 'batting', 'bat hand');
-  const iThrows  = col('throws', 'throwing hand', 'throwing', 'throw hand');
-  const iGrade   = col('grade', 'year', 'school year');
+  const iFirst   = colFromMappings('first_name', 'first', 'first name', 'firstname');
+  const iLast    = colFromMappings('last_name', 'last', 'last name', 'lastname');
+  const iName    = colFromMappings('full_name', 'player', 'name', 'full name', 'fullname');
+  const iJersey  = colFromMappings('jersey', '#', 'jersey', 'number', 'jersey number', 'jersey #', 'uniform', 'uniform #');
+  const iTeam    = colFromMappings('team', 'team', 'club', 'team name', 'teamname');
+  const iDOB     = colFromMappings('dob', 'dob', 'date of birth', 'birthday', 'birth date', 'birthdate');
+  const iBats    = colFromMappings('bats', 'bats', 'batting hand', 'batting', 'bat hand');
+  const iThrows  = colFromMappings('throws', 'throws', 'throwing hand', 'throwing', 'throw hand');
+  const iGrade   = colFromMappings('grade', 'grade', 'year', 'school year');
+
+  // Parent / Guardian 1
+  const iP1First = colFromMappings('parent1_first_name', 'parent first name', 'parent first', 'guardian first name', 'parent 1 first name', 'parent1 first name');
+  const iP1Last  = colFromMappings('parent1_last_name', 'parent last name', 'parent last', 'guardian last name', 'parent 1 last name', 'parent1 last name');
+  const iP1Email = colFromMappings('parent1_email', 'parent email', 'email', 'contact email', 'parent_email', 'parent 1 email', 'parent1 email', 'guardian email');
+  const iP1Phone = colFromMappings('parent1_phone', 'parent phone', 'phone', 'contact phone', 'parent_phone', 'parent 1 phone', 'parent1 phone', 'guardian phone');
+
+  // Parent / Guardian 2
+  const iP2First = colFromMappings('parent2_first_name', 'parent 2 first name', 'parent2 first name', 'second parent first name');
+  const iP2Last  = colFromMappings('parent2_last_name', 'parent 2 last name', 'parent2 last name', 'second parent last name');
+  const iP2Email = colFromMappings('parent2_email', 'parent 2 email', 'parent2 email', 'second parent email');
+  const iP2Phone = colFromMappings('parent2_phone', 'parent 2 phone', 'parent2 phone', 'second parent phone');
 
   // Build combined team lookup: user mappings take priority
   const teamLookup = await buildTeamLookup();
@@ -842,12 +866,15 @@ async function importRoster(req, res, opts) {
     }
   }
 
+  const VALID_GRADES = ['Pre K','K','1','2','3','4','5','6','7','8','9','10','11','12'];
+
   const results = {
     success: true,
     players: 0,
     created: 0,
     updated: 0,
     skipped: 0,
+    contacts: 0,
     errors: [],
   };
 
@@ -894,7 +921,7 @@ async function importRoster(req, res, opts) {
       const battingHand  = ['R', 'L', 'S'].includes(batsRaw)  ? batsRaw  : null;
       const throwingHand = ['R', 'L'].includes(throwsRaw)     ? throwsRaw : null;
       const gradeRaw = get(iGrade);
-      const grade = ['K','1','2','3','4','5','6','7','8','9'].includes(gradeRaw) ? gradeRaw : null;
+      const grade = VALID_GRADES.includes(gradeRaw) ? gradeRaw : null;
 
       try {
         // Find existing player — jersey within team first, then name globally
@@ -933,16 +960,12 @@ async function importRoster(req, res, opts) {
                date_of_birth   = COALESCE(NULLIF($3,''), date_of_birth),
                batting_hand    = COALESCE($4,            batting_hand),
                throwing_hand   = COALESCE($5,            throwing_hand),
-               parent_email    = COALESCE(NULLIF($6,''), parent_email),
-               parent_phone    = COALESCE(NULLIF($7,''), parent_phone),
-               grade           = COALESCE($8,            grade),
+               grade           = COALESCE($6,            grade),
                updated_at      = NOW()
-             WHERE id = $9`,
+             WHERE id = $7`,
             [firstName, lastName,
-             get(iDOB)   || null,
+             get(iDOB) || null,
              battingHand, throwingHand,
-             get(iEmail) || null,
-             get(iPhone) || null,
              grade,
              existingId]
           );
@@ -951,15 +974,12 @@ async function importRoster(req, res, opts) {
         } else {
           const { rows: newP } = await client.query(
             `INSERT INTO players
-               (first_name, last_name, date_of_birth, batting_hand, throwing_hand,
-                parent_email, parent_phone, grade)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               (first_name, last_name, date_of_birth, batting_hand, throwing_hand, grade)
+             VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING id`,
             [firstName, lastName,
-             get(iDOB)   || null,
+             get(iDOB) || null,
              battingHand, throwingHand,
-             get(iEmail) || null,
-             get(iPhone) || null,
              grade]
           );
           playerId = newP[0].id;
@@ -977,6 +997,37 @@ async function importRoster(req, res, opts) {
           );
         }
 
+        // Insert parent/guardian contacts into player_contacts
+        const p1Email = get(iP1Email);
+        const p1Phone = get(iP1Phone);
+        const p1First = get(iP1First);
+        const p1Last  = get(iP1Last);
+        if (p1Email || p1Phone || p1First || p1Last) {
+          await client.query(
+            `INSERT INTO player_contacts
+               (player_id, relationship, first_name, last_name, email, phone, is_primary)
+             VALUES ($1, 'parent', $2, $3, $4, $5, true)
+             ON CONFLICT DO NOTHING`,
+            [playerId, p1First || null, p1Last || null, p1Email || null, p1Phone || null]
+          );
+          results.contacts++;
+        }
+
+        const p2Email = get(iP2Email);
+        const p2Phone = get(iP2Phone);
+        const p2First = get(iP2First);
+        const p2Last  = get(iP2Last);
+        if (p2Email || p2Phone || p2First || p2Last) {
+          await client.query(
+            `INSERT INTO player_contacts
+               (player_id, relationship, first_name, last_name, email, phone, is_primary)
+             VALUES ($1, 'parent', $2, $3, $4, $5, false)
+             ON CONFLICT DO NOTHING`,
+            [playerId, p2First || null, p2Last || null, p2Email || null, p2Phone || null]
+          );
+          results.contacts++;
+        }
+
         results.players++;
       } catch (rowErr) {
         results.errors.push(`Row ${i}: ${rowErr.message}`);
@@ -992,7 +1043,7 @@ async function importRoster(req, res, opts) {
     client.release();
   }
 
-  results.message = `Imported ${results.created} new player${results.created !== 1 ? 's' : ''}, updated ${results.updated}, skipped ${results.skipped}.`;
+  results.message = `Imported ${results.created} new player${results.created !== 1 ? 's' : ''}, updated ${results.updated}, skipped ${results.skipped}. ${results.contacts} contact${results.contacts !== 1 ? 's' : ''} added.`;
   return res.json(results);
 }
 

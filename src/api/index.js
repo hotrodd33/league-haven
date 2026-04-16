@@ -837,6 +837,7 @@ export async function importGameChanger(fileOrText, importType, options = {}) {
         onlyNew: options.onlyNew ?? undefined,
         teamMappings: options.teamMappings || undefined,
         playerMappings: options.playerMappings || undefined,
+        columnMappings: options.columnMappings || undefined,
       }),
     });
   }
@@ -850,6 +851,7 @@ export async function importGameChanger(fileOrText, importType, options = {}) {
   if (options.onlyNew != null) fd.append('onlyNew', String(options.onlyNew));
   if (options.teamMappings) fd.append('teamMappings', JSON.stringify(options.teamMappings));
   if (options.playerMappings) fd.append('playerMappings', JSON.stringify(options.playerMappings));
+  if (options.columnMappings) fd.append('columnMappings', JSON.stringify(options.columnMappings));
   return apiFetch('/import/gamechanger', { method: 'POST', body: fd });
 }
 

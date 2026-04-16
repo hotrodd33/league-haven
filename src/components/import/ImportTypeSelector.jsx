@@ -40,8 +40,8 @@ const IMPORT_TYPES = [
   {
     key: 'roster',
     label: 'Roster / Player List',
-    desc: 'Import players with jersey numbers, positions, and contact info.',
-    howTo: 'In GameChanger → Roster → Export Players',
+    desc: 'Import players with jersey numbers, contact info, and parent details from any CSV.',
+    howTo: 'Export a player list from GameChanger, Data Manager, or any spreadsheet',
     icon: UsersIcon,
     color: 'baseball',
   },
