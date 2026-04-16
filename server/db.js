@@ -703,6 +703,24 @@ async function migrate() {
       PRIMARY KEY (field_id, age_group_id)
     );
   `);
+
+  // ── Normalize existing DOB values to YYYY-MM-DD ──
+  await pool.query(`
+    UPDATE players
+    SET date_of_birth = CASE
+      WHEN date_of_birth ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN
+        LPAD(SPLIT_PART(date_of_birth,'/',3), 4, '0') || '-' ||
+        LPAD(SPLIT_PART(date_of_birth,'/',1), 2, '0') || '-' ||
+        LPAD(SPLIT_PART(date_of_birth,'/',2), 2, '0')
+      WHEN date_of_birth ~ '^\d{1,2}-\d{1,2}-\d{4}$' THEN
+        LPAD(SPLIT_PART(date_of_birth,'-',3), 4, '0') || '-' ||
+        LPAD(SPLIT_PART(date_of_birth,'-',1), 2, '0') || '-' ||
+        LPAD(SPLIT_PART(date_of_birth,'-',2), 2, '0')
+      ELSE date_of_birth
+    END
+    WHERE date_of_birth IS NOT NULL
+      AND date_of_birth !~ '^\d{4}-\d{2}-\d{2}$';
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds
