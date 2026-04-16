@@ -8,7 +8,7 @@ const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
 
 export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChanged }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, permissions } = useAuth();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -84,11 +84,21 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
   }
   const orgNames = Object.keys(grouped).sort();
 
-  // Initialize collapsed state: all collapsed, auto-expand the org with the selected team
+  // Initialize collapsed state: all collapsed, auto-expand the user's org(s) and the selected team's org
   if (collapsed === null && orgNames.length > 0) {
     const init = {};
     for (const name of orgNames) init[name] = true;
-    // Expand the org that contains the selected team
+    // Expand orgs the current user is assigned to (admin or team member)
+    const userOrgIds = new Set([
+      ...(permissions?.org_ids || []),
+      ...(permissions?.team_org_ids || []),
+    ]);
+    if (userOrgIds.size > 0) {
+      for (const name of orgNames) {
+        if (userOrgIds.has(grouped[name].orgId)) init[name] = false;
+      }
+    }
+    // Also expand the org that contains the selected team
     if (selectedTeam) {
       const selTeam = teams.find(t => t.id === selectedTeam);
       if (selTeam?.org_name) init[selTeam.org_name] = false;
