@@ -84,6 +84,22 @@ export default function Dashboard({ onNavigate }) {
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
 
+  /* Role-based scoping */
+  const role = user?.role;
+  const isAdmin = role === 'super_admin' || role === 'org_admin';
+  const myTeamIds = user?.permissions?.team_ids || [];
+  const myOrgIds = user?.permissions?.org_ids || [];
+
+  const scopedGames = isAdmin ? games : games.filter(g =>
+    myTeamIds.includes(g.home_team_id) || myTeamIds.includes(g.away_team_id)
+  );
+  const scopedTeams = isAdmin ? teams : teams.filter(t =>
+    myTeamIds.includes(t.id) || myOrgIds.includes(t.org_id)
+  );
+  const scopedPlayers = isAdmin ? players : players.filter(p =>
+    p.teams?.some(t => myTeamIds.includes(t.team_id) || myOrgIds.includes(t.org_id))
+  );
+
   const weekStart = new Date(now);
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
   const weekEnd = new Date(weekStart);
@@ -91,14 +107,14 @@ export default function Dashboard({ onNavigate }) {
   const weekStartStr = weekStart.toISOString().slice(0, 10);
   const weekEndStr = weekEnd.toISOString().slice(0, 10);
 
-  const gamesThisWeek = games.filter(g => g.game_date >= weekStartStr && g.game_date <= weekEndStr);
-  const completedGames = games.filter(g => g.status === 'final');
-  const upcomingGames = games
+  const gamesThisWeek = scopedGames.filter(g => g.game_date >= weekStartStr && g.game_date <= weekEndStr);
+  const completedGames = scopedGames.filter(g => g.status === 'final');
+  const upcomingGames = scopedGames
     .filter(g => g.game_date >= todayStr && g.status !== 'final' && g.status !== 'cancelled')
     .sort((a, b) => (a.game_date + (a.game_time || '')) > (b.game_date + (b.game_time || '')) ? 1 : -1)
     .slice(0, 5);
 
-  const todaysGames = games
+  const todaysGames = scopedGames
     .filter(g => g.game_date === todayStr && g.status !== 'cancelled')
     .sort((a, b) => (a.game_time || '').localeCompare(b.game_time || ''));
 
@@ -106,19 +122,19 @@ export default function Dashboard({ onNavigate }) {
   const playersOnRest = Object.entries(pitchRest)
     .filter(([, r]) => !r.eligible_today)
     .map(([pid, r]) => {
-      const player = players.find(p => String(p.id) === String(pid));
+      const player = scopedPlayers.find(p => String(p.id) === String(pid));
       return player ? { ...r, id: pid, name: `${player.first_name} ${player.last_name}`, teams: player.teams } : null;
     })
     .filter(Boolean)
     .sort((a, b) => (a.available_date || '').localeCompare(b.available_date || ''));
 
   /* Games that have passed but still have no score entered */
-  const unscoredGames = games
+  const unscoredGames = scopedGames
     .filter(g => g.game_date < todayStr && g.status === 'scheduled')
     .sort((a, b) => b.game_date > a.game_date ? 1 : -1);
 
   /* Roster alerts — players missing key info */
-  const rosterAlerts = players
+  const rosterAlerts = scopedPlayers
     .filter(p => {
       if (!p.dob) return true;
       if (p.teams?.some(t => !t.jersey_number)) return true;
@@ -132,7 +148,7 @@ export default function Dashboard({ onNavigate }) {
       return { id: p.id, name: `${p.first_name} ${p.last_name}`, issues, teams: p.teams };
     });
 
-  const recentResults = games
+  const recentResults = scopedGames
     .filter(g => g.status === 'final')
     .sort((a, b) => b.game_date > a.game_date ? 1 : -1)
     .slice(0, 5);
@@ -175,6 +191,7 @@ export default function Dashboard({ onNavigate }) {
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
+              {role !== 'umpire' && role !== 'accountant' && (
               <Button
                 variant="primary"
                 size="sm"
@@ -184,6 +201,8 @@ export default function Dashboard({ onNavigate }) {
               >
                 New Game
               </Button>
+              )}
+              {isAdmin && (
               <Button
                 variant="primary"
                 size="sm"
@@ -193,6 +212,7 @@ export default function Dashboard({ onNavigate }) {
               >
                 Data Manager
               </Button>
+              )}
             </div>
           </div>
         </div>
@@ -202,11 +222,11 @@ export default function Dashboard({ onNavigate }) {
       <section aria-label="League statistics">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            label="Total Teams"
-            value={teams.length}
+            label={isAdmin ? "Total Teams" : "My Teams"}
+            value={scopedTeams.length}
             icon={<UsersIcon className="w-5 h-5" />}
             accentColor="field"
-            trendLabel={teams.length > 0 ? `${orgs.length} org${orgs.length !== 1 ? 's' : ''}` : undefined}
+            trendLabel={isAdmin && teams.length > 0 ? `${orgs.length} org${orgs.length !== 1 ? 's' : ''}` : undefined}
             trend={1}
           />
           <StatCard
@@ -220,7 +240,7 @@ export default function Dashboard({ onNavigate }) {
             value={completedGames.length}
             icon={<TrophyIcon className="w-5 h-5" />}
             accentColor="dirt"
-            trendLabel={games.length > 0 ? `of ${games.length} total` : undefined}
+            trendLabel={scopedGames.length > 0 ? `of ${scopedGames.length} total` : undefined}
             trend={1}
           />
           <StatCard
@@ -511,24 +531,38 @@ export default function Dashboard({ onNavigate }) {
               </h3>
             </CardHeader>
             <CardBody className="space-y-2">
-              <QuickAction
-                icon={<PlusIcon className="w-4 h-4" />}
-                label="Schedule New Game"
-                onClick={() => onNavigate?.('schedule')}
-                color="field"
-              />
-              <QuickAction
-                icon={<UsersIcon className="w-4 h-4" />}
-                label="Manage Teams"
-                onClick={() => onNavigate?.('rosters')}
-                color="blue"
-              />
-              <QuickAction
-                icon={<DatabaseIcon className="w-4 h-4" />}
-                label="Data Manager"
-                onClick={() => onNavigate?.('data')}
-                color="dirt"
-              />
+              {(role === 'score_reporter') && (
+                <QuickAction
+                  icon={<ClipboardIcon className="w-4 h-4" />}
+                  label="Enter Game Scores"
+                  onClick={() => onNavigate?.('schedule')}
+                  color="dirt"
+                />
+              )}
+              {role !== 'umpire' && role !== 'accountant' && (
+                <QuickAction
+                  icon={<PlusIcon className="w-4 h-4" />}
+                  label="Schedule New Game"
+                  onClick={() => onNavigate?.('schedule')}
+                  color="field"
+                />
+              )}
+              {role !== 'score_reporter' && role !== 'umpire' && (
+                <QuickAction
+                  icon={<UsersIcon className="w-4 h-4" />}
+                  label="Manage Teams"
+                  onClick={() => onNavigate?.('rosters')}
+                  color="blue"
+                />
+              )}
+              {isAdmin && (
+                <QuickAction
+                  icon={<DatabaseIcon className="w-4 h-4" />}
+                  label="Data Manager"
+                  onClick={() => onNavigate?.('data')}
+                  color="dirt"
+                />
+              )}
               <QuickAction
                 icon={<TrophyIcon className="w-4 h-4" />}
                 label="View Standings"
@@ -547,23 +581,23 @@ export default function Dashboard({ onNavigate }) {
                   <h4 className="text-sm font-bold text-gray-100">Season Overview</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <MiniStat label="Total games" value={games.length} />
+                  <MiniStat label="Total games" value={scopedGames.length} />
                   <MiniStat label="Completed" value={completedGames.length} />
-                  <MiniStat label="Teams" value={teams.length} />
+                  <MiniStat label="Teams" value={scopedTeams.length} />
                   <MiniStat label="This week" value={gamesThisWeek.length} />
                 </div>
-                {games.length > 0 && (
+                {scopedGames.length > 0 && (
                   <div className="pt-2 border-t border-gray-700">
                     <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
                       <span>Season progress</span>
                       <span className="font-semibold text-gray-300">
-                        {games.length > 0 ? Math.round((completedGames.length / games.length) * 100) : 0}%
+                        {scopedGames.length > 0 ? Math.round((completedGames.length / scopedGames.length) * 100) : 0}%
                       </span>
                     </div>
                     <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-field-500 to-field-600 rounded-full transition-all duration-500"
-                        style={{ width: `${games.length > 0 ? (completedGames.length / games.length) * 100 : 0}%` }}
+                        style={{ width: `${scopedGames.length > 0 ? (completedGames.length / scopedGames.length) * 100 : 0}%` }}
                       />
                     </div>
                   </div>
@@ -623,6 +657,7 @@ export default function Dashboard({ onNavigate }) {
       )}
 
       {/* ── Data Manager Card ── */}
+      {isAdmin && (
       <section aria-label="Data management">
         <Card variant="dirt" className="overflow-hidden">
           <div className="flex flex-col sm:flex-row items-center gap-6 p-6 sm:p-8">
@@ -648,6 +683,8 @@ export default function Dashboard({ onNavigate }) {
             </Button>
           </div>
         </Card>
+      </section>
+      )}
       </section>
 
       {/* ── Footer ── */}
