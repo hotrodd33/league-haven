@@ -136,8 +136,13 @@ router.post('/', authMiddleware, async (req, res) => {
       if (!seen.has(key)) { seen.add(key); unique.push(r); }
     }
 
+    // Look up sender's email for Reply-To
+    const { rows: senderRows } = await pool.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+    const senderEmail = senderRows[0]?.email || null;
+
     // Build HTML body
     const senderName = req.user.name || 'LeagueHaven Admin';
+    const replyTo = senderEmail ? { email: senderEmail, name: senderName } : undefined;
     const html = `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;">
         <div style="border-bottom:3px solid #1e3a5f;padding-bottom:12px;margin-bottom:16px;">
@@ -152,7 +157,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Send to all recipients (BCC for privacy when multiple)
     if (unique.length === 1) {
-      await sendEmail({ to: unique[0].email, subject: subject.trim(), html });
+      await sendEmail({ to: unique[0].email, subject: subject.trim(), html, replyTo });
     } else {
       // Send as BCC so recipients don't see each other's emails
       await sendEmail({
@@ -160,6 +165,7 @@ router.post('/', authMiddleware, async (req, res) => {
         bcc: unique.map(r => r.email),
         subject: subject.trim(),
         html,
+        replyTo,
       });
     }
 

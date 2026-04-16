@@ -586,6 +586,11 @@ async function notifyGameChange(game, oldDate, newDate, oldTime, newTime, user) 
     const teamIds = [game.home_team_id, game.away_team_id].filter(Boolean);
     if (!teamIds.length) return;
 
+    // Look up sender's email for Reply-To
+    const { rows: senderRows } = await pool.query('SELECT email FROM users WHERE id = $1', [user.id]);
+    const senderEmail = senderRows[0]?.email || null;
+    const replyTo = senderEmail ? { email: senderEmail, name: user.name || user.username } : undefined;
+
     const placeholders = teamIds.map((_, i) => `$${i + 1}`).join(',');
     const { rows } = await pool.query(
       `SELECT DISTINCT s.email
@@ -605,6 +610,7 @@ async function notifyGameChange(game, oldDate, newDate, oldTime, newTime, user) 
       oldTime,
       newTime,
       changedBy: user.name || user.username || 'Unknown',
+      replyTo,
     });
 
     // Also send push notification

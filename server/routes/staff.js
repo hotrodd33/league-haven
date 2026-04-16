@@ -174,8 +174,14 @@ router.post('/', authMiddleware, async (req, res) => {
     // Send invite email after successful commit (must await on Vercel serverless)
     if (client._pendingInvite) {
       const inv = client._pendingInvite;
+      // Look up sender's email for Reply-To
+      let replyTo;
       try {
-        await sendCoachInviteEmail(inv.email, inv.name, inv.tempPassword, inv.teamName);
+        const { rows: senderRows } = await pool.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+        if (senderRows[0]?.email) replyTo = { email: senderRows[0].email, name: req.user.name };
+      } catch (_) {}
+      try {
+        await sendCoachInviteEmail(inv.email, inv.name, inv.tempPassword, inv.teamName, { replyTo });
       } catch (err) {
         console.error('[STAFF] Failed to send invite email:', err);
       }

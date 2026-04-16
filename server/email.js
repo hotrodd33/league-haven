@@ -7,7 +7,7 @@ if (process.env.SENDGRID_API_KEY) {
 const FROM_EMAIL = process.env.FROM_EMAIL || 'LeagueHaven <noreply@leaguehaven.com>';
 const APP_URL = process.env.APP_URL || 'https://leaguehaven.com';
 
-async function sendEmail({ to, bcc, subject, html }) {
+async function sendEmail({ to, bcc, subject, html, replyTo }) {
   if (!process.env.SENDGRID_API_KEY) {
     console.warn('[EMAIL] SENDGRID_API_KEY not set — email not sent:', { to, subject });
     return null;
@@ -15,6 +15,7 @@ async function sendEmail({ to, bcc, subject, html }) {
   try {
     const msg = { from: FROM_EMAIL, to, subject, html };
     if (bcc) msg.bcc = bcc;
+    if (replyTo) msg.replyTo = replyTo;
     const result = await sgMail.send(msg);
     return result;
   } catch (err) {
@@ -40,9 +41,10 @@ function sendWelcomeEmail(to, name) {
   });
 }
 
-function sendInviteEmail(to, name, tempPassword) {
+function sendInviteEmail(to, name, tempPassword, { replyTo } = {}) {
   return sendEmail({
     to,
+    replyTo,
     subject: 'You\'ve been invited to LeagueHaven',
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
@@ -106,7 +108,7 @@ function sendPasswordChangedEmail(to, name) {
  * @param {string|null} opts.newTime
  * @param {string} opts.changedBy - name of user who made the change
  */
-function sendGameChangeEmail(emails, { homeTeam, awayTeam, oldDate, newDate, oldTime, newTime, changedBy }) {
+function sendGameChangeEmail(emails, { homeTeam, awayTeam, oldDate, newDate, oldTime, newTime, changedBy, replyTo }) {
   if (!emails.length) return Promise.resolve(null);
 
   const changes = [];
@@ -139,13 +141,14 @@ function sendGameChangeEmail(emails, { homeTeam, awayTeam, oldDate, newDate, old
   `;
 
   if (emails.length === 1) {
-    return sendEmail({ to: emails[0], subject: 'LeagueHaven — Game Schedule Change', html });
+    return sendEmail({ to: emails[0], subject: 'LeagueHaven — Game Schedule Change', html, replyTo });
   }
   return sendEmail({
     to: FROM_EMAIL,
     bcc: emails,
     subject: 'LeagueHaven — Game Schedule Change',
     html,
+    replyTo,
   });
 }
 
@@ -170,9 +173,10 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function sendCoachInviteEmail(to, name, tempPassword, teamName) {
+function sendCoachInviteEmail(to, name, tempPassword, teamName, { replyTo } = {}) {
   return sendEmail({
     to,
+    replyTo,
     subject: `LeagueHaven — You've been added as coach for ${teamName}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
@@ -239,9 +243,10 @@ function sendApprovalRequestEmail(to, approverName, registrantName, registrantRo
   });
 }
 
-function sendApprovalEmail(to, name) {
+function sendApprovalEmail(to, name, { replyTo } = {}) {
   return sendEmail({
     to,
+    replyTo,
     subject: 'LeagueHaven — Your Account Has Been Approved!',
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
@@ -257,9 +262,10 @@ function sendApprovalEmail(to, name) {
   });
 }
 
-function sendRejectionEmail(to, name) {
+function sendRejectionEmail(to, name, { replyTo } = {}) {
   return sendEmail({
     to,
+    replyTo,
     subject: 'LeagueHaven — Registration Not Approved',
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">

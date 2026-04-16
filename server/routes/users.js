@@ -79,7 +79,12 @@ router.post('/:id/invite', adminOnly, async (req, res) => {
     const hash = await bcrypt.hash(tempPassword, 10);
     await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, id]);
 
-    await sendInviteEmail(user.email, user.name, tempPassword);
+    // Look up sender's email for Reply-To
+    let replyTo;
+    const { rows: senderRows } = await pool.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+    if (senderRows[0]?.email) replyTo = { email: senderRows[0].email, name: req.user.name };
+
+    await sendInviteEmail(user.email, user.name, tempPassword, { replyTo });
     res.json({ message: `Invite sent to ${user.email}` });
   } catch (err) {
     console.error('Invite error:', err);
@@ -391,7 +396,9 @@ router.post('/:id/approve', authMiddleware, requireRole('super_admin', 'org_admi
 
     // Send approval email
     if (target.email) {
-      sendApprovalEmail(target.email, target.name).catch(() => {});
+      const { rows: senderRows } = await pool.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+      const replyTo = senderRows[0]?.email ? { email: senderRows[0].email, name: req.user.name } : undefined;
+      sendApprovalEmail(target.email, target.name, { replyTo }).catch(() => {});
     }
 
     res.json({ success: true, message: `${target.name} has been approved` });
@@ -420,7 +427,9 @@ router.post('/:id/reject', authMiddleware, requireRole('super_admin', 'org_admin
     );
 
     if (target.email) {
-      sendRejectionEmail(target.email, target.name).catch(() => {});
+      const { rows: senderRows } = await pool.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+      const replyTo = senderRows[0]?.email ? { email: senderRows[0].email, name: req.user.name } : undefined;
+      sendRejectionEmail(target.email, target.name, { replyTo }).catch(() => {});
     }
 
     res.json({ success: true, message: `${target.name} has been rejected` });
