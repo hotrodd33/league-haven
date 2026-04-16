@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchPlayersByTeam, deletePlayer, unassignPlayerFromTeam, searchPlayers, assignPlayerToTeam, createPlayer } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ContactModal from './ContactModal.jsx';
@@ -16,6 +16,35 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
   const [searching, setSearching] = useState(false);
   const [assigning, setAssigning] = useState(null);
   const [contactModal, setContactModal] = useState(false);
+  const [sortCol, setSortCol] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
+
+  function toggleSort(col) {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  }
+
+  const sortedPlayers = useMemo(() => {
+    if (!sortCol) return players;
+    const sorted = [...players].sort((a, b) => {
+      let va, vb;
+      switch (sortCol) {
+        case 'number': va = a.jersey_number ?? ''; vb = b.jersey_number ?? ''; break;
+        case 'name': va = `${a.first_name} ${a.last_name}`.toLowerCase(); vb = `${b.first_name} ${b.last_name}`.toLowerCase(); break;
+        case 'position': va = formatPositions(a); vb = formatPositions(b); break;
+        case 'age': va = calcAge(a.date_of_birth); vb = calcAge(b.date_of_birth); va = va === '—' ? -1 : Number(va); vb = vb === '—' ? -1 : Number(vb); break;
+        case 'grade': va = a.grade ?? ''; vb = b.grade ?? ''; break;
+        case 'dob': va = a.date_of_birth || ''; vb = b.date_of_birth || ''; break;
+        case 'bt': va = formatBatThrow(a); vb = formatBatThrow(b); break;
+        case 'email': va = (a.parent_email || '').toLowerCase(); vb = (b.parent_email || '').toLowerCase(); break;
+        case 'phone': va = a.parent_phone || ''; vb = b.parent_phone || ''; break;
+        default: return 0;
+      }
+      if (typeof va === 'number' && typeof vb === 'number') return va - vb;
+      return String(va).localeCompare(String(vb), undefined, { numeric: true });
+    });
+    return sortDir === 'desc' ? sorted.reverse() : sorted;
+  }, [players, sortCol, sortDir]);
 
   const loadPlayers = useCallback(async () => {
     if (!teamId) return;
@@ -177,20 +206,20 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
             <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">#</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Position</th>
-                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Age</th>}
-                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Grade</th>}
-                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">DOB</th>}
-                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">B/T</th>}
-                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Parent Email</th>}
-                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Parent Phone</th>}
+                  <SortHeader col="number" label="#" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
+                  <SortHeader col="name" label="Name" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
+                  <SortHeader col="position" label="Position" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
+                  {editable && <SortHeader col="age" label="Age" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />}
+                  {editable && <SortHeader col="grade" label="Grade" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />}
+                  {editable && <SortHeader col="dob" label="DOB" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />}
+                  {editable && <SortHeader col="bt" label="B/T" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />}
+                  {editable && <SortHeader col="email" label="Parent Email" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />}
+                  {editable && <SortHeader col="phone" label="Parent Phone" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />}
                   {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
-                {players.map((player) => (
+                {sortedPlayers.map((player) => (
                   <tr key={player.id} className="hover:bg-gray-900">
                     <td className="px-3 py-2 font-bold text-blue-300">{player.jersey_number ?? '—'}</td>
                     <td className="px-3 py-2 font-semibold">
@@ -314,4 +343,14 @@ function formatBatThrow(player) {
   const thr = player.throwing_hand || '';
   if (!bat && !thr) return '—';
   return `${bat || '?'}/${thr || '?'}`;
+}
+
+function SortHeader({ col, label, sortCol, sortDir, onClick }) {
+  const arrow = sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+  return (
+    <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide cursor-pointer select-none hover:text-gray-200 transition-colors"
+      onClick={() => onClick(col)}>
+      {label}{arrow}
+    </th>
+  );
 }

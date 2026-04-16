@@ -11,6 +11,13 @@ export default function PlayersPage({ onSelectPlayer }) {
   const [search, setSearch] = useState('');
   const [filterOrg, setFilterOrg] = useState('');
   const [filterTeam, setFilterTeam] = useState('');
+  const [sortCol, setSortCol] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
+
+  function toggleSort(col) {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -48,6 +55,25 @@ export default function PlayersPage({ onSelectPlayer }) {
     }
     return list;
   }, [players, filterOrg, filterTeam, search]);
+
+  const sorted = useMemo(() => {
+    if (!sortCol) return filtered;
+    const s = [...filtered].sort((a, b) => {
+      let va, vb;
+      switch (sortCol) {
+        case 'name': va = `${a.first_name} ${a.last_name}`.toLowerCase(); vb = `${b.first_name} ${b.last_name}`.toLowerCase(); break;
+        case 'age': va = calculateAge(a.date_of_birth); vb = calculateAge(b.date_of_birth); va = va === '' ? -1 : Number(va); vb = vb === '' ? -1 : Number(vb); break;
+        case 'grade': va = a.grade ?? ''; vb = b.grade ?? ''; break;
+        case 'bt': va = `${a.batting_hand || ''}/${a.throwing_hand || ''}`; vb = `${b.batting_hand || ''}/${b.throwing_hand || ''}`; break;
+        case 'team': va = a.teams?.map(t => t.team_name).join(', ') || ''; vb = b.teams?.map(t => t.team_name).join(', ') || ''; break;
+        case 'org': va = [...new Set((a.teams || []).map(t => t.org_name).filter(Boolean))].join(', '); vb = [...new Set((b.teams || []).map(t => t.org_name).filter(Boolean))].join(', '); break;
+        default: return 0;
+      }
+      if (typeof va === 'number' && typeof vb === 'number') return va - vb;
+      return String(va).localeCompare(String(vb), undefined, { numeric: true });
+    });
+    return sortDir === 'desc' ? s.reverse() : s;
+  }, [filtered, sortCol, sortDir]);
 
   function calculateAge(dob) {
     if (!dob || typeof dob !== 'string') return '';
@@ -114,24 +140,24 @@ export default function PlayersPage({ onSelectPlayer }) {
         </select>
       </div>
 
-      <p className="text-sm text-gray-400">{filtered.length} player{filtered.length !== 1 ? 's' : ''}</p>
+      <p className="text-sm text-gray-400">{sorted.length} player{sorted.length !== 1 ? 's' : ''}</p>
 
       {/* Desktop Table */}
       <div className="hidden md:block bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-800 text-gray-400 text-left text-xs uppercase tracking-wider">
-              <th className="px-4 py-3">Name</th>
+              <SortTh col="name" label="Name" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
               <th className="px-4 py-3">Pitching</th>
-              <th className="px-4 py-3">Age</th>
-              <th className="px-4 py-3">Grade</th>
-              <th className="px-4 py-3">B/T</th>
-              <th className="px-4 py-3">Team(s)</th>
-              <th className="px-4 py-3">Organization</th>
+              <SortTh col="age" label="Age" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
+              <SortTh col="grade" label="Grade" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
+              <SortTh col="bt" label="B/T" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
+              <SortTh col="team" label="Team(s)" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
+              <SortTh col="org" label="Organization" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700/50">
-            {filtered.map(p => (
+            {sorted.map(p => (
               <tr
                 key={p.id}
                 className="hover:bg-gray-700/30 cursor-pointer transition-colors"
@@ -152,7 +178,7 @@ export default function PlayersPage({ onSelectPlayer }) {
                 </td>
               </tr>
             ))}
-            {!filtered.length && (
+            {!sorted.length && (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No players found</td></tr>
             )}
           </tbody>
@@ -161,7 +187,7 @@ export default function PlayersPage({ onSelectPlayer }) {
 
       {/* Mobile Cards */}
       <div className="md:hidden space-y-2">
-        {filtered.map(p => (
+        {sorted.map(p => (
           <div
             key={p.id}
             className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 cursor-pointer hover:bg-gray-700/40 transition-colors"
@@ -187,10 +213,19 @@ export default function PlayersPage({ onSelectPlayer }) {
             </div>
           </div>
         ))}
-        {!filtered.length && (
+        {!sorted.length && (
           <p className="text-center text-gray-500 py-8">No players found</p>
         )}
       </div>
     </div>
+  );
+}
+
+function SortTh({ col, label, sortCol, sortDir, onClick }) {
+  const arrow = sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+  return (
+    <th className="px-4 py-3 cursor-pointer select-none hover:text-gray-200 transition-colors" onClick={() => onClick(col)}>
+      {label}{arrow}
+    </th>
   );
 }
