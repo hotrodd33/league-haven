@@ -694,6 +694,15 @@ async function migrate() {
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_registration BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_public_site BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_push_notifications BOOLEAN NOT NULL DEFAULT TRUE;`);
+
+  // ── Field ↔ Age-group eligibility ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS field_age_groups (
+      field_id INTEGER NOT NULL REFERENCES field_locations(id) ON DELETE CASCADE,
+      age_group_id INTEGER NOT NULL REFERENCES league_age_groups(id) ON DELETE CASCADE,
+      PRIMARY KEY (field_id, age_group_id)
+    );
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds

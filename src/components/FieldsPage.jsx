@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
   fetchLocations, createLocation, updateLocation, deleteLocation,
-  fetchOrganizations,
+  fetchOrganizations, fetchAgeGroups,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldCalendar from './FieldCalendar.jsx';
@@ -85,6 +85,8 @@ export default function FieldsPage({ onViewGame }) {
   const [deleting, setDeleting] = useState(null);
   const [highlightedId, setHighlightedId] = useState(null);
   const [calendarField, setCalendarField] = useState(null);
+  const [ageGroups, setAgeGroups] = useState([]);
+  const [filterAgeGroup, setFilterAgeGroup] = useState('');
   const markerRefs = useRef({});
 
   // Determine which orgs the user can edit
@@ -100,12 +102,14 @@ export default function FieldsPage({ onViewGame }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [locs, orgList] = await Promise.all([
+      const [locs, orgList, agList] = await Promise.all([
         fetchLocations(),
         fetchOrganizations(),
+        fetchAgeGroups(),
       ]);
       setLocations(locs);
       setOrgs(orgList);
+      setAgeGroups(agList);
     } catch (err) { console.error('Failed to load', err); }
     finally { setLoading(false); }
   }, []);
@@ -127,10 +131,13 @@ export default function FieldsPage({ onViewGame }) {
     if (marker) marker.openPopup();
   }
 
-  // Group locations by org
+  // Group locations by org (apply age group filter)
+  const filteredLocations = filterAgeGroup
+    ? locations.filter(loc => (loc.age_groups || []).some(ag => ag.name === filterAgeGroup))
+    : locations;
   const orgMap = {};
   orgs.forEach(o => { orgMap[o.id] = { ...o, locations: [] }; });
-  locations.forEach(loc => {
+  filteredLocations.forEach(loc => {
     if (orgMap[loc.org_id]) orgMap[loc.org_id].locations.push(loc);
   });
   const orgGroups = Object.values(orgMap).filter(g => g.locations.length > 0).sort((a, b) => a.name.localeCompare(b.name));
@@ -148,11 +155,20 @@ export default function FieldsPage({ onViewGame }) {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
         <h1 className="text-2xl font-heading font-bold text-white">Fields</h1>
-        {canEditAny && (
-          <button onClick={() => { setEditing(null); setFormOrgId(null); setShowForm(true); }} className={btnPrimary}>
-            + Add Field
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {ageGroups.length > 0 && (
+            <select value={filterAgeGroup} onChange={e => setFilterAgeGroup(e.target.value)}
+              className="px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+              <option value="">All Age Groups</option>
+              {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
+            </select>
+          )}
+          {canEditAny && (
+            <button onClick={() => { setEditing(null); setFormOrgId(null); setShowForm(true); }} className={btnPrimary}>
+              + Add Field
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Map */}
@@ -238,6 +254,7 @@ export default function FieldsPage({ onViewGame }) {
                     <thead>
                       <tr className="bg-gray-800 border-b-2 border-gray-700">
                         <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
+                        <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Age Groups</th>
                         <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Address</th>
                         <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Lat / Lng</th>
                         <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Comments</th>
@@ -252,6 +269,15 @@ export default function FieldsPage({ onViewGame }) {
                           <tr key={loc.id} onClick={() => handleRowClick(loc)}
                             className={`${hasPin ? 'cursor-pointer hover:bg-blue-900/30' : ''} ${isHighlighted ? 'bg-blue-900/30 shadow-[inset_3px_0_0] shadow-blue-500' : ''} transition-colors`}>
                             <td className="px-3 py-2 font-semibold">{loc.name}</td>
+                            <td className="px-3 py-2">
+                              <div className="flex gap-1 flex-wrap">
+                                {(loc.age_groups || []).length > 0
+                                  ? loc.age_groups.map(ag => (
+                                    <span key={ag.id} className="px-1.5 py-0.5 bg-blue-900/50 text-blue-300 text-[10px] font-semibold rounded">{ag.name}</span>
+                                  ))
+                                  : <span className="text-gray-500 text-xs">All</span>}
+                              </div>
+                            </td>
                             <td className="px-3 py-2">{[loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ') || '—'}</td>
                             <td className="px-3 py-2 font-mono text-xs">{hasPin ? `${Number(loc.latitude).toFixed(4)}, ${Number(loc.longitude).toFixed(4)}` : '—'}</td>
                             <td className="px-3 py-2 text-gray-300">{loc.comments || '—'}</td>
@@ -293,6 +319,13 @@ export default function FieldsPage({ onViewGame }) {
                           {hasPin && <span className="text-[10px] font-mono text-gray-400 shrink-0 ml-2">{Number(loc.latitude).toFixed(4)}, {Number(loc.longitude).toFixed(4)}</span>}
                         </div>
                         {(loc.address || loc.city) && <p className="text-sm text-gray-300 mb-1">{[loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ')}</p>}
+                        {(loc.age_groups || []).length > 0 && (
+                          <div className="flex gap-1 flex-wrap mb-1">
+                            {loc.age_groups.map(ag => (
+                              <span key={ag.id} className="px-1.5 py-0.5 bg-blue-900/50 text-blue-300 text-[10px] font-semibold rounded">{ag.name}</span>
+                            ))}
+                          </div>
+                        )}
                         {loc.comments && <p className="text-xs text-gray-400 mb-2">{loc.comments}</p>}
                         <div className="flex gap-2 pt-2 border-t border-gray-700" onClick={e => e.stopPropagation()}>
                           <button onClick={() => setCalendarField(loc)}
@@ -323,6 +356,7 @@ export default function FieldsPage({ onViewGame }) {
           orgId={formOrgId}
           editableOrgIds={editableOrgIds}
           orgs={orgs}
+          ageGroups={ageGroups}
           location={editing}
           onDone={() => { setShowForm(false); setEditing(null); setFormOrgId(null); load(); }}
           onCancel={() => { setShowForm(false); setEditing(null); setFormOrgId(null); }}
@@ -353,13 +387,16 @@ async function reverseGeocode(lat, lng) {
   } catch { return null; }
 }
 
-function FieldForm({ orgId, editableOrgIds, orgs, location, onDone, onCancel }) {
+function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, onDone, onCancel }) {
   const isEditing = !!location;
   const [saving, setSaving] = useState(false);
   const [locatingByAddress, setLocatingByAddress] = useState(false);
   const [locatingByDevice, setLocatingByDevice] = useState(false);
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedAgeGroupIds, setSelectedAgeGroupIds] = useState(
+    () => (location?.age_groups || []).map(ag => ag.id)
+  );
   const [form, setForm] = useState({
     org_id: orgId || location?.org_id || '',
     name: location?.name || '',
@@ -465,6 +502,7 @@ function FieldForm({ orgId, editableOrgIds, orgs, location, onDone, onCancel }) 
       zip: form.zip.trim() || null,
       latitude, longitude,
       comments: form.comments.trim() || null,
+      age_group_ids: selectedAgeGroupIds,
     };
     try {
       if (isEditing) await updateLocation(location.id, data);
@@ -569,6 +607,31 @@ function FieldForm({ orgId, editableOrgIds, orgs, location, onDone, onCancel }) 
               <input id="field-lng" name="longitude" type="number" step="any" value={form.longitude} onChange={handleChange} placeholder="-92.2663" className={inputCls} />
             </div>
           </div>
+
+          {ageGroups.length > 0 && (
+            <div>
+              <label className={labelCls}>Age Groups Allowed</label>
+              <p className="text-xs text-gray-400 mb-2">Select which age groups can play on this field. Leave empty for all.</p>
+              <div className="flex flex-wrap gap-2">
+                {ageGroups.map(ag => {
+                  const selected = selectedAgeGroupIds.includes(ag.id);
+                  return (
+                    <button key={ag.id} type="button"
+                      onClick={() => setSelectedAgeGroupIds(prev =>
+                        selected ? prev.filter(id => id !== ag.id) : [...prev, ag.id]
+                      )}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                        selected
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-gray-900 border-gray-600 text-gray-300 hover:border-gray-500'
+                      }`}>
+                      {ag.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div>
             <label htmlFor="field-comments" className={labelCls}>Comments</label>

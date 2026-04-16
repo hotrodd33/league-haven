@@ -914,7 +914,17 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       }));
       return;
     }
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm(prev => {
+      const next = { ...prev, [name]: value };
+      // Clear location if age group changed and current location is no longer compatible
+      if (name === 'age_group' && prev.location_id) {
+        const loc = locations.find(l => String(l.id) === String(prev.location_id));
+        if (loc?.age_groups?.length && !loc.age_groups.some(ag => ag.name === value)) {
+          next.location_id = '';
+        }
+      }
+      return next;
+    });
   }
 
   function handleNewLocationChange(e) {
@@ -1126,7 +1136,9 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
             </div>
             <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className={inputCls} disabled={!homeOrgId}>
               <option value="">— None —</option>
-              {locations.map(l => (
+              {locations
+                .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
+                .map(l => (
                 <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
               ))}
             </select>
