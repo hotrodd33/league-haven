@@ -78,7 +78,7 @@ export default function AppShell({
         {/* Top bar */}
         <TopBar
           title={pageTitle}
-          breadcrumb={`${branding?.app_name || 'ZVBL'} Roster Manager`}
+          breadcrumb={`${branding?.app_name || 'LeagueHaven'} Sports Management`}
           user={user}
           onMenuToggle={() => setMobileMenuOpen((v) => !v)}
           onChangePassword={onChangePassword}

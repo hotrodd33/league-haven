@@ -1,7 +1,7 @@
 {
   "name": "LeagueHaven",
   "short_name": "LeagueHaven",
-  "description": "Baseball league management — rosters, schedules, pitch tracking & more",
+  "description": "League management — rosters, schedules, pitch tracking & more",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111827",

@@ -129,7 +129,7 @@ export default function Dashboard({ onNavigate }) {
               <p className="mt-1 text-white/70 text-sm">
                 {currentSeason
                   ? `${currentSeason.name} Season`
-                  : 'Welcome to LeagueHaven Roster Manager'
+                  : 'Welcome to LeagueHaven Sports Management'
                 }
                 {' · '}{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
               </p>
@@ -412,7 +412,7 @@ export default function Dashboard({ onNavigate }) {
       {/* ── Footer ── */}
       <footer className="pt-4 pb-2 border-t border-gray-700/50">
         <p className="text-center text-xs text-gray-400">
-          LeagueHaven Roster Manager · Built by DigiSeeIt Design · {new Date().getFullYear()}
+          LeagueHaven Sports Management · Built by DigiSeeIt Design · {new Date().getFullYear()}
         </p>
       </footer>
     </div>
