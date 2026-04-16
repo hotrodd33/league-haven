@@ -5,6 +5,7 @@ import {
   fetchPlayerDocuments, uploadPlayerDocument, downloadPlayerDocument, deletePlayerDocument,
   fetchPlayerStats, fetchStatDefinitions,
   updatePlayer, fetchPositions,
+  fetchTeams, fetchOrganizations, assignPlayerToTeam, unassignPlayerFromTeam,
 } from '../api/index.js';
 import { ChevronLeftIcon, PlusIcon, TrashIcon, PencilIcon, DocumentIcon, ChatBubbleIcon, UserIcon, ChartBarIcon } from './ui/icons.jsx';
 
@@ -263,24 +264,165 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
       </div>
 
       {/* Teams */}
-      {player.teams?.length > 0 && (
-        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Teams</h3>
-          <div className="space-y-2">
-            {player.teams.map(t => (
-              <button
-                key={t.team_id || t.id}
-                className="flex items-center justify-between w-full px-3 py-2 bg-gray-700/40 rounded-lg hover:bg-gray-700/60 transition-colors text-left"
-                onClick={() => onNavigateToTeam?.(t.team_id || t.id, t.org_id)}
-              >
-                <span className="text-sm text-white">{t.team_name || t.name}</span>
-                {t.jersey_number && (
-                  <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">#{t.jersey_number}</span>
-                )}
-              </button>
-            ))}
-          </div>
+      <TeamAssignments player={player} canEdit={canEdit} onNavigateToTeam={onNavigateToTeam} onPlayerUpdated={onPlayerUpdated} />
+    </div>
+  );
+}
+
+/* ─── Team Assignments ─── */
+function TeamAssignments({ player, canEdit, onNavigateToTeam, onPlayerUpdated }) {
+  const [editing, setEditing] = useState(false);
+  const [allTeams, setAllTeams] = useState([]);
+  const [orgs, setOrgs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+
+  const currentTeamIds = new Set((player.teams || []).map(t => t.team_id || t.id));
+
+  function startEdit() {
+    setSelected(new Set(currentTeamIds));
+    setLoading(true);
+    Promise.all([fetchTeams(), fetchOrganizations()])
+      .then(([t, o]) => { setAllTeams(t); setOrgs(o); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+    setEditing(true);
+  }
+
+  function toggleTeam(teamId) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const toAdd = [...selected].filter(id => !currentTeamIds.has(id));
+      const toRemove = [...currentTeamIds].filter(id => !selected.has(id));
+      await Promise.all([
+        ...toAdd.map(id => assignPlayerToTeam(id, player.id)),
+        ...toRemove.map(id => unassignPlayerFromTeam(id, player.id)),
+      ]);
+      // Rebuild player.teams from the new selection
+      const newTeams = [...selected].map(id => {
+        const existing = (player.teams || []).find(t => (t.team_id || t.id) === id);
+        if (existing) return existing;
+        const t = allTeams.find(t => t.id === id);
+        return t ? { team_id: t.id, team_name: t.name, org_id: t.org_id, org_name: t.org_name } : { team_id: id };
+      });
+      onPlayerUpdated({ ...player, teams: newTeams });
+      setEditing(false);
+    } catch (err) {
+      alert('Failed to update teams: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group teams by org
+  const teamsByOrg = {};
+  const unassignedTeams = [];
+  for (const t of allTeams) {
+    if (t.org_id) {
+      if (!teamsByOrg[t.org_id]) teamsByOrg[t.org_id] = [];
+      teamsByOrg[t.org_id].push(t);
+    } else {
+      unassignedTeams.push(t);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Edit Teams</h3>
         </div>
+        {loading ? (
+          <p className="text-sm text-gray-400">Loading teams…</p>
+        ) : (
+          <>
+            <p className="text-xs text-gray-400 mb-3">Check the teams this player should be on.</p>
+            <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
+              {orgs.map(org => {
+                const orgTeams = teamsByOrg[org.id] || [];
+                if (!orgTeams.length) return null;
+                return (
+                  <div key={org.id}>
+                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{org.name}</div>
+                    <div className="space-y-1 ml-2">
+                      {orgTeams.map(t => (
+                        <label key={t.id} className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-900 cursor-pointer">
+                          <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleTeam(t.id)}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-600 focus:ring-blue-500" />
+                          <span className="text-sm text-gray-200">{t.name}</span>
+                          {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {unassignedTeams.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Unassigned</div>
+                  <div className="space-y-1 ml-2">
+                    {unassignedTeams.map(t => (
+                      <label key={t.id} className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-900 cursor-pointer">
+                        <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleTeam(t.id)}
+                          className="w-4 h-4 text-blue-600 rounded border-gray-600 focus:ring-blue-500" />
+                        <span className="text-sm text-gray-200">{t.name}</span>
+                        {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-700">
+              <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
+              <button onClick={handleSave} disabled={saving}
+                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+                {saving ? 'Saving…' : 'Save Teams'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Teams</h3>
+        {canEdit && (
+          <button onClick={startEdit} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors">
+            <PencilIcon className="w-3.5 h-3.5" /> Edit
+          </button>
+        )}
+      </div>
+      {player.teams?.length > 0 ? (
+        <div className="space-y-2">
+          {player.teams.map(t => (
+            <button
+              key={t.team_id || t.id}
+              className="flex items-center justify-between w-full px-3 py-2 bg-gray-700/40 rounded-lg hover:bg-gray-700/60 transition-colors text-left"
+              onClick={() => onNavigateToTeam?.(t.team_id || t.id, t.org_id)}
+            >
+              <span className="text-sm text-white">{t.team_name || t.name}</span>
+              {t.jersey_number && (
+                <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">#{t.jersey_number}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-400">Not assigned to any team.</p>
       )}
     </div>
   );
