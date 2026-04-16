@@ -119,6 +119,15 @@ export function AuthProvider({ children }) {
     return false;
   }, [isSuperAdmin, permissions.org_ids, permissions.team_ids]);
 
+  const canScheduleGames = isSuperAdmin || isOrgAdmin;
+
+  const canDeleteGame = useCallback((homeTeamId, awayTeamId, homeOrgId, awayOrgId) => {
+    if (isSuperAdmin) return true;
+    if (!isOrgAdmin) return false;
+    const orgIds = [homeOrgId, awayOrgId].filter(Boolean).map(Number);
+    return orgIds.length > 0 && orgIds.every(id => permissions.org_ids.includes(id));
+  }, [isSuperAdmin, isOrgAdmin, permissions.org_ids]);
+
   const value = {
     token: auth?.token,
     user: auth?.user,
@@ -133,6 +142,8 @@ export function AuthProvider({ children }) {
     canEditOrg,
     canEditTeam,
     canScoreGame,
+    canScheduleGames,
+    canDeleteGame,
     loading,
     error,
     login,

@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, requireAdmin, canEditTeam, canScoreGame } = require('../auth');
+const { authMiddleware, requireAdmin, canEditTeam, canScoreGame, getUserPermissions } = require('../auth');
 const { sendGameChangeEmail } = require('../email');
 const { notifyTeamUsers } = require('../push');
 
@@ -399,8 +399,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// CREATE game
-router.post('/', authMiddleware, requireAdmin, async (req, res) => {
+// CREATE game (super_admin or org_admin for their org's teams)
+router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
     const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes, official_ids } = req.body;
@@ -412,6 +412,22 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
     }
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // Permission check: super_admin can schedule any game; org_admin can schedule for their org's teams
+    if (req.user.role !== 'super_admin') {
+      if (req.user.role !== 'org_admin') {
+        return res.status(403).json({ error: 'Only admins can schedule games' });
+      }
+      const perms = await getUserPermissions(req.user.id);
+      const { rows: teamOrgs } = await pool.query(
+        'SELECT id, org_id FROM teams WHERE id IN ($1, $2)',
+        [home_team_id, away_team_id]
+      );
+      const hasAccess = teamOrgs.every(t => t.org_id && perms.org_ids.includes(t.org_id));
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'You can only schedule games for teams in your organization' });
+      }
     }
 
     await client.query('BEGIN');
@@ -596,12 +612,27 @@ async function notifyGameChange(game, oldDate, newDate, oldTime, newTime, user) 
   }
 }
 
-// DELETE game
-router.delete('/:id', authMiddleware, requireAdmin, async (req, res) => {
+// DELETE game (super_admin or org_admin for their org's teams)
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await pool.query('SELECT id FROM games WHERE id = $1', [id]);
+    const { rows } = await pool.query('SELECT id, home_team_id, away_team_id FROM games WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Game not found' });
+
+    if (req.user.role !== 'super_admin') {
+      if (req.user.role !== 'org_admin') {
+        return res.status(403).json({ error: 'Only admins can delete games' });
+      }
+      const perms = await getUserPermissions(req.user.id);
+      const { rows: teamOrgs } = await pool.query(
+        'SELECT id, org_id FROM teams WHERE id IN ($1, $2)',
+        [rows[0].home_team_id, rows[0].away_team_id]
+      );
+      const hasAccess = teamOrgs.every(t => t.org_id && perms.org_ids.includes(t.org_id));
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'You can only delete games for teams in your organization' });
+      }
+    }
 
     await pool.query('DELETE FROM games WHERE id = $1', [id]);
     res.json({ success: true });

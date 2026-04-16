@@ -94,7 +94,7 @@ function buildTimeSlots(startTime, endTime, increment) {
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport }) {
-  const { isAdmin, canScoreGame, role, isUmpire } = useAuth();
+  const { isAdmin, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire } = useAuth();
   const [games, setGames] = useState([]);
   const [teams, setTeams] = useState([]);
   const [seasons, setSeasons] = useState([]);
@@ -293,7 +293,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                 📅
               </button>
             </div>
-            {isAdmin && (
+            {canScheduleGames && (
               <>
                 <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Game</button>
               </>
@@ -345,7 +345,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
           {filteredGames.length === 0 ? (
             <div className="py-12 text-center text-gray-400">
               No games found.
-              {isAdmin && (
+              {canScheduleGames && (
                 <>
                   <br />
                   <button onClick={() => setShowForm(true)} className="text-field-300 underline mt-1 inline-block">Schedule the first game</button>
@@ -425,7 +425,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                               <button onClick={() => { setEditing(game); setShowForm(true); }}
                                 className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
-                              {isAdmin && (
+                              {canDeleteGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                                 <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
                                   className={btnDanger}>{deleting === game.id ? '…' : 'Del'}</button>
                               )}
@@ -502,7 +502,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           <>
                             <button onClick={() => { setEditing(game); setShowForm(true); }}
                               className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
-                            {isAdmin && (
+                            {canDeleteGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                               <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
                                 className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
                             )}
@@ -793,6 +793,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
 
 export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, onDone, onCancel }) {
   const isEditing = !!game;
+  const { isSuperAdmin, isOrgAdmin, permissions } = useAuth();
   const [saving, setSaving] = useState(false);
   const [addingLocation, setAddingLocation] = useState(false);
   const [showAddLocationForm, setShowAddLocationForm] = useState(false);
@@ -1013,10 +1014,13 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     handleSubmit(fakeEvent);
   }
 
-  // Build team optgroups
+  // Build team optgroups — org_admins only see their org's teams when creating
+  const visibleTeams = (!isEditing && isOrgAdmin && !isSuperAdmin)
+    ? teams.filter(t => t.org_id && permissions.org_ids.includes(t.org_id))
+    : teams;
   const teamsByOrg = {};
   const ungroupedTeams = [];
-  for (const t of teams) {
+  for (const t of visibleTeams) {
     if (t.org_name) {
       if (!teamsByOrg[t.org_name]) teamsByOrg[t.org_name] = [];
       teamsByOrg[t.org_name].push(t);
