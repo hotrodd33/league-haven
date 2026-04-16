@@ -39,21 +39,39 @@ router.get('/debug', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/push/test — send a test push to yourself
+// POST /api/push/test — send a test push to yourself (with full error details)
 router.post('/test', authMiddleware, async (req, res) => {
   try {
     if (!VAPID_PUBLIC_KEY) {
       return res.status(400).json({ error: 'VAPID keys not configured on server' });
     }
-    const results = await notifyUser(req.user.id, {
-      title: 'Test Notification',
-      body: 'Push notifications are working!',
-      tag: 'test-' + Date.now(),
-      url: '/',
-    });
-    const sent = (results || []).filter(Boolean).length;
-    const failed = (results || []).length - sent;
-    res.json({ ok: true, sent, failed, total_subscriptions: (results || []).length });
+    const { rows: subs } = await pool.query(
+      'SELECT endpoint, keys_p256dh, keys_auth FROM push_subscriptions WHERE user_id = $1',
+      [req.user.id]
+    );
+    if (!subs.length) {
+      return res.json({ ok: false, sent: 0, failed: 0, total_subscriptions: 0, error: 'No subscriptions in database for your user' });
+    }
+    const webpush = require('web-push');
+    const results = [];
+    for (const sub of subs) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth } },
+          JSON.stringify({ title: 'Test Notification', body: 'Push notifications are working!', tag: 'test-' + Date.now(), url: '/' })
+        );
+        results.push({ endpoint_prefix: sub.endpoint.substring(0, 60), status: 'sent' });
+      } catch (err) {
+        results.push({
+          endpoint_prefix: sub.endpoint.substring(0, 60),
+          status: 'failed',
+          statusCode: err.statusCode,
+          error: err.body || err.message,
+        });
+      }
+    }
+    const sent = results.filter(r => r.status === 'sent').length;
+    res.json({ ok: sent > 0, sent, failed: results.length - sent, total_subscriptions: results.length, details: results });
   } catch (err) {
     console.error('Push test error:', err);
     res.status(500).json({ error: err.message });

@@ -176,7 +176,14 @@ export default function MyAccount({ onChangePassword }) {
                       setTestResult('Sending...');
                       try {
                         const r = await sendTestPush();
-                        setTestResult(r.sent > 0 ? `Sent! (${r.sent} delivered)` : `No subscriptions found (${r.total_subscriptions} total)`);
+                        if (r.sent > 0) {
+                          setTestResult(`Sent! (${r.sent} delivered)`);
+                        } else if (r.details) {
+                          const errs = r.details.filter(d => d.status === 'failed').map(d => `${d.statusCode}: ${d.error}`).join('; ');
+                          setTestResult(`Failed: ${errs || r.error || 'Unknown error'}`);
+                        } else {
+                          setTestResult(r.error || `No subscriptions found`);
+                        }
                       } catch (e) {
                         setTestResult(`Error: ${e.message}`);
                       }
