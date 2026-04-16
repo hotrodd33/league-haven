@@ -86,7 +86,7 @@ router.get('/:id', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Player not found' });
     // Also get the teams this player is on
     const { rows: teams } = await pool.query(
-      `SELECT t.id, t.name, tp.jersey_number
+      `SELECT t.id, t.name, t.org_id, tp.jersey_number
        FROM teams t JOIN team_players tp ON tp.team_id = t.id
        WHERE tp.player_id = $1 ORDER BY t.name`, [req.params.id]
     );
