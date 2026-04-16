@@ -103,7 +103,7 @@ router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
     const { team_id, first_name, last_name, jersey_number, date_of_birth,
-            batting_hand, throwing_hand, parent_email, parent_phone, grade, position_ids } = req.body;
+            batting_hand, throwing_hand, parent_email, parent_phone, grade, position_ids, contacts } = req.body;
 
     if (!first_name || !last_name) {
       return res.status(400).json({ error: 'first_name and last_name are required' });
@@ -136,6 +136,21 @@ router.post('/', authMiddleware, async (req, res) => {
     if (Array.isArray(position_ids)) {
       for (const posId of position_ids) {
         await client.query('INSERT INTO player_positions (player_id, position_id) VALUES ($1, $2)', [playerId, posId]);
+      }
+    }
+
+    // Save contacts
+    if (Array.isArray(contacts)) {
+      for (const c of contacts) {
+        if (!c.first_name || !c.last_name) continue;
+        if (c.is_primary) {
+          await client.query('UPDATE player_contacts SET is_primary = FALSE WHERE player_id = $1', [playerId]);
+        }
+        await client.query(
+          `INSERT INTO player_contacts (player_id, relationship, first_name, last_name, email, phone, is_primary)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [playerId, c.relationship || 'parent', c.first_name, c.last_name, c.email || null, c.phone || null, c.is_primary || false]
+        );
       }
     }
 

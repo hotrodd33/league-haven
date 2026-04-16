@@ -4,9 +4,12 @@ import { fetchPositions, createPlayer, updatePlayer } from '../api/index.js';
 const BATTING_OPTIONS = ['R', 'L', 'S'];
 const THROWING_OPTIONS = ['R', 'L'];
 const GRADE_OPTIONS = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+const RELATIONSHIP_OPTIONS = ['parent', 'guardian', 'emergency', 'other'];
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+
+const EMPTY_CONTACT = { first_name: '', last_name: '', relationship: 'parent', email: '', phone: '', is_primary: false };
 
 export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
   const isEditing = !!player;
@@ -18,8 +21,9 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
     firstName: '', lastName: '', jerseyNumber: '',
     selectedPositions: [], dateOfBirth: '',
     battingHand: '', throwingHand: '', grade: '',
-    parentEmail: '', parentPhone: '',
   });
+
+  const [contacts, setContacts] = useState([{ ...EMPTY_CONTACT, is_primary: true }]);
 
   useEffect(() => { fetchPositions().then(setPositions).catch(() => setPositions([])); }, []);
 
@@ -32,7 +36,6 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
         dateOfBirth: player.date_of_birth || '',
         battingHand: player.batting_hand || '', throwingHand: player.throwing_hand || '',
         grade: player.grade || '',
-        parentEmail: player.parent_email || '', parentPhone: player.parent_phone || '',
       });
     }
   }, [player]);
@@ -52,10 +55,38 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
     });
   }
 
+  function handleContactChange(idx, field, value) {
+    setContacts(prev => prev.map((c, i) => {
+      if (i !== idx) return c;
+      if (field === 'is_primary' && value) {
+        return { ...c, is_primary: true };
+      }
+      return { ...c, [field]: value };
+    }));
+    if (field === 'is_primary' && value) {
+      setContacts(prev => prev.map((c, i) => i === idx ? c : { ...c, is_primary: false }));
+    }
+  }
+
+  function addContact() {
+    setContacts(prev => [...prev, { ...EMPTY_CONTACT }]);
+  }
+
+  function removeContact(idx) {
+    setContacts(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      if (next.length > 0 && !next.some(c => c.is_primary)) {
+        next[0].is_primary = true;
+      }
+      return next;
+    });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
     setError(null);
+    const validContacts = contacts.filter(c => c.first_name.trim() && c.last_name.trim());
     const data = {
       team_id: teamId,
       first_name: form.firstName.trim(), last_name: form.lastName.trim(),
@@ -64,7 +95,14 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
       date_of_birth: form.dateOfBirth || null,
       batting_hand: form.battingHand || null, throwing_hand: form.throwingHand || null,
       grade: form.grade || null,
-      parent_email: form.parentEmail.trim() || null, parent_phone: form.parentPhone.trim() || null,
+      contacts: validContacts.map(c => ({
+        first_name: c.first_name.trim(),
+        last_name: c.last_name.trim(),
+        relationship: c.relationship || 'parent',
+        email: c.email.trim() || null,
+        phone: c.phone.trim() || null,
+        is_primary: c.is_primary,
+      })),
     };
     try {
       if (isEditing) await updatePlayer(player.id, data);
@@ -140,17 +178,50 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
             </div>
           </div>
 
-          {/* Parent contact */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Contacts */}
+          {!isEditing && (
             <div>
-              <label htmlFor="parentEmail" className={labelCls}>Parent Email</label>
-              <input id="parentEmail" name="parentEmail" type="email" value={form.parentEmail} onChange={handleChange} placeholder="parent@example.com" className={inputCls} />
+              <div className="flex items-center justify-between mb-2">
+                <label className={labelCls + ' mb-0'}>Contacts</label>
+                <button type="button" onClick={addContact} className="text-xs font-semibold text-blue-400 hover:text-blue-300 underline">+ Add Contact</button>
+              </div>
+              <div className="space-y-3">
+                {contacts.map((contact, idx) => (
+                  <div key={idx} className="bg-gray-900 border border-gray-700 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-gray-300">Contact {idx + 1}</span>
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
+                          <input type="checkbox" checked={contact.is_primary} onChange={(e) => handleContactChange(idx, 'is_primary', e.target.checked)} className="accent-blue-500" />
+                          Primary
+                        </label>
+                        {contacts.length > 1 && (
+                          <button type="button" onClick={() => removeContact(idx)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div>
+                        <input type="text" value={contact.first_name} onChange={(e) => handleContactChange(idx, 'first_name', e.target.value)} placeholder="First Name *" className={inputCls} />
+                      </div>
+                      <div>
+                        <input type="text" value={contact.last_name} onChange={(e) => handleContactChange(idx, 'last_name', e.target.value)} placeholder="Last Name *" className={inputCls} />
+                      </div>
+                      <div>
+                        <select value={contact.relationship} onChange={(e) => handleContactChange(idx, 'relationship', e.target.value)} className={inputCls}>
+                          {RELATIONSHIP_OPTIONS.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input type="email" value={contact.email} onChange={(e) => handleContactChange(idx, 'email', e.target.value)} placeholder="Email" className={inputCls} />
+                      <input type="tel" value={contact.phone} onChange={(e) => handleContactChange(idx, 'phone', e.target.value)} placeholder="Phone" className={inputCls} />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div>
-              <label htmlFor="parentPhone" className={labelCls}>Parent Phone</label>
-              <input id="parentPhone" name="parentPhone" type="tel" value={form.parentPhone} onChange={handleChange} placeholder="(555) 123-4567" className={inputCls} />
-            </div>
-          </div>
+          )}
 
           {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
 

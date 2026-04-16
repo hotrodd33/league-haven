@@ -96,8 +96,6 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
       grade: player.grade || '',
       batting_hand: player.batting_hand || '',
       throwing_hand: player.throwing_hand || '',
-      parent_email: player.parent_email || '',
-      parent_phone: player.parent_phone || '',
       position_ids: (player.positions || []).map(p => p.id),
     });
     setError(null);
@@ -116,8 +114,6 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
         grade: form.grade || null,
         batting_hand: form.batting_hand || null,
         throwing_hand: form.throwing_hand || null,
-        parent_email: form.parent_email.trim() || null,
-        parent_phone: form.parent_phone.trim() || null,
         position_ids: form.position_ids,
       });
       onPlayerUpdated({ ...player, ...updated });
@@ -191,14 +187,7 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
                 {THROWING_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Parent Email</label>
-              <input type="email" value={form.parent_email} onChange={e => setForm(f => ({ ...f, parent_email: e.target.value }))} className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Parent Phone</label>
-              <input value={form.parent_phone} onChange={e => setForm(f => ({ ...f, parent_phone: e.target.value }))} className={inputCls} />
-            </div>
+
           </div>
 
           {positions.length > 0 && (
@@ -242,8 +231,6 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
     { label: 'Grade', value: player.grade || '—' },
     { label: 'Bats / Throws', value: `${player.batting_hand || '—'} / ${player.throwing_hand || '—'}` },
     { label: 'Positions', value: player.positions?.length ? player.positions.map(p => p.abbreviation).join(', ') : '—' },
-    { label: 'Parent Email', value: player.parent_email || '—' },
-    { label: 'Parent Phone', value: player.parent_phone || '—' },
   ];
 
   return (
