@@ -793,7 +793,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
 
 export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, onDone, onCancel }) {
   const isEditing = !!game;
-  const { isSuperAdmin, isOrgAdmin, permissions } = useAuth();
+  const { isSuperAdmin, isOrgAdmin, permissions, role } = useAuth();
   const [saving, setSaving] = useState(false);
   const [addingLocation, setAddingLocation] = useState(false);
   const [showAddLocationForm, setShowAddLocationForm] = useState(false);
@@ -1015,9 +1015,12 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   }
 
   // Build team optgroups — org_admins only see their org's teams when creating
-  const visibleTeams = (!isEditing && isOrgAdmin && !isSuperAdmin)
-    ? teams.filter(t => t.org_id && permissions.org_ids.includes(t.org_id))
-    : teams;
+  const visibleTeams = (() => {
+    if (isEditing || isSuperAdmin) return teams;
+    if (isOrgAdmin) return teams.filter(t => t.org_id && permissions.org_ids.includes(t.org_id));
+    if (role === 'team_manager') return teams.filter(t => permissions.team_ids.includes(t.id));
+    return teams;
+  })();
   const teamsByOrg = {};
   const ungroupedTeams = [];
   for (const t of visibleTeams) {

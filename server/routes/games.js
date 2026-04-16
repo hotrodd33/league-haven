@@ -414,19 +414,26 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    // Permission check: super_admin can schedule any game; org_admin can schedule for their org's teams
+    // Permission check: super_admin can schedule any game; org_admin for their org; team_manager for their teams
     if (req.user.role !== 'super_admin') {
-      if (req.user.role !== 'org_admin') {
-        return res.status(403).json({ error: 'Only admins can schedule games' });
-      }
       const perms = await getUserPermissions(req.user.id);
-      const { rows: teamOrgs } = await pool.query(
-        'SELECT id, org_id FROM teams WHERE id IN ($1, $2)',
-        [home_team_id, away_team_id]
-      );
-      const hasAccess = teamOrgs.every(t => t.org_id && perms.org_ids.includes(t.org_id));
-      if (!hasAccess) {
-        return res.status(403).json({ error: 'You can only schedule games for teams in your organization' });
+      if (req.user.role === 'org_admin') {
+        const { rows: teamOrgs } = await pool.query(
+          'SELECT id, org_id FROM teams WHERE id IN ($1, $2)',
+          [home_team_id, away_team_id]
+        );
+        const hasAccess = teamOrgs.every(t => t.org_id && perms.org_ids.includes(t.org_id));
+        if (!hasAccess) {
+          return res.status(403).json({ error: 'You can only schedule games for teams in your organization' });
+        }
+      } else if (req.user.role === 'team_manager') {
+        const teamIds = [Number(home_team_id), Number(away_team_id)];
+        const hasAccess = teamIds.some(id => perms.team_ids.includes(id));
+        if (!hasAccess) {
+          return res.status(403).json({ error: 'You can only schedule games for your teams' });
+        }
+      } else {
+        return res.status(403).json({ error: 'Not authorized to schedule games' });
       }
     }
 
@@ -620,17 +627,24 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Game not found' });
 
     if (req.user.role !== 'super_admin') {
-      if (req.user.role !== 'org_admin') {
-        return res.status(403).json({ error: 'Only admins can delete games' });
-      }
       const perms = await getUserPermissions(req.user.id);
-      const { rows: teamOrgs } = await pool.query(
-        'SELECT id, org_id FROM teams WHERE id IN ($1, $2)',
-        [rows[0].home_team_id, rows[0].away_team_id]
-      );
-      const hasAccess = teamOrgs.every(t => t.org_id && perms.org_ids.includes(t.org_id));
-      if (!hasAccess) {
-        return res.status(403).json({ error: 'You can only delete games for teams in your organization' });
+      if (req.user.role === 'org_admin') {
+        const { rows: teamOrgs } = await pool.query(
+          'SELECT id, org_id FROM teams WHERE id IN ($1, $2)',
+          [rows[0].home_team_id, rows[0].away_team_id]
+        );
+        const hasAccess = teamOrgs.every(t => t.org_id && perms.org_ids.includes(t.org_id));
+        if (!hasAccess) {
+          return res.status(403).json({ error: 'You can only delete games for teams in your organization' });
+        }
+      } else if (req.user.role === 'team_manager') {
+        const teamIds = [Number(rows[0].home_team_id), Number(rows[0].away_team_id)];
+        const hasAccess = teamIds.some(id => perms.team_ids.includes(id));
+        if (!hasAccess) {
+          return res.status(403).json({ error: 'You can only delete games for your teams' });
+        }
+      } else {
+        return res.status(403).json({ error: 'Not authorized to delete games' });
       }
     }
 

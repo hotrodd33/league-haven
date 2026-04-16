@@ -119,14 +119,21 @@ export function AuthProvider({ children }) {
     return false;
   }, [isSuperAdmin, permissions.org_ids, permissions.team_ids]);
 
-  const canScheduleGames = isSuperAdmin || isOrgAdmin;
+  const isTeamManager = role === 'team_manager';
+  const canScheduleGames = isSuperAdmin || isOrgAdmin || isTeamManager;
 
   const canDeleteGame = useCallback((homeTeamId, awayTeamId, homeOrgId, awayOrgId) => {
     if (isSuperAdmin) return true;
-    if (!isOrgAdmin) return false;
-    const orgIds = [homeOrgId, awayOrgId].filter(Boolean).map(Number);
-    return orgIds.length > 0 && orgIds.every(id => permissions.org_ids.includes(id));
-  }, [isSuperAdmin, isOrgAdmin, permissions.org_ids]);
+    if (isOrgAdmin) {
+      const orgIds = [homeOrgId, awayOrgId].filter(Boolean).map(Number);
+      return orgIds.length > 0 && orgIds.every(id => permissions.org_ids.includes(id));
+    }
+    if (isTeamManager) {
+      const teamIds = [Number(homeTeamId), Number(awayTeamId)];
+      return teamIds.some(id => permissions.team_ids.includes(id));
+    }
+    return false;
+  }, [isSuperAdmin, isOrgAdmin, isTeamManager, permissions.org_ids, permissions.team_ids]);
 
   const value = {
     token: auth?.token,
