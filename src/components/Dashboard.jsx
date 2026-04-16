@@ -92,6 +92,10 @@ export default function Dashboard({ onNavigate }) {
     .sort((a, b) => (a.game_date + (a.game_time || '')) > (b.game_date + (b.game_time || '')) ? 1 : -1)
     .slice(0, 5);
 
+  const todaysGames = games
+    .filter(g => g.game_date === todayStr && g.status !== 'cancelled')
+    .sort((a, b) => (a.game_time || '').localeCompare(b.game_time || ''));
+
   const recentResults = games
     .filter(g => g.status === 'final')
     .sort((a, b) => b.game_date > a.game_date ? 1 : -1)
@@ -191,6 +195,59 @@ export default function Dashboard({ onNavigate }) {
           />
         </div>
       </section>
+
+      {/* ── Today's Games ── */}
+      {todaysGames.length > 0 && (
+        <section aria-label="Today's games">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-heading text-lg font-bold text-gray-100 flex items-center gap-2">
+              <ClockIcon className="w-5 h-5 text-baseball-500" />
+              Today's Games
+              <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-baseball-600/30 text-baseball-300">
+                {todaysGames.length}
+              </span>
+            </h3>
+            <button
+              onClick={() => onNavigate?.('schedule')}
+              className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
+            >
+              Full Schedule <span aria-hidden="true">→</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {todaysGames.map((g) => (
+              <Scoreboard
+                key={g.id}
+                status={g.status === 'in_progress' ? 'in_progress' : g.status === 'final' ? 'final' : 'scheduled'}
+                gameTime={
+                  g.game_time ? formatGameTime(g.game_time) : 'Time TBD'
+                }
+                homeTeam={{
+                  name: g.home_team_name || 'TBD',
+                  logo: g.home_logo_url,
+                  ageGroup: g.home_age_group,
+                  level: g.home_level,
+                  cityAbbr: cityAbbr(g.home_team_city),
+                  primaryColor: g.home_primary_color,
+                  secondaryColor: g.home_secondary_color,
+                }}
+                awayTeam={{
+                  name: g.away_team_name || 'TBD',
+                  logo: g.away_logo_url,
+                  ageGroup: g.away_age_group,
+                  level: g.away_level,
+                  cityAbbr: cityAbbr(g.away_team_city),
+                  primaryColor: g.away_primary_color,
+                  secondaryColor: g.away_secondary_color,
+                }}
+                homeScore={g.home_score}
+                awayScore={g.away_score}
+                location={g.location_name}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Two-Column Layout: Games + Activity ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
