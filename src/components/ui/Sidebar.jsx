@@ -6,14 +6,6 @@ import {
   MapPinIcon, UserIcon,
 } from './icons.jsx';
 
-const leagueNav = [
-  { key: 'dashboard', label: 'Dashboard', icon: HomeIcon },
-  { key: 'schedule',  label: 'Schedule',  icon: CalendarIcon },
-  { key: 'standings', label: 'Standings', icon: TrophyIcon },
-  { key: 'directory', label: 'Directory', icon: ClipboardIcon },
-  { key: 'fields',    label: 'Fields',    icon: MapPinIcon },
-];
-
 const teamNav = [
   { key: 'rosters', label: 'Teams',   icon: UsersIcon },
   { key: 'players', label: 'Players', icon: UserIcon },
@@ -27,24 +19,36 @@ export default function Sidebar({
   isOrgAdmin = false,
   isTeamManager = false,
   branding,
+  features = {},
   collapsed = false,
   onToggleCollapse,
   mobileOpen = false,
   onCloseMobile,
 }) {
-  // Build Organization items based on role
+  const ft = (key) => features[key] !== false;
+
+  // Build League nav — conditionally include items based on feature toggles
+  const leagueItems = [
+    { key: 'dashboard', label: 'Dashboard', icon: HomeIcon },
+    { key: 'schedule',  label: 'Schedule',  icon: CalendarIcon },
+    { key: 'standings', label: 'Standings', icon: TrophyIcon },
+    { key: 'directory', label: 'Directory', icon: ClipboardIcon },
+    { key: 'fields',    label: 'Fields',    icon: MapPinIcon },
+  ];
+
+  // Build Organization items based on role + feature toggles
   const orgItems = [];
   orgItems.push({ key: 'organizations', label: 'Organizations', icon: BuildingIcon });
-  if (isAdmin || isOrgAdmin || isAccountant) {
+  if ((isAdmin || isOrgAdmin || isAccountant) && ft('feature_officials')) {
     orgItems.push({ key: 'officials', label: 'Officials', icon: UserGroupIcon });
   }
   if (isAdmin || isOrgAdmin || isTeamManager) {
     orgItems.push({ key: 'approvals', label: 'Approvals', icon: ClipboardIcon });
   }
 
-  // Build Administration items based on role
+  // Build Administration items based on role + feature toggles
   const adminItems = [];
-  if (isAdmin || isAccountant) {
+  if ((isAdmin || isAccountant) && ft('feature_financials')) {
     adminItems.push({ key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon });
   }
   if (isAdmin) {
@@ -96,7 +100,7 @@ export default function Sidebar({
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 scrollbar-thin">
-          <NavGroup label="League" items={leagueNav} page={page} collapsed={collapsed}
+          <NavGroup label="League" items={leagueItems} page={page} collapsed={collapsed}
             onNavigate={onNavigate} onCloseMobile={onCloseMobile} />
           <NavGroup label="Teams & Players" items={teamNav} page={page} collapsed={collapsed}
             onNavigate={onNavigate} onCloseMobile={onCloseMobile} />

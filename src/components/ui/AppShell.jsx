@@ -22,6 +22,7 @@ export default function AppShell({
   isTeamManager,
   user,
   branding,
+  features,
   onChangePassword,
   onLogout,
   onNavigateToTeam,
@@ -62,6 +63,7 @@ export default function AppShell({
         isOrgAdmin={isOrgAdmin}
         isTeamManager={isTeamManager}
         branding={branding}
+        features={features}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         mobileOpen={mobileMenuOpen}

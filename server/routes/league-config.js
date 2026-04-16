@@ -8,7 +8,10 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512
 
 async function getBranding() {
   const { rows } = await pool.query(
-    `SELECT app_name, logo_url, game_start_time, game_end_time, game_time_increment_minutes
+    `SELECT app_name, logo_url, game_start_time, game_end_time, game_time_increment_minutes,
+            feature_live_scoring, feature_pitch_tracking, feature_officials,
+            feature_stats, feature_documents, feature_financials,
+            feature_registration, feature_public_site, feature_push_notifications
      FROM app_branding WHERE id = 1`
   );
   return rows[0] || { app_name: 'LeagueHaven', logo_url: null };
@@ -137,6 +140,50 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
       game_end_time: formatTime(branding.game_end_time),
       game_time_increment_minutes: Number(branding.game_time_increment_minutes),
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Feature Toggles ──
+
+const FEATURE_KEYS = [
+  'feature_live_scoring', 'feature_pitch_tracking', 'feature_officials',
+  'feature_stats', 'feature_documents', 'feature_financials',
+  'feature_registration', 'feature_public_site', 'feature_push_notifications',
+];
+
+router.get('/features', async (req, res) => {
+  try {
+    const branding = await getBranding();
+    const features = {};
+    for (const key of FEATURE_KEYS) features[key] = branding[key] !== false;
+    res.json(features);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/features', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const sets = [];
+    const vals = [];
+    let idx = 1;
+    for (const key of FEATURE_KEYS) {
+      if (req.body[key] !== undefined) {
+        sets.push(`${key} = $${idx++}`);
+        vals.push(!!req.body[key]);
+      }
+    }
+    if (!sets.length) return res.status(400).json({ error: 'No valid feature toggles provided' });
+    vals.push(1);
+    await pool.query(`UPDATE app_branding SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, vals);
+    const branding = await getBranding();
+    const features = {};
+    for (const key of FEATURE_KEYS) features[key] = branding[key] !== false;
+    res.json(features);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

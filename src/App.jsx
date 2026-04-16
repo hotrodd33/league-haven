@@ -42,6 +42,11 @@ export default function App() {
     const [showImportWizard, setShowImportWizard] = useState(false);
     const [importWizardGameId, setImportWizardGameId] = useState(null);
     const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null });
+    const [features, setFeatures] = useState({
+        feature_live_scoring: true, feature_pitch_tracking: true, feature_officials: true,
+        feature_stats: true, feature_documents: true, feature_financials: true,
+        feature_registration: true, feature_public_site: true, feature_push_notifications: true,
+    });
     const [selectedPlayerId, setSelectedPlayerId] = useState(null);
     const [selectedPlayerData, setSelectedPlayerData] = useState(null);
 
@@ -53,7 +58,12 @@ export default function App() {
     useEffect(() => {
         if (!isAuthenticated) return;
         fetchBranding()
-            .then((data) => setBranding({ app_name: data?.app_name || 'LeagueHaven', logo_url: data?.logo_url || null }))
+            .then((data) => {
+                setBranding({ app_name: data?.app_name || 'LeagueHaven', logo_url: data?.logo_url || null });
+                const f = {};
+                for (const k of Object.keys(features)) f[k] = data?.[k] !== false;
+                setFeatures(f);
+            })
             .catch(() => { /* non-blocking */ });
     }, [isAuthenticated]);
 
@@ -212,10 +222,10 @@ export default function App() {
                 return isAdmin ? <DataManager onOpenImport={() => openImportWizard()} /> : null;
 
             case 'officials':
-                return (isAdmin || isAccountant || isOrgAdmin) ? <OfficialsManager onBack={() => setPage("dashboard")} /> : null;
+                return (isAdmin || isAccountant || isOrgAdmin) && features.feature_officials !== false ? <OfficialsManager onBack={() => setPage("dashboard")} /> : null;
 
             case 'fees':
-                return (isAdmin || isAccountant) ? <LeagueFees onBack={() => setPage("dashboard")} /> : null;
+                return (isAdmin || isAccountant) && features.feature_financials !== false ? <LeagueFees onBack={() => setPage("dashboard")} /> : null;
 
             case 'about':
                 return <HelpPage initialTab="about" onBack={() => setPage("dashboard")} />;
@@ -258,6 +268,7 @@ export default function App() {
                 isTeamManager={isTeamManager}
                 user={user}
                 branding={branding}
+                features={features}
                 onChangePassword={() => setShowChangePassword(true)}
                 onLogout={logout}
                 onNavigateToTeam={navigateToTeam}

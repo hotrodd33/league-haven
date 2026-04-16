@@ -7,6 +7,7 @@ import {
   fetchBranding, updateBranding, uploadBrandingLogo, deleteBrandingLogo,
   fetchScheduleSettings, updateScheduleSettings,
   fetchStatDefinitions, createStatDefinition, updateStatDefinition, deleteStatDefinition,
+  fetchFeatureToggles, updateFeatureToggles,
 } from '../api/index.js';
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
@@ -32,6 +33,7 @@ export default function LeagueConfig({ onBack }) {
       </p>
       <div className="flex gap-2 mb-5 flex-wrap">
         <button className={tabCls('branding')} onClick={() => setTab('branding')}>Branding</button>
+        <button className={tabCls('features')} onClick={() => setTab('features')}>Features</button>
         <button className={tabCls('scheduling')} onClick={() => setTab('scheduling')}>Scheduling</button>
         <button className={tabCls('seasons')} onClick={() => setTab('seasons')}>Seasons</button>
         <button className={tabCls('age_groups')} onClick={() => setTab('age_groups')}>Age Groups</button>
@@ -40,6 +42,7 @@ export default function LeagueConfig({ onBack }) {
         <button className={tabCls('stats')} onClick={() => setTab('stats')}>Stats</button>
       </div>
       {tab === 'branding' && <BrandingConfig />}
+      {tab === 'features' && <FeatureTogglesConfig />}
       {tab === 'scheduling' && <SchedulingConfig />}
       {tab === 'seasons' && <SeasonList />}
       {tab === 'age_groups' && <AgeGroupConfig />}
@@ -188,6 +191,83 @@ function BrandingConfig() {
             {removingLogo ? 'Removing…' : 'Remove Logo'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+const FEATURE_DEFS = [
+  { key: 'feature_live_scoring',      label: 'Live Scoring',        desc: 'Real-time game scoring and public scoreboard' },
+  { key: 'feature_pitch_tracking',    label: 'Pitch Tracking',      desc: 'Pitch counts, rest day calculations, and compliance alerts' },
+  { key: 'feature_officials',         label: 'Officials',           desc: 'Umpire/referee management, assignments, and pay tracking' },
+  { key: 'feature_stats',             label: 'Player Stats',        desc: 'Per-game stat tracking and player stat profiles' },
+  { key: 'feature_documents',         label: 'Player Documents',    desc: 'Upload and manage birth certificates, waivers, etc.' },
+  { key: 'feature_financials',        label: 'Financials',          desc: 'League fees, payment tracking, and accountant role' },
+  { key: 'feature_registration',      label: 'Team Registration',   desc: 'Public team registration form for new organizations' },
+  { key: 'feature_public_site',       label: 'Public Site',         desc: 'Public-facing schedule, standings, and scores' },
+  { key: 'feature_push_notifications', label: 'Push Notifications', desc: 'Browser push notifications for schedule changes and announcements' },
+];
+
+function FeatureTogglesConfig() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [toggles, setToggles] = useState({});
+
+  useEffect(() => {
+    fetchFeatureToggles()
+      .then(data => setToggles(data))
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleToggle(key) {
+    const updated = { ...toggles, [key]: !toggles[key] };
+    setToggles(updated);
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await updateFeatureToggles({ [key]: updated[key] });
+      setToggles(result);
+    } catch (err) {
+      setToggles(toggles); // revert
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <div className="text-gray-400 text-sm py-8 text-center">Loading…</div>;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-heading font-bold text-white">Feature Toggles</h3>
+      <p className="text-xs text-gray-400">
+        Enable or disable features for your league. Disabled features are hidden from the sidebar and all users.
+      </p>
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+      <div className="space-y-2">
+        {FEATURE_DEFS.map(f => (
+          <label key={f.key} className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded-lg p-4 cursor-pointer hover:border-gray-600 transition-colors">
+            <div className="flex-1 mr-4">
+              <p className="text-sm font-semibold text-white">{f.label}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{f.desc}</p>
+            </div>
+            <div className="relative shrink-0">
+              <input
+                type="checkbox"
+                checked={toggles[f.key] !== false}
+                onChange={() => handleToggle(f.key)}
+                disabled={saving}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-blue-500/50 rounded-full
+                peer-checked:bg-blue-600 transition-colors" />
+              <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform
+                peer-checked:translate-x-5" />
+            </div>
+          </label>
+        ))}
       </div>
     </div>
   );

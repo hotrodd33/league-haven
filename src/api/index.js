@@ -744,6 +744,17 @@ export async function updateScheduleSettings(data) {
   });
 }
 
+export async function fetchFeatureToggles() {
+  return apiFetch('/league-config/features');
+}
+
+export async function updateFeatureToggles(data) {
+  return apiFetch('/league-config/features', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function createSeason(data) {
   return apiFetch('/league-config/seasons', {
     method: 'POST',

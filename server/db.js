@@ -683,6 +683,17 @@ async function migrate() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_prefs JSONB
     DEFAULT '{"schedule_changes":true,"cancellations":true,"announcements":true}'::jsonb
   `);
+
+  // ── Feature toggles (on app_branding singleton) ──
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_live_scoring BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_pitch_tracking BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_officials BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_stats BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_documents BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_financials BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_registration BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_public_site BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_push_notifications BOOLEAN NOT NULL DEFAULT TRUE;`);
 }
 
 // Lazy migration: retries on each request until it succeeds
