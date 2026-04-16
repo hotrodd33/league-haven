@@ -1033,3 +1033,34 @@ export async function rejectUser(userId, notes) {
 export async function resetUserApproval(userId) {
   return apiFetch(`/users/${userId}/reset-approval`, { method: 'POST' });
 }
+
+// ── Push Notifications ──
+
+export async function fetchVapidKey() {
+  return apiFetch('/push/vapid-key');
+}
+
+export async function pushSubscribe(subscription) {
+  return apiFetch('/push/subscribe', {
+    method: 'POST',
+    body: JSON.stringify(subscription),
+  });
+}
+
+export async function pushUnsubscribe(endpoint) {
+  return apiFetch('/push/unsubscribe', {
+    method: 'DELETE',
+    body: JSON.stringify({ endpoint }),
+  });
+}
+
+export async function fetchPushStatus() {
+  return apiFetch('/push/status');
+}
+
+export async function sendPushNotification({ title, body, scope, teamIds, orgIds, url }) {
+  return apiFetch('/push/send', {
+    method: 'POST',
+    body: JSON.stringify({ title, body, scope, teamIds, orgIds, url }),
+  });
+}

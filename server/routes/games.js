@@ -2,6 +2,7 @@ const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin, canEditTeam, canScoreGame } = require('../auth');
 const { sendGameChangeEmail } = require('../email');
+const { notifyTeamUsers } = require('../push');
 
 const router = express.Router();
 
@@ -529,6 +530,18 @@ router.put('/:id', authMiddleware, async (req, res) => {
       notifyGameChange(updated, oldDate, newDate, oldTime, newTime, req.user);
     }
 
+    // Push notification for status changes (cancelled/postponed)
+    if (status && status !== game.status && (status === 'cancelled' || status === 'postponed')) {
+      const statusTeamIds = [updated.home_team_id, updated.away_team_id].filter(Boolean);
+      const label = status === 'cancelled' ? 'Cancelled' : 'Postponed';
+      notifyTeamUsers(statusTeamIds, {
+        title: `Game ${label}`,
+        body: `${updated.home_team_name} vs ${updated.away_team_name} has been ${status}`,
+        tag: `game-status-${updated.id}`,
+        url: '/',
+      }).catch(() => {});
+    }
+
     res.json(updated);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -570,6 +583,14 @@ async function notifyGameChange(game, oldDate, newDate, oldTime, newTime, user) 
       newTime,
       changedBy: user.name || user.username || 'Unknown',
     });
+
+    // Also send push notification
+    notifyTeamUsers(teamIds, {
+      title: 'Schedule Change',
+      body: `${game.home_team_name} vs ${game.away_team_name} has been updated`,
+      tag: `game-change-${game.id}`,
+      url: '/',
+    }).catch(() => {});
   } catch (err) {
     console.error('[GAME-NOTIFY] Failed to send game change email:', err);
   }

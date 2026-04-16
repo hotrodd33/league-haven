@@ -59,6 +59,22 @@ A full-featured baseball league management application for the Zumbro Valley Bas
 - **Deduplication** — Recipients are deduplicated by email address
 - **Automated Emails** — Welcome, invite (with temp password), password reset/changed, game schedule change notifications
 
+### PWA & Push Notifications
+- **Progressive Web App** — Installable from any browser; "Add to Home Screen" on mobile for native app feel
+- **Service Worker** — Background push event handling, notification display even when app is closed
+- **Push Subscriptions** — Users opt in via My Account page; subscriptions stored per-device
+- **Schedule Change Alerts** — Automatic push when game date/time is updated
+- **Cancellation/Postponement Alerts** — Automatic push when a game is cancelled or postponed
+- **Admin Broadcast** — Admins can send push notifications to a team, org, or entire league
+- **Fallback** — Works alongside email notifications; gracefully degrades if push not supported
+
+### My Account
+- **Profile Overview** — Avatar, name, username, email, role badge, member since, last login
+- **Notification Toggle** — Enable/disable push notifications from account panel
+- **Permissions Summary** — View your role and what it grants
+- **My Organizations** — See orgs you manage
+- **My Teams** — See teams you have access to with age group, level, and org name
+
 ### Auth & Permissions
 - **5-tier role system** — `super_admin`, `org_admin`, `team_manager`, `score_reporter`, `umpire`
 - **Self-registration** — Creates score_reporter account; umpire self-registration creates umpire role + linked official profile
@@ -100,6 +116,7 @@ A full-featured baseball league management application for the Zumbro Valley Bas
 | Database | PostgreSQL (Neon) |
 | Auth | JWT + bcryptjs |
 | Email | SendGrid |
+| Push | web-push (VAPID) + Service Worker |
 | Maps | Leaflet + React-Leaflet |
 | PDF Parsing | pdf-parse (GameChanger box scores) |
 | Hosting | Vercel (auto-deploy from GitHub) |
@@ -110,9 +127,10 @@ A full-featured baseball league management application for the Zumbro Valley Bas
 baseball-roster-app/
 ├── server/
 │   ├── index.js              # Express entry point (Vercel serverless)
-│   ├── db.js                 # Neon Postgres pool + auto-migration (27 tables)
+│   ├── db.js                 # Neon Postgres pool + auto-migration (28 tables)
 │   ├── auth.js               # JWT middleware, role helpers
 │   ├── email.js              # SendGrid email service + templates
+│   ├── push.js               # Web Push notification service (VAPID)
 │   ├── parsers/
 │   │   └── boxscore-pdf.js   # GameChanger PDF box score parser
 │   └── routes/
@@ -129,6 +147,7 @@ baseball-roster-app/
 │       ├── umpires.js        # Umpire dashboard, interest, available games
 │       ├── users.js          # User management, permissions, invites
 │       ├── contact.js        # Scoped email sending
+│       ├── push.js           # Push subscription + admin broadcast
 │       ├── import.js         # GameChanger import wizard
 │       ├── data-manager.js   # Bulk CSV import/export/clear
 │       ├── positions.js      # Position lookup
@@ -137,6 +156,8 @@ baseball-roster-app/
 │   ├── App.jsx               # Main app with tab navigation
 │   ├── api/index.js          # API client functions
 │   ├── context/AuthContext.jsx
+│   ├── hooks/
+│   │   └── usePushNotifications.js  # Push subscribe/unsubscribe hook
 │   └── components/           # React components
 │       ├── Dashboard.jsx         # Home dashboard with stats + upcoming games
 │       ├── GameSchedule.jsx      # Schedule management + filters
@@ -190,6 +211,8 @@ JWT_SECRET=your-secret-key        # JWT signing key
 SENDGRID_API_KEY=SG.xxx           # SendGrid API key (optional)
 FROM_EMAIL=noreply@example.com    # Sender email address
 APP_URL=http://localhost:5173     # App URL (for email links)
+VAPID_PUBLIC_KEY=BPxxx...         # VAPID public key (generate with: npx web-push generate-vapid-keys)
+VAPID_PRIVATE_KEY=xxx...          # VAPID private key
 ```
 
 ### Local Development
@@ -248,3 +271,4 @@ Tables are auto-created/migrated on first request via `server/db.js`. No manual 
 | `team_name_aliases` | External name → team mapping for imports |
 | `team_staff` | Legacy staff table |
 | `app_branding` | App name, logo, and scheduling settings |
+| `push_subscriptions` | Push notification subscriptions per user/device |

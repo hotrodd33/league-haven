@@ -25,7 +25,8 @@
     "react-dom": "^19.0.0",
     "react-leaflet": "^5.0.0",
     "tailwindcss": "^4.2.2",
-    "unpdf": "^1.4.0"
+    "unpdf": "^1.4.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

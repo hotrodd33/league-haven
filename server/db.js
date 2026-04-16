@@ -664,6 +664,19 @@ async function migrate() {
     WHERE u.role = 'org_admin'
     ON CONFLICT (team_id, staff_id) DO UPDATE SET role = 'org_admin'
   `);
+
+  // ── Push notification subscriptions ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL UNIQUE,
+      keys_p256dh TEXT NOT NULL,
+      keys_auth TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)`);
 }
 
 // Lazy migration: retries on each request until it succeeds

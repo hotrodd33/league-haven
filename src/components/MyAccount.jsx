@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { fetchMe } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { UserIcon, UsersIcon, BuildingIcon, CogIcon } from './ui/icons.jsx';
+import { UserIcon, UsersIcon, BuildingIcon, CogIcon, BellIcon } from './ui/icons.jsx';
+import { usePushNotifications } from '../hooks/usePushNotifications.js';
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin',
@@ -30,6 +31,7 @@ export default function MyAccount({ onChangePassword }) {
   const { isSuperAdmin } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const push = usePushNotifications();
 
   useEffect(() => {
     fetchMe()
@@ -87,6 +89,49 @@ export default function MyAccount({ onChangePassword }) {
             Change Password
           </button>
         </div>
+      </div>
+
+      {/* Notifications */}
+      <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-card p-6">
+        <h3 className="text-base font-bold text-gray-100 mb-1 flex items-center gap-2">
+          <BellIcon className="w-5 h-5 text-gray-400" />
+          Notifications
+        </h3>
+        <p className="text-sm text-gray-400 mb-4">
+          Receive push notifications for schedule changes, cancellations, and league announcements.
+        </p>
+
+        {!push.supported ? (
+          <p className="text-sm text-gray-500">Push notifications are not supported on this browser.</p>
+        ) : push.permission === 'denied' ? (
+          <div className="rounded-lg bg-yellow-900/20 border border-yellow-800/40 px-4 py-3 text-sm text-yellow-300">
+            Notifications are blocked. Please enable them in your browser settings.
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-200">
+                {push.subscribed ? 'Notifications enabled' : 'Notifications disabled'}
+              </p>
+              <p className="text-xs text-gray-400">
+                {push.subscribed
+                  ? "You'll receive alerts for game changes, cancellations, and announcements."
+                  : 'Enable to get notified about schedule changes and important updates.'}
+              </p>
+            </div>
+            <button
+              onClick={push.subscribed ? push.unsubscribe : push.subscribe}
+              disabled={push.loading}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                push.subscribed
+                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                  : 'bg-field-700 hover:bg-field-600 text-white'
+              } disabled:opacity-50`}
+            >
+              {push.loading ? 'Loading...' : push.subscribed ? 'Disable' : 'Enable'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Permissions Summary */}
