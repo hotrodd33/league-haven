@@ -549,12 +549,21 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const dobCol = findCol(headers, 'date_of_birth', 'dob', 'birthday');
         const batCol = findCol(headers, 'batting_hand', 'bats', 'bat');
         const thrCol = findCol(headers, 'throwing_hand', 'throws', 'throw');
-        const emailCol = findCol(headers, 'parent_email', 'email');
-        const phoneCol = findCol(headers, 'parent_phone', 'phone');
         const gradeCol = findCol(headers, 'grade');
         const teamCol = findCol(headers, 'team', 'team_name', 'teams');
         const jerseyCol = findCol(headers, 'jersey_number', 'jersey', 'number');
 
+        // Parent / Guardian contacts
+        const p1FnCol = findCol(headers, 'parent1_first_name', 'parent_first_name', 'parent first name', 'parent first');
+        const p1LnCol = findCol(headers, 'parent1_last_name', 'parent_last_name', 'parent last name', 'parent last');
+        const p1EmailCol = findCol(headers, 'parent1_email', 'parent_email', 'parent email', 'email');
+        const p1PhoneCol = findCol(headers, 'parent1_phone', 'parent_phone', 'parent phone', 'phone');
+        const p2FnCol = findCol(headers, 'parent2_first_name', 'parent 2 first name');
+        const p2LnCol = findCol(headers, 'parent2_last_name', 'parent 2 last name');
+        const p2EmailCol = findCol(headers, 'parent2_email', 'parent 2 email');
+        const p2PhoneCol = findCol(headers, 'parent2_phone', 'parent 2 phone');
+
+        const VALID_GRADES = ['Pre K','K','1','2','3','4','5','6','7','8','9','10','11','12'];
         const teamLookup = await buildTeamLookup();
 
         const { rows: existing } = await pool.query('SELECT id, first_name, last_name FROM players');
@@ -567,7 +576,7 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
           if (!fn || !ln) { results.skipped++; continue; }
 
           const hand = (v) => { const u = (v || '').toUpperCase(); return ['R', 'L', 'S'].includes(u) ? u : null; };
-          const grade = (v) => { const u = (v || '').toUpperCase(); return ['K','1','2','3','4','5','6','7','8','9'].includes(u) ? u : null; };
+          const grade = (v) => VALID_GRADES.includes(v) ? v : null;
 
           try {
             const key = (fn + '|' + ln).toLowerCase();
@@ -576,18 +585,17 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
               await pool.query(
                 `UPDATE players SET date_of_birth = COALESCE(NULLIF($1,''), date_of_birth),
                   batting_hand = COALESCE($2, batting_hand), throwing_hand = COALESCE($3, throwing_hand),
-                  parent_email = COALESCE(NULLIF($4,''), parent_email), parent_phone = COALESCE(NULLIF($5,''), parent_phone),
-                  grade = COALESCE($6, grade), updated_at = NOW()
-                WHERE id = $7`,
+                  grade = COALESCE($4, grade), updated_at = NOW()
+                WHERE id = $5`,
                 [dobCol ? r[dobCol] : '', hand(batCol ? r[batCol] : ''), hand(thrCol ? r[thrCol] : ''),
-                 emailCol ? r[emailCol] : '', phoneCol ? r[phoneCol] : '', grade(gradeCol ? r[gradeCol] : ''), exId]
+                 grade(gradeCol ? r[gradeCol] : ''), exId]
               );
               results.updated++;
             } else if (!exId) {
               const { rows: nr } = await pool.query(
-                'INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
+                'INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, grade) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
                 [fn, ln, (dobCol ? r[dobCol] : null) || null, hand(batCol ? r[batCol] : ''), hand(thrCol ? r[thrCol] : ''),
-                 (emailCol ? r[emailCol] : null) || null, (phoneCol ? r[phoneCol] : null) || null, grade(gradeCol ? r[gradeCol] : '')]
+                 grade(gradeCol ? r[gradeCol] : '')]
               );
               playerLookup[key] = nr[0].id;
               results.created++;
@@ -610,6 +618,31 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
                   results.errors.push(`Row ${i + 2}: team "${teamNames[j]}" not found`);
                 }
               }
+            }
+
+            // Insert parent/guardian contacts
+            const p1Fn = p1FnCol ? r[p1FnCol] : '';
+            const p1Ln = p1LnCol ? r[p1LnCol] : '';
+            const p1Email = p1EmailCol ? r[p1EmailCol] : '';
+            const p1Phone = p1PhoneCol ? r[p1PhoneCol] : '';
+            if (p1Fn || p1Ln || p1Email || p1Phone) {
+              await pool.query(
+                `INSERT INTO player_contacts (player_id, relationship, first_name, last_name, email, phone, is_primary)
+                 VALUES ($1, 'parent', $2, $3, $4, $5, true) ON CONFLICT DO NOTHING`,
+                [playerId, p1Fn || null, p1Ln || null, p1Email || null, p1Phone || null]
+              );
+            }
+
+            const p2Fn = p2FnCol ? r[p2FnCol] : '';
+            const p2Ln = p2LnCol ? r[p2LnCol] : '';
+            const p2Email = p2EmailCol ? r[p2EmailCol] : '';
+            const p2Phone = p2PhoneCol ? r[p2PhoneCol] : '';
+            if (p2Fn || p2Ln || p2Email || p2Phone) {
+              await pool.query(
+                `INSERT INTO player_contacts (player_id, relationship, first_name, last_name, email, phone, is_primary)
+                 VALUES ($1, 'parent', $2, $3, $4, $5, false) ON CONFLICT DO NOTHING`,
+                [playerId, p2Fn || null, p2Ln || null, p2Email || null, p2Phone || null]
+              );
             }
           } catch (err) { results.errors.push(`Row ${i + 2}: ${err.message}`); }
         }
