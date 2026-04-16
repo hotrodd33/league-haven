@@ -1058,6 +1058,17 @@ export async function fetchPushStatus() {
   return apiFetch('/push/status');
 }
 
+export async function fetchNotificationPrefs() {
+  return apiFetch('/push/preferences');
+}
+
+export async function updateNotificationPrefs(prefs) {
+  return apiFetch('/push/preferences', {
+    method: 'PUT',
+    body: JSON.stringify(prefs),
+  });
+}
+
 export async function sendPushNotification({ title, body, scope, teamIds, orgIds, url }) {
   return apiFetch('/push/send', {
     method: 'POST',

@@ -677,6 +677,12 @@ async function migrate() {
     )
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)`);
+
+  // ── Notification preferences (per-user, category toggles) ──
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_prefs JSONB
+    DEFAULT '{"schedule_changes":true,"cancellations":true,"announcements":true}'::jsonb
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds

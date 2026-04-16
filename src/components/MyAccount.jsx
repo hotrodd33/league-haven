@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchMe } from '../api/index.js';
+import { fetchMe, fetchNotificationPrefs, updateNotificationPrefs } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { UserIcon, UsersIcon, BuildingIcon, CogIcon, BellIcon } from './ui/icons.jsx';
 import { usePushNotifications } from '../hooks/usePushNotifications.js';
@@ -32,13 +32,26 @@ export default function MyAccount({ onChangePassword }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const push = usePushNotifications();
+  const [prefs, setPrefs] = useState({ schedule_changes: true, cancellations: true, announcements: true });
+  const [prefsLoading, setPrefsLoading] = useState(false);
 
   useEffect(() => {
     fetchMe()
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
+    fetchNotificationPrefs()
+      .then(setPrefs)
+      .catch(() => {});
   }, []);
+
+  const togglePref = async (key) => {
+    const updated = { ...prefs, [key]: !prefs[key] };
+    setPrefs(updated);
+    setPrefsLoading(true);
+    try { await updateNotificationPrefs(updated); } catch { setPrefs(prefs); }
+    setPrefsLoading(false);
+  };
 
   if (loading) {
     return (
@@ -108,28 +121,56 @@ export default function MyAccount({ onChangePassword }) {
             Notifications are blocked. Please enable them in your browser settings.
           </div>
         ) : (
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-200">
-                {push.subscribed ? 'Notifications enabled' : 'Notifications disabled'}
-              </p>
-              <p className="text-xs text-gray-400">
-                {push.subscribed
-                  ? "You'll receive alerts for game changes, cancellations, and announcements."
-                  : 'Enable to get notified about schedule changes and important updates.'}
-              </p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-200">
+                  {push.subscribed ? 'Notifications enabled' : 'Notifications disabled'}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {push.subscribed
+                    ? 'Toggle categories below to choose what you receive.'
+                    : 'Enable to get notified about schedule changes and important updates.'}
+                </p>
+              </div>
+              <button
+                onClick={push.subscribed ? push.unsubscribe : push.subscribe}
+                disabled={push.loading}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  push.subscribed
+                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                    : 'bg-field-700 hover:bg-field-600 text-white'
+                } disabled:opacity-50`}
+              >
+                {push.loading ? 'Loading...' : push.subscribed ? 'Disable' : 'Enable'}
+              </button>
             </div>
-            <button
-              onClick={push.subscribed ? push.unsubscribe : push.subscribe}
-              disabled={push.loading}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                push.subscribed
-                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                  : 'bg-field-700 hover:bg-field-600 text-white'
-              } disabled:opacity-50`}
-            >
-              {push.loading ? 'Loading...' : push.subscribed ? 'Disable' : 'Enable'}
-            </button>
+
+            {push.subscribed && (
+              <div className="space-y-2 pt-2 border-t border-gray-700">
+                <PrefToggle
+                  label="Schedule Changes"
+                  description="Game date or time is updated"
+                  checked={prefs.schedule_changes}
+                  disabled={prefsLoading}
+                  onChange={() => togglePref('schedule_changes')}
+                />
+                <PrefToggle
+                  label="Cancellations"
+                  description="Game is cancelled or postponed"
+                  checked={prefs.cancellations}
+                  disabled={prefsLoading}
+                  onChange={() => togglePref('cancellations')}
+                />
+                <PrefToggle
+                  label="Announcements"
+                  description="League-wide or team announcements from admins"
+                  checked={prefs.announcements}
+                  disabled={prefsLoading}
+                  onChange={() => togglePref('announcements')}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -235,3 +276,25 @@ const roleDescriptions = {
   accountant: 'You can view and manage league fees and officials.',
   umpire: 'You can view your assigned games and report availability.',
 };
+
+function PrefToggle({ label, description, checked, disabled, onChange }) {
+  return (
+    <label className="flex items-center justify-between px-4 py-3 bg-gray-900/50 rounded-lg border border-gray-700/50 cursor-pointer hover:bg-gray-900/70 transition-colors">
+      <div>
+        <p className="text-sm font-medium text-gray-200">{label}</p>
+        <p className="text-xs text-gray-400">{description}</p>
+      </div>
+      <div className="relative">
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={onChange}
+          className="sr-only peer"
+        />
+        <div className="w-10 h-5 bg-gray-600 rounded-full peer peer-checked:bg-field-600 peer-disabled:opacity-50 transition-colors" />
+        <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-5 transition-transform" />
+      </div>
+    </label>
+  );
+}

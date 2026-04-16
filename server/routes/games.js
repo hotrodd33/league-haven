@@ -539,7 +539,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         body: `${updated.home_team_name} vs ${updated.away_team_name} has been ${status}`,
         tag: `game-status-${updated.id}`,
         url: '/',
-      }).catch(() => {});
+      }, 'cancellations').catch(() => {});
     }
 
     res.json(updated);
@@ -590,7 +590,7 @@ async function notifyGameChange(game, oldDate, newDate, oldTime, newTime, user) 
       body: `${game.home_team_name} vs ${game.away_team_name} has been updated`,
       tag: `game-change-${game.id}`,
       url: '/',
-    }).catch(() => {});
+    }, 'schedule_changes').catch(() => {});
   } catch (err) {
     console.error('[GAME-NOTIFY] Failed to send game change email:', err);
   }

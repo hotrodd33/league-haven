@@ -59,6 +59,38 @@ router.get('/status', authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/push/preferences — get notification category preferences
+router.get('/preferences', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT notification_prefs FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const defaults = { schedule_changes: true, cancellations: true, announcements: true };
+    res.json(rows[0]?.notification_prefs || defaults);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/push/preferences — update notification category preferences
+router.put('/preferences', authMiddleware, async (req, res) => {
+  try {
+    const allowed = ['schedule_changes', 'cancellations', 'announcements'];
+    const prefs = {};
+    for (const key of allowed) {
+      prefs[key] = req.body[key] !== false;
+    }
+    await pool.query(
+      'UPDATE users SET notification_prefs = $1 WHERE id = $2',
+      [JSON.stringify(prefs), req.user.id]
+    );
+    res.json(prefs);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/push/send — admin sends a notification (team, org, or league-wide)
 router.post('/send', authMiddleware, requireAdmin, async (req, res) => {
   try {

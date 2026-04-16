@@ -51,15 +51,24 @@ async function notifyUser(userId, payload) {
 
 /**
  * Send a push notification to all users who have a permission for the given team(s).
+ * Optionally filters by notification preference category.
+ * Also includes super_admins who are subscribed.
  */
-async function notifyTeamUsers(teamIds, payload) {
+async function notifyTeamUsers(teamIds, payload, category) {
   if (!teamIds.length) return;
+  const categoryFilter = category
+    ? `AND (u.notification_prefs IS NULL OR (u.notification_prefs->>'${category}')::boolean IS NOT FALSE)`
+    : '';
   const { rows } = await pool.query(
     `SELECT DISTINCT ps.endpoint, ps.keys_p256dh, ps.keys_auth
      FROM push_subscriptions ps
-     JOIN user_permissions up ON up.user_id = ps.user_id AND up.is_active = TRUE
-     WHERE up.team_id = ANY($1)
-       OR up.org_id IN (SELECT org_id FROM teams WHERE id = ANY($1) AND org_id IS NOT NULL)`,
+     JOIN users u ON u.id = ps.user_id
+     LEFT JOIN user_permissions up ON up.user_id = ps.user_id AND up.is_active = TRUE
+     WHERE (
+       up.team_id = ANY($1)
+       OR up.org_id IN (SELECT org_id FROM teams WHERE id = ANY($1) AND org_id IS NOT NULL)
+       OR u.role = 'super_admin'
+     ) ${categoryFilter}`,
     [teamIds]
   );
   return Promise.all(rows.map((sub) => sendToSubscription(sub, payload)));
@@ -67,14 +76,23 @@ async function notifyTeamUsers(teamIds, payload) {
 
 /**
  * Send a push notification to all users who have a permission for the given org(s).
+ * Optionally filters by notification preference category.
+ * Also includes super_admins who are subscribed.
  */
-async function notifyOrgUsers(orgIds, payload) {
+async function notifyOrgUsers(orgIds, payload, category) {
   if (!orgIds.length) return;
+  const categoryFilter = category
+    ? `AND (u.notification_prefs IS NULL OR (u.notification_prefs->>'${category}')::boolean IS NOT FALSE)`
+    : '';
   const { rows } = await pool.query(
     `SELECT DISTINCT ps.endpoint, ps.keys_p256dh, ps.keys_auth
      FROM push_subscriptions ps
-     JOIN user_permissions up ON up.user_id = ps.user_id AND up.is_active = TRUE
-     WHERE up.org_id = ANY($1)`,
+     JOIN users u ON u.id = ps.user_id
+     LEFT JOIN user_permissions up ON up.user_id = ps.user_id AND up.is_active = TRUE
+     WHERE (
+       up.org_id = ANY($1)
+       OR u.role = 'super_admin'
+     ) ${categoryFilter}`,
     [orgIds]
   );
   return Promise.all(rows.map((sub) => sendToSubscription(sub, payload)));
@@ -82,10 +100,17 @@ async function notifyOrgUsers(orgIds, payload) {
 
 /**
  * Send a push notification to ALL subscribed users (league-wide).
+ * Optionally filters by notification preference category.
  */
-async function notifyAll(payload) {
+async function notifyAll(payload, category) {
+  const categoryFilter = category
+    ? `WHERE (u.notification_prefs IS NULL OR (u.notification_prefs->>'${category}')::boolean IS NOT FALSE)`
+    : '';
   const { rows } = await pool.query(
-    'SELECT endpoint, keys_p256dh, keys_auth FROM push_subscriptions'
+    `SELECT ps.endpoint, ps.keys_p256dh, ps.keys_auth
+     FROM push_subscriptions ps
+     JOIN users u ON u.id = ps.user_id
+     ${categoryFilter}`
   );
   return Promise.all(rows.map((sub) => sendToSubscription(sub, payload)));
 }
