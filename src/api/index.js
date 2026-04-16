@@ -450,6 +450,12 @@ export async function fetchAllPitchRest() {
   return apiFetch('/pitch-rules/all-rest');
 }
 
+// ── Dashboard ──
+
+export async function fetchDashboardActivity(limit = 15) {
+  return apiFetch(`/dashboard/activity?limit=${limit}`);
+}
+
 // ── Organizations ──
 
 export async function fetchOrganizations() {

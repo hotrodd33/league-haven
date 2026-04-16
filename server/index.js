@@ -32,6 +32,7 @@ const playerNotesRoutes = require('./routes/player-notes');
 const playerDocumentsRoutes = require('./routes/player-documents');
 const statsRoutes = require('./routes/stats');
 const pushRoutes = require('./routes/push');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -74,6 +75,7 @@ app.use('/api/player-notes', playerNotesRoutes);
 app.use('/api/player-documents', playerDocumentsRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // ── Serve React build in local dev only (Vercel serves static files itself) ──
 if (!process.env.VERCEL) {

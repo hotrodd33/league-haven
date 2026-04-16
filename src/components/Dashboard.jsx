@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '../lib/cn.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers } from '../api/index.js';
+import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers, fetchDashboardActivity } from '../api/index.js';
 import { Card, CardHeader, CardBody, StatCard, Scoreboard, Button } from './ui/index.js';
 import {
   UsersIcon, CalendarIcon, TrophyIcon, BuildingIcon,
@@ -41,6 +41,27 @@ function cityAbbr(city) {
   return words.length > 1 ? words.map(w => w[0]).join('') : city.substring(0, 3);
 }
 
+function timeAgo(timestamp) {
+  if (!timestamp) return '';
+  const diff = Date.now() - new Date(timestamp).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+const ACTIVITY_ICONS = {
+  player: '👤',
+  game: '⚾',
+  team: '👥',
+  registration: '📋',
+  import: '📥',
+};
+
 /* ═══════════════════════════════════════════════════════
    Dashboard
    ═══════════════════════════════════════════════════════ */
@@ -53,18 +74,20 @@ export default function Dashboard({ onNavigate }) {
   const [orgs, setOrgs] = useState([]);
   const [pitchRest, setPitchRest] = useState({});
   const [players, setPlayers] = useState([]);
+  const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [t, g, s, o, pr, pl] = await Promise.all([
+      const [t, g, s, o, pr, pl, act] = await Promise.all([
         fetchTeams().catch(() => []),
         fetchGames().catch(() => []),
         fetchSeasons().catch(() => []),
         fetchOrganizations().catch(() => []),
         fetchAllPitchRest().catch(() => ({})),
         fetchAllPlayers().catch(() => []),
+        fetchDashboardActivity().catch(() => []),
       ]);
       setTeams(t || []);
       setGames(g || []);
@@ -72,6 +95,7 @@ export default function Dashboard({ onNavigate }) {
       setOrgs(o || []);
       setPitchRest(pr || {});
       setPlayers(pl || []);
+      setActivity(act || []);
     } finally {
       setLoading(false);
     }
@@ -605,6 +629,29 @@ export default function Dashboard({ onNavigate }) {
               </CardBody>
             </Card>
           )}
+
+          {/* Recent Activity Feed */}
+          {activity.length > 0 && (
+            <Card variant="bordered">
+              <CardHeader>
+                <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
+                  <ClockIcon className="w-4 h-4 text-field-600" />
+                  Recent Activity
+                </h3>
+              </CardHeader>
+              <CardBody className="space-y-0 divide-y divide-gray-700/50">
+                {activity.slice(0, 8).map((item, i) => (
+                  <div key={i} className="flex items-start gap-2.5 py-2 first:pt-0 last:pb-0">
+                    <span className="text-sm mt-0.5 shrink-0">{ACTIVITY_ICONS[item.icon] || '📌'}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-gray-300 leading-snug truncate">{item.message}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">{timeAgo(item.timestamp)}</p>
+                    </div>
+                  </div>
+                ))}
+              </CardBody>
+            </Card>
+          )}
         </aside>
       </div>
 
@@ -685,7 +732,6 @@ export default function Dashboard({ onNavigate }) {
         </Card>
       </section>
       )}
-      </section>
 
       {/* ── Footer ── */}
       <footer className="pt-4 pb-2 border-t border-gray-700/50">
