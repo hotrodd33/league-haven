@@ -265,11 +265,14 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
 
 function calcAge(dob) {
   if (!dob) return '—';
-  const birth = new Date(dob + 'T00:00:00');
+  // Handle both "YYYY-MM-DD" and ISO timestamp formats
+  const dateStr = typeof dob === 'string' ? dob.substring(0, 10) : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return '—';
+  const [y, m, d] = dateStr.split('-').map(Number);
   const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  let age = today.getFullYear() - y;
+  const mDiff = (today.getMonth() + 1) - m;
+  if (mDiff < 0 || (mDiff === 0 && today.getDate() < d)) age--;
   return age >= 0 ? age : '—';
 }
 

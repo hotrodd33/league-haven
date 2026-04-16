@@ -49,6 +49,28 @@ router.get('/', async (req, res) => {
     }
     let players = await Promise.all(result.rows.map(withPositions));
 
+    // Enrich with primary contact info from player_contacts
+    const allPlayerIds = players.map(p => p.id);
+    if (allPlayerIds.length) {
+      const { rows: contacts } = await pool.query(
+        `SELECT DISTINCT ON (player_id) player_id, first_name AS contact_first_name,
+                last_name AS contact_last_name, email, phone
+         FROM player_contacts
+         WHERE player_id = ANY($1)
+         ORDER BY player_id, is_primary DESC, id ASC`, [allPlayerIds]
+      );
+      const contactMap = {};
+      for (const c of contacts) contactMap[c.player_id] = c;
+      players = players.map(p => {
+        const c = contactMap[p.id];
+        return {
+          ...p,
+          parent_email: p.parent_email || c?.email || null,
+          parent_phone: p.parent_phone || c?.phone || null,
+        };
+      });
+    }
+
     // Optionally include team assignments for each player
     if (with_teams === 'true') {
       const playerIds = players.map(p => p.id);

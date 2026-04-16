@@ -137,8 +137,14 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
 
   function calculateAge(dob) {
     if (!dob) return null;
-    const birth = new Date(dob);
-    return Math.floor((Date.now() - birth.getTime()) / (365.25 * 86400000));
+    const dateStr = typeof dob === 'string' ? dob.substring(0, 10) : '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const today = new Date();
+    let age = today.getFullYear() - y;
+    const mDiff = (today.getMonth() + 1) - m;
+    if (mDiff < 0 || (mDiff === 0 && today.getDate() < d)) age--;
+    return age >= 0 ? age : null;
   }
 
   const inputCls = 'w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent';
