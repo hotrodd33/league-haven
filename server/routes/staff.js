@@ -171,12 +171,14 @@ router.post('/', authMiddleware, async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Send invite email after successful commit
+    // Send invite email after successful commit (must await on Vercel serverless)
     if (client._pendingInvite) {
       const inv = client._pendingInvite;
-      sendCoachInviteEmail(inv.email, inv.name, inv.tempPassword, inv.teamName).catch((err) => {
+      try {
+        await sendCoachInviteEmail(inv.email, inv.name, inv.tempPassword, inv.teamName);
+      } catch (err) {
         console.error('[STAFF] Failed to send invite email:', err);
-      });
+      }
     }
 
     res.status(201).json(addLabel({ ...staffRow, role, account_created, account_existing }));
@@ -235,7 +237,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await pool.query('SELECT id FROM staff_members WHERE id = $1', [id]);
+    const { rows } = await pool.query('SELECT id, email FROM staff_members WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Staff member not found' });
 
     const { rows: teamRows } = await pool.query('SELECT team_id FROM team_staff_assignments WHERE staff_id = $1', [id]);
@@ -247,8 +249,24 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
     if (!hasPermission) return res.status(403).json({ error: 'No permission to delete this staff member' });
 
+    // Also delete the linked user account (matched by email)
+    let user_deleted = false;
+    const staffEmail = rows[0].email;
+    if (staffEmail) {
+      const { rows: linkedUser } = await pool.query(
+        'SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [staffEmail]
+      );
+      if (linkedUser.length) {
+        // Prevent deleting the requesting user's own account
+        if (linkedUser[0].id !== req.user.id) {
+          await pool.query('DELETE FROM users WHERE id = $1', [linkedUser[0].id]);
+          user_deleted = true;
+        }
+      }
+    }
+
     await pool.query('DELETE FROM staff_members WHERE id = $1', [id]);
-    res.json({ success: true });
+    res.json({ success: true, user_deleted });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

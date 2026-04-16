@@ -57,7 +57,7 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
   useEffect(() => { if (tab === 'users' && showUsersTab) loadUsers(); }, [loadUsers, tab, showUsersTab]);
 
   async function handleDelete(user) {
-    if (!window.confirm(`Delete user "${user.username}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete user "${user.username}"? This will also remove any linked staff/coach record. This cannot be undone.`)) return;
     setDeleting(user.id);
     try {
       await deleteUser(user.id);

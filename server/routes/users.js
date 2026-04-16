@@ -137,11 +137,21 @@ router.delete('/:id', adminOnly, async (req, res) => {
     if (Number(id) === req.user.id) {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
-    const { rows } = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
+    const { rows } = await pool.query('SELECT id, email FROM users WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
 
+    // Also delete the linked staff member (matched by email)
+    let staff_deleted = false;
+    const userEmail = rows[0].email;
+    if (userEmail) {
+      const { rowCount } = await pool.query(
+        'DELETE FROM staff_members WHERE LOWER(email) = LOWER($1)', [userEmail]
+      );
+      staff_deleted = rowCount > 0;
+    }
+
     await pool.query('DELETE FROM users WHERE id = $1', [id]);
-    res.json({ success: true });
+    res.json({ success: true, staff_deleted });
   } catch (err) {
     console.error('Delete user error:', err);
     res.status(500).json({ error: 'Internal server error' });

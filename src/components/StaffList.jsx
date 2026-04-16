@@ -50,7 +50,8 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
   }
 
   async function handleDeleteStaff(member) {
-    if (!window.confirm(`Permanently delete ${member.name}? This removes them from ALL teams.`)) return;
+    const extra = member.email ? '\n\nThis will also delete any linked user account.' : '';
+    if (!window.confirm(`Permanently delete ${member.name}? This removes them from ALL teams.${extra}`)) return;
     setDeleting(member.id);
     try {
       await deleteStaff(member.id);
