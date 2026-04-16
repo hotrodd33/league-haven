@@ -113,9 +113,14 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     const { team_city, team_color, team_mascot, age_group, level, division, division_ids, org_id, primary_color, secondary_color } = req.body;
     // Admin or org permission required
+    // Allow org_admins and team_managers to create opponent teams (no org_id)
     if (req.user.role !== 'super_admin') {
-      if (!org_id || !(await canEditOrg(req.user, org_id))) {
-        return res.status(403).json({ error: 'You do not have permission to create teams for this organization' });
+      if (org_id) {
+        if (!(await canEditOrg(req.user, org_id))) {
+          return res.status(403).json({ error: 'You do not have permission to create teams for this organization' });
+        }
+      } else if (!['org_admin', 'team_manager'].includes(req.user.role)) {
+        return res.status(403).json({ error: 'You do not have permission to create teams' });
       }
     }
     const name = buildShortName(team_city, team_color, age_group, level) || req.body.name;

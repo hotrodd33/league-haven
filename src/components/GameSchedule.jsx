@@ -4,7 +4,7 @@ import {
   fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
   fetchOrganizations, fetchAssignableOfficials,
   fetchGameInterests, expressGameInterest, removeGameInterest,
-  checkGameConflicts,
+  checkGameConflicts, createTeam, fetchAgeGroups, fetchLevels,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
@@ -548,6 +548,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
           defaultSeasonId={filterSeason}
           onDone={handleFormDone}
           onCancel={() => { setShowForm(false); setEditing(null); }}
+          onTeamsChanged={() => fetchTeams().then(setTeams).catch(() => {})}
         />
       )}
 
@@ -791,12 +792,13 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
   );
 }
 
-export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, onDone, onCancel }) {
+export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, onDone, onCancel, onTeamsChanged }) {
   const isEditing = !!game;
   const { isSuperAdmin, isOrgAdmin, permissions, role } = useAuth();
   const [saving, setSaving] = useState(false);
   const [addingLocation, setAddingLocation] = useState(false);
   const [showAddLocationForm, setShowAddLocationForm] = useState(false);
+  const [showCreateTeam, setShowCreateTeam] = useState(null); // 'home' | 'away' | null
   const [error, setError] = useState(null);
   const [locations, setLocations] = useState([]);
   const [orgSettings, setOrgSettings] = useState({});
@@ -1035,19 +1037,29 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
   function TeamSelect({ id, name, value }) {
     return (
-      <select id={id} name={name} value={value} onChange={handleChange} required className={inputCls}>
-        <option value="">— Select Team —</option>
-        {orgNames.map(orgName => (
-          <optgroup key={orgName} label={orgName}>
-            {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </optgroup>
-        ))}
-        {ungroupedTeams.length > 0 && (
-          <optgroup label="Unassigned">
-            {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </optgroup>
-        )}
-      </select>
+      <div>
+        <select id={id} name={name} value={value} onChange={(e) => {
+          if (e.target.value === '__create__') {
+            e.target.value = value; // revert selection
+            setShowCreateTeam(name === 'home_team_id' ? 'home' : 'away');
+            return;
+          }
+          handleChange(e);
+        }} required className={inputCls}>
+          <option value="">— Select Team —</option>
+          {orgNames.map(orgName => (
+            <optgroup key={orgName} label={orgName}>
+              {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </optgroup>
+          ))}
+          {ungroupedTeams.length > 0 && (
+            <optgroup label="Unassigned">
+              {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </optgroup>
+          )}
+          <option value="__create__">＋ Create New Team…</option>
+        </select>
+      </div>
     );
   }
 
@@ -1288,6 +1300,163 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
             </div>
           </div>
         )}
+
+        {showCreateTeam && (
+          <QuickCreateTeamForm
+            onCreated={(newTeam) => {
+              const field = showCreateTeam === 'home' ? 'home_team_id' : 'away_team_id';
+              setForm(prev => ({ ...prev, [field]: String(newTeam.id) }));
+              setShowCreateTeam(null);
+              if (onTeamsChanged) onTeamsChanged();
+            }}
+            onCancel={() => setShowCreateTeam(null)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function QuickCreateTeamForm({ onCreated, onCancel }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [ageGroups, setAgeGroups] = useState([]);
+  const [levels, setLevels] = useState([]);
+  const [orgs, setOrgs] = useState([]);
+  const [form, setForm] = useState({
+    team_city: '',
+    team_mascot: '',
+    team_color: '',
+    age_group: '',
+    level: '',
+    org_id: '',
+    primary_color: '#003366',
+    secondary_color: '#CC0000',
+  });
+
+  useEffect(() => {
+    Promise.all([fetchAgeGroups(), fetchLevels(), fetchOrganizations()])
+      .then(([ag, lv, og]) => { setAgeGroups(ag); setLevels(lv); setOrgs(og); })
+      .catch(() => {});
+  }, []);
+
+  const shortName = [form.team_city, form.team_color, form.age_group, form.level].filter(Boolean).join(' ');
+
+  function handleChange(e) {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const data = {
+        team_city: form.team_city.trim(),
+        team_color: form.team_color.trim(),
+        team_mascot: form.team_mascot.trim(),
+        age_group: form.age_group || null,
+        level: form.level || null,
+        primary_color: form.primary_color || null,
+        secondary_color: form.secondary_color || null,
+        org_id: form.org_id ? Number(form.org_id) : null,
+      };
+      const newTeam = await createTeam(data);
+      onCreated(newTeam);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 my-4 border border-gray-700">
+        <h3 className="text-lg font-heading font-bold text-white mb-1">Create Opponent Team</h3>
+        <p className="text-xs text-gray-400 mb-4">Quickly add a team that doesn&apos;t exist yet. Organization is optional for opponent teams.</p>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label htmlFor="qt-city" className={labelCls}>Team City *</label>
+              <input id="qt-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" className={inputCls} />
+            </div>
+            <div>
+              <label htmlFor="qt-mascot" className={labelCls}>Team Mascot</label>
+              <input id="qt-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" className={inputCls} />
+            </div>
+            <div>
+              <label htmlFor="qt-color" className={labelCls}>Team Color</label>
+              <input id="qt-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" className={inputCls} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="qt-primary" className={labelCls}>Primary Color</label>
+              <div className="flex items-center gap-2">
+                <input id="qt-primary" type="color" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
+                <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="qt-secondary" className={labelCls}>Secondary Color</label>
+              <div className="flex items-center gap-2">
+                <input id="qt-secondary" type="color" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
+                <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="qt-age" className={labelCls}>Age Group</label>
+              {ageGroups.length > 0 ? (
+                <select id="qt-age" name="age_group" value={form.age_group} onChange={handleChange} className={inputCls}>
+                  <option value="">— Select —</option>
+                  {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
+                </select>
+              ) : (
+                <input id="qt-age" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className={inputCls} />
+              )}
+            </div>
+            <div>
+              <label htmlFor="qt-level" className={labelCls}>Level</label>
+              {levels.length > 0 ? (
+                <select id="qt-level" name="level" value={form.level} onChange={handleChange} className={inputCls}>
+                  <option value="">— Select —</option>
+                  {levels.map(lv => <option key={lv.id} value={lv.name}>{lv.name}</option>)}
+                </select>
+              ) : (
+                <input id="qt-level" name="level" type="text" value={form.level} onChange={handleChange} placeholder="e.g. Competitive" className={inputCls} />
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="qt-org" className={labelCls}>Organization</label>
+            <select id="qt-org" name="org_id" value={form.org_id} onChange={handleChange} className={inputCls}>
+              <option value="">— None (opponent) —</option>
+              {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Leave blank for external opponent teams.</p>
+          </div>
+
+          {shortName && (
+            <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+              <span className="text-xs font-semibold text-gray-400 uppercase">Team Name: </span>
+              <span className="font-semibold text-gray-200">{shortName}</span>
+            </div>
+          )}
+
+          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
+            <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Creating…' : 'Create Team'}</button>
+          </div>
+        </form>
       </div>
     </div>
   );
