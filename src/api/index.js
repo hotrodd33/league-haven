@@ -1058,6 +1058,14 @@ export async function fetchPushStatus() {
   return apiFetch('/push/status');
 }
 
+export async function fetchPushDebug() {
+  return apiFetch('/push/debug');
+}
+
+export async function sendTestPush() {
+  return apiFetch('/push/test', { method: 'POST' });
+}
+
 export async function fetchNotificationPrefs() {
   return apiFetch('/push/preferences');
 }

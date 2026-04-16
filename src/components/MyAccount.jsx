@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchMe, fetchNotificationPrefs, updateNotificationPrefs } from '../api/index.js';
+import { fetchMe, fetchNotificationPrefs, updateNotificationPrefs, sendTestPush } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { UserIcon, UsersIcon, BuildingIcon, CogIcon, BellIcon } from './ui/icons.jsx';
 import { usePushNotifications } from '../hooks/usePushNotifications.js';
@@ -34,6 +34,7 @@ export default function MyAccount({ onChangePassword }) {
   const push = usePushNotifications();
   const [prefs, setPrefs] = useState({ schedule_changes: true, cancellations: true, announcements: true });
   const [prefsLoading, setPrefsLoading] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
   useEffect(() => {
     fetchMe()
@@ -169,6 +170,27 @@ export default function MyAccount({ onChangePassword }) {
                   disabled={prefsLoading}
                   onChange={() => togglePref('announcements')}
                 />
+                <div className="pt-2">
+                  <button
+                    onClick={async () => {
+                      setTestResult('Sending...');
+                      try {
+                        const r = await sendTestPush();
+                        setTestResult(r.sent > 0 ? `Sent! (${r.sent} delivered)` : `No subscriptions found (${r.total_subscriptions} total)`);
+                      } catch (e) {
+                        setTestResult(`Error: ${e.message}`);
+                      }
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+                  >
+                    Send Test Notification
+                  </button>
+                  {testResult && (
+                    <p className={`text-xs mt-1.5 ${testResult.startsWith('Sent') ? 'text-green-400' : testResult.startsWith('Error') ? 'text-red-400' : 'text-gray-400'}`}>
+                      {testResult}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>

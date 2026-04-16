@@ -1,16 +1,63 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin } = require('../auth');
-const { notifyTeamUsers, notifyOrgUsers, notifyAll, VAPID_PUBLIC_KEY } = require('../push');
+const { notifyUser, notifyTeamUsers, notifyOrgUsers, notifyAll, VAPID_PUBLIC_KEY } = require('../push');
 
 const router = express.Router();
 
 // GET /api/push/vapid-key — public key for client-side subscription
 router.get('/vapid-key', (req, res) => {
   if (!VAPID_PUBLIC_KEY) {
-    return res.status(404).json({ error: 'Push notifications not configured' });
+    return res.status(404).json({ error: 'Push notifications not configured', hasPublic: !!process.env.VAPID_PUBLIC_KEY, hasPrivate: !!process.env.VAPID_PRIVATE_KEY });
   }
   res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+// GET /api/push/debug — check push config and subscription status (admin only)
+router.get('/debug', authMiddleware, async (req, res) => {
+  try {
+    const vapidOk = !!VAPID_PUBLIC_KEY;
+    const { rows: subs } = await pool.query(
+      'SELECT id, user_id, endpoint, created_at FROM push_subscriptions WHERE user_id = $1',
+      [req.user.id]
+    );
+    const { rows: allSubs } = await pool.query('SELECT COUNT(*) as count FROM push_subscriptions');
+    res.json({
+      vapid_configured: vapidOk,
+      vapid_public_key_prefix: VAPID_PUBLIC_KEY ? VAPID_PUBLIC_KEY.substring(0, 10) + '...' : null,
+      your_user_id: req.user.id,
+      your_subscriptions: subs.length,
+      your_subscription_details: subs.map(s => ({
+        id: s.id,
+        endpoint_prefix: s.endpoint.substring(0, 60) + '...',
+        created_at: s.created_at,
+      })),
+      total_subscriptions: parseInt(allSubs[0].count),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/push/test — send a test push to yourself
+router.post('/test', authMiddleware, async (req, res) => {
+  try {
+    if (!VAPID_PUBLIC_KEY) {
+      return res.status(400).json({ error: 'VAPID keys not configured on server' });
+    }
+    const results = await notifyUser(req.user.id, {
+      title: 'Test Notification',
+      body: 'Push notifications are working!',
+      tag: 'test-' + Date.now(),
+      url: '/',
+    });
+    const sent = (results || []).filter(Boolean).length;
+    const failed = (results || []).length - sent;
+    res.json({ ok: true, sent, failed, total_subscriptions: (results || []).length });
+  } catch (err) {
+    console.error('Push test error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /api/push/subscribe — save push subscription for authenticated user
