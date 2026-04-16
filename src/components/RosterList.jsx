@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchPlayersByTeam, deletePlayer, unassignPlayerFromTeam, searchPlayers, assignPlayerToTeam, createPlayer } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import ContactModal from './ContactModal.jsx';
 
 export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlayer, onViewPlayer, refreshKey }) {
   const { canEditTeam: canEdit } = useAuth();
@@ -14,6 +15,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [assigning, setAssigning] = useState(null);
+  const [contactModal, setContactModal] = useState(false);
 
   const loadPlayers = useCallback(async () => {
     if (!teamId) return;
@@ -102,6 +104,11 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
         <h2 className="text-xl font-heading font-bold text-white">Team Roster ({players.length})</h2>
         {editable && (
           <div className="flex gap-2">
+            {players.length > 0 && (
+              <button onClick={() => setContactModal(true)} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors" title="Email all player contacts">
+                ✉ Email Team
+              </button>
+            )}
             <button onClick={() => setShowAddExisting(!showAddExisting)} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">
               + Existing Player
             </button>
@@ -196,8 +203,8 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                     {editable && <td className="px-3 py-2">{player.grade || '—'}</td>}
                     {editable && <td className="px-3 py-2">{player.date_of_birth || '—'}</td>}
                     {editable && <td className="px-3 py-2">{formatBatThrow(player)}</td>}
-                    {editable && <td className="px-3 py-2 break-all">{player.parent_email || '—'}</td>}
-                    {editable && <td className="px-3 py-2">{player.parent_phone || '—'}</td>}
+                    {editable && <td className="px-3 py-2 break-all">{player.parent_email ? <a href={`mailto:${player.parent_email}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_email}</a> : '—'}</td>}
+                    {editable && <td className="px-3 py-2">{player.parent_phone ? <a href={`tel:${player.parent_phone}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_phone}</a> : '—'}</td>}
                     {editable && (
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex gap-1">
@@ -251,24 +258,43 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                   {editable && <div><span className="font-medium text-gray-200">B/T:</span> {formatBatThrow(player)}</div>}
                   {editable && <div><span className="font-medium text-gray-200">Age:</span> {calcAge(player.date_of_birth)}</div>}
                   {editable && <div><span className="font-medium text-gray-200">Grade:</span> {player.grade || '—'}</div>}
-                  {editable && player.parent_email && <div className="col-span-2 truncate"><span className="font-medium text-gray-200">Email:</span> {player.parent_email}</div>}
-                  {editable && player.parent_phone && <div className="col-span-2"><span className="font-medium text-gray-200">Phone:</span> {player.parent_phone}</div>}
+                  {editable && player.parent_email && <div className="col-span-2 truncate"><span className="font-medium text-gray-200">Email:</span> <a href={`mailto:${player.parent_email}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_email}</a></div>}
+                  {editable && player.parent_phone && <div className="col-span-2"><span className="font-medium text-gray-200">Phone:</span> <a href={`tel:${player.parent_phone}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_phone}</a></div>}
                 </div>
               </div>
             ))}
           </div>
         </>
       )}
+
+      {contactModal && (
+        <ContactModal
+          scope="roster"
+          scopeId={teamId}
+          scopeLabel="Team Roster"
+          onClose={() => setContactModal(false)}
+        />
+      )}
     </div>
   );
 }
 
+function parseDOB(dob) {
+  if (!dob || typeof dob !== 'string') return null;
+  const s = dob.trim();
+  // YYYY-MM-DD or ISO timestamp
+  let match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (match) return { y: +match[1], m: +match[2], d: +match[3] };
+  // MM/DD/YYYY or M/D/YYYY
+  match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (match) return { y: +match[3], m: +match[1], d: +match[2] };
+  return null;
+}
+
 function calcAge(dob) {
-  if (!dob) return '—';
-  // Handle both "YYYY-MM-DD" and ISO timestamp formats
-  const dateStr = typeof dob === 'string' ? dob.substring(0, 10) : '';
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return '—';
-  const [y, m, d] = dateStr.split('-').map(Number);
+  const parsed = parseDOB(dob);
+  if (!parsed) return '—';
+  const { y, m, d } = parsed;
   const today = new Date();
   let age = today.getFullYear() - y;
   const mDiff = (today.getMonth() + 1) - m;

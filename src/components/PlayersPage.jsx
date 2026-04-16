@@ -50,10 +50,12 @@ export default function PlayersPage({ onSelectPlayer }) {
   }, [players, filterOrg, filterTeam, search]);
 
   function calculateAge(dob) {
-    if (!dob) return '';
-    const dateStr = typeof dob === 'string' ? dob.substring(0, 10) : '';
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return '';
-    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!dob || typeof dob !== 'string') return '';
+    const s = dob.trim();
+    let match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!match) { match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (match) match = [, match[3], match[1], match[2]]; }
+    if (!match) return '';
+    const [, y, m, d] = match.map(Number);
     const today = new Date();
     let age = today.getFullYear() - y;
     const mDiff = (today.getMonth() + 1) - m;

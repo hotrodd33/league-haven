@@ -136,10 +136,12 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
   }
 
   function calculateAge(dob) {
-    if (!dob) return null;
-    const dateStr = typeof dob === 'string' ? dob.substring(0, 10) : '';
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
-    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!dob || typeof dob !== 'string') return null;
+    const s = dob.trim();
+    let match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!match) { match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (match) match = [, match[3], match[1], match[2]]; }
+    if (!match) return null;
+    const [, y, m, d] = match.map(Number);
     const today = new Date();
     let age = today.getFullYear() - y;
     const mDiff = (today.getMonth() + 1) - m;
@@ -328,8 +330,8 @@ function ContactsTab({ playerId, canEdit }) {
                 <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full capitalize">{c.relationship}</span>
                 {c.is_primary && <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full">Primary</span>}
               </div>
-              {c.email && <p className="text-sm text-gray-400 mt-1">{c.email}</p>}
-              {c.phone && <p className="text-sm text-gray-400">{c.phone}</p>}
+              {c.email && <p className="text-sm text-gray-400 mt-1"><a href={`mailto:${c.email}`} className="text-blue-400 hover:text-blue-300 underline">{c.email}</a></p>}
+              {c.phone && <p className="text-sm text-gray-400"><a href={`tel:${c.phone}`} className="text-blue-400 hover:text-blue-300 underline">{c.phone}</a></p>}
               {c.notes && <p className="text-xs text-gray-500 mt-1 italic">{c.notes}</p>}
             </div>
             {canEdit && (
