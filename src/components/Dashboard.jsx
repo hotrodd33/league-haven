@@ -5,7 +5,7 @@ import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitch
 import { Card, CardHeader, CardBody, StatCard, Scoreboard, Button } from './ui/index.js';
 import {
   UsersIcon, CalendarIcon, TrophyIcon, BuildingIcon,
-  PlusIcon, MegaphoneIcon, BellIcon,
+  PlusIcon, MegaphoneIcon, BellIcon, ClipboardIcon,
   ClockIcon, ChartBarIcon, SparklesIcon, EyeIcon, MapPinIcon,
   DatabaseIcon,
 } from './ui/icons.jsx';
@@ -111,6 +111,11 @@ export default function Dashboard({ onNavigate }) {
     })
     .filter(Boolean)
     .sort((a, b) => (a.available_date || '').localeCompare(b.available_date || ''));
+
+  /* Games that have passed but still have no score entered */
+  const unscoredGames = games
+    .filter(g => g.game_date < todayStr && g.status === 'scheduled')
+    .sort((a, b) => b.game_date > a.game_date ? 1 : -1);
 
   const recentResults = games
     .filter(g => g.status === 'final')
@@ -304,6 +309,56 @@ export default function Dashboard({ onNavigate }) {
                 {playersOnRest.length > 8 && (
                   <p className="pt-2 text-xs text-gray-400 text-center">
                     +{playersOnRest.length - 8} more players on rest
+                  </p>
+                )}
+              </div>
+            </CardBody>
+          </Card>
+        </section>
+      )}
+
+      {/* ── Unscored Games ── */}
+      {unscoredGames.length > 0 && (
+        <section aria-label="Unscored games">
+          <Card variant="bordered" className="border-dirt-500/30 bg-dirt-950/10">
+            <CardHeader>
+              <div className="flex items-center justify-between w-full">
+                <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
+                  <ClipboardIcon className="w-5 h-5 text-dirt-400" />
+                  Scores Needed
+                  <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-dirt-500/20 text-dirt-300">
+                    {unscoredGames.length}
+                  </span>
+                </h3>
+                <button
+                  onClick={() => onNavigate?.('schedule')}
+                  className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
+                >
+                  Schedule <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            </CardHeader>
+            <CardBody>
+              <div className="divide-y divide-gray-700/50">
+                {unscoredGames.slice(0, 6).map((g) => (
+                  <div key={g.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 gap-3">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-medium text-gray-200 block truncate">
+                        {g.away_team_name || 'TBD'} @ {g.home_team_name || 'TBD'}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {formatGameDate(g.game_date)}
+                        {g.location_name ? ` · ${g.location_name}` : ''}
+                      </span>
+                    </div>
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-dirt-500/20 text-dirt-300 shrink-0">
+                      No score
+                    </span>
+                  </div>
+                ))}
+                {unscoredGames.length > 6 && (
+                  <p className="pt-2 text-xs text-gray-400 text-center">
+                    +{unscoredGames.length - 6} more games need scores
                   </p>
                 )}
               </div>
