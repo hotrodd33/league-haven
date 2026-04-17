@@ -17,6 +17,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "leaflet": "^1.9.4",
     "marked": "^18.0.0",

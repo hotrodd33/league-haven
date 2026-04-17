@@ -36,9 +36,12 @@ const dashboardRoutes = require('./routes/dashboard');
 const announcementsRoutes = require('./routes/announcements');
 const weatherRoutes = require('./routes/weather');
 
+const helmet = require('helmet');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
