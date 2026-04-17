@@ -34,6 +34,8 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
     queryClient.invalidateQueries({ queryKey: ['teams'] });
     queryClient.invalidateQueries({ queryKey: ['games', 'team', teamId] });
     queryClient.invalidateQueries({ queryKey: ['registrations'] });
+    queryClient.invalidateQueries({ queryKey: ['roster', teamId] });
+    queryClient.invalidateQueries({ queryKey: ['staff', teamId] });
   }, [refreshKey, queryClient, teamId]);
 
   const { data: allTeams = [] } = useQuery({
@@ -140,10 +142,10 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
           </div>
         )}
         {activeTab === 'roster' && (
-          <RosterList teamId={teamId} teamOrgId={teamOrgId} onEditPlayer={onEditPlayer} onAddPlayer={onAddPlayer} onViewPlayer={onViewPlayer} refreshKey={refreshKey} />
+          <RosterList teamId={teamId} teamOrgId={teamOrgId} onEditPlayer={onEditPlayer} onAddPlayer={onAddPlayer} onViewPlayer={onViewPlayer} />
         )}
         {activeTab === 'coaches' && (
-          <StaffList teamId={teamId} teamOrgId={teamOrgId} refreshKey={refreshKey} />
+          <StaffList teamId={teamId} teamOrgId={teamOrgId} />
         )}
       </div>
     </div>
