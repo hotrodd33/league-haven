@@ -52,11 +52,12 @@ router.get('/activity', authMiddleware, async (req, res) => {
          ORDER BY tr.registered_at DESC
          LIMIT $1`, [limit]
       ),
-      // Recent imports
+      // Recent imports (grouped by source + timestamp batch)
       pool.query(
-        `SELECT id, source, games_imported, created_at,
+        `SELECT source, COUNT(*) AS games_imported, MAX(created_at) AS created_at,
                 'import' AS type
          FROM game_import_log
+         GROUP BY source, DATE_TRUNC('minute', created_at)
          ORDER BY created_at DESC
          LIMIT $1`, [limit]
       ),
@@ -105,9 +106,10 @@ router.get('/activity', authMiddleware, async (req, res) => {
     }
 
     for (const row of recentImports.rows) {
+      const count = parseInt(row.games_imported, 10);
       items.push({
         type: 'import',
-        message: `${row.source} import — ${row.games_imported} game${row.games_imported !== 1 ? 's' : ''}`,
+        message: `${row.source} import — ${count} game${count !== 1 ? 's' : ''}`,
         timestamp: row.created_at,
         icon: 'import',
       });
