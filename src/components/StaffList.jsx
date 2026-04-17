@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { STALE } from '../lib/queryConfig.js';
 import { fetchStaffByTeam, createStaff, updateStaff, deleteStaff, searchStaff, assignStaffToTeam, unassignStaffFromTeam } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ContactModal from './ContactModal.jsx';
@@ -21,6 +22,7 @@ export default function StaffList({ teamId, teamOrgId }) {
     queryKey: ['staff', teamId],
     queryFn: () => fetchStaffByTeam(teamId),
     enabled: !!teamId,
+    staleTime: STALE.TWO_MIN,
   });
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);

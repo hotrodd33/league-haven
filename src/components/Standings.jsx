@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { STALE } from '../lib/queryConfig.js';
 import { fetchStandings, fetchSeasons } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
 
@@ -17,6 +18,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
   const { data: seasons = [], error: seasonsError } = useQuery({
     queryKey: ['seasons'],
     queryFn: fetchSeasons,
+    staleTime: STALE.HOUR,
   });
 
   // Set active season once seasons load
@@ -34,6 +36,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
     queryKey: ['standings', seasonId],
     queryFn: () => fetchStandings(seasonId),
     enabled: !!seasonId,
+    staleTime: STALE.TWO_MIN,
   });
 
   const loading = standingsLoading;

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { STALE } from '../lib/queryConfig.js';
 import { cn } from '../lib/cn.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers, fetchDashboardActivity, fetchAnnouncements, fetchWeather, fetchWeatherForecast } from '../api/index.js';
@@ -93,14 +94,14 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
   const { user } = useAuth();
   const [gameWeather, setGameWeather] = useState({});
 
-  const { data: teams = [],        isPending: teamsPending   } = useQuery({ queryKey: ['teams'],              queryFn: fetchTeams });
-  const { data: games = [],        isPending: gamesPending   } = useQuery({ queryKey: ['games'],              queryFn: fetchGames });
-  const { data: seasons = [],      isPending: seasonsPending } = useQuery({ queryKey: ['seasons'],            queryFn: fetchSeasons });
-  const { data: orgs = [],         isPending: orgsPending    } = useQuery({ queryKey: ['organizations'],      queryFn: fetchOrganizations });
-  const { data: pitchRest = {}                               } = useQuery({ queryKey: ['pitch-rest', 'all'], queryFn: fetchAllPitchRest });
-  const { data: players = []                                 } = useQuery({ queryKey: ['players', 'all'],    queryFn: fetchAllPlayers });
-  const { data: activity = []                                } = useQuery({ queryKey: ['dashboard-activity'],queryFn: fetchDashboardActivity });
-  const { data: announcements = []                           } = useQuery({ queryKey: ['announcements'],     queryFn: fetchAnnouncements });
+  const { data: teams = [],        isPending: teamsPending   } = useQuery({ queryKey: ['teams'],              queryFn: fetchTeams,              staleTime: STALE.THREE_MIN });
+  const { data: games = [],        isPending: gamesPending   } = useQuery({ queryKey: ['games'],              queryFn: fetchGames,              staleTime: STALE.ONE_MIN });
+  const { data: seasons = [],      isPending: seasonsPending } = useQuery({ queryKey: ['seasons'],            queryFn: fetchSeasons,            staleTime: STALE.HOUR });
+  const { data: orgs = [],         isPending: orgsPending    } = useQuery({ queryKey: ['organizations'],      queryFn: fetchOrganizations,      staleTime: STALE.HOUR });
+  const { data: pitchRest = {}                               } = useQuery({ queryKey: ['pitch-rest', 'all'], queryFn: fetchAllPitchRest,       staleTime: STALE.THIRTY_SEC });
+  const { data: players = []                                 } = useQuery({ queryKey: ['players', 'all'],    queryFn: fetchAllPlayers,         staleTime: STALE.TWO_MIN });
+  const { data: activity = []                                } = useQuery({ queryKey: ['dashboard-activity'],queryFn: fetchDashboardActivity,  staleTime: STALE.THIRTY_SEC });
+  const { data: announcements = []                           } = useQuery({ queryKey: ['announcements'],     queryFn: fetchAnnouncements,      staleTime: STALE.TWO_MIN });
 
   const loading = teamsPending || gamesPending || seasonsPending || orgsPending;
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { STALE } from '../lib/queryConfig.js';
 import { fetchTeams, fetchGames, fetchRegistrations } from '../api/index.js';
 import { cn } from '../lib/cn.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -42,6 +43,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
     queryKey: ['teams'],
     queryFn: fetchTeams,
     enabled: !!teamId,
+    staleTime: STALE.THREE_MIN,
   });
 
   const team = allTeams.find(t => t.id === teamId) ?? null;
@@ -50,6 +52,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
     queryKey: ['games', 'team', teamId],
     queryFn: () => fetchGames({ team_id: teamId }),
     enabled: !!teamId,
+    staleTime: STALE.ONE_MIN,
   });
 
   const recentGames = gamesData
@@ -61,6 +64,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
     queryKey: ['registrations'],
     queryFn: fetchRegistrations,
     enabled: !!teamId,
+    staleTime: STALE.FIVE_MIN,
   });
 
   const registrations = (registrationsData?.registrations || []).filter(r => r.team_id === teamId);
