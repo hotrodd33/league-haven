@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '../lib/cn.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers, fetchDashboardActivity, fetchAnnouncements, fetchWeather } from '../api/index.js';
+import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers, fetchDashboardActivity, fetchAnnouncements, fetchWeather, fetchWeatherForecast } from '../api/index.js';
 import { Card, CardHeader, CardBody, StatCard, Scoreboard, Button } from './ui/index.js';
 import {
   UsersIcon, CalendarIcon, TrophyIcon, BuildingIcon,
@@ -64,8 +64,10 @@ const ACTIVITY_ICONS = {
 
 function getWeatherForGame(game, weatherMap) {
   if (!game.location_lat || !game.location_lon) return null;
-  const key = `${parseFloat(game.location_lat).toFixed(2)},${parseFloat(game.location_lon).toFixed(2)}`;
-  return weatherMap[key] || null;
+  // Try game-specific key first (for forecasts), then location-only key (for current weather)
+  const gameKey = `${game.id}`;
+  const locKey = `${parseFloat(game.location_lat).toFixed(2)},${parseFloat(game.location_lon).toFixed(2)}`;
+  return weatherMap[gameKey] || weatherMap[locKey] || null;
 }
 
 const PRIORITY_STYLES = {
@@ -127,34 +129,46 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Fetch weather for today's game locations (deduplicated by lat/lon)
+  // Fetch weather for today's games (current) and upcoming games (forecast)
   useEffect(() => {
     if (!games.length) return;
     const todayStr_ = new Date().toISOString().slice(0, 10);
-    const todays = games.filter(g => g.game_date === todayStr_ && g.location_lat && g.location_lon);
-    if (!todays.length) return;
 
-    // Deduplicate by rounded coords
-    const seen = new Set();
-    const unique = [];
-    for (const g of todays) {
+    // Current weather for today's games (deduplicated by location)
+    const todaysWithLoc = games.filter(g => g.game_date === todayStr_ && g.location_lat && g.location_lon);
+    const seenLocs = new Set();
+    const uniqueToday = [];
+    for (const g of todaysWithLoc) {
       const key = `${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(g);
-      }
+      if (!seenLocs.has(key)) { seenLocs.add(key); uniqueToday.push(g); }
     }
 
-    Promise.all(
-      unique.map(g =>
-        fetchWeather(g.location_lat, g.location_lon)
-          .then(w => ({ key: `${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`, weather: w }))
-          .catch(() => null)
-      )
-    ).then(results => {
+    const currentPromises = uniqueToday.map(g =>
+      fetchWeather(g.location_lat, g.location_lon)
+        .then(w => ({ key: `${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`, weather: w }))
+        .catch(() => null)
+    );
+
+    // Forecast weather for upcoming games (within 16 days, not today)
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 16);
+    const maxDateStr = maxDate.toISOString().slice(0, 10);
+    const upcomingWithLoc = games.filter(g =>
+      g.game_date > todayStr_ && g.game_date <= maxDateStr &&
+      g.location_lat && g.location_lon &&
+      g.status !== 'final' && g.status !== 'cancelled'
+    ).slice(0, 10); // Limit to 10 forecast calls
+
+    const forecastPromises = upcomingWithLoc.map(g =>
+      fetchWeatherForecast(g.location_lat, g.location_lon, g.game_date, g.game_time || null)
+        .then(w => ({ key: `${g.id}`, weather: w }))
+        .catch(() => null)
+    );
+
+    Promise.all([...currentPromises, ...forecastPromises]).then(results => {
       const map = {};
       for (const r of results) {
-        if (r) map[r.key] = r.weather;
+        if (r && r.weather && !r.weather.unavailable) map[r.key] = r.weather;
       }
       setGameWeather(map);
     });
@@ -425,6 +439,70 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
         </section>
       )}
 
+      {/* ── Weather Alerts ── */}
+      {(() => {
+        const weatherAlerts = [...todaysGames, ...upcomingGames]
+          .filter(g => {
+            const w = getWeatherForGame(g, gameWeather);
+            return w?.playability && (w.playability.rating === 'poor' || w.playability.rating === 'unplayable');
+          })
+          .map(g => ({ game: g, weather: getWeatherForGame(g, gameWeather) }));
+        if (!weatherAlerts.length) return null;
+        return (
+          <section aria-label="Weather alerts">
+            <Card variant="bordered" className="border-orange-500/30 bg-orange-950/10">
+              <CardHeader>
+                <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
+                  ⚠️ Weather Alerts
+                  <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-orange-500/20 text-orange-300">
+                    {weatherAlerts.length}
+                  </span>
+                </h3>
+              </CardHeader>
+              <CardBody className="space-y-2">
+                {weatherAlerts.map(({ game: g, weather: w }) => (
+                  <div
+                    key={g.id}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg border',
+                      w.playability.rating === 'unplayable'
+                        ? 'bg-red-950/20 border-red-500/30'
+                        : 'bg-orange-950/15 border-orange-500/20',
+                    )}
+                  >
+                    <span className="text-xl shrink-0">{w.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-100 truncate">
+                        {g.away_team_name || 'TBD'} @ {g.home_team_name || 'TBD'}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {g.game_date === todayStr ? 'Today' : formatGameDate(g.game_date)}
+                        {g.game_time ? ` · ${formatGameTime(g.game_time)}` : ''}
+                        {g.location_name ? ` · ${g.location_name}` : ''}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {w.playability.reasons.join(' · ')}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className={cn(
+                        'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
+                        w.playability.rating === 'unplayable' ? 'bg-red-900/40 text-red-300' : 'bg-orange-900/40 text-orange-300',
+                      )}>
+                        {w.playability.rating}
+                      </span>
+                      {w.precipitationProbability != null && (
+                        <p className="text-xs text-gray-400 mt-1">🌧️ {w.precipitationProbability}%</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </CardBody>
+            </Card>
+          </section>
+        );
+      })()}
+
       {/* ── Pitch Count Warnings ── */}
       {playersOnRest.length > 0 && (
         <section aria-label="Pitch count warnings">
@@ -638,6 +716,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                   homeScore={g.home_score}
                   awayScore={g.away_score}
                   location={g.location_name}
+                  weather={getWeatherForGame(g, gameWeather)}
                 />
               ))}
             </div>

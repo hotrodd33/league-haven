@@ -491,6 +491,12 @@ export async function fetchWeather(lat, lon) {
   return apiFetch(`/weather?lat=${lat}&lon=${lon}`);
 }
 
+export async function fetchWeatherForecast(lat, lon, date, time) {
+  const params = new URLSearchParams({ lat, lon, date });
+  if (time) params.set('time', time);
+  return apiFetch(`/weather/forecast?${params}`);
+}
+
 // ── Organizations ──
 
 export async function fetchOrganizations() {
