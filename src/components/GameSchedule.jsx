@@ -6,6 +6,7 @@ import {
   fetchGameInterests, expressGameInterest, removeGameInterest,
   checkGameConflicts, createTeam, fetchAgeGroups, fetchLevels,
   fetchWeather, fetchWeatherForecast,
+  createReservation,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
@@ -330,7 +331,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
             </div>
             {canScheduleGames && (
               <>
-                <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Game</button>
+                <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Schedule</button>
               </>
             )}
             {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
@@ -383,7 +384,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
               {canScheduleGames && (
                 <>
                   <br />
-                  <button onClick={() => setShowForm(true)} className="text-field-300 underline mt-1 inline-block">Schedule the first game</button>
+                  <button onClick={() => setShowForm(true)} className="text-field-300 underline mt-1 inline-block">Schedule the first event</button>
                 </>
               )}
             </div>
@@ -892,7 +893,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
 
 export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, onDone, onCancel, onTeamsChanged }) {
   const isEditing = !!game;
-  const { isSuperAdmin, isOrgAdmin, permissions, role } = useAuth();
+  const { isSuperAdmin, isOrgAdmin, permissions, role, canEditOrg } = useAuth();
   const [saving, setSaving] = useState(false);
   const [addingLocation, setAddingLocation] = useState(false);
   const [showAddLocationForm, setShowAddLocationForm] = useState(false);
@@ -901,6 +902,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const [locations, setLocations] = useState([]);
   const [orgSettings, setOrgSettings] = useState({});
   const [officials, setOfficials] = useState([]);
+  const [eventType, setEventType] = useState('game'); // 'game' | 'practice' | 'event' | 'maintenance'
   const [scheduleSettings, setScheduleSettings] = useState({
     game_start_time: '08:00',
     game_end_time: '20:00',
@@ -920,6 +922,16 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     official_ids: game?.official_ids || [],
     notes: game?.notes || '',
   });
+
+  // Reservation-specific fields (for practice/event/maintenance)
+  const [resForm, setResForm] = useState({
+    title: '',
+    team_id: '',
+    start_time: '17:00',
+    end_time: '19:00',
+  });
+
+  const isGame = eventType === 'game';
 
   const [newLocation, setNewLocation] = useState({
     name: '',
@@ -991,6 +1003,41 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       setForm((prev) => ({ ...prev, official_ids: [] }));
     });
   }, [homeOrgId]);
+
+  // For non-game types, load locations from user's org(s)
+  useEffect(() => {
+    if (isGame) return;
+    // Load locations for the user's org(s)
+    const orgIds = isSuperAdmin ? null : (permissions?.org_ids || []);
+    if (isSuperAdmin) {
+      // Load all orgs to get all locations
+      fetchOrganizations().then(orgs => {
+        const promises = orgs.map(o => fetchLocations(o.id).catch(() => []));
+        return Promise.all(promises);
+      }).then(results => {
+        setLocations(results.flat());
+      }).catch(() => setLocations([]));
+    } else if (orgIds?.length) {
+      Promise.all(orgIds.map(oid => fetchLocations(oid).catch(() => [])))
+        .then(results => setLocations(results.flat()))
+        .catch(() => setLocations([]));
+    }
+  }, [isGame, isSuperAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 15-minute time options for reservation types
+  const resTimeOptions = useMemo(() => {
+    const options = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        const label = `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+        options.push({ value, label });
+      }
+    }
+    return options;
+  }, []);
 
   const timeSlots = buildTimeSlots(
     scheduleSettings.game_start_time,
@@ -1079,6 +1126,34 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true); setError(null);
+
+    // Handle reservation (practice/event/maintenance)
+    if (!isGame) {
+      if (!resForm.title.trim()) { setSaving(false); setError('Title is required.'); return; }
+      if (!form.game_date) { setSaving(false); setError('Date is required.'); return; }
+      if (!resForm.start_time || !resForm.end_time) { setSaving(false); setError('Start and end times are required.'); return; }
+      if (resForm.start_time >= resForm.end_time) { setSaving(false); setError('End time must be after start time.'); return; }
+      if (!form.location_id) { setSaving(false); setError('Location is required for reservations.'); return; }
+
+      const data = {
+        location_id: Number(form.location_id),
+        team_id: resForm.team_id ? Number(resForm.team_id) : null,
+        title: resForm.title.trim(),
+        event_type: eventType,
+        event_date: form.game_date,
+        start_time: resForm.start_time,
+        end_time: resForm.end_time,
+        notes: form.notes.trim() || null,
+      };
+
+      try {
+        await createReservation(data);
+        onDone();
+      } catch (err) { setError(err.message); }
+      finally { setSaving(false); }
+      return;
+    }
+
     const data = {
       season_id: form.season_id ? Number(form.season_id) : null,
       home_team_id: Number(form.home_team_id),
@@ -1171,140 +1246,240 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     );
   }
 
+  // Determine if user can create reservations (needs canEditOrg for at least one org)
+  const canCreateReservation = isSuperAdmin || isOrgAdmin;
+
+  // Available event types based on permissions
+  const eventTypeOptions = [
+    { value: 'game', label: 'Game' },
+    ...(canCreateReservation ? [
+      { value: 'practice', label: 'Practice' },
+      { value: 'event', label: 'Event' },
+      { value: 'maintenance', label: 'Maintenance' },
+    ] : []),
+  ];
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Game' : 'Schedule Game'}</h2>
+        <h2 className="text-xl font-heading font-bold text-white mb-4">
+          {isEditing ? 'Edit Game' : isGame ? 'Schedule Game' : `Schedule ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`}
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Season */}
-          <div>
-            <label htmlFor="game-season" className={labelCls}>Season</label>
-            <select id="game-season" name="season_id" value={form.season_id} onChange={handleChange} className={inputCls}>
-              <option value="">— None —</option>
-              {seasons.map(s => (
-                <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Teams */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Event Type Toggle — only on create, not edit */}
+          {!isEditing && eventTypeOptions.length > 1 && (
             <div>
-              <label htmlFor="game-home" className={labelCls}>Home Team *</label>
-              <TeamSelect id="game-home" name="home_team_id" value={form.home_team_id} />
-            </div>
-            <div>
-              <label htmlFor="game-away" className={labelCls}>Away Team *</label>
-              <TeamSelect id="game-away" name="away_team_id" value={form.away_team_id} />
-            </div>
-          </div>
-
-          {/* Date/Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="game-date" className={labelCls}>Date *</label>
-              <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} required className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="game-time" className={labelCls}>Time</label>
-              <select id="game-time" name="game_time" value={form.game_time} onChange={handleChange} className={inputCls}>
-                <option value="">— Select Time —</option>
-                {timeSlots.map((slot) => (
-                  <option key={slot} value={slot}>{formatTime(slot)}</option>
+              <label className={labelCls}>Type</label>
+              <div className="flex gap-1 p-1 bg-gray-900 rounded-lg">
+                {eventTypeOptions.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setEventType(opt.value)}
+                    className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                      eventType === opt.value
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
                 ))}
-                {currentTimeIncluded && (
-                  <option value={form.game_time}>{formatTime(form.game_time)} (custom)</option>
-                )}
-              </select>
-            </div>
-          </div>
-
-          {/* Location */}
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <label htmlFor="game-location" className={`${labelCls} mb-0`}>Location</label>
-              <button
-                type="button"
-                onClick={() => setShowAddLocationForm(true)}
-                disabled={!homeOrgId}
-                className="text-xs font-semibold text-field-300 hover:text-field-100 underline disabled:opacity-50 disabled:no-underline"
-              >
-                + Add new field
-              </button>
-            </div>
-            <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className={inputCls} disabled={!homeOrgId}>
-              <option value="">— None —</option>
-              {locations
-                .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
-                .map(l => (
-                <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
-              ))}
-            </select>
-            {!homeOrgId ? (
-              <p className="text-xs text-gray-400 mt-1">Select a home team first to see that organization&apos;s fields.</p>
-            ) : locations.length === 0 ? (
-              <p className="text-xs text-gray-400 mt-1">No fields found for {selectedHomeTeam?.org_name || 'this organization'}.</p>
-            ) : null}
-          </div>
-
-          {officialsEnabled && (
-            <div>
-              <label className={labelCls}>Umpire Assignment</label>
-              {officials.length === 0 ? (
-                <p className="text-xs text-gray-400">No officials available for this organization. Add officials in the Officials module.</p>
-              ) : (
-                <div className="space-y-1 bg-gray-900 border border-gray-700 rounded-lg p-3 max-h-52 overflow-y-auto">
-                  {officials.map((official) => {
-                    const checked = (form.official_ids || []).some((id) => String(id) === String(official.id));
-                    const interested = interestedOfficialSet.has(Number(official.id));
-                    const rowCls = checked
-                      ? 'border border-green-500/40 bg-green-900/20'
-                      : interested
-                        ? 'border border-amber-400/50 bg-amber-500/10'
-                        : 'border border-red-500/20 bg-red-900/10';
-                    const dotCls = checked ? 'bg-green-400' : interested ? 'bg-amber-300' : 'bg-red-500';
-                    return (
-                      <label key={official.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${rowCls}`}>
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
-                        <span className="flex-1 text-sm text-gray-200 truncate">
-                          {official.name}
-                          <span className="text-xs text-gray-400 ml-1">({official.org_ids?.length ? 'Org' : 'League'})</span>
-                        </span>
-                        <input type="checkbox" checked={checked} onChange={() => toggleOfficial(official.id)} className="accent-green-500" />
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="flex gap-4 mt-1.5 text-xs text-gray-400">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Assigned</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-300 inline-block" /> Interested</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> No status</span>
               </div>
             </div>
           )}
 
-          {/* Status + Score + Innings */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label htmlFor="game-status" className={labelCls}>Status</label>
-              <select id="game-status" name="status" value={form.status} onChange={handleChange} className={inputCls}>
-                {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="game-home-score" className={labelCls}>Home Score</label>
-              <input id="game-home-score" name="home_score" type="number" min="0" value={form.home_score} onChange={handleChange} className={inputCls} placeholder="—" />
-            </div>
-            <div>
-              <label htmlFor="game-away-score" className={labelCls}>Away Score</label>
-              <input id="game-away-score" name="away_score" type="number" min="0" value={form.away_score} onChange={handleChange} className={inputCls} placeholder="—" />
-            </div>
-            <div>
-              <label htmlFor="game-innings" className={labelCls}>Innings</label>
-              <input id="game-innings" name="innings_played" type="number" min="1" max="99" value={form.innings_played} onChange={handleChange} className={inputCls} placeholder="6" />
-            </div>
-          </div>
+          {isGame ? (
+            <>
+              {/* Season */}
+              <div>
+                <label htmlFor="game-season" className={labelCls}>Season</label>
+                <select id="game-season" name="season_id" value={form.season_id} onChange={handleChange} className={inputCls}>
+                  <option value="">— None —</option>
+                  {seasons.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Teams */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="game-home" className={labelCls}>Home Team *</label>
+                  <TeamSelect id="game-home" name="home_team_id" value={form.home_team_id} />
+                </div>
+                <div>
+                  <label htmlFor="game-away" className={labelCls}>Away Team *</label>
+                  <TeamSelect id="game-away" name="away_team_id" value={form.away_team_id} />
+                </div>
+              </div>
+
+              {/* Date/Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="game-date" className={labelCls}>Date *</label>
+                  <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} required className={inputCls} />
+                </div>
+                <div>
+                  <label htmlFor="game-time" className={labelCls}>Time</label>
+                  <select id="game-time" name="game_time" value={form.game_time} onChange={handleChange} className={inputCls}>
+                    <option value="">— Select Time —</option>
+                    {timeSlots.map((slot) => (
+                      <option key={slot} value={slot}>{formatTime(slot)}</option>
+                    ))}
+                    {currentTimeIncluded && (
+                      <option value={form.game_time}>{formatTime(form.game_time)} (custom)</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label htmlFor="game-location" className={`${labelCls} mb-0`}>Location</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddLocationForm(true)}
+                    disabled={!homeOrgId}
+                    className="text-xs font-semibold text-field-300 hover:text-field-100 underline disabled:opacity-50 disabled:no-underline"
+                  >
+                    + Add new field
+                  </button>
+                </div>
+                <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className={inputCls} disabled={!homeOrgId}>
+                  <option value="">— None —</option>
+                  {locations
+                    .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
+                    .map(l => (
+                    <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
+                  ))}
+                </select>
+                {!homeOrgId ? (
+                  <p className="text-xs text-gray-400 mt-1">Select a home team first to see that organization&apos;s fields.</p>
+                ) : locations.length === 0 ? (
+                  <p className="text-xs text-gray-400 mt-1">No fields found for {selectedHomeTeam?.org_name || 'this organization'}.</p>
+                ) : null}
+              </div>
+
+              {officialsEnabled && (
+                <div>
+                  <label className={labelCls}>Umpire Assignment</label>
+                  {officials.length === 0 ? (
+                    <p className="text-xs text-gray-400">No officials available for this organization. Add officials in the Officials module.</p>
+                  ) : (
+                    <div className="space-y-1 bg-gray-900 border border-gray-700 rounded-lg p-3 max-h-52 overflow-y-auto">
+                      {officials.map((official) => {
+                        const checked = (form.official_ids || []).some((id) => String(id) === String(official.id));
+                        const interested = interestedOfficialSet.has(Number(official.id));
+                        const rowCls = checked
+                          ? 'border border-green-500/40 bg-green-900/20'
+                          : interested
+                            ? 'border border-amber-400/50 bg-amber-500/10'
+                            : 'border border-red-500/20 bg-red-900/10';
+                        const dotCls = checked ? 'bg-green-400' : interested ? 'bg-amber-300' : 'bg-red-500';
+                        return (
+                          <label key={official.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${rowCls}`}>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
+                            <span className="flex-1 text-sm text-gray-200 truncate">
+                              {official.name}
+                              <span className="text-xs text-gray-400 ml-1">({official.org_ids?.length ? 'Org' : 'League'})</span>
+                            </span>
+                            <input type="checkbox" checked={checked} onChange={() => toggleOfficial(official.id)} className="accent-green-500" />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="flex gap-4 mt-1.5 text-xs text-gray-400">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Assigned</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-300 inline-block" /> Interested</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> No status</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Status + Score + Innings */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label htmlFor="game-status" className={labelCls}>Status</label>
+                  <select id="game-status" name="status" value={form.status} onChange={handleChange} className={inputCls}>
+                    {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="game-home-score" className={labelCls}>Home Score</label>
+                  <input id="game-home-score" name="home_score" type="number" min="0" value={form.home_score} onChange={handleChange} className={inputCls} placeholder="—" />
+                </div>
+                <div>
+                  <label htmlFor="game-away-score" className={labelCls}>Away Score</label>
+                  <input id="game-away-score" name="away_score" type="number" min="0" value={form.away_score} onChange={handleChange} className={inputCls} placeholder="—" />
+                </div>
+                <div>
+                  <label htmlFor="game-innings" className={labelCls}>Innings</label>
+                  <input id="game-innings" name="innings_played" type="number" min="1" max="99" value={form.innings_played} onChange={handleChange} className={inputCls} placeholder="6" />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Reservation fields — Practice / Event / Maintenance */}
+              <div>
+                <label htmlFor="res-title" className={labelCls}>Title *</label>
+                <input id="res-title" type="text" value={resForm.title}
+                  onChange={e => setResForm(prev => ({ ...prev, title: e.target.value }))}
+                  required placeholder="e.g. 10U Practice" className={inputCls} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="res-team" className={labelCls}>Team</label>
+                  <select id="res-team" value={resForm.team_id}
+                    onChange={e => setResForm(prev => ({ ...prev, team_id: e.target.value }))}
+                    className={inputCls}>
+                    <option value="">— None —</option>
+                    {visibleTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="res-date" className={labelCls}>Date *</label>
+                  <input id="res-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} required className={inputCls} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="res-start" className={labelCls}>Start Time *</label>
+                  <select id="res-start" value={resForm.start_time}
+                    onChange={e => setResForm(prev => ({ ...prev, start_time: e.target.value }))}
+                    required className={inputCls}>
+                    <option value="">— Select —</option>
+                    {resTimeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="res-end" className={labelCls}>End Time *</label>
+                  <select id="res-end" value={resForm.end_time}
+                    onChange={e => setResForm(prev => ({ ...prev, end_time: e.target.value }))}
+                    required className={inputCls}>
+                    <option value="">— Select —</option>
+                    {resTimeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Location — required for reservations */}
+              <div>
+                <label htmlFor="res-location" className={labelCls}>Location *</label>
+                <select id="res-location" name="location_id" value={form.location_id} onChange={handleChange} required className={inputCls}>
+                  <option value="">— Select Field —</option>
+                  {locations.map(l => (
+                    <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
 
           {/* Notes */}
           <div>
@@ -1358,7 +1533,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
             <button type="submit" disabled={saving} className={btnPrimary}>
-              {saving ? 'Saving…' : isEditing ? 'Update' : 'Schedule Game'}
+              {saving ? 'Saving…' : isEditing ? 'Update' : isGame ? 'Schedule Game' : `Book ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`}
             </button>
           </div>
         </form>
