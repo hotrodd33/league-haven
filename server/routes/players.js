@@ -103,6 +103,24 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Update jersey number for a player on a specific team
+router.put('/jersey', authMiddleware, async (req, res) => {
+  try {
+    const { team_id, player_id, jersey_number } = req.body;
+    if (!team_id || !player_id) return res.status(400).json({ error: 'team_id and player_id are required' });
+    if (!(await canEditTeam(req.user, team_id))) return res.status(403).json({ error: 'No permission for this team' });
+
+    await pool.query(
+      'UPDATE team_players SET jersey_number = $1 WHERE team_id = $2 AND player_id = $3',
+      [jersey_number || null, team_id, player_id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM players WHERE id = $1', [req.params.id]);
@@ -312,24 +330,6 @@ router.post('/assign', authMiddleware, async (req, res) => {
       [team_id, player_id, jersey_number || null]
     );
     res.status(201).json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Update jersey number for a player on a specific team
-router.put('/jersey', authMiddleware, async (req, res) => {
-  try {
-    const { team_id, player_id, jersey_number } = req.body;
-    if (!team_id || !player_id) return res.status(400).json({ error: 'team_id and player_id are required' });
-    if (!(await canEditTeam(req.user, team_id))) return res.status(403).json({ error: 'No permission for this team' });
-
-    await pool.query(
-      'UPDATE team_players SET jersey_number = $1 WHERE team_id = $2 AND player_id = $3',
-      [jersey_number || null, team_id, player_id]
-    );
-    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
