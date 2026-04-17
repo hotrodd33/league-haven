@@ -84,7 +84,15 @@ app.use('/api/weather', weatherRoutes);
 // ── Serve React build in local dev only (Vercel serves static files itself) ──
 if (!process.env.VERCEL) {
   const distPath = path.join(__dirname, '..', 'dist');
+  const publicSitePath = path.join(distPath, 'site');
   if (fs.existsSync(distPath)) {
+    // Serve public site at /site (must come before catch-all)
+    if (fs.existsSync(publicSitePath)) {
+      app.use('/site', express.static(publicSitePath));
+      app.get('/site/{*splat}', (req, res) => {
+        res.sendFile(path.join(publicSitePath, 'index.html'));
+      });
+    }
     app.use(express.static(distPath));
     app.get('/{*splat}', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
