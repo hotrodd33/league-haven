@@ -12,7 +12,7 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 
-const inputCls = 'w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-action-600';
+const inputCls = 'lh-input';
 const btnPrimary = 'btn btn-primary btn-md disabled:opacity-60';
 const btnSecondary = 'btn btn-secondary btn-md disabled:opacity-60';
 
@@ -265,7 +265,7 @@ export default function LeagueFees({ onBack }) {
           <h3 className="text-sm font-heading font-bold text-white mb-3">Register Team</h3>
           <form onSubmit={handleRegister} className="flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-[160px]">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Team</label>
+              <label className="eyebrow block mb-1">Team</label>
               <select value={registerTeamId} onChange={(e) => setRegisterTeamId(e.target.value)} className={inputCls} required>
                 <option value="">Select team…</option>
                 {unregisteredTeams.map(t => (
@@ -274,7 +274,7 @@ export default function LeagueFees({ onBack }) {
               </select>
             </div>
             <div className="min-w-[140px]">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Season</label>
+              <label className="eyebrow block mb-1">Season</label>
               <select value={registerSeasonId} onChange={(e) => setRegisterSeasonId(e.target.value)} className={inputCls} required>
                 <option value="">Select season…</option>
                 {seasons.map(s => (
@@ -283,7 +283,7 @@ export default function LeagueFees({ onBack }) {
               </select>
             </div>
             <div className="min-w-[100px]">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Fee Override</label>
+              <label className="eyebrow block mb-1">Fee Override</label>
               <input type="number" min="0" step="0.01" value={registerFee} onChange={(e) => setRegisterFee(e.target.value)}
                 placeholder="Age group rate" className={inputCls} />
             </div>
@@ -466,17 +466,17 @@ export default function LeagueFees({ onBack }) {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount</label>
+                <label className="eyebrow block mb-1">Amount</label>
                 <input type="number" min="0" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
                   className={inputCls} placeholder={payingReg.effective_fee != null ? String(payingReg.effective_fee) : '0.00'} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Check Number</label>
+                <label className="eyebrow block mb-1">Check Number</label>
                 <input type="text" value={payCheck} onChange={(e) => setPayCheck(e.target.value)}
                   className={inputCls} placeholder="Optional" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Notes</label>
+                <label className="eyebrow block mb-1">Notes</label>
                 <input type="text" value={payNotes} onChange={(e) => setPayNotes(e.target.value)}
                   className={inputCls} placeholder="Optional" />
               </div>

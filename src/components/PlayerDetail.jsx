@@ -138,47 +138,47 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
     }));
   }
 
-  const inputCls = 'w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-action-500/30 focus:border-action-600';
+  const inputCls = 'lh-input';
 
   if (editing) {
     return (
       <div className="space-y-4">
         <form onSubmit={handleSave} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Edit Player Info</h3>
+            <h3 className="eyebrow text-gray-300">Edit Player Info</h3>
           </div>
 
           {error && <p className="text-sm text-red-400 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">First Name *</label>
+              <label className="eyebrow block mb-1">First Name *</label>
               <input required value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} className={inputCls} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Last Name *</label>
+              <label className="eyebrow block mb-1">Last Name *</label>
               <input required value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} className={inputCls} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Date of Birth</label>
+              <label className="eyebrow block mb-1">Date of Birth</label>
               <input type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} className={inputCls} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Grade</label>
+              <label className="eyebrow block mb-1">Grade</label>
               <select value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))} className={inputCls}>
                 <option value="">—</option>
                 {GRADE_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Bats</label>
+              <label className="eyebrow block mb-1">Bats</label>
               <select value={form.batting_hand} onChange={e => setForm(f => ({ ...f, batting_hand: e.target.value }))} className={inputCls}>
                 <option value="">—</option>
                 {BATTING_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Throws</label>
+              <label className="eyebrow block mb-1">Throws</label>
               <select value={form.throwing_hand} onChange={e => setForm(f => ({ ...f, throwing_hand: e.target.value }))} className={inputCls}>
                 <option value="">—</option>
                 {THROWING_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -189,7 +189,7 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
 
           {positions.length > 0 && (
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Positions</label>
+              <label className="eyebrow block mb-2">Positions</label>
               <div className="flex flex-wrap gap-2">
                 {positions.map(p => (
                   <button
@@ -234,7 +234,7 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
     <div className="space-y-4">
       <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Player Info</h3>
+          <h3 className="eyebrow text-gray-300">Player Info</h3>
           {canEdit && (
             <button onClick={startEdit} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors">
               <PencilIcon className="w-3.5 h-3.5" /> Edit
@@ -328,7 +328,7 @@ function TeamAssignments({ player, canEdit, onNavigateToTeam, onPlayerUpdated })
     return (
       <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Edit Teams</h3>
+          <h3 className="eyebrow text-gray-300">Edit Teams</h3>
         </div>
         {loading ? (
           <p className="text-sm text-gray-400">Loading teams…</p>
@@ -387,7 +387,7 @@ function TeamAssignments({ player, canEdit, onNavigateToTeam, onPlayerUpdated })
   return (
     <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
       <div className="flex justify-between items-center mb-3">
-        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Teams</h3>
+        <h3 className="eyebrow text-gray-300">Teams</h3>
         {canEdit && (
           <button onClick={startEdit} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors">
             <PencilIcon className="w-3.5 h-3.5" /> Edit
@@ -490,7 +490,7 @@ function ContactsTab({ playerId, canEdit }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Contacts</h3>
+        <h3 className="eyebrow text-gray-300">Contacts</h3>
         {canEdit && (
           <button
             onClick={() => { setEditing(null); setShowForm(true); }}
@@ -577,7 +577,7 @@ function ContactForm({ playerId, contact, onSaved, onCancel }) {
     }
   }
 
-  const inputCls = 'px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-action-500/30 focus:border-action-600';
+  const inputCls = 'lh-input';
 
   return (
     <form onSubmit={handleSubmit} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 space-y-3">
@@ -651,7 +651,7 @@ function StatsTab({ playerId }) {
       {/* Season totals */}
       {Object.keys(totals).length > 0 && (
         <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Season Totals</h3>
+          <h3 className="eyebrow text-gray-300 mb-3">Season Totals</h3>
           <div className="flex flex-wrap gap-4">
             {Object.values(totals).map(t => (
               <div key={t.stat_definition_id} className="text-center">
@@ -754,7 +754,7 @@ function DocumentsTab({ playerId, canEdit }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Documents</h3>
+        <h3 className="eyebrow text-gray-300">Documents</h3>
         {canEdit && (
           <label className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors cursor-pointer">
             <PlusIcon className="w-3.5 h-3.5" />

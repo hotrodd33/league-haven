@@ -53,7 +53,7 @@ export default function PlayerMapper({
 
         return (
           <div key={teamName} className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
+            <h4 className="eyebrow text-gray-300">
               {teamName}
             </h4>
 

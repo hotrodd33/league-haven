@@ -14,8 +14,8 @@ import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 
-const inputCls = "w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-action-600";
-const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+const inputCls = "lh-input";
+const labelCls = "eyebrow block mb-1";
 const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
 const btnSecondary = "btn btn-secondary btn-md";
 const btnDanger = "btn btn-danger btn-sm";
@@ -697,7 +697,7 @@ function SubscribeModal({ filterTeam, filterSeason, onClose }) {
 
         {/* Manual URL copy */}
         <div className="mb-4">
-          <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+          <label className="eyebrow block mb-1">
             Or copy the feed URL
           </label>
           <div className="flex gap-2">

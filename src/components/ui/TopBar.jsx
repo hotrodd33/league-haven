@@ -67,7 +67,7 @@ export default function TopBar({
       {/* Title / breadcrumb */}
       <div className="flex-1 min-w-0">
         {breadcrumb && (
-          <p className="text-[11px] text-gray-400 uppercase tracking-wide truncate">
+          <p className="eyebrow truncate">
             {breadcrumb}
           </p>
         )}

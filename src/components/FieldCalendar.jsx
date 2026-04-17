@@ -7,8 +7,8 @@ import {
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const inputCls = "w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-action-600";
-const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+const inputCls = "lh-input";
+const labelCls = "eyebrow block mb-1";
 const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
 
 const EVENT_COLORS = {

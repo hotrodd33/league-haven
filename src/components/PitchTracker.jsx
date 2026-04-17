@@ -9,7 +9,7 @@ import TeamLogo from './TeamLogo.jsx';
 
 const btnPrimary = 'btn btn-primary btn-md disabled:opacity-60';
 const btnSecondary = 'btn btn-secondary btn-md';
-const inputCls = 'w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-action-600';
+const inputCls = 'lh-input';
 
 function teamAbbr(name, fallback = '') {
   if (fallback && String(fallback).trim()) return String(fallback).trim().slice(0, 4).toUpperCase();
@@ -416,7 +416,7 @@ export default function PitchTracker({ gameId, onBack }) {
 
             {!addingNewPlayer ? (
               <>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Select Player</label>
+                <label className="eyebrow block mb-1">Select Player</label>
                 <select className={inputCls} value={selectedPlayerId} onChange={e => setSelectedPlayerId(e.target.value)}>
                   <option value="">Choose a player…</option>
                   {(addingSide === 'home' ? availableHome : availableAway).map(p => (
@@ -442,16 +442,16 @@ export default function PitchTracker({ gameId, onBack }) {
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">First Name *</label>
+                      <label className="eyebrow block mb-1">First Name *</label>
                       <input className={inputCls} value={newFirst} onChange={e => setNewFirst(e.target.value)} placeholder="First" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Last Name *</label>
+                      <label className="eyebrow block mb-1">Last Name *</label>
                       <input className={inputCls} value={newLast} onChange={e => setNewLast(e.target.value)} placeholder="Last" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Jersey #</label>
+                    <label className="eyebrow block mb-1">Jersey #</label>
                     <input className={inputCls} value={newJersey} onChange={e => setNewJersey(e.target.value)} placeholder="Optional" />
                   </div>
                 </div>

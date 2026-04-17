@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { fetchContactRecipients, sendContactEmail } from '../api';
 
-const labelCls = 'block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1';
-const inputCls = 'w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500';
+const labelCls = 'eyebrow block mb-1';
+const inputCls = 'lh-input';
 
 const SCOPE_LABELS = {
   individual: 'Individual',

@@ -160,7 +160,7 @@ function NavGroup({ label, items, page, collapsed, onNavigate, onCloseMobile }) 
     <>
       <div className={cn('pt-5 pb-2', collapsed ? 'px-2' : 'px-3')}>
         {!collapsed ? (
-          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
+          <p className="eyebrow text-white/30">
             {label}
           </p>
         ) : (

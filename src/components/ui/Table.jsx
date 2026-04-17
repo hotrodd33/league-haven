@@ -2,7 +2,7 @@ import { cn } from '../../lib/cn.js';
 
 export function Table({ className, children }) {
   return (
-    <div className={cn('overflow-x-auto rounded-xl border border-gray-700 bg-gray-800', className)}>
+    <div className={cn('overflow-x-auto rounded-card border border-gray-700 bg-gray-800', className)}>
       <table className="w-full text-sm">{children}</table>
     </div>
   );
@@ -20,7 +20,7 @@ export function TableHeaderCell({ className, children, sortable, sorted, sortDir
   return (
     <th
       className={cn(
-        'px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap',
+        'px-4 py-3 eyebrow whitespace-nowrap',
         sortable && 'cursor-pointer select-none hover:text-gray-300 transition-colors',
         className,
       )}

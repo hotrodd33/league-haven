@@ -2,11 +2,11 @@ import { cn } from '../../lib/cn.js';
 import TeamLogo from '../TeamLogo.jsx';
 
 const statusColors = {
-  scheduled:  'bg-chrome-900/60 text-chrome-300',
-  in_progress: 'bg-accent-900/45 text-accent-300',
-  final:      'bg-action-900/55 text-action-300',
-  cancelled:  'bg-gray-800 text-gray-400',
-  postponed:  'bg-signal-900/45 text-signal-300',
+  scheduled:  'lh-badge-info',
+  in_progress: 'lh-badge-warn',
+  final:      'lh-badge-success',
+  cancelled:  'lh-badge-neutral',
+  postponed:  'lh-badge-danger',
 };
 
 export default function Scoreboard({
@@ -37,7 +37,7 @@ export default function Scoreboard({
     <div className={cn('bg-gray-800 rounded-card shadow-card overflow-hidden', className)}>
       {/* Status bar */}
       <div className="bg-chrome-800 text-white px-4 py-2 flex items-center justify-between">
-        <span className={cn('text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full', statusColors[status] || 'bg-gray-800 text-gray-400')}>
+        <span className={cn('lh-badge', statusColors[status] || 'lh-badge-neutral')}>
           {statusLabel}
         </span>
         {gameTime && <span className="text-xs text-white/70">{gameTime}</span>}
@@ -142,11 +142,11 @@ function TeamRow({ team, score, isWinner, label }) {
         <p className={cn('text-sm truncate', isWinner ? 'font-bold text-gray-100' : 'font-medium text-gray-300')}>
           {team.name}
         </p>
-        <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
+        <p className="eyebrow">{label}</p>
       </div>
       <span
         className={cn(
-          'font-heading text-2xl tabular-nums',
+          'font-heading text-2xl stat',
           isWinner ? 'font-bold text-gray-100' : 'font-semibold text-gray-400',
         )}
       >

@@ -17,7 +17,7 @@ export default function Input({
       {label && (
         <label
           htmlFor={inputId}
-          className="block text-xs font-semibold text-gray-400 uppercase tracking-wide"
+          className="eyebrow block"
         >
           {label}
         </label>
@@ -31,13 +31,9 @@ export default function Input({
         <input
           id={inputId}
           className={cn(
-            'w-full px-3 py-2 border rounded-lg text-sm transition-colors',
-            'focus:outline-none focus:ring-2',
-            'placeholder:text-gray-400',
+            'lh-input',
             icon && 'pl-10',
-            error
-              ? 'border-signal-400 focus:ring-signal-500/30 focus:border-signal-500'
-              : 'border-gray-600 focus:ring-action-500/30 focus:border-action-600',
+            error && 'border-signal-400 focus:ring-signal-500/30 focus:border-signal-500',
             className,
           )}
           aria-invalid={error ? 'true' : undefined}

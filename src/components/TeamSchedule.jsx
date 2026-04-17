@@ -603,7 +603,7 @@ function TeamSubscribeModal({ teamId, onClose }) {
         </a>
 
         <div className="mb-4">
-          <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Or copy the feed URL</label>
+          <label className="eyebrow block mb-1">Or copy the feed URL</label>
           <div className="flex gap-2">
             <input type="text" readOnly value={icsUrl}
               className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-gray-300 font-mono select-all focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -627,8 +627,8 @@ function TeamSubscribeModal({ teamId, onClose }) {
 
 /* ── Practice Edit Modal ── */
 
-const inputCls = "w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-action-600";
-const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+const inputCls = "lh-input";
+const labelCls = "eyebrow block mb-1";
 
 function PracticeEditModal({ practice, onDone, onCancel }) {
   const [saving, setSaving] = useState(false);
