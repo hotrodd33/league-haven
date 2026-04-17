@@ -160,13 +160,13 @@ export default function Dashboard({ onNavigate }) {
   /* Roster alerts — players missing key info */
   const rosterAlerts = scopedPlayers
     .filter(p => {
-      if (!p.dob) return true;
+      if (!p.date_of_birth) return true;
       if (p.teams?.some(t => !t.jersey_number)) return true;
       return false;
     })
     .map(p => {
       const issues = [];
-      if (!p.dob) issues.push('Missing DOB');
+      if (!p.date_of_birth) issues.push('Missing DOB');
       const teamsNoJersey = (p.teams || []).filter(t => !t.jersey_number);
       if (teamsNoJersey.length > 0) issues.push(`No jersey # on ${teamsNoJersey.map(t => t.team_name).join(', ')}`);
       return { id: p.id, name: `${p.first_name} ${p.last_name}`, issues, teams: p.teams };
