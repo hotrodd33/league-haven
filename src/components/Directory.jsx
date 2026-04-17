@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext.jsx';
 import { fetchDirectory } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
@@ -22,20 +23,15 @@ function OrgLogo({ src, name, size = 'w-10 h-10' }) {
 
 export default function Directory({ onEditTeam }) {
   const { canEditTeam } = useAuth();
-  const [orgs, setOrgs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [expandedOrgs, setExpandedOrgs] = useState(new Set());
   const printRef = useRef();
   const [contactModal, setContactModal] = useState(null);
 
-  useEffect(() => {
-    fetchDirectory()
-      .then(setOrgs)
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: orgs = [], isLoading: loading, error } = useQuery({
+    queryKey: ['directory'],
+    queryFn: fetchDirectory,
+  });
 
   function handlePrint() {
     const printWindow = window.open('', '_blank');
@@ -48,7 +44,7 @@ export default function Directory({ onEditTeam }) {
   }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading directory…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>;
+  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error.message}</div>;
 
   return (
     <div>

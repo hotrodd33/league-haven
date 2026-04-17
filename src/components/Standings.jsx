@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { fetchStandings, fetchSeasons } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
 
@@ -10,36 +11,33 @@ function winPct(team) {
 }
 
 export default function Standings({ onBack, onNavigateToTeam }) {
-  const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
   const [divisionFilter, setDivisionFilter] = useState('');
-  const [standings, setStandings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
+  const { data: seasons = [], error: seasonsError } = useQuery({
+    queryKey: ['seasons'],
+    queryFn: fetchSeasons,
+  });
+
+  // Set active season once seasons load
   useEffect(() => {
-    fetchSeasons().then(data => {
-      setSeasons(data);
-      const active = data.find(s => s.is_active);
+    if (seasons.length && !seasonId) {
+      const active = seasons.find(s => s.is_active);
       if (active) setSeasonId(String(active.id));
-    }).catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+    }
+  }, [seasons, seasonId]);
 
-  const loadStandings = useCallback(async () => {
-    if (!seasonId) { setStandings([]); return; }
-    setLoading(true); setError(null);
-    try {
-      setStandings(await fetchStandings(seasonId));
-    } catch (err) { setError(err.message); }
-    finally { setLoading(false); }
-  }, [seasonId]);
+  // Reset division filter when season changes
+  useEffect(() => { setDivisionFilter(''); }, [seasonId]);
 
-  useEffect(() => { loadStandings(); }, [loadStandings]);
+  const { data: standings = [], isLoading: standingsLoading, error: standingsError } = useQuery({
+    queryKey: ['standings', seasonId],
+    queryFn: () => fetchStandings(seasonId),
+    enabled: !!seasonId,
+  });
 
-  useEffect(() => {
-    setDivisionFilter('');
-  }, [seasonId]);
+  const loading = standingsLoading;
+  const error = seasonsError || standingsError;
 
   const divisionOptions = Object.values(
     standings.reduce((acc, row) => {
@@ -101,7 +99,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
         </div>
       </div>
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}
+      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-4">{error.message}</div>}
 
       {!seasonId ? (
         <div className="py-12 text-center text-gray-400">Select a season to view standings.</div>
