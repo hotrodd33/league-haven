@@ -144,7 +144,8 @@ router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
     const { team_id, first_name, last_name, jersey_number, date_of_birth,
-            batting_hand, throwing_hand, parent_email, parent_phone, grade, position_ids, contacts } = req.body;
+            batting_hand, throwing_hand, parent_email, parent_phone, grade, position_ids, contacts,
+            jersey_size, hat_size, needs_new_jersey, needs_new_hat } = req.body;
 
     if (!first_name || !last_name) {
       return res.status(400).json({ error: 'first_name and last_name are required' });
@@ -159,10 +160,11 @@ router.post('/', authMiddleware, async (req, res) => {
     await client.query('BEGIN');
 
     const { rows } = await client.query(
-      `INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      `INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade, jersey_size, hat_size, needs_new_jersey, needs_new_hat)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
       [first_name, last_name, normalizeDOB(date_of_birth), batting_hand || null, throwing_hand || null,
-       parent_email || null, parent_phone || null, grade || null]
+       parent_email || null, parent_phone || null, grade || null,
+       jersey_size || null, hat_size || null, !!needs_new_jersey, !!needs_new_hat]
     );
     const playerId = rows[0].id;
 
@@ -231,7 +233,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     const { first_name, last_name, date_of_birth, batting_hand, throwing_hand,
             parent_email, parent_phone, grade, position_ids,
-            team_id, jersey_number } = req.body;
+            team_id, jersey_number,
+            jersey_size, hat_size, needs_new_jersey, needs_new_hat } = req.body;
 
     await client.query('BEGIN');
 
@@ -239,8 +242,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
       `UPDATE players SET
         first_name = $1, last_name = $2,
         date_of_birth = $3, batting_hand = $4, throwing_hand = $5,
-        parent_email = $6, parent_phone = $7, grade = $8, updated_at = NOW()
-       WHERE id = $9`,
+        parent_email = $6, parent_phone = $7, grade = $8,
+        jersey_size = $9, hat_size = $10, needs_new_jersey = $11, needs_new_hat = $12,
+        updated_at = NOW()
+       WHERE id = $13`,
       [
         first_name ?? existing.first_name,
         last_name ?? existing.last_name,
@@ -250,6 +255,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
         parent_email ?? existing.parent_email,
         parent_phone ?? existing.parent_phone,
         grade ?? existing.grade,
+        jersey_size !== undefined ? (jersey_size || null) : existing.jersey_size,
+        hat_size !== undefined ? (hat_size || null) : existing.hat_size,
+        needs_new_jersey !== undefined ? !!needs_new_jersey : existing.needs_new_jersey,
+        needs_new_hat !== undefined ? !!needs_new_hat : existing.needs_new_hat,
         id
       ]
     );

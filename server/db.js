@@ -733,6 +733,12 @@ async function migrate() {
       AND date_of_birth !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$';
   `);
 
+  // ── Player jersey & hat sizing ──
+  await pool.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS jersey_size TEXT;`);
+  await pool.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS hat_size TEXT;`);
+  await pool.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS needs_new_jersey BOOLEAN NOT NULL DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS needs_new_hat BOOLEAN NOT NULL DEFAULT FALSE;`);
+
   // ── Announcements ──
   await pool.query(`
     CREATE TABLE IF NOT EXISTS announcements (

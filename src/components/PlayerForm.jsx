@@ -4,6 +4,8 @@ import { fetchPositions, createPlayer, updatePlayer } from '../api/index.js';
 const BATTING_OPTIONS = ['R', 'L', 'S'];
 const THROWING_OPTIONS = ['R', 'L'];
 const GRADE_OPTIONS = ['Pre K', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const JERSEY_SIZE_OPTIONS = ['YXS', 'YS', 'YM', 'YL', 'YXL', 'AS', 'AM', 'AL', 'AXL', 'A2XL', 'A3XL'];
+const HAT_SIZE_OPTIONS = ['Youth', 'Adult S/M', 'Adult L/XL', '6 3/8', '6 1/2', '6 5/8', '6 3/4', '6 7/8', '7', '7 1/8', '7 1/4', '7 3/8', '7 1/2', '7 5/8', '7 3/4', '7 7/8', '8'];
 const RELATIONSHIP_OPTIONS = ['parent', 'guardian', 'emergency', 'other'];
 
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
@@ -21,6 +23,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
     firstName: '', lastName: '', jerseyNumber: '',
     selectedPositions: [], dateOfBirth: '',
     battingHand: '', throwingHand: '', grade: '',
+    jerseySize: '', hatSize: '', needsNewJersey: false, needsNewHat: false,
   });
 
   const [contacts, setContacts] = useState([{ ...EMPTY_CONTACT, is_primary: true }]);
@@ -36,13 +39,15 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
         dateOfBirth: player.date_of_birth || '',
         battingHand: player.batting_hand || '', throwingHand: player.throwing_hand || '',
         grade: player.grade || '',
+        jerseySize: player.jersey_size || '', hatSize: player.hat_size || '',
+        needsNewJersey: !!player.needs_new_jersey, needsNewHat: !!player.needs_new_hat,
       });
     }
   }, [player]);
 
   function handleChange(e) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   }
 
   function handlePositionToggle(posId) {
@@ -95,6 +100,8 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
       date_of_birth: form.dateOfBirth || null,
       batting_hand: form.battingHand || null, throwing_hand: form.throwingHand || null,
       grade: form.grade || null,
+      jersey_size: form.jerseySize || null, hat_size: form.hatSize || null,
+      needs_new_jersey: form.needsNewJersey, needs_new_hat: form.needsNewHat,
       contacts: validContacts.map(c => ({
         first_name: c.first_name.trim(),
         last_name: c.last_name.trim(),
@@ -175,6 +182,36 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
                 <option value="">—</option>
                 {GRADE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
+            </div>
+          </div>
+
+          {/* Jersey & Hat Sizing */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label htmlFor="jerseySize" className={labelCls}>Jersey Size</label>
+              <select id="jerseySize" name="jerseySize" value={form.jerseySize} onChange={handleChange} className={inputCls}>
+                <option value="">—</option>
+                {JERSEY_SIZE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="hatSize" className={labelCls}>Hat Size</label>
+              <select id="hatSize" name="hatSize" value={form.hatSize} onChange={handleChange} className={inputCls}>
+                <option value="">—</option>
+                {HAT_SIZE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" name="needsNewJersey" checked={form.needsNewJersey} onChange={handleChange} className="accent-blue-500 w-4 h-4" />
+                <span className="text-sm text-gray-300">Needs New Jersey</span>
+              </label>
+            </div>
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" name="needsNewHat" checked={form.needsNewHat} onChange={handleChange} className="accent-blue-500 w-4 h-4" />
+                <span className="text-sm text-gray-300">Needs New Hat</span>
+              </label>
             </div>
           </div>
 
