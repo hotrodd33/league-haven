@@ -4,16 +4,26 @@ const variants = {
   default:  'bg-gray-800 shadow-card',
   elevated: 'bg-gray-800 shadow-elevated',
   bordered: 'bg-gray-800 border border-gray-700',
-  accent:   'bg-gray-800 shadow-card border-t-4 border-field-600',
-  field:    'bg-gray-800 shadow-card border-t-4 border-field-700',
-  dirt:     'bg-gray-800 shadow-card border-t-4 border-dirt-700',
-  strike:   'bg-gray-800 shadow-card border-t-4 border-baseball-600',
+  glass:    'card-glass',
+  accent:   'bg-gray-800 shadow-card border-t-[3px] border-sport',
+  action:   'bg-gray-800 shadow-card border-t-[3px] border-action-600',
+  chrome:   'bg-gray-800 shadow-card border-t-[3px] border-chrome-600',
+  signal:   'bg-gray-800 shadow-card border-t-[3px] border-signal-600',
+  // Legacy aliases
+  field:    'bg-gray-800 shadow-card border-t-[3px] border-action-700',
+  dirt:     'bg-gray-800 shadow-card border-t-[3px] border-accent-700',
+  strike:   'bg-gray-800 shadow-card border-t-[3px] border-signal-600',
 };
 
-export function Card({ variant = 'default', className, children, ...props }) {
+export function Card({ variant = 'default', className, hoverable, children, ...props }) {
   return (
     <div
-      className={cn('rounded-xl overflow-hidden', variants[variant], className)}
+      className={cn(
+        'rounded-card overflow-hidden',
+        variants[variant],
+        hoverable && 'hover:-translate-y-0.5 hover:shadow-elevated transition-all',
+        className,
+      )}
       {...props}
     >
       {children}

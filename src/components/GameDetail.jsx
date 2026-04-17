@@ -10,11 +10,11 @@ import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
 
-const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const inputCls = "w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-action-600";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
-const btnPrimary = "px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60";
-const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors";
-const btnDanger = "px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
+const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
+const btnSecondary = "btn btn-secondary btn-md";
+const btnDanger = "btn btn-danger btn-xs";
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
 const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-black px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-[#00f092]';

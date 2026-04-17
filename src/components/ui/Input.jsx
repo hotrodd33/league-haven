@@ -36,8 +36,8 @@ export default function Input({
             'placeholder:text-gray-400',
             icon && 'pl-10',
             error
-              ? 'border-baseball-400 focus:ring-baseball-500/30 focus:border-baseball-500'
-              : 'border-gray-600 focus:ring-field-500/30 focus:border-field-600',
+              ? 'border-signal-400 focus:ring-signal-500/30 focus:border-signal-500'
+              : 'border-gray-600 focus:ring-action-500/30 focus:border-action-600',
             className,
           )}
           aria-invalid={error ? 'true' : undefined}
@@ -48,7 +48,7 @@ export default function Input({
         />
       </div>
       {error && (
-        <p id={`${inputId}-error`} className="text-xs text-baseball-600 font-medium" role="alert">
+        <p id={`${inputId}-error`} className="text-xs text-signal-400 font-medium" role="alert">
           {error}
         </p>
       )}

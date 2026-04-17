@@ -2,11 +2,11 @@ import { cn } from '../../lib/cn.js';
 import TeamLogo from '../TeamLogo.jsx';
 
 const statusColors = {
-  scheduled:  'bg-blue-900/35 text-blue-300',
-  in_progress: 'bg-dirt-900/35 text-dirt-300',
-  final:      'bg-field-900/35 text-field-300',
+  scheduled:  'bg-chrome-900/60 text-chrome-300',
+  in_progress: 'bg-accent-900/45 text-accent-300',
+  final:      'bg-action-900/55 text-action-300',
   cancelled:  'bg-gray-800 text-gray-400',
-  postponed:  'bg-baseball-900/35 text-baseball-300',
+  postponed:  'bg-signal-900/45 text-signal-300',
 };
 
 export default function Scoreboard({
@@ -34,9 +34,9 @@ export default function Scoreboard({
   const awayWins = isFinal && awayScore > homeScore;
 
   return (
-    <div className={cn('bg-gray-800 rounded-xl shadow-card overflow-hidden', className)}>
+    <div className={cn('bg-gray-800 rounded-card shadow-card overflow-hidden', className)}>
       {/* Status bar */}
-      <div className="bg-blue-900 text-white px-4 py-2 flex items-center justify-between">
+      <div className="bg-chrome-800 text-white px-4 py-2 flex items-center justify-between">
         <span className={cn('text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full', statusColors[status] || 'bg-gray-800 text-gray-400')}>
           {statusLabel}
         </span>

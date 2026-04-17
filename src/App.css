@@ -1,38 +1,26 @@
 @import "tailwindcss";
+@import "./leaguehaven.css";
 
 @theme {
   /* ═══════════════════════════════════════════════════════
-     LeagueHaven DESIGN SYSTEM · Dark Color Tokens
+     LeagueHaven DESIGN SYSTEM · Multisport Tokens (v2)
      ═══════════════════════════════════════════════════════ */
 
-  /* === Baseball Navy (headers, dark surfaces) === */
-  --color-blue-50: #ebf0f7;
-  --color-blue-100: #d4e1f0;
-  --color-blue-200: #abc3df;
-  --color-blue-300: #82a3ca;
-  --color-blue-400: #5a83b4;
-  --color-blue-500: #3b6396;
-  --color-blue-600: #2e4d7a;
-  --color-blue-700: #243a60;
-  --color-blue-800: #1b2a4a;
-  --color-blue-900: #0f1b33;
-  --color-blue-950: #080e1c;
+  /* ─── Action (primary · live · success) — was "field" ─── */
+  --color-action-50:  #f0fdf4;
+  --color-action-100: #dcfce7;
+  --color-action-200: #bbf7d0;
+  --color-action-300: #86efac;
+  --color-action-400: #4ade80;
+  --color-action-500: #22c55e;
+  --color-action-600: #16a34a;
+  --color-action-700: #166534;
+  --color-action-800: #14532d;
+  --color-action-900: #052e16;
+  --color-action-950: #022c22;
 
-  /* === Cool Slate (surfaces, text, borders — dark-first) === */
-  --color-gray-50: #f8fafc;
-  --color-gray-100: #f1f5f9;
-  --color-gray-200: #e2e8f0;
-  --color-gray-300: #cbd5e1;
-  --color-gray-400: #94a3b8;
-  --color-gray-500: #64748b;
-  --color-gray-600: #475569;
-  --color-gray-700: #334155;
-  --color-gray-800: #1e293b;
-  --color-gray-900: #0f172a;
-  --color-gray-950: #020617;
-
-  /* === Field Green (primary actions, CTA, success) === */
-  --color-field-50: #f0fdf4;
+  /* Legacy aliases — keep backward compat */
+  --color-field-50:  #f0fdf4;
   --color-field-100: #dcfce7;
   --color-field-200: #bbf7d0;
   --color-field-300: #86efac;
@@ -44,8 +32,47 @@
   --color-field-900: #052e16;
   --color-field-950: #022c22;
 
-  /* === Dirt Brown (warm accent, secondary CTA) === */
-  --color-dirt-50: #fffbeb;
+  /* ─── Chrome (surfaces · info · nav) — was "blue" ─── */
+  --color-chrome-50:  #ebf0f7;
+  --color-chrome-100: #d4e1f0;
+  --color-chrome-200: #abc3df;
+  --color-chrome-300: #82a3ca;
+  --color-chrome-400: #5a83b4;
+  --color-chrome-500: #3b6396;
+  --color-chrome-600: #2e4d7a;
+  --color-chrome-700: #243a60;
+  --color-chrome-800: #1b2a4a;
+  --color-chrome-900: #0f1b33;
+  --color-chrome-950: #080e1c;
+
+  /* Legacy aliases */
+  --color-blue-50:  #ebf0f7;
+  --color-blue-100: #d4e1f0;
+  --color-blue-200: #abc3df;
+  --color-blue-300: #82a3ca;
+  --color-blue-400: #5a83b4;
+  --color-blue-500: #3b6396;
+  --color-blue-600: #2e4d7a;
+  --color-blue-700: #243a60;
+  --color-blue-800: #1b2a4a;
+  --color-blue-900: #0f1b33;
+  --color-blue-950: #080e1c;
+
+  /* ─── Accent (secondary · warn · energy) — was "dirt" ─── */
+  --color-accent-50:  #fffbeb;
+  --color-accent-100: #fef3c7;
+  --color-accent-200: #fde68a;
+  --color-accent-300: #fcd34d;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+  --color-accent-700: #b45309;
+  --color-accent-800: #854d0e;
+  --color-accent-900: #713f12;
+  --color-accent-950: #422006;
+
+  /* Legacy aliases */
+  --color-dirt-50:  #fffbeb;
   --color-dirt-100: #fef3c7;
   --color-dirt-200: #fde68a;
   --color-dirt-300: #fcd34d;
@@ -57,20 +84,21 @@
   --color-dirt-900: #713f12;
   --color-dirt-950: #422006;
 
-  /* === Dark Navy Backgrounds === */
-  --color-cream-50: #020617;
-  --color-cream-100: #060d1e;
-  --color-cream-200: #0c1525;
-  --color-cream-300: #12203a;
-  --color-cream-400: #1a2e50;
-  --color-cream-500: #243c66;
-  --color-cream-600: #2e4d7c;
-  --color-cream-700: #3a6098;
-  --color-cream-800: #4a78b4;
-  --color-cream-900: #6090cc;
+  /* ─── Signal (danger · critical) — was "baseball" ─── */
+  --color-signal-50:  #fef2f3;
+  --color-signal-100: #fde3e5;
+  --color-signal-200: #fbc8cc;
+  --color-signal-300: #f89da4;
+  --color-signal-400: #f06570;
+  --color-signal-500: #e63946;
+  --color-signal-600: #c41e3a;
+  --color-signal-700: #a51830;
+  --color-signal-800: #891828;
+  --color-signal-900: #751a28;
+  --color-signal-950: #410910;
 
-  /* === Baseball Red / Strike (danger, alerts) === */
-  --color-baseball-50: #fef2f3;
+  /* Legacy aliases */
+  --color-baseball-50:  #fef2f3;
   --color-baseball-100: #fde3e5;
   --color-baseball-200: #fbc8cc;
   --color-baseball-300: #f89da4;
@@ -82,31 +110,61 @@
   --color-baseball-900: #751a28;
   --color-baseball-950: #410910;
 
+  /* ─── Cool Slate (surfaces, text, borders — dark-first) ─── */
+  --color-gray-50:  #f8fafc;
+  --color-gray-100: #f1f5f9;
+  --color-gray-200: #e2e8f0;
+  --color-gray-300: #cbd5e1;
+  --color-gray-400: #94a3b8;
+  --color-gray-500: #64748b;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1e293b;
+  --color-gray-900: #0f172a;
+  --color-gray-950: #020617;
+
   /* ═══════════════════════════════════════════════════════
      Typography
      ═══════════════════════════════════════════════════════ */
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-heading: 'Oswald', system-ui, sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --font-display: 'Oswald', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* ═══════════════════════════════════════════════════════
+     Border Radius
+     ═══════════════════════════════════════════════════════ */
+  --radius-control: 8px;
+  --radius-control-sm: 6px;
+  --radius-card: 14px;
+  --radius-card-sm: 10px;
+  --radius-hero: 18px;
+  --radius-drawer: 24px;
 
   /* ═══════════════════════════════════════════════════════
      Shadows
      ═══════════════════════════════════════════════════════ */
   --shadow-card: 0 2px 8px 0 rgb(0 0 0 / 0.25), 0 1px 3px -1px rgb(0 0 0 / 0.15);
   --shadow-elevated: 0 12px 28px -5px rgb(0 0 0 / 0.35), 0 8px 16px -8px rgb(0 0 0 / 0.2);
+  --shadow-glass: 0 1px 0 0 rgba(255,255,255,0.05) inset, 0 20px 40px -20px rgba(0,0,0,0.6);
   --shadow-glow-green: 0 0 24px rgb(22 163 74 / 0.25);
+  --shadow-glow-action: 0 0 24px rgb(22 163 74 / 0.35);
   --shadow-glow-dirt: 0 0 24px rgb(133 77 14 / 0.2);
   --shadow-inner-field: inset 0 2px 4px 0 rgb(22 101 52 / 0.1);
 
   /* ═══════════════════════════════════════════════════════
      Animations
      ═══════════════════════════════════════════════════════ */
-  --animate-fade-in: fade-in 0.2s ease-out;
-  --animate-slide-up: slide-up 0.25s ease-out;
+  --animate-fade-in: fade-in 180ms ease-out;
+  --animate-slide-up: slide-up 240ms ease-out;
   --animate-slide-right: slide-right 0.3s ease-out;
   --animate-scale-in: scale-in 0.2s ease-out;
   --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
   --animate-spin-slow: spin-slow 3s linear infinite;
+  --animate-live-pulse: live-pulse 1.6s ease-out infinite;
+  --animate-dot-pulse: dot-pulse 1.8s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-number-flip: number-flip 260ms cubic-bezier(.2,.8,.2,1);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -118,7 +176,7 @@
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -142,8 +200,230 @@
   to { transform: rotate(360deg); }
 }
 
+@keyframes live-pulse {
+  0%   { box-shadow: 0 0 0 0    rgba(230, 57, 70, 0.7); }
+  70%  { box-shadow: 0 0 0 10px rgba(230, 57, 70, 0); }
+  100% { box-shadow: 0 0 0 0    rgba(230, 57, 70, 0); }
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes number-flip {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ═══════════════════════════════════════════════════════
-   Baseball Background Patterns (decorative)
+   Sport Theming · CSS Custom Properties
+   ═══════════════════════════════════════════════════════ */
+:root {
+  /* Default sport = Baseball (action green) */
+  --sport-rgb: 22 163 74;
+  --sport-soft-rgb: 5 46 22;
+  --sport-border-rgb: 22 101 52;
+
+  /* Density tokens */
+  --row-pad-y: 12px;
+  --row-pad-x: 16px;
+  --control-h: 40px;
+}
+
+/* Sport themes — put data-sport on <html>, <body>, or any subtree */
+[data-sport="soccer"]     { --sport-rgb: 34 197 94;   --sport-soft-rgb: 5 46 22;     --sport-border-rgb: 22 101 52; }
+[data-sport="baseball"]   { --sport-rgb: 22 163 74;   --sport-soft-rgb: 5 46 22;     --sport-border-rgb: 22 101 52; }
+[data-sport="basketball"] { --sport-rgb: 245 158 11;  --sport-soft-rgb: 113 63 18;   --sport-border-rgb: 180 83 9; }
+[data-sport="football"]   { --sport-rgb: 217 119 6;   --sport-soft-rgb: 113 63 18;   --sport-border-rgb: 180 83 9; }
+[data-sport="hockey"]     { --sport-rgb: 90 131 180;  --sport-soft-rgb: 15 27 51;    --sport-border-rgb: 36 58 96; }
+[data-sport="volleyball"] { --sport-rgb: 230 57 70;   --sport-soft-rgb: 117 26 40;   --sport-border-rgb: 165 24 48; }
+
+/* Density override */
+[data-density="compact"] {
+  --row-pad-y: 7px;
+  --row-pad-x: 12px;
+  --control-h: 32px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Base Styles
+   ═══════════════════════════════════════════════════════ */
+html, body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+body {
+  background-image:
+    radial-gradient(circle at 0.5px 0.5px, rgba(148,163,184,0.08) 0.5px, transparent 1px);
+  background-size: 22px 22px;
+  background-attachment: fixed;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Component Classes — Buttons
+   ═══════════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: transform 120ms ease-out, background 150ms, box-shadow 150ms, border-color 150ms;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.btn:active { transform: translateY(1px) scale(0.99); }
+.btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.btn-xs { padding: 4px 10px; font-size: 11px; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-md { padding: 9px 16px; font-size: 14px; }
+.btn-lg { padding: 12px 22px; font-size: 15px; }
+
+.btn-primary {
+  background-color: rgb(var(--sport-rgb));
+  color: #031;
+  box-shadow: 0 4px 14px -6px rgb(var(--sport-rgb) / 0.8);
+}
+.btn-primary:hover { filter: brightness(1.06); }
+
+.btn-secondary {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+.btn-secondary:hover { background-color: #334155; border-color: #64748b; }
+
+.btn-ghost {
+  background-color: transparent;
+  color: #cbd5e1;
+}
+.btn-ghost:hover { background-color: #334155; }
+
+.btn-danger {
+  background-color: #c41e3a;
+  color: #fff;
+}
+.btn-danger:hover { background-color: #a51830; }
+
+.btn-warn {
+  background-color: #b45309;
+  color: #fff;
+}
+.btn-warn:hover { background-color: #854d0e; }
+
+.btn-chrome {
+  background-color: #2e4d7a;
+  color: #fff;
+}
+.btn-chrome:hover { background-color: #243a60; }
+
+/* ═══════════════════════════════════════════════════════
+   Component Classes — Badges
+   ═══════════════════════════════════════════════════════ */
+.lh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  border-radius: 9999px;
+  border: 1px solid;
+  padding: 4px 10px;
+  font-size: 11px;
+}
+.lh-badge-success { background-color: rgb(5 46 22 / 0.55);  color: #86efac; border-color: #166534; }
+.lh-badge-warn    { background-color: rgb(113 63 18 / 0.45); color: #fcd34d; border-color: #b45309; }
+.lh-badge-danger  { background-color: rgb(117 26 40 / 0.45); color: #f89da4; border-color: #a51830; }
+.lh-badge-info    { background-color: rgb(15 27 51 / 0.6);   color: #82a3ca; border-color: #243a60; }
+.lh-badge-neutral { background-color: #1e293b;               color: #cbd5e1; border-color: #334155; }
+.lh-badge-sport   {
+  background-color: rgb(var(--sport-rgb) / 0.14);
+  color: rgb(var(--sport-rgb));
+  border-color: rgb(var(--sport-rgb) / 0.4);
+}
+.lh-badge .dot { width: 6px; height: 6px; border-radius: 9999px; }
+
+/* ═══════════════════════════════════════════════════════
+   Component Classes — Cards
+   ═══════════════════════════════════════════════════════ */
+.card-base {
+  background-color: #1e293b;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px 0 rgb(0 0 0 / 0.25), 0 1px 3px -1px rgb(0 0 0 / 0.15);
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.card-glass {
+  background: linear-gradient(180deg, rgba(30,41,59,0.7), rgba(15,23,42,0.7));
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 1px 0 0 rgba(255,255,255,0.05) inset, 0 20px 40px -20px rgba(0,0,0,0.6);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Component Classes — Inputs
+   ═══════════════════════════════════════════════════════ */
+.lh-input, .lh-select, .lh-textarea {
+  height: var(--control-h);
+  padding: 0 12px;
+  background-color: #020617;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 14px;
+  width: 100%;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.lh-input:focus, .lh-select:focus, .lh-textarea:focus {
+  outline: none;
+  border-color: rgb(var(--sport-rgb));
+  box-shadow: 0 0 0 3px rgb(var(--sport-rgb) / 0.25);
+}
+.lh-input::placeholder { color: #64748b; }
+.lh-textarea { height: auto; min-height: 88px; padding: 10px 12px; resize: vertical; }
+
+/* ═══════════════════════════════════════════════════════
+   Component Classes — Semantic Typography
+   ═══════════════════════════════════════════════════════ */
+.eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.stat {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Sport Accent Utilities
+   ═══════════════════════════════════════════════════════ */
+.bg-sport      { background-color: rgb(var(--sport-rgb)); }
+.text-sport    { color: rgb(var(--sport-rgb)); }
+.border-sport  { border-color: rgb(var(--sport-rgb)); }
+.ring-sport    { --tw-ring-color: rgb(var(--sport-rgb)); }
+.bg-sport-soft { background-color: rgb(var(--sport-soft-rgb)); }
+
+/* ═══════════════════════════════════════════════════════
+   Background Patterns
    ═══════════════════════════════════════════════════════ */
 .bg-diamond-pattern {
   background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20Z' fill='none' stroke='%2316a34a' stroke-width='0.5' opacity='0.04'/%3E%3C/svg%3E");

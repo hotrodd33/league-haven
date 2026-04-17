@@ -4,7 +4,7 @@ import { STALE } from '../lib/queryConfig.js';
 import { fetchStandings, fetchSeasons } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
 
-const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors";
+const btnSecondary = "btn btn-secondary btn-md";
 
 function winPct(team) {
   if (!team.gp) return '---';

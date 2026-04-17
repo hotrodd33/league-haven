@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchOfficialDetail, fetchOfficialGames, updateOfficialGamePayment, fetchOfficialInterestedGames, assignOfficialToGame, unassignOfficialFromGame } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const btnSecondary = 'px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors';
+const btnSecondary = 'btn btn-secondary btn-md';
 const STATUS_COLORS = {
   scheduled:   'bg-blue-900/40 text-blue-200',
   in_progress: 'bg-amber-900/40 text-amber-200',

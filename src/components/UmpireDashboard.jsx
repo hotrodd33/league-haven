@@ -6,8 +6,8 @@ import {
 import { DARK_BADGES } from '../constants/statusClasses.js';
 import { calculateAge } from '../utils/dob.js';
 
-const btnPrimary = "px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 transition-colors disabled:opacity-60";
-const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 transition-colors disabled:opacity-60";
+const btnPrimary = "btn btn-primary btn-sm disabled:opacity-60";
+const btnDanger = "btn btn-danger btn-sm disabled:opacity-60";
 const badgeGreen = `inline-block px-2 py-0.5 ${DARK_BADGES.success} text-xs rounded-full font-semibold`;
 const badgeYellow = `inline-block px-2 py-0.5 ${DARK_BADGES.warning} text-xs rounded-full font-semibold`;
 

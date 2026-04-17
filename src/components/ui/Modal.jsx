@@ -45,7 +45,7 @@ export default function Modal({
     >
       <div
         className={cn(
-          'w-full bg-gray-800 rounded-xl shadow-2xl animate-scale-in',
+          'w-full bg-gray-800 rounded-card shadow-2xl animate-scale-in',
           sizes[size],
           className,
         )}
@@ -66,7 +66,7 @@ export default function Modal({
           {children}
         </div>
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-5 py-3 bg-gray-900 border-t border-gray-700 rounded-b-xl">
+          <div className="flex items-center justify-end gap-3 px-5 py-3 bg-gray-900 border-t border-gray-700 rounded-b-card">
             {footer}
           </div>
         )}

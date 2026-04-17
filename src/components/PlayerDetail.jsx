@@ -138,7 +138,7 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
     }));
   }
 
-  const inputCls = 'w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+  const inputCls = 'w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-action-500/30 focus:border-action-600';
 
   if (editing) {
     return (
@@ -577,7 +577,7 @@ function ContactForm({ playerId, contact, onSaved, onCancel }) {
     }
   }
 
-  const inputCls = 'px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+  const inputCls = 'px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-action-500/30 focus:border-action-600';
 
   return (
     <form onSubmit={handleSubmit} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 space-y-3">

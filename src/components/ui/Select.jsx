@@ -30,8 +30,8 @@ export default function Select({
           'bg-[url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\' fill=\'%23837b73\'%3E%3Cpath fill-rule=\'evenodd\' d=\'M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z\' clip-rule=\'evenodd\'/%3E%3C/svg%3E")]',
           'pr-10 focus:outline-none focus:ring-2',
           error
-            ? 'border-baseball-400 focus:ring-baseball-500/30 focus:border-baseball-500'
-            : 'border-gray-600 focus:ring-field-500/30 focus:border-field-600',
+            ? 'border-signal-400 focus:ring-signal-500/30 focus:border-signal-500'
+            : 'border-gray-600 focus:ring-action-500/30 focus:border-action-600',
           className,
         )}
         aria-invalid={error ? 'true' : undefined}
@@ -43,7 +43,7 @@ export default function Select({
         {children}
       </select>
       {error && (
-        <p id={`${selectId}-error`} className="text-xs text-baseball-600 font-medium" role="alert">
+        <p id={`${selectId}-error`} className="text-xs text-signal-400 font-medium" role="alert">
           {error}
         </p>
       )}

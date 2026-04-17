@@ -17,11 +17,11 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const inputCls = "w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-action-600";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
-const btnPrimary = "px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60";
-const btnSecondary = "px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600";
-const btnDanger = "px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-60";
+const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
+const btnSecondary = "btn btn-secondary btn-xs";
+const btnDanger = "btn btn-danger btn-sm";
 const DEFAULT_MAP_CENTER = [44.4497, -92.2663];
 
 function directionsUrl(loc) {

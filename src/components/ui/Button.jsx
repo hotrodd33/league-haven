@@ -1,12 +1,15 @@
 import { cn } from '../../lib/cn.js';
 
 const variants = {
-  primary:   'bg-field-700 text-white hover:bg-field-800 focus-visible:ring-field-500/40',
-  secondary: 'bg-gray-800 text-gray-200 border border-gray-600 hover:bg-gray-700 focus-visible:ring-field-500/30',
+  primary:   'bg-action-600 text-white hover:bg-action-700 focus-visible:ring-action-500/40',
+  secondary: 'bg-gray-800 text-gray-200 border border-gray-600 hover:bg-gray-700 focus-visible:ring-action-500/30',
   ghost:     'text-gray-300 hover:bg-gray-700 focus-visible:ring-gray-400/30',
-  danger:    'bg-baseball-600 text-white hover:bg-baseball-700 focus-visible:ring-baseball-500/40',
-  dirt:      'bg-dirt-800 text-white hover:bg-dirt-900 focus-visible:ring-dirt-500/40',
-  navy:      'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500/40',
+  danger:    'bg-signal-600 text-white hover:bg-signal-700 focus-visible:ring-signal-500/40',
+  warn:      'bg-accent-700 text-white hover:bg-accent-800 focus-visible:ring-accent-500/40',
+  chrome:    'bg-chrome-600 text-white hover:bg-chrome-700 focus-visible:ring-chrome-500/40',
+  // Legacy aliases
+  dirt:      'bg-accent-700 text-white hover:bg-accent-800 focus-visible:ring-accent-500/40',
+  navy:      'bg-chrome-600 text-white hover:bg-chrome-700 focus-visible:ring-chrome-500/40',
 };
 
 const sizes = {

@@ -71,7 +71,7 @@ export default function TopBar({
             {breadcrumb}
           </p>
         )}
-        <h1 className="font-heading text-lg font-bold text-gray-100 truncate leading-tight">
+        <h1 className="font-display text-lg font-bold text-gray-100 truncate leading-tight uppercase">
           {title}
         </h1>
       </div>
@@ -85,7 +85,7 @@ export default function TopBar({
           {myTeams.map(t => (
             <button key={t.id} onClick={() => onNavigateToTeam?.(t.id, t.org_id)}
               title={t.name}
-              className="rounded-md hover:ring-2 hover:ring-blue-400 transition-all">
+              className="rounded-md hover:ring-2 hover:ring-chrome-400 transition-all">
               <TeamLogo src={t.logo_url} name={t.name} ageGroup={t.age_group} level={t.level}
                 cityAbbr={t.city_abbr} primaryColor={t.primary_color} secondaryColor={t.secondary_color}
                 size="w-8 h-8" />
@@ -110,14 +110,14 @@ export default function TopBar({
               {user?.role?.replace(/_/g, ' ')}
             </p>
           </div>
-          <div className="w-8 h-8 rounded-full bg-field-900 text-field-400 flex items-center justify-center font-semibold text-xs border border-field-700">
+          <div className="w-8 h-8 rounded-full bg-action-900 text-action-400 flex items-center justify-center font-semibold text-xs border border-action-700">
             {initials}
           </div>
         </button>
 
         {/* Dropdown menu */}
         {userMenuOpen && (
-          <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-xl shadow-elevated border border-gray-700 py-1 animate-scale-in origin-top-right z-50">
+          <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-card shadow-elevated border border-gray-700 py-1 animate-scale-in origin-top-right z-50">
             <div className="px-3 py-2 border-b border-gray-700 sm:hidden">
               <p className="text-sm font-medium text-gray-100 truncate">
                 {user?.name || user?.username}
@@ -157,7 +157,7 @@ export default function TopBar({
             </button>
             <button
               onClick={() => { setUserMenuOpen(false); onLogout?.(); }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-baseball-300 hover:bg-baseball-900/35 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-signal-300 hover:bg-signal-900/35 transition-colors"
             >
               <ArrowRightStartOnRectangleIcon className="w-4 h-4" />
               Sign Out

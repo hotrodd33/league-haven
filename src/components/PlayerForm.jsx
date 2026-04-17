@@ -8,7 +8,7 @@ const JERSEY_SIZE_OPTIONS = ['YXS', 'YS', 'YM', 'YL', 'YXL', 'AS', 'AM', 'AL', '
 const HAT_SIZE_OPTIONS = ['Youth', 'Adult S/M', 'Adult L/XL', '6 3/8', '6 1/2', '6 5/8', '6 3/4', '6 7/8', '7', '7 1/8', '7 1/4', '7 3/8', '7 1/2', '7 5/8', '7 3/4', '7 7/8', '8'];
 const RELATIONSHIP_OPTIONS = ['parent', 'guardian', 'emergency', 'other'];
 
-const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const inputCls = "w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-action-600";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
 
 const EMPTY_CONTACT = { first_name: '', last_name: '', relationship: 'parent', email: '', phone: '', is_primary: false };

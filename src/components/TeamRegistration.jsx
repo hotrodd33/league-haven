@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { fetchRegistrationConfig, registerDirector, registerCoach, register, registerAsUmpire, resendConfirmation } from '../api/index.js';
 import { formatDOB } from '../utils/dob.js';
 
-const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const inputCls = "w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-control text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-action-600";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
-const btnPrimary = "px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm";
-const btnSecondary = "px-4 py-2 bg-gray-700 text-gray-200 font-semibold rounded-lg hover:bg-gray-600 transition-colors text-sm";
-const btnDanger = "px-3 py-1.5 text-xs font-semibold bg-red-900/40 text-red-300 rounded hover:bg-red-900/60 transition-colors";
+const btnPrimary = "btn btn-primary btn-md disabled:opacity-60 disabled:cursor-not-allowed";
+const btnSecondary = "btn btn-secondary btn-md";
+const btnDanger = "btn btn-danger btn-sm";
 
 const EMPTY_TEAM = {
   team_city: '', team_mascot: '', team_color: '', age_group: '', level: '',

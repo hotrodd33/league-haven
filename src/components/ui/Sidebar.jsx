@@ -73,7 +73,7 @@ export default function Sidebar({
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex flex-col bg-blue-900 text-white',
+          'fixed inset-y-0 left-0 z-50 flex flex-col bg-chrome-900 text-white',
           'transition-all duration-300 ease-out',
           collapsed ? 'w-[68px]' : 'w-64',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
@@ -95,7 +95,7 @@ export default function Sidebar({
             <span className="text-2xl" aria-hidden="true">⚾</span>
           )}
           {!collapsed && (
-            <span className="ml-3 font-heading text-xl font-bold tracking-wide">
+            <span className="ml-3 font-display text-xl font-bold tracking-wide uppercase">
               {branding?.app_name || 'LeagueHaven'}
             </span>
           )}
@@ -142,7 +142,7 @@ function NavItem({ item, active, collapsed, onClick }) {
         'w-full flex items-center rounded-lg transition-all duration-150 text-sm',
         collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
         active
-          ? 'bg-field-700 text-white shadow-glow-green font-semibold'
+          ? 'bg-action-700 text-white shadow-glow-action font-semibold'
           : 'text-white/60 hover:bg-white/8 hover:text-white',
       )}
       title={collapsed ? item.label : undefined}

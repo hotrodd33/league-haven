@@ -31,7 +31,7 @@ export function TableHeaderCell({ className, children, sortable, sorted, sortDir
       <span className="inline-flex items-center gap-1">
         {children}
         {sorted && (
-          <span className="text-field-600" aria-hidden="true">
+          <span className="text-action-500" aria-hidden="true">
             {sortDir === 'asc' ? '↑' : '↓'}
           </span>
         )}
@@ -49,7 +49,7 @@ export function TableRow({ className, highlight, children, ...props }) {
     <tr
       className={cn(
         'hover:bg-gray-900/50 transition-colors',
-        highlight && 'bg-field-900/20',
+        highlight && 'bg-action-900/20',
         className,
       )}
       {...props}

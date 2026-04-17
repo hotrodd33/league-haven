@@ -1,0 +1,105 @@
+/* ══════════════════════════════════════════════════════════════════
+   LeagueHaven · Multisport — Composite CSS
+   Contains visual composites that don't fit cleanly into Tailwind:
+   scoreline hero, skeletons, data-viz primitives, live pulse.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ─── Scoreline (hero) ─── */
+.scoreline {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
+              0 20px 40px -20px rgba(0, 0, 0, 0.6);
+}
+.scoreline::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(
+    ellipse 400px 240px at 100% 0%,
+    rgb(var(--sport-rgb) / 0.35),
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* Live pulse dot */
+.live-ring {
+  width: 8px; height: 8px; border-radius: 9999px;
+  background: #f06570;
+  animation: live-pulse 1.6s ease-out infinite;
+}
+
+/* ─── Skeleton / shimmer ─── */
+.skel {
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #1e293b, #334155, #1e293b);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+.skel.circle { height: 32px; width: 32px; border-radius: 9999px; }
+.skel.lg     { height: 14px; }
+
+/* ─── Data viz primitives ─── */
+.bars {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 6px;
+  height: 120px;
+  align-items: end;
+}
+.bars .b {
+  background: linear-gradient(
+    180deg,
+    rgb(var(--sport-rgb)),
+    rgb(var(--sport-rgb) / 0.4)
+  );
+  border-radius: 4px 4px 0 0;
+  transition: filter 150ms;
+}
+.bars .b:hover { filter: brightness(1.2); }
+.bars .b.muted {
+  background: linear-gradient(180deg, #334155, #1e293b);
+}
+
+.donut {
+  --p: 0;
+  width: 140px; height: 140px; border-radius: 9999px;
+  background: conic-gradient(
+    rgb(var(--sport-rgb)) calc(var(--p) * 1%),
+    #1e293b 0
+  );
+  display: grid; place-items: center;
+  position: relative;
+}
+.donut::before {
+  content: '';
+  position: absolute; inset: 14px;
+  background: #0f172a;
+  border-radius: 9999px;
+}
+
+.hbar .track {
+  height: 10px;
+  background: #0f172a;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.hbar .fill {
+  height: 100%;
+  background: rgb(var(--sport-rgb));
+  border-radius: 9999px;
+}
+
+/* Sport-accent left border utility */
+.border-l-sport { border-left-width: 3px; border-left-color: rgb(var(--sport-rgb)); }
+
+/* Number-flip helper — add on score change */
+.num-flip {
+  animation: number-flip 260ms cubic-bezier(.2,.8,.2,1);
+}

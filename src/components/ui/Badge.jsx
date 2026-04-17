@@ -1,11 +1,12 @@
 import { cn } from '../../lib/cn.js';
 
 const variants = {
-  success: 'bg-field-900/35 text-field-300 border-field-700',
-  warning: 'bg-dirt-900/35 text-dirt-300 border-dirt-700',
-  danger:  'bg-baseball-900/35 text-baseball-300 border-baseball-700',
-  info:    'bg-blue-900/35 text-blue-300 border-blue-700',
+  success: 'bg-action-900/55 text-action-300 border-action-700',
+  warning: 'bg-accent-900/45 text-accent-300 border-accent-700',
+  danger:  'bg-signal-900/45 text-signal-300 border-signal-700',
+  info:    'bg-chrome-900/60 text-chrome-300 border-chrome-700',
   neutral: 'bg-gray-800 text-gray-300 border-gray-700',
+  sport:   'lh-badge-sport',
 };
 
 const sizes = {
@@ -33,11 +34,12 @@ export default function Badge({
         <span
           className={cn(
             'w-1.5 h-1.5 rounded-full',
-            variant === 'success' && 'bg-field-900/200',
-            variant === 'warning' && 'bg-dirt-900/200',
-            variant === 'danger' && 'bg-baseball-900/300',
-            variant === 'info' && 'bg-blue-500',
+            variant === 'success' && 'bg-action-400',
+            variant === 'warning' && 'bg-accent-400',
+            variant === 'danger' && 'bg-signal-400 animate-dot-pulse',
+            variant === 'info' && 'bg-chrome-400',
             variant === 'neutral' && 'bg-gray-400',
+            variant === 'sport' && 'bg-sport',
           )}
           aria-hidden="true"
         />
