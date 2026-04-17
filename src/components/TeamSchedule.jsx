@@ -54,6 +54,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [showSubscribe, setShowSubscribe] = useState(false);
+  const [sortOrder, setSortOrder] = useState('asc');
 
   const loadGames = useCallback(() => {
     if (!teamId) { setGames([]); setPractices([]); return; }
@@ -124,8 +125,8 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   }, [sortedItems]);
 
   const sortedDateKeys = useMemo(() =>
-    Object.keys(itemsByDate).sort((a, b) => b.localeCompare(a)),
-    [itemsByDate]
+    Object.keys(itemsByDate).sort((a, b) => sortOrder === 'asc' ? a.localeCompare(b) : b.localeCompare(a)),
+    [itemsByDate, sortOrder]
   );
 
   if (trackingGameId) {
@@ -181,6 +182,10 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
               📅
             </button>
           </div>
+          <button onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+            className="px-3 py-1.5 text-xs font-semibold rounded bg-gray-700 text-gray-300 hover:bg-gray-600" title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
+            {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
+          </button>
           {isAdmin && (
             <button
               onClick={() => setShowForm((prev) => !prev)}

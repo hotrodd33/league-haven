@@ -125,6 +125,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [filterSeason, setFilterSeason] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError(null);
@@ -251,7 +252,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     if (!gamesByDate[dateKey]) gamesByDate[dateKey] = [];
     gamesByDate[dateKey].push(g);
   }
-  const sortedDateKeys = Object.keys(gamesByDate).sort((a, b) => b.localeCompare(a));
+  const sortedDateKeys = Object.keys(gamesByDate).sort((a, b) => sortOrder === 'asc' ? a.localeCompare(b) : b.localeCompare(a));
 
   const anchorDateKey = useMemo(() => {
     if (!sortedDateKeys.length) return null;
@@ -329,6 +330,10 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                 📅
               </button>
             </div>
+            <button onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+              className="px-3 py-1.5 text-xs font-semibold rounded bg-gray-700 text-gray-300 hover:bg-gray-600" title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
+              {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
+            </button>
             {canScheduleGames && (
               <>
                 <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Schedule</button>
