@@ -600,62 +600,6 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
         </section>
       )}
 
-      {/* ── Roster Alerts ── */}
-      {rosterAlerts.length > 0 && (
-        <section aria-label="Roster alerts">
-          <Card variant="bordered" className="border-baseball-500/30 bg-baseball-950/10">
-            <CardHeader>
-              <div className="flex items-center justify-between w-full">
-                <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
-                  <UsersIcon className="w-5 h-5 text-baseball-400" />
-                  Roster Alerts
-                  <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-baseball-500/20 text-baseball-300">
-                    {rosterAlerts.length}
-                  </span>
-                </h3>
-                <button
-                  onClick={() => onNavigate?.('players')}
-                  className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
-                >
-                  All Players <span aria-hidden="true">→</span>
-                </button>
-              </div>
-            </CardHeader>
-            <CardBody>
-              <div className="divide-y divide-gray-700/50">
-                {rosterAlerts.slice(0, 8).map((p) => (
-                  <div key={p.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 gap-3">
-                    <div className="min-w-0">
-                      <button
-                        onClick={() => onViewPlayer?.(p.id)}
-                        className="text-sm font-medium text-gray-200 hover:text-blue-300 transition-colors block truncate text-left"
-                      >
-                        {p.name}
-                      </button>
-                      {p.teams?.length > 0 && (
-                        <span className="text-xs text-gray-400">{p.teams.map(t => t.team_name).join(', ')}</span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-1 shrink-0 ml-3 justify-end">
-                      {p.issues.map((issue, i) => (
-                        <span key={i} className="text-xs font-semibold px-2 py-0.5 rounded-full bg-baseball-500/20 text-baseball-300">
-                          {issue}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {rosterAlerts.length > 8 && (
-                  <p className="pt-2 text-xs text-gray-400 text-center">
-                    +{rosterAlerts.length - 8} more players with missing info
-                  </p>
-                )}
-              </div>
-            </CardBody>
-          </Card>
-        </section>
-      )}
-
       {/* ── Two-Column Layout: Games + Activity ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -809,8 +753,67 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
               </CardBody>
             </Card>
           )}
+        </aside>
+      </div>
 
-          {/* Recent Activity Feed */}
+      {/* ── Roster Alerts + Recent Activity — Side by Side ── */}
+      {(rosterAlerts.length > 0 || activity.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Roster Alerts */}
+          {rosterAlerts.length > 0 && (
+            <Card variant="bordered" className="border-baseball-500/30 bg-baseball-950/10">
+              <CardHeader>
+                <div className="flex items-center justify-between w-full">
+                  <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
+                    <UsersIcon className="w-5 h-5 text-baseball-400" />
+                    Roster Alerts
+                    <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-baseball-500/20 text-baseball-300">
+                      {rosterAlerts.length}
+                    </span>
+                  </h3>
+                  <button
+                    onClick={() => onNavigate?.('players')}
+                    className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
+                  >
+                    All Players <span aria-hidden="true">→</span>
+                  </button>
+                </div>
+              </CardHeader>
+              <CardBody>
+                <div className="divide-y divide-gray-700/50">
+                  {rosterAlerts.slice(0, 8).map((p) => (
+                    <div key={p.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 gap-3">
+                      <div className="min-w-0">
+                        <button
+                          onClick={() => onViewPlayer?.(p.id)}
+                          className="text-sm font-medium text-gray-200 hover:text-blue-300 transition-colors block truncate text-left"
+                        >
+                          {p.name}
+                        </button>
+                        {p.teams?.length > 0 && (
+                          <span className="text-xs text-gray-400">{p.teams.map(t => t.team_name).join(', ')}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1 shrink-0 ml-3 justify-end">
+                        {p.issues.map((issue, i) => (
+                          <span key={i} className="text-xs font-semibold px-2 py-0.5 rounded-full bg-baseball-500/20 text-baseball-300">
+                            {issue}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {rosterAlerts.length > 8 && (
+                    <p className="pt-2 text-xs text-gray-400 text-center">
+                      +{rosterAlerts.length - 8} more players with missing info
+                    </p>
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
+          {/* Recent Activity */}
           {activity.length > 0 && (
             <Card variant="bordered">
               <CardHeader>
@@ -832,8 +835,8 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
               </CardBody>
             </Card>
           )}
-        </aside>
-      </div>
+        </div>
+      )}
 
       {/* ── Recent Results ── */}
       {recentResults.length > 0 && (
