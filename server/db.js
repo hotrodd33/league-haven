@@ -1,7 +1,18 @@
 const { Pool } = require('pg');
 
+function buildConnectionString(url) {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set('sslmode', 'verify-full');
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: buildConnectionString(process.env.DATABASE_URL),
   ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,
 });
 
