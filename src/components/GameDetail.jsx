@@ -3,6 +3,7 @@ import {
   fetchGame, updateGame,
   fetchPitchCounts, createPitchCount, updatePitchCount, deletePitchCount,
   fetchPlayersByTeam, createPlayer, fetchPitchEligibility,
+  fetchWeather, fetchWeatherForecast,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
@@ -63,6 +64,9 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
   const [homeEligibility, setHomeEligibility] = useState(null);
   const [awayEligibility, setAwayEligibility] = useState(null);
 
+  // Weather
+  const [weather, setWeather] = useState(null);
+
   const canEdit = useCallback((g) => {
     if (!g) return false;
     if (isAdmin) return true;
@@ -101,6 +105,28 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
   }, [gameId]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Fetch weather for the game location
+  useEffect(() => {
+    if (!game?.location_lat || !game?.location_lon) return;
+    if (game.status === 'cancelled') return;
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 16);
+    const maxDateStr = maxDate.toISOString().slice(0, 10);
+
+    // Past games or too far future — no weather
+    if (game.game_date < todayStr || game.game_date > maxDateStr) return;
+
+    const fetcher = game.game_date === todayStr
+      ? fetchWeather(game.location_lat, game.location_lon)
+      : fetchWeatherForecast(game.location_lat, game.location_lon, game.game_date, game.game_time || null);
+
+    fetcher.then(w => {
+      if (w && !w.unavailable) setWeather(w);
+    }).catch(() => {});
+  }, [game]);
 
   async function handleSaveScore(e) {
     e.preventDefault();
@@ -278,6 +304,88 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
         )}
         {game.notes && <div className="text-xs text-gray-400 italic text-center mt-1">{game.notes}</div>}
       </div>
+
+      {/* Weather card */}
+      {weather && (
+        <div className={`border rounded-xl p-4 sm:p-5 mb-4 ${
+          weather.playability?.rating === 'unplayable' ? 'bg-red-950/20 border-red-500/30' :
+          weather.playability?.rating === 'poor' ? 'bg-orange-950/15 border-orange-500/30' :
+          'bg-gray-800 border-gray-700'
+        }`}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-gray-100 flex items-center gap-2">
+              {weather.icon} Game Day Weather
+              {weather.isForecast && <span className="text-[10px] font-normal normal-case text-gray-500 italic">(forecast)</span>}
+            </h3>
+            {weather.playability && (
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                weather.playability.rating === 'good' ? 'bg-green-900/40 text-green-300' :
+                weather.playability.rating === 'fair' ? 'bg-yellow-900/40 text-yellow-300' :
+                weather.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                'bg-red-900/40 text-red-300'
+              }`}>{weather.playability.rating}</span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="text-center p-2 bg-gray-900/50 rounded-lg">
+              <div className="text-lg font-bold text-gray-100">{weather.temp}°F</div>
+              {weather.feelsLike != null && weather.feelsLike !== weather.temp && (
+                <div className="text-[10px] text-gray-400">Feels like {weather.feelsLike}°</div>
+              )}
+              <div className="text-[10px] text-gray-500 mt-0.5">{weather.description}</div>
+            </div>
+            <div className="text-center p-2 bg-gray-900/50 rounded-lg">
+              <div className="text-lg font-bold text-gray-100">
+                {weather.precipitationProbability != null ? `${weather.precipitationProbability}%` : '—'}
+              </div>
+              <div className="text-[10px] text-gray-500">🌧️ Rain Chance</div>
+            </div>
+            <div className="text-center p-2 bg-gray-900/50 rounded-lg">
+              <div className="text-lg font-bold text-gray-100">{weather.windSpeed}<span className="text-xs text-gray-400">mph</span></div>
+              {weather.windDirection && (
+                <div className="text-[10px] text-gray-400">{weather.windDirection}</div>
+              )}
+              {weather.windGusts > weather.windSpeed && (
+                <div className="text-[10px] text-gray-500">Gusts {weather.windGusts}mph</div>
+              )}
+              <div className="text-[10px] text-gray-500">💨 Wind</div>
+            </div>
+            <div className="text-center p-2 bg-gray-900/50 rounded-lg">
+              {weather.uvIndex != null ? (
+                <>
+                  <div className={`text-lg font-bold ${weather.uvIndex >= 8 ? 'text-red-400' : weather.uvIndex >= 6 ? 'text-orange-400' : 'text-gray-100'}`}>
+                    {Math.round(weather.uvIndex)}
+                  </div>
+                  <div className="text-[10px] text-gray-500">☀️ UV Index</div>
+                </>
+              ) : weather.humidity != null ? (
+                <>
+                  <div className="text-lg font-bold text-gray-100">{weather.humidity}%</div>
+                  <div className="text-[10px] text-gray-500">💧 Humidity</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-lg font-bold text-gray-100">—</div>
+                  <div className="text-[10px] text-gray-500">UV / Humidity</div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {weather.playability?.reasons?.length > 0 && (
+            <div className="mt-3 text-xs text-gray-400">
+              ⚠️ {weather.playability.reasons.join(' · ')}
+            </div>
+          )}
+
+          {weather.isDailySummary && weather.tempHigh != null && (
+            <div className="mt-2 text-[10px] text-gray-500 text-center">
+              High {weather.tempHigh}° / Low {weather.tempLow}° — daily summary (no game time set)
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Score reporting */}
       {userCanScore && (

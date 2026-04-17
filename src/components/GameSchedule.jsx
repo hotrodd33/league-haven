@@ -5,6 +5,7 @@ import {
   fetchOrganizations, fetchAssignableOfficials,
   fetchGameInterests, expressGameInterest, removeGameInterest,
   checkGameConflicts, createTeam, fetchAgeGroups, fetchLevels,
+  fetchWeather, fetchWeatherForecast,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
@@ -163,6 +164,40 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (!loading) loadGames(); }, [loadGames, loading]);
   useEffect(() => { loadInterests(); }, [loadInterests]);
+
+  // Weather state + fetching for games within 16-day forecast window
+  const [gameWeather, setGameWeather] = useState({});
+
+  useEffect(() => {
+    if (!games.length) return;
+    const todayStr_ = new Date().toISOString().slice(0, 10);
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 16);
+    const maxDateStr = maxDate.toISOString().slice(0, 10);
+
+    const weatherableGames = games.filter(g =>
+      g.location_lat && g.location_lon &&
+      g.game_date >= todayStr_ && g.game_date <= maxDateStr &&
+      g.status !== 'cancelled'
+    ).slice(0, 20); // Limit API calls
+
+    if (!weatherableGames.length) return;
+
+    const promises = weatherableGames.map(g => {
+      const fetcher = g.game_date === todayStr_
+        ? fetchWeather(g.location_lat, g.location_lon)
+        : fetchWeatherForecast(g.location_lat, g.location_lon, g.game_date, g.game_time || null);
+      return fetcher
+        .then(w => (w && !w.unavailable) ? { key: String(g.id), weather: w } : null)
+        .catch(() => null);
+    });
+
+    Promise.all(promises).then(results => {
+      const map = {};
+      for (const r of results) if (r) map[r.key] = r.weather;
+      setGameWeather(map);
+    });
+  }, [games]);
 
   async function handleToggleInterest(gameId, currentlyInterested) {
     setManagingInterest(gameId);
@@ -395,13 +430,32 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           </div>
                         </div>
 
-                        {/* Location + Status */}
+                        {/* Location + Weather + Status */}
                         <div className="flex items-center gap-3 shrink-0">
                           {game.location_name && (
                             <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[180px]">
                               📍 {game.location_name}
                             </span>
                           )}
+                          {gameWeather[String(game.id)] && (() => {
+                            const w = gameWeather[String(game.id)];
+                            return (
+                              <span className="hidden lg:inline-flex items-center gap-1 text-xs text-gray-400 shrink-0" title={`${w.description}${w.isForecast ? ' (forecast)' : ''}`}>
+                                <span>{w.icon}</span>
+                                <span>{w.temp}°</span>
+                                {w.precipitationProbability > 0 && (
+                                  <span className={w.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️{w.precipitationProbability}%</span>
+                                )}
+                                {w.playability && w.playability.rating !== 'good' && (
+                                  <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+                                    w.playability.rating === 'unplayable' ? 'bg-red-900/40 text-red-300' :
+                                    w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                                    'bg-yellow-900/40 text-yellow-300'
+                                  }`}>{w.playability.rating}</span>
+                                )}
+                              </span>
+                            );
+                          })()}
                           {!!game.officials?.length && (
                             <div className="hidden lg:flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
                               {game.officials.map((o, i) => (
@@ -485,6 +539,31 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       {game.location_name && (
                         <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
                       )}
+                      {gameWeather[String(game.id)] && (() => {
+                        const w = gameWeather[String(game.id)];
+                        return (
+                          <div className="flex items-center gap-2 text-xs text-gray-400 mb-1 flex-wrap">
+                            <span title={w.description}>{w.icon} {w.temp}°F</span>
+                            {w.feelsLike != null && w.feelsLike !== w.temp && (
+                              <span className="text-gray-500">(feels {w.feelsLike}°)</span>
+                            )}
+                            {w.windSpeed > 0 && (
+                              <span className="text-gray-500">💨 {w.windSpeed}mph{w.windDirection ? ` ${w.windDirection}` : ''}</span>
+                            )}
+                            {w.precipitationProbability > 0 && (
+                              <span className={w.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️ {w.precipitationProbability}%</span>
+                            )}
+                            {w.playability && w.playability.rating !== 'good' && (
+                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+                                w.playability.rating === 'unplayable' ? 'bg-red-900/40 text-red-300' :
+                                w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                                'bg-yellow-900/40 text-yellow-300'
+                              }`}>{w.playability.rating}</span>
+                            )}
+                            {w.isForecast && <span className="text-gray-600 text-[10px] italic">forecast</span>}
+                          </div>
+                        );
+                      })()}
                       {!!game.officials?.length && (
                         <div className="flex flex-wrap gap-1 mb-1" onClick={(e) => e.stopPropagation()}>
                           {game.officials.map((o, i) => (
@@ -537,6 +616,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
           onToday={() => { setCalYear(new Date().getFullYear()); setCalMonth(new Date().getMonth()); }}
           onSelectGame={setSelectedGameId}
           onNavigateToTeam={onNavigateToTeam}
+          gameWeather={gameWeather}
         />
       )}
 
@@ -642,7 +722,7 @@ function SubscribeModal({ filterTeam, filterSeason, onClose }) {
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
-function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToday, onSelectGame, onNavigateToTeam }) {
+function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToday, onSelectGame, onNavigateToTeam, gameWeather = {} }) {
   const [selectedDate, setSelectedDate] = useState(null);
 
   // Build calendar grid
@@ -776,6 +856,24 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                         {game.location_name && (
                           <span className="text-xs text-gray-400 hidden sm:inline">📍 {game.location_name}</span>
                         )}
+                        {gameWeather[String(game.id)] && (() => {
+                          const w = gameWeather[String(game.id)];
+                          return (
+                            <span className="hidden sm:inline-flex items-center gap-1 text-xs text-gray-400" title={w.description}>
+                              {w.icon} {w.temp}°
+                              {w.precipitationProbability > 0 && (
+                                <span className={w.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️{w.precipitationProbability}%</span>
+                              )}
+                              {w.playability && w.playability.rating !== 'good' && (
+                                <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded-full ${
+                                  w.playability.rating === 'unplayable' ? 'bg-red-900/40 text-red-300' :
+                                  w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                                  'bg-yellow-900/40 text-yellow-300'
+                                }`}>{w.playability.rating}</span>
+                              )}
+                            </span>
+                          );
+                        })()}
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor}`}>
                           {game.status_label}
                         </span>
