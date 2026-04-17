@@ -172,7 +172,7 @@ export default function App() {
 
         switch (page) {
             case 'dashboard':
-                return <Dashboard onNavigate={setPage} />;
+                return <Dashboard onNavigate={setPage} onViewPlayer={handleViewPlayer} />;
 
             case 'umpire':
                 return <UmpireDashboard onBack={() => setPage("dashboard")} />;

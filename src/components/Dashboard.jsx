@@ -66,7 +66,7 @@ const ACTIVITY_ICONS = {
    Dashboard
    ═══════════════════════════════════════════════════════ */
 
-export default function Dashboard({ onNavigate }) {
+export default function Dashboard({ onNavigate, onViewPlayer }) {
   const { user } = useAuth();
   const [teams, setTeams] = useState([]);
   const [games, setGames] = useState([]);
@@ -452,7 +452,12 @@ export default function Dashboard({ onNavigate }) {
                 {rosterAlerts.slice(0, 8).map((p) => (
                   <div key={p.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 gap-3">
                     <div className="min-w-0">
-                      <span className="text-sm font-medium text-gray-200 block truncate">{p.name}</span>
+                      <button
+                        onClick={() => onViewPlayer?.(p.id)}
+                        className="text-sm font-medium text-gray-200 hover:text-blue-300 transition-colors block truncate text-left"
+                      >
+                        {p.name}
+                      </button>
                       {p.teams?.length > 0 && (
                         <span className="text-xs text-gray-400">{p.teams.map(t => t.team_name).join(', ')}</span>
                       )}
