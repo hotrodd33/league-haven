@@ -195,6 +195,13 @@ export async function unassignPlayerFromTeam(teamId, playerId) {
   });
 }
 
+export async function updatePlayerJersey(teamId, playerId, jerseyNumber) {
+  return apiFetch('/players/jersey', {
+    method: 'PUT',
+    body: JSON.stringify({ team_id: teamId, player_id: playerId, jersey_number: jerseyNumber || null }),
+  });
+}
+
 export async function fetchAllPlayers(filters = {}) {
   const params = new URLSearchParams();
   if (filters.org_id) params.set('org_id', filters.org_id);

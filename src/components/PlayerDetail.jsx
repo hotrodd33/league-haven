@@ -6,6 +6,7 @@ import {
   fetchPlayerStats, fetchStatDefinitions,
   updatePlayer, fetchPositions,
   fetchTeams, fetchOrganizations, assignPlayerToTeam, unassignPlayerFromTeam,
+  updatePlayerJersey,
 } from '../api/index.js';
 import { ChevronLeftIcon, PlusIcon, TrashIcon, PencilIcon, DocumentIcon, ChatBubbleIcon, UserIcon, ChartBarIcon } from './ui/icons.jsx';
 import { formatDOB, calculateAge } from '../utils/dob.js';
@@ -396,20 +397,74 @@ function TeamAssignments({ player, canEdit, onNavigateToTeam, onPlayerUpdated })
       {player.teams?.length > 0 ? (
         <div className="space-y-2">
           {player.teams.map(t => (
-            <button
-              key={t.team_id || t.id}
-              className="flex items-center justify-between w-full px-3 py-2 bg-gray-700/40 rounded-lg hover:bg-gray-700/60 transition-colors text-left"
-              onClick={() => onNavigateToTeam?.(t.team_id || t.id, t.org_id)}
-            >
-              <span className="text-sm text-white">{t.team_name || t.name}</span>
-              {t.jersey_number && (
-                <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">#{t.jersey_number}</span>
-              )}
-            </button>
+            <TeamRow key={t.team_id || t.id} team={t} player={player} canEdit={canEdit}
+              onNavigateToTeam={onNavigateToTeam} onPlayerUpdated={onPlayerUpdated} />
           ))}
         </div>
       ) : (
         <p className="text-sm text-gray-400">Not assigned to any team.</p>
+      )}
+    </div>
+  );
+}
+
+/* ─── Team Row with inline jersey edit ─── */
+function TeamRow({ team: t, player, canEdit, onNavigateToTeam, onPlayerUpdated }) {
+  const [jerseyEdit, setJerseyEdit] = useState(false);
+  const [jersey, setJersey] = useState(t.jersey_number || '');
+  const [saving, setSaving] = useState(false);
+  const teamId = t.team_id || t.id;
+
+  async function saveJersey() {
+    const trimmed = jersey.trim();
+    if (trimmed === (t.jersey_number || '')) { setJerseyEdit(false); return; }
+    setSaving(true);
+    try {
+      await updatePlayerJersey(teamId, player.id, trimmed);
+      const updatedTeams = (player.teams || []).map(pt =>
+        (pt.team_id || pt.id) === teamId ? { ...pt, jersey_number: trimmed || null } : pt
+      );
+      onPlayerUpdated({ ...player, teams: updatedTeams });
+      setJerseyEdit(false);
+    } catch (err) {
+      alert('Failed to save jersey number: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-gray-700/40 rounded-lg">
+      <button
+        className="flex-1 text-left text-sm text-white hover:text-blue-300 transition-colors truncate"
+        onClick={() => onNavigateToTeam?.(teamId, t.org_id)}
+      >
+        {t.team_name || t.name}
+      </button>
+      {jerseyEdit ? (
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-gray-400">#</span>
+          <input
+            autoFocus
+            type="text"
+            value={jersey}
+            onChange={e => setJersey(e.target.value)}
+            onBlur={saveJersey}
+            onKeyDown={e => { if (e.key === 'Enter') saveJersey(); if (e.key === 'Escape') { setJersey(t.jersey_number || ''); setJerseyEdit(false); } }}
+            disabled={saving}
+            className="w-14 px-1.5 py-0.5 text-xs bg-gray-900 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder="—"
+          />
+        </div>
+      ) : (
+        <button
+          onClick={() => canEdit && setJerseyEdit(true)}
+          className={`text-xs px-2 py-0.5 rounded-full ${t.jersey_number ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-600/30 text-gray-500'} ${canEdit ? 'hover:bg-blue-500/30 cursor-pointer' : ''}`}
+          title={canEdit ? 'Click to edit jersey number' : undefined}
+          disabled={!canEdit}
+        >
+          {t.jersey_number ? `#${t.jersey_number}` : 'No #'}
+        </button>
       )}
     </div>
   );
