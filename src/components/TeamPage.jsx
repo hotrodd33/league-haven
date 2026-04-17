@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchTeams, fetchGames, fetchRegistrations } from '../api/index.js';
 import { cn } from '../lib/cn.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -22,51 +23,45 @@ const TABS = [
 
 export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer, onViewPlayer, refreshKey, onNavigateToTeam, onWatermarkLogoChange }) {
   const [activeTab, setActiveTab] = useState('overview');
-  const [team, setTeam] = useState(null);
-  const [recentGames, setRecentGames] = useState([]);
-  const [registrations, setRegistrations] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [contactModal, setContactModal] = useState(null);
   const { isSuperAdmin, isAccountant, canEditOrg } = useAuth();
+  const queryClient = useQueryClient();
 
-  // Load team info
+  // When a mutation occurs upstream (refreshKey increments), invalidate affected caches
   useEffect(() => {
-    if (!teamId) { setTeam(null); return; }
-    let cancelled = false;
-    fetchTeams().then(teams => {
-      if (!cancelled) setTeam(teams.find(t => t.id === teamId) || null);
-    });
-    return () => { cancelled = true; };
-  }, [teamId, refreshKey]);
+    if (!refreshKey) return;
+    queryClient.invalidateQueries({ queryKey: ['teams'] });
+    queryClient.invalidateQueries({ queryKey: ['games', 'team', teamId] });
+    queryClient.invalidateQueries({ queryKey: ['registrations'] });
+  }, [refreshKey, queryClient, teamId]);
 
-  // Load recent games for overview
-  useEffect(() => {
-    if (!teamId) { setRecentGames([]); return; }
-    let cancelled = false;
-    fetchGames({ team_id: teamId }).then(games => {
-      if (!cancelled) {
-        const completed = games
-          .filter(g => g.status === 'completed')
-          .sort((a, b) => (b.game_date || '').localeCompare(a.game_date || ''))
-          .slice(0, 5);
-        setRecentGames(completed);
-      }
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [teamId, refreshKey]);
+  const { data: allTeams = [] } = useQuery({
+    queryKey: ['teams'],
+    queryFn: fetchTeams,
+    enabled: !!teamId,
+  });
 
-  // Load registration/payment info
-  useEffect(() => {
-    if (!teamId) { setRegistrations([]); return; }
-    let cancelled = false;
-    fetchRegistrations().then(data => {
-      if (!cancelled) {
-        const teamRegs = (data.registrations || []).filter(r => r.team_id === teamId);
-        setRegistrations(teamRegs);
-      }
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [teamId, refreshKey]);
+  const team = allTeams.find(t => t.id === teamId) ?? null;
+
+  const { data: gamesData = [] } = useQuery({
+    queryKey: ['games', 'team', teamId],
+    queryFn: () => fetchGames({ team_id: teamId }),
+    enabled: !!teamId,
+  });
+
+  const recentGames = gamesData
+    .filter(g => g.status === 'completed')
+    .sort((a, b) => (b.game_date || '').localeCompare(a.game_date || ''))
+    .slice(0, 5);
+
+  const { data: registrationsData } = useQuery({
+    queryKey: ['registrations'],
+    queryFn: fetchRegistrations,
+    enabled: !!teamId,
+  });
+
+  const registrations = (registrationsData?.registrations || []).filter(r => r.team_id === teamId);
 
   // Reset tab and selected game when team changes
   useEffect(() => { setActiveTab('overview'); setSelectedGameId(null); }, [teamId]);

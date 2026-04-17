@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '../lib/cn.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers, fetchDashboardActivity, fetchAnnouncements, fetchWeather, fetchWeatherForecast } from '../api/index.js';
@@ -90,44 +91,18 @@ const PRIORITY_BADGES = {
 
 export default function Dashboard({ onNavigate, onViewPlayer }) {
   const { user } = useAuth();
-  const [teams, setTeams] = useState([]);
-  const [games, setGames] = useState([]);
-  const [seasons, setSeasons] = useState([]);
-  const [orgs, setOrgs] = useState([]);
-  const [pitchRest, setPitchRest] = useState({});
-  const [players, setPlayers] = useState([]);
-  const [activity, setActivity] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
   const [gameWeather, setGameWeather] = useState({});
-  const [loading, setLoading] = useState(true);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [t, g, s, o, pr, pl, act, ann] = await Promise.all([
-        fetchTeams().catch(() => []),
-        fetchGames().catch(() => []),
-        fetchSeasons().catch(() => []),
-        fetchOrganizations().catch(() => []),
-        fetchAllPitchRest().catch(() => ({})),
-        fetchAllPlayers().catch(() => []),
-        fetchDashboardActivity().catch(() => []),
-        fetchAnnouncements().catch(() => []),
-      ]);
-      setTeams(t || []);
-      setGames(g || []);
-      setSeasons(s || []);
-      setOrgs(o || []);
-      setPitchRest(pr || {});
-      setPlayers(pl || []);
-      setActivity(act || []);
-      setAnnouncements(ann || []);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: teams = [],        isPending: teamsPending   } = useQuery({ queryKey: ['teams'],              queryFn: fetchTeams });
+  const { data: games = [],        isPending: gamesPending   } = useQuery({ queryKey: ['games'],              queryFn: fetchGames });
+  const { data: seasons = [],      isPending: seasonsPending } = useQuery({ queryKey: ['seasons'],            queryFn: fetchSeasons });
+  const { data: orgs = [],         isPending: orgsPending    } = useQuery({ queryKey: ['organizations'],      queryFn: fetchOrganizations });
+  const { data: pitchRest = {}                               } = useQuery({ queryKey: ['pitch-rest', 'all'], queryFn: fetchAllPitchRest });
+  const { data: players = []                                 } = useQuery({ queryKey: ['players', 'all'],    queryFn: fetchAllPlayers });
+  const { data: activity = []                                } = useQuery({ queryKey: ['dashboard-activity'],queryFn: fetchDashboardActivity });
+  const { data: announcements = []                           } = useQuery({ queryKey: ['announcements'],     queryFn: fetchAnnouncements });
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const loading = teamsPending || gamesPending || seasonsPending || orgsPending;
 
   // Fetch weather for today's games (current) and upcoming games (forecast)
   useEffect(() => {
