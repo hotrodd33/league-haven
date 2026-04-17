@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin, canEditOrg, canEditTeam } = require('../auth');
+const cache = require('../cache');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
@@ -140,6 +141,7 @@ router.post('/', authMiddleware, async (req, res) => {
        LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [teamId]
     );
     const teams = await attachDivisions(result.rows);
+    cache.del('directory');
     res.status(201).json(addComputedNames(teams[0]));
   } catch (err) {
     console.error(err);
@@ -174,6 +176,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
        LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [id]
     );
     const teams = await attachDivisions(result.rows);
+    cache.del('directory');
     res.json(addComputedNames(teams[0]));
   } catch (err) {
     console.error(err);
@@ -188,6 +191,7 @@ router.delete('/:id', authMiddleware, requireAdmin, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Team not found' });
 
     await pool.query('DELETE FROM teams WHERE id = $1', [id]);
+    cache.del('directory');
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -212,6 +216,7 @@ router.post('/:id/logo', authMiddleware, upload.single('logo'), async (req, res)
     }
     const dataUrl = `data:${mime};base64,${req.file.buffer.toString('base64')}`;
     await pool.query('UPDATE teams SET logo_url = $1 WHERE id = $2', [dataUrl, id]);
+    cache.del('directory');
     res.json({ logo_url: dataUrl });
   } catch (err) {
     console.error(err);

@@ -573,6 +573,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }, 'cancellations').catch(() => {});
     }
 
+    cache.invalidatePrefix('standings:');
     res.json(updated);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -663,6 +664,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 
     await pool.query('DELETE FROM games WHERE id = $1', [id]);
+    cache.invalidatePrefix('standings:');
     res.json({ success: true });
   } catch (err) {
     console.error(err);

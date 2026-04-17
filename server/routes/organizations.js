@@ -120,6 +120,7 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [name, contact_name || null, contact_email || null, contact_phone || null, address || null, city || null, state || null, zip || null, !!officials_enabled, notes || null]
     );
+    cache.del('directory');
     res.status(201).json(await enrich(rows[0]));
   } catch (err) {
     console.error(err);
@@ -148,6 +149,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         notes ?? old.notes, id
       ]
     );
+    cache.del('directory');
     res.json(await enrich(rows[0]));
   } catch (err) {
     console.error(err);
@@ -162,6 +164,7 @@ router.delete('/:id', authMiddleware, requireAdmin, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Organization not found' });
 
     await pool.query('DELETE FROM organizations WHERE id = $1', [id]);
+    cache.del('directory');
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -184,6 +187,7 @@ router.post('/:id/logo', authMiddleware, upload.single('logo'), async (req, res)
     }
     const dataUrl = `data:${mime};base64,${req.file.buffer.toString('base64')}`;
     await pool.query('UPDATE organizations SET logo_url = $1 WHERE id = $2', [dataUrl, id]);
+    cache.del('directory');
     res.json({ logo_url: dataUrl });
   } catch (err) {
     console.error(err);

@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
 const { authMiddleware, canEditTeam } = require('../auth');
+const cache = require('../cache');
 const { sendCoachInviteEmail } = require('../email');
 
 const router = express.Router();
@@ -187,6 +188,7 @@ router.post('/', authMiddleware, async (req, res) => {
       }
     }
 
+    cache.del('directory');
     res.status(201).json(addLabel({ ...staffRow, role, account_created, account_existing }));
   } catch (err) {
     await client.query('ROLLBACK');
@@ -310,6 +312,7 @@ router.post('/assign', authMiddleware, async (req, res) => {
       }
     }
 
+    cache.del('directory');
     res.status(201).json({ success: true });
   } catch (err) {
     console.error(err);
@@ -325,6 +328,7 @@ router.post('/unassign', authMiddleware, async (req, res) => {
     if (!(await canEditTeam(req.user, team_id))) return res.status(403).json({ error: 'No permission for this team' });
 
     await pool.query('DELETE FROM team_staff_assignments WHERE team_id = $1 AND staff_id = $2', [team_id, staff_id]);
+    cache.del('directory');
     res.json({ success: true });
   } catch (err) {
     console.error(err);
