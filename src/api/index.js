@@ -463,6 +463,34 @@ export async function fetchDashboardActivity(limit = 15) {
   return apiFetch(`/dashboard/activity?limit=${limit}`);
 }
 
+// ── Announcements ──
+
+export async function fetchAnnouncements() {
+  return apiFetch('/announcements');
+}
+
+export async function fetchAllAnnouncements() {
+  return apiFetch('/announcements/all');
+}
+
+export async function createAnnouncement(data) {
+  return apiFetch('/announcements', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateAnnouncement(id, data) {
+  return apiFetch(`/announcements/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteAnnouncement(id) {
+  return apiFetch(`/announcements/${id}`, { method: 'DELETE' });
+}
+
+// ── Weather ──
+
+export async function fetchWeather(lat, lon) {
+  return apiFetch(`/weather?lat=${lat}&lon=${lon}`);
+}
+
 // ── Organizations ──
 
 export async function fetchOrganizations() {

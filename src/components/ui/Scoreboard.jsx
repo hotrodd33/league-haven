@@ -18,6 +18,7 @@ export default function Scoreboard({
   status = 'scheduled',
   gameTime,
   location,
+  weather,
   className,
 }) {
   const statusLabel = {
@@ -58,10 +59,17 @@ export default function Scoreboard({
         />
       </div>
 
-      {/* Location footer */}
-      {location && (
-        <div className="px-4 py-2 bg-gray-900 border-t border-gray-700">
-          <p className="text-xs text-gray-400 truncate">📍 {location}</p>
+      {/* Location + Weather footer */}
+      {(location || weather) && (
+        <div className="px-4 py-2 bg-gray-900 border-t border-gray-700 flex items-center justify-between gap-2">
+          {location && <p className="text-xs text-gray-400 truncate">📍 {location}</p>}
+          {weather && (
+            <span className="text-xs text-gray-400 shrink-0 flex items-center gap-1" title={weather.description}>
+              <span>{weather.icon}</span>
+              <span>{weather.temp}°F</span>
+              {weather.windSpeed > 0 && <span className="text-gray-500">· {weather.windSpeed}mph</span>}
+            </span>
+          )}
         </div>
       )}
     </div>

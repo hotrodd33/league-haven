@@ -31,6 +31,7 @@ const BASE_SELECT = `
     ao.logo_url AS away_org_logo,
     fl.name AS location_name, fl.address AS location_address,
     fl.city AS location_city, fl.state AS location_state,
+    fl.latitude AS location_lat, fl.longitude AS location_lon,
     ls.name AS season_name, ls.year AS season_year,
     gd.division_id, gd.division_name, gd.division_sort,
     gil.is_gamechanger_imported,

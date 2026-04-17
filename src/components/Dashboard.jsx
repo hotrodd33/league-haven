@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '../lib/cn.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers, fetchDashboardActivity } from '../api/index.js';
+import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers, fetchDashboardActivity, fetchAnnouncements, fetchWeather } from '../api/index.js';
 import { Card, CardHeader, CardBody, StatCard, Scoreboard, Button } from './ui/index.js';
 import {
   UsersIcon, CalendarIcon, TrophyIcon, BuildingIcon,
@@ -62,6 +62,26 @@ const ACTIVITY_ICONS = {
   import: '📥',
 };
 
+function getWeatherForGame(game, weatherMap) {
+  if (!game.location_lat || !game.location_lon) return null;
+  const key = `${parseFloat(game.location_lat).toFixed(2)},${parseFloat(game.location_lon).toFixed(2)}`;
+  return weatherMap[key] || null;
+}
+
+const PRIORITY_STYLES = {
+  urgent: 'border-red-500/50 bg-red-950/30',
+  high: 'border-yellow-500/40 bg-yellow-950/20',
+  normal: 'border-blue-500/30 bg-blue-950/15',
+  low: 'border-gray-600/30 bg-gray-900/20',
+};
+
+const PRIORITY_BADGES = {
+  urgent: 'bg-red-500/20 text-red-300',
+  high: 'bg-yellow-500/20 text-yellow-300',
+  normal: '',
+  low: '',
+};
+
 /* ═══════════════════════════════════════════════════════
    Dashboard
    ═══════════════════════════════════════════════════════ */
@@ -75,12 +95,14 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
   const [pitchRest, setPitchRest] = useState({});
   const [players, setPlayers] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [gameWeather, setGameWeather] = useState({});
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [t, g, s, o, pr, pl, act] = await Promise.all([
+      const [t, g, s, o, pr, pl, act, ann] = await Promise.all([
         fetchTeams().catch(() => []),
         fetchGames().catch(() => []),
         fetchSeasons().catch(() => []),
@@ -88,6 +110,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
         fetchAllPitchRest().catch(() => ({})),
         fetchAllPlayers().catch(() => []),
         fetchDashboardActivity().catch(() => []),
+        fetchAnnouncements().catch(() => []),
       ]);
       setTeams(t || []);
       setGames(g || []);
@@ -96,12 +119,46 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
       setPitchRest(pr || {});
       setPlayers(pl || []);
       setActivity(act || []);
+      setAnnouncements(ann || []);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Fetch weather for today's game locations (deduplicated by lat/lon)
+  useEffect(() => {
+    if (!games.length) return;
+    const todayStr_ = new Date().toISOString().slice(0, 10);
+    const todays = games.filter(g => g.game_date === todayStr_ && g.location_lat && g.location_lon);
+    if (!todays.length) return;
+
+    // Deduplicate by rounded coords
+    const seen = new Set();
+    const unique = [];
+    for (const g of todays) {
+      const key = `${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(g);
+      }
+    }
+
+    Promise.all(
+      unique.map(g =>
+        fetchWeather(g.location_lat, g.location_lon)
+          .then(w => ({ key: `${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`, weather: w }))
+          .catch(() => null)
+      )
+    ).then(results => {
+      const map = {};
+      for (const r of results) {
+        if (r) map[r.key] = r.weather;
+      }
+      setGameWeather(map);
+    });
+  }, [games]);
 
   /* Derived stats */
   const currentSeason = seasons.find(s => s.is_current) || seasons[0];
@@ -242,6 +299,44 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
         </div>
       </section>
 
+      {/* ── Announcements ── */}
+      {(announcements.length > 0 || isAdmin) && (
+        <section aria-label="Announcements" className="space-y-3">
+          {isAdmin && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => onNavigate('announcements')}
+                className="text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors"
+              >
+                Manage Announcements →
+              </button>
+            </div>
+          )}
+          {announcements.map(a => (
+            <div key={a.id} className={cn('rounded-xl border px-5 py-4', PRIORITY_STYLES[a.priority] || PRIORITY_STYLES.normal)}>
+              <div className="flex items-start gap-3">
+                <MegaphoneIcon className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-bold text-gray-100">{a.title}</h4>
+                    {(a.priority === 'urgent' || a.priority === 'high') && (
+                      <span className={cn('text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full', PRIORITY_BADGES[a.priority])}>
+                        {a.priority}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-300 mt-1 whitespace-pre-wrap">{a.body}</p>
+                  <p className="text-[10px] text-gray-500 mt-2">
+                    {a.author_name && `Posted by ${a.author_name} · `}
+                    {timeAgo(a.created_at)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* ── Stat Cards Grid ── */}
       <section aria-label="League statistics">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -323,6 +418,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                 homeScore={g.home_score}
                 awayScore={g.away_score}
                 location={g.location_name}
+                weather={getWeatherForGame(g, gameWeather)}
               />
             ))}
           </div>

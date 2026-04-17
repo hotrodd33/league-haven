@@ -732,6 +732,21 @@ async function migrate() {
     WHERE date_of_birth IS NOT NULL
       AND date_of_birth !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$';
   `);
+
+  // ── Announcements ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS announcements (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('low','normal','high','urgent')),
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      expires_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds

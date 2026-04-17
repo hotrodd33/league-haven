@@ -44,6 +44,7 @@ export default function AppShell({
     users: 'User Management',
     approvals: 'Approvals',
     data: 'Data Manager',
+    announcements: 'Announcements',
     officials: 'Officials',
     fees: 'League Fees',
     about: 'Help',

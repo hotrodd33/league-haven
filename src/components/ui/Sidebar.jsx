@@ -3,7 +3,7 @@ import {
   UsersIcon, BuildingIcon, CalendarIcon, TrophyIcon,
   ClipboardIcon, CogIcon, UserGroupIcon, DatabaseIcon,
   ChevronLeftIcon, ChevronRightIcon, HomeIcon, CurrencyDollarIcon,
-  MapPinIcon, UserIcon,
+  MapPinIcon, UserIcon, MegaphoneIcon,
 } from './icons.jsx';
 
 const teamNav = [
@@ -50,6 +50,9 @@ export default function Sidebar({
   const adminItems = [];
   if ((isAdmin || isAccountant) && ft('feature_financials')) {
     adminItems.push({ key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon });
+  }
+  if (isAdmin || isOrgAdmin) {
+    adminItems.push({ key: 'announcements', label: 'Announcements', icon: MegaphoneIcon });
   }
   if (isAdmin) {
     adminItems.push({ key: 'league', label: 'League Config', icon: CogIcon });

@@ -27,6 +27,7 @@ import ConfirmEmail from "./components/ConfirmEmail.jsx";
 import PlayersPage from "./components/PlayersPage.jsx";
 import PlayerDetail from "./components/PlayerDetail.jsx";
 import MyAccount from "./components/MyAccount.jsx";
+import ManageAnnouncements from "./components/ManageAnnouncements.jsx";
 
 export default function App() {
     const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, user, role, logout, canEditTeam, isSuperAdmin, permissions } = useAuth();
@@ -217,6 +218,9 @@ export default function App() {
 
             case 'account':
                 return <MyAccount onChangePassword={() => setShowChangePassword(true)} />;
+
+            case 'announcements':
+                return (isAdmin || isOrgAdmin) ? <ManageAnnouncements /> : null;
 
             case 'data':
                 return isAdmin ? <DataManager onOpenImport={() => openImportWizard()} /> : null;
