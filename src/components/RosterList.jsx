@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { STALE } from '../lib/queryConfig.js';
 import { fetchPlayersByTeam, deletePlayer, unassignPlayerFromTeam, searchPlayers, assignPlayerToTeam, createPlayer } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ContactModal from './ContactModal.jsx';
@@ -13,6 +14,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
     queryKey: ['roster', teamId],
     queryFn: () => fetchPlayersByTeam(teamId),
     enabled: !!teamId,
+    staleTime: STALE.TWO_MIN,
   });
   const [deleting, setDeleting] = useState(null);
   const [showAddExisting, setShowAddExisting] = useState(false);

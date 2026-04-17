@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { STALE } from '../lib/queryConfig.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { fetchDirectory } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
@@ -31,6 +32,7 @@ export default function Directory({ onEditTeam }) {
   const { data: orgs = [], isLoading: loading, error } = useQuery({
     queryKey: ['directory'],
     queryFn: fetchDirectory,
+    staleTime: STALE.HOUR,
   });
 
   function handlePrint() {

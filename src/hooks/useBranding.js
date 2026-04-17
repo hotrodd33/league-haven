@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { fetchBranding } from '../api/index.js';
+import { STALE } from '../lib/queryConfig.js';
 
 const DEFAULT_FEATURES = {
     feature_live_scoring: true,
@@ -14,20 +16,21 @@ const DEFAULT_FEATURES = {
 };
 
 export function useBranding(isAuthenticated) {
-    const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null });
-    const [features, setFeatures] = useState(DEFAULT_FEATURES);
+    const { data } = useQuery({
+        queryKey: ['branding'],
+        queryFn: fetchBranding,
+        enabled: isAuthenticated,
+        staleTime: STALE.HOUR,
+    });
 
-    useEffect(() => {
-        if (!isAuthenticated) return;
-        fetchBranding()
-            .then((data) => {
-                setBranding({ app_name: data?.app_name || 'LeagueHaven', logo_url: data?.logo_url || null });
-                const f = {};
-                for (const k of Object.keys(DEFAULT_FEATURES)) f[k] = data?.[k] !== false;
-                setFeatures(f);
-            })
-            .catch(() => {});
-    }, [isAuthenticated]);
+    const branding = {
+        app_name: data?.app_name || 'LeagueHaven',
+        logo_url: data?.logo_url || null,
+    };
+
+    const features = Object.fromEntries(
+        Object.keys(DEFAULT_FEATURES).map(k => [k, data?.[k] !== false])
+    );
 
     useEffect(() => {
         document.title = `${branding.app_name} - LeagueHaven Sports Management`;
