@@ -1,15 +1,19 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchPlayersByTeam, deletePlayer, unassignPlayerFromTeam, searchPlayers, assignPlayerToTeam, createPlayer } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ContactModal from './ContactModal.jsx';
 import { formatDOB, calculateAge } from '../utils/dob.js';
 
-export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlayer, onViewPlayer, refreshKey }) {
+export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlayer, onViewPlayer }) {
   const { canEditTeam: canEdit } = useAuth();
   const editable = teamId ? canEdit(teamId, teamOrgId) : false;
-  const [players, setPlayers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
+  const { data: players = [], isLoading: loading, error } = useQuery({
+    queryKey: ['roster', teamId],
+    queryFn: () => fetchPlayersByTeam(teamId),
+    enabled: !!teamId,
+  });
   const [deleting, setDeleting] = useState(null);
   const [showAddExisting, setShowAddExisting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,24 +51,6 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
     return sortDir === 'desc' ? sorted.reverse() : sorted;
   }, [players, sortCol, sortDir]);
 
-  const loadPlayers = useCallback(async () => {
-    if (!teamId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchPlayersByTeam(teamId);
-      setPlayers(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [teamId]);
-
-  useEffect(() => {
-    setPlayers([]);
-    loadPlayers();
-  }, [loadPlayers, refreshKey]);
 
   async function handleRemoveFromTeam(player) {
     const name = `${player.first_name} ${player.last_name}`;
@@ -72,7 +58,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
     setDeleting(player.id);
     try {
       await unassignPlayerFromTeam(teamId, player.id);
-      setPlayers((prev) => prev.filter((p) => p.id !== player.id));
+      queryClient.setQueryData(['roster', teamId], (prev) => (prev || []).filter(p => p.id !== player.id));
     } catch (err) {
       alert(`Failed to remove: ${err.message}`);
     } finally {
@@ -86,7 +72,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
     setDeleting(player.id);
     try {
       await deletePlayer(player.id);
-      setPlayers((prev) => prev.filter((p) => p.id !== player.id));
+      queryClient.setQueryData(['roster', teamId], (prev) => (prev || []).filter(p => p.id !== player.id));
     } catch (err) {
       alert(`Failed to delete: ${err.message}`);
     } finally {
@@ -114,7 +100,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
     try {
       await assignPlayerToTeam(teamId, playerId);
       setSearchResults(prev => prev.filter(p => p.id !== playerId));
-      await loadPlayers();
+      queryClient.invalidateQueries({ queryKey: ['roster', teamId] });
     } catch (err) {
       alert(`Failed to add: ${err.message}`);
     } finally {
@@ -126,7 +112,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
     return <div className="py-12 text-center text-gray-400">Select a team to view the roster.</div>;
   }
   if (loading) return <div className="py-8 text-center text-gray-400">Loading roster…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>;
+  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error.message}</div>;
 
   return (
     <div>

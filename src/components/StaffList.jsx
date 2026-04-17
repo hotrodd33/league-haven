@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchStaffByTeam, createStaff, updateStaff, deleteStaff, searchStaff, assignStaffToTeam, unassignStaffFromTeam } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ContactModal from './ContactModal.jsx';
@@ -12,12 +13,15 @@ const ROLE_OPTIONS = [
 const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
 const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
 
-export default function StaffList({ teamId, teamOrgId, refreshKey }) {
+export default function StaffList({ teamId, teamOrgId }) {
   const { canEditTeam: canEdit } = useAuth();
   const editable = teamId ? canEdit(teamId, teamOrgId) : false;
-  const [staff, setStaff] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
+  const { data: staff = [], isLoading: loading, error } = useQuery({
+    queryKey: ['staff', teamId],
+    queryFn: () => fetchStaffByTeam(teamId),
+    enabled: !!teamId,
+  });
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -29,22 +33,13 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
   const [assignRole, setAssignRole] = useState('assistant_coach');
   const [contactModal, setContactModal] = useState(null);
 
-  const loadStaff = useCallback(async () => {
-    if (!teamId) return;
-    setLoading(true); setError(null);
-    try { setStaff(await fetchStaffByTeam(teamId)); }
-    catch (err) { setError(err.message); }
-    finally { setLoading(false); }
-  }, [teamId]);
-
-  useEffect(() => { setStaff([]); loadStaff(); }, [loadStaff, refreshKey]);
 
   async function handleRemoveFromTeam(member) {
     if (!window.confirm(`Remove ${member.name} from this team? They will still exist in the system.`)) return;
     setDeleting(member.id);
     try {
       await unassignStaffFromTeam(teamId, member.id);
-      setStaff((prev) => prev.filter((s) => s.id !== member.id));
+      queryClient.setQueryData(['staff', teamId], (prev) => (prev || []).filter(s => s.id !== member.id));
     } catch (err) { alert(`Failed to remove: ${err.message}`); }
     finally { setDeleting(null); }
   }
@@ -55,7 +50,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
     setDeleting(member.id);
     try {
       await deleteStaff(member.id);
-      setStaff((prev) => prev.filter((s) => s.id !== member.id));
+      queryClient.setQueryData(['staff', teamId], (prev) => (prev || []).filter(s => s.id !== member.id));
     } catch (err) { alert(`Failed to delete: ${err.message}`); }
     finally { setDeleting(null); }
   }
@@ -76,14 +71,14 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
     try {
       await assignStaffToTeam(teamId, staffId, assignRole);
       setSearchResults(prev => prev.filter(s => s.id !== staffId));
-      await loadStaff();
+      queryClient.invalidateQueries({ queryKey: ['staff', teamId] });
     } catch (err) { alert(`Failed to add: ${err.message}`); }
     finally { setAssigning(null); }
   }
 
   if (!teamId) return null;
   if (loading) return <div className="py-8 text-center text-gray-400">Loading staff…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>;
+  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error.message}</div>;
 
   const teamStaff = staff.filter(s => s.role !== 'org_admin');
   const orgAdmins = staff.filter(s => s.role === 'org_admin');
@@ -325,7 +320,7 @@ export default function StaffList({ teamId, teamOrgId, refreshKey }) {
       {showForm && (
         <StaffForm
           teamId={teamId} staff={editing}
-          onDone={() => { setShowForm(false); setEditing(null); loadStaff(); }}
+          onDone={() => { setShowForm(false); setEditing(null); queryClient.invalidateQueries({ queryKey: ['staff', teamId] }); }}
           onCancel={() => { setShowForm(false); setEditing(null); }}
         />
       )}
