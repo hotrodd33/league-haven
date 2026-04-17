@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./context/AuthContext.jsx";
 import { fetchPlayer } from "./api/index.js";
+import { STALE } from "./lib/queryConfig.js";
 import { useAppNavigation } from "./hooks/useAppNavigation.js";
 import { useBranding } from "./hooks/useBranding.js";
 import Login from "./components/Login.jsx";
@@ -17,6 +19,7 @@ export default function App() {
     const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, user, role, logout, canEditTeam, isSuperAdmin } = useAuth();
     const isTeamManager = role === 'team_manager';
 
+    const queryClient = useQueryClient();
     const nav = useAppNavigation();
     const { branding, features, setTeamWatermark } = useBranding(isAuthenticated);
 
@@ -69,7 +72,11 @@ export default function App() {
     async function handleViewPlayer(playerId) {
         setSelectedPlayerId(playerId);
         try {
-            const p = await fetchPlayer(playerId);
+            const p = await queryClient.ensureQueryData({
+                queryKey: ['player', playerId],
+                queryFn: () => fetchPlayer(playerId),
+                staleTime: STALE.TWO_MIN,
+            });
             setSelectedPlayerData(p);
             nav.setPage('players');
         } catch (err) { console.error(err); }

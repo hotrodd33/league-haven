@@ -1,3 +1,4 @@
+import ErrorBoundary from './ErrorBoundary.jsx';
 import Dashboard from './Dashboard.jsx';
 import OrgManager from './OrgManager.jsx';
 import UserManager from './UserManager.jsx';
@@ -18,7 +19,15 @@ import ManageAnnouncements from './ManageAnnouncements.jsx';
 import TeamSelector from './TeamSelector.jsx';
 import TeamPage from './TeamPage.jsx';
 
-export default function FeatureRouter({
+export default function FeatureRouter(props) {
+    return (
+        <ErrorBoundary key={props.page}>
+            <PageContent {...props} />
+        </ErrorBoundary>
+    );
+}
+
+function PageContent({
     page, setPage,
     isUmpire, isAdmin, isOrgAdmin, isTeamManager, isAccountant,
     features,

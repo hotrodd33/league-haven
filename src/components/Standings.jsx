@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
 import { fetchStandings, fetchSeasons } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
@@ -37,6 +37,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
     queryFn: () => fetchStandings(seasonId),
     enabled: !!seasonId,
     staleTime: STALE.TWO_MIN,
+    placeholderData: keepPreviousData,
   });
 
   const loading = standingsLoading;
