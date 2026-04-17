@@ -5,8 +5,23 @@ const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const { JWT_SECRET, authMiddleware, getUserPermissions, validatePassword } = require('../auth');
 const { sendWelcomeEmail, sendPasswordResetEmail, sendPasswordChangedEmail, sendCoachInviteEmail, sendConfirmationEmail, sendApprovalRequestEmail } = require('../email');
+const cache = require('../cache');
 
 const router = express.Router();
+
+// Simple IP-based rate limiter using the in-memory cache.
+// Returns a 429 response and true if the limit is exceeded.
+function rateLimit(req, res, { max, windowMs, key }) {
+  const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const cacheKey = `rl:${key}:${ip}`;
+  const count = (cache.get(cacheKey) || 0) + 1;
+  cache.set(cacheKey, count, windowMs);
+  if (count > max) {
+    res.status(429).json({ error: 'Too many attempts. Please try again later.' });
+    return true;
+  }
+  return false;
+}
 
 // Helper: generate email confirmation token, store it, and send the email
 async function generateAndSendConfirmation(userId, email, name, client) {
@@ -19,6 +34,7 @@ async function generateAndSendConfirmation(userId, email, name, client) {
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
+  if (rateLimit(req, res, { key: 'login', max: 10, windowMs: 60_000 })) return;
   try {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -212,6 +228,7 @@ router.post('/register-umpire', async (req, res) => {
 
 // POST /api/auth/forgot-password — send reset email
 router.post('/forgot-password', async (req, res) => {
+  if (rateLimit(req, res, { key: 'forgot', max: 5, windowMs: 300_000 })) return;
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
