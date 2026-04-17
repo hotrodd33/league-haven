@@ -3,6 +3,9 @@ const { pool } = require('../db');
 const { authMiddleware, requireAdmin, canEditTeam, canScoreGame, getUserPermissions } = require('../auth');
 const { sendGameChangeEmail } = require('../email');
 const { notifyTeamUsers } = require('../push');
+const cache = require('../cache');
+
+const STANDINGS_TTL = 60_000; // 60s
 
 const router = express.Router();
 
@@ -233,6 +236,9 @@ router.get('/standings', async (req, res) => {
   try {
     const { season_id } = req.query;
     if (!season_id) return res.status(400).json({ error: 'season_id is required' });
+    const cacheKey = `standings:${season_id}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
 
     // Build division paths first
     const { rows: divRows } = await pool.query(`
@@ -381,6 +387,7 @@ router.get('/standings', async (req, res) => {
       return (b.runs_for - b.runs_against) - (a.runs_for - a.runs_against);
     });
 
+    cache.set(cacheKey, result, STANDINGS_TTL);
     res.json(result);
   } catch (err) {
     console.error(err);

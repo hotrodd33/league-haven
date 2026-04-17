@@ -2,12 +2,18 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db').pool;
 const { authMiddleware } = require('../auth');
+const cache = require('../cache');
+
+const ACTIVITY_TTL = 30_000; // 30s — near-live feed
 
 // GET /api/dashboard/activity
 // Returns recent activity aggregated from existing tables
 router.get('/activity', authMiddleware, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 15, 50);
+    const cacheKey = `dashboard:activity:${limit}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
 
     // Run all queries in parallel
     const [newPlayers, updatedGames, newTeams, newRegistrations, recentImports] = await Promise.all([
@@ -118,7 +124,9 @@ router.get('/activity', authMiddleware, async (req, res) => {
     // Sort descending by timestamp, take top N
     items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    res.json(items.slice(0, limit));
+    const result = items.slice(0, limit);
+    cache.set(cacheKey, result, ACTIVITY_TTL);
+    res.json(result);
   } catch (err) {
     console.error('Dashboard activity error:', err);
     res.status(500).json({ error: 'Failed to fetch activity' });

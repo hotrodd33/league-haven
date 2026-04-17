@@ -2,6 +2,9 @@ const express = require('express');
 const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin, canEditOrg } = require('../auth');
+const cache = require('../cache');
+
+const DIRECTORY_TTL = 120_000; // 120s
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
@@ -48,6 +51,8 @@ router.get('/', async (req, res) => {
 // GET /directory — orgs with teams and staff contacts (public, read-only)
 router.get('/directory', async (req, res) => {
   try {
+    const cached = cache.get('directory');
+    if (cached) return res.json(cached);
     const { rows: orgs } = await pool.query('SELECT * FROM organizations ORDER BY name');
     const { rows: teams } = await pool.query(
       `SELECT t.*, o.name AS org_name, o.logo_url AS org_logo
@@ -86,6 +91,7 @@ router.get('/directory', async (req, res) => {
       ...o,
       teams: teamsByOrg[o.id] || [],
     }));
+    cache.set('directory', result, DIRECTORY_TTL);
     res.json(result);
   } catch (err) {
     console.error(err);

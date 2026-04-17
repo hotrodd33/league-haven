@@ -1,6 +1,12 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('./db');
 
+if (!process.env.JWT_SECRET) {
+  if (process.env.VERCEL) {
+    throw new Error('JWT_SECRET environment variable is required in production');
+  }
+  console.warn('[auth] JWT_SECRET not set — using insecure default. Set JWT_SECRET before deploying.');
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
 
 // Valid roles ordered by privilege level
