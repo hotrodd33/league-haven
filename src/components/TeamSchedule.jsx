@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchGames, fetchTeams, fetchSeasons, fetchTeamPractices } from '../api/index.js';
+import { fetchGames, fetchTeams, fetchSeasons, fetchTeamPractices, updateReservation, deleteReservation, fetchLocations } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
@@ -55,6 +55,8 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [sortOrder, setSortOrder] = useState('asc');
+  const [editingPractice, setEditingPractice] = useState(null);
+  const [deletingPractice, setDeletingPractice] = useState(null);
 
   const loadGames = useCallback(() => {
     if (!teamId) { setGames([]); setPractices([]); return; }
@@ -128,6 +130,17 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
     Object.keys(itemsByDate).sort((a, b) => sortOrder === 'asc' ? a.localeCompare(b) : b.localeCompare(a)),
     [itemsByDate, sortOrder]
   );
+
+  async function handleDeletePractice(practice) {
+    const label = `${practice.title} on ${formatDate(practice._date || practice.event_date)}`;
+    if (!window.confirm(`Delete: ${label}?`)) return;
+    setDeletingPractice(practice.id);
+    try {
+      await deleteReservation(practice.id);
+      loadGames();
+    } catch (err) { alert(`Failed to delete: ${err.message}`); }
+    finally { setDeletingPractice(null); }
+  }
 
   if (trackingGameId) {
     return (
@@ -229,7 +242,11 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                           onSelect={() => setSelectedGameId(item.id)}
                           onTrack={() => setTrackingGameId(item.id)}
                           canScore={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id)} />
-                      : <PracticeCard key={`practice-${item.id}`} practice={item} />
+                      : <PracticeCard key={`practice-${item.id}`} practice={item}
+                          editable={isAdmin}
+                          onEdit={() => setEditingPractice(item)}
+                          onDelete={() => handleDeletePractice(item)}
+                          deleting={deletingPractice} />
                   ))}
                 </div>
               </div>
@@ -255,6 +272,14 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
 
       {showSubscribe && (
         <TeamSubscribeModal teamId={teamId} onClose={() => setShowSubscribe(false)} />
+      )}
+
+      {editingPractice && (
+        <PracticeEditModal
+          practice={editingPractice}
+          onDone={() => { setEditingPractice(null); loadGames(); }}
+          onCancel={() => setEditingPractice(null)}
+        />
       )}
     </div>
   );
@@ -331,7 +356,7 @@ function GameCard({ game, teamId, onSelect, onTrack, canScore }) {
 
 /* ── Practice Card (list view) ── */
 
-function PracticeCard({ practice }) {
+function PracticeCard({ practice, editable, onEdit, onDelete, deleting }) {
   const colors = PRACTICE_COLORS[practice.event_type] || PRACTICE_COLORS.practice;
   const typeLabel = practice.event_type === 'practice' ? 'Practice'
     : practice.event_type === 'event' ? 'Event' : practice.event_type || 'Practice';
@@ -353,6 +378,16 @@ function PracticeCard({ practice }) {
         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${colors.badge}`}>
           {typeLabel}
         </span>
+        {editable && (
+          <>
+            <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} disabled={deleting === practice.id}
+              className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+              {deleting === practice.id ? '…' : 'Del'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -515,7 +550,11 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
                     </div>
                   );
                 } else {
-                  return <PracticeCard key={`p-${item.id}`} practice={item} />;
+                  return <PracticeCard key={`p-${item.id}`} practice={item}
+                    editable={isAdmin}
+                    onEdit={() => setEditingPractice(item)}
+                    onDelete={() => handleDeletePractice(item)}
+                    deleting={deletingPractice} />;
                 }
               })}
             </div>
@@ -581,6 +620,138 @@ function TeamSubscribeModal({ teamId, onClose }) {
           <p><strong>Apple Calendar:</strong> Click "Open in Calendar App" above, or File → New Subscription</p>
           <p><strong>Outlook:</strong> Add calendar → Subscribe from web → paste the link</p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Practice Edit Modal ── */
+
+const inputCls = "w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500";
+const labelCls = "block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1";
+
+function PracticeEditModal({ practice, onDone, onCancel }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [locations, setLocations] = useState([]);
+
+  const [form, setForm] = useState({
+    title: practice.title || '',
+    event_type: practice.event_type || 'practice',
+    event_date: (practice.event_date || practice._date || '').slice(0, 10),
+    start_time: (practice.start_time || '').slice(0, 5),
+    end_time: (practice.end_time || '').slice(0, 5),
+    location_id: practice.location_id || '',
+    notes: practice.notes || '',
+  });
+
+  useEffect(() => {
+    fetchLocations().then(setLocations).catch(() => setLocations([]));
+  }, []);
+
+  function handleChange(e) {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.title.trim()) { setError('Title is required.'); return; }
+    if (!form.start_time || !form.end_time) { setError('Start and end times are required.'); return; }
+    if (form.start_time >= form.end_time) { setError('End time must be after start time.'); return; }
+    setSaving(true); setError(null);
+    try {
+      await updateReservation(practice.id, {
+        location_id: form.location_id ? Number(form.location_id) : (practice.location_id || null),
+        team_id: practice.team_id || null,
+        title: form.title.trim(),
+        event_type: form.event_type,
+        event_date: form.event_date,
+        start_time: form.start_time,
+        end_time: form.end_time,
+        notes: form.notes.trim() || null,
+      });
+      onDone();
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  const eventTypeOptions = [
+    { value: 'practice', label: 'Practice' },
+    { value: 'event', label: 'Event' },
+    { value: 'maintenance', label: 'Maintenance' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto" onClick={onCancel}>
+      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 my-4" onClick={e => e.stopPropagation()}>
+        <h2 className="text-xl font-heading font-bold text-white mb-4">Edit Reservation</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Event type */}
+          <div>
+            <label className={labelCls}>Type</label>
+            <div className="flex gap-1 p-1 bg-gray-900 rounded-lg">
+              {eventTypeOptions.map(opt => (
+                <button key={opt.value} type="button"
+                  onClick={() => setForm(prev => ({ ...prev, event_type: opt.value }))}
+                  className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                    form.event_type === opt.value
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                  }`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label htmlFor="pe-title" className={labelCls}>Title *</label>
+            <input id="pe-title" name="title" type="text" value={form.title} onChange={handleChange} required className={inputCls} />
+          </div>
+
+          {/* Date */}
+          <div>
+            <label htmlFor="pe-date" className={labelCls}>Date</label>
+            <input id="pe-date" name="event_date" type="date" value={form.event_date} onChange={handleChange} className={inputCls} />
+          </div>
+
+          {/* Start / End Time */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="pe-start" className={labelCls}>Start Time *</label>
+              <input id="pe-start" name="start_time" type="time" value={form.start_time} onChange={handleChange} required className={inputCls} />
+            </div>
+            <div>
+              <label htmlFor="pe-end" className={labelCls}>End Time *</label>
+              <input id="pe-end" name="end_time" type="time" value={form.end_time} onChange={handleChange} required className={inputCls} />
+            </div>
+          </div>
+
+          {/* Location */}
+          <div>
+            <label htmlFor="pe-location" className={labelCls}>Location</label>
+            <select id="pe-location" name="location_id" value={form.location_id} onChange={handleChange} className={inputCls}>
+              <option value="">—</option>
+              {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+            </select>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label htmlFor="pe-notes" className={labelCls}>Notes</label>
+            <textarea id="pe-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} className={inputCls} />
+          </div>
+
+          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
+            <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+              {saving ? 'Saving…' : 'Update'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
