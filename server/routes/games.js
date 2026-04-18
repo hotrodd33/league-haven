@@ -634,6 +634,22 @@ async function notifyGameChange(game, oldDate, newDate, oldTime, newTime, user) 
   }
 }
 
+// PUT /:id/heartbeat — scorer keepalive; bumps updated_at so the live ticker knows the game is active
+router.put('/:id/heartbeat', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query('SELECT home_team_id, away_team_id FROM games WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Game not found' });
+    const allowed = await canScoreGame(req.user, rows[0].home_team_id, rows[0].away_team_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
+    await pool.query('UPDATE games SET updated_at = NOW() WHERE id = $1', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // DELETE game (super_admin or org_admin for their org's teams)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {

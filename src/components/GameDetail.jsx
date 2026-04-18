@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useGameHeartbeat } from '../hooks/useGameHeartbeat.js';
 import {
   fetchGame, updateGame,
   fetchPitchCounts, createPitchCount, updatePitchCount, deletePitchCount,
@@ -31,6 +32,7 @@ function formatTime(timeStr) {
 export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImport }) {
   const { isAdmin, canEditTeam, canScoreGame } = useAuth();
   const [game, setGame] = useState(null);
+  useGameHeartbeat(gameId, game?.status === 'in_progress');
   const [pitchCounts, setPitchCounts] = useState([]);
   const [homePlayers, setHomePlayers] = useState([]);
   const [awayPlayers, setAwayPlayers] = useState([]);

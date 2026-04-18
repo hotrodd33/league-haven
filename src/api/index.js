@@ -409,6 +409,10 @@ export async function deleteGame(gameId) {
   });
 }
 
+export async function heartbeatGame(gameId) {
+  return apiFetch(`/games/${gameId}/heartbeat`, { method: 'PUT' });
+}
+
 // ── Standings ──
 
 export async function fetchStandings(seasonId) {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useGameHeartbeat } from '../hooks/useGameHeartbeat.js';
 import {
   fetchGame, updateGame,
   fetchPitchCounts, createPitchCount, updatePitchCount, deletePitchCount,
@@ -17,6 +18,7 @@ function teamAbbr(name, fallback = '') {
 }
 
 export default function PitchTracker({ gameId, onBack }) {
+  useGameHeartbeat(gameId);
   const { isAdmin, canEditTeam } = useAuth();
   const [game, setGame] = useState(null);
   const [pitchCounts, setPitchCounts] = useState([]); // server-saved records
