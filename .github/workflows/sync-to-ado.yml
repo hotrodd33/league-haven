@@ -13,6 +13,6 @@ jobs:
 
       - name: Push to ADO
         run: |
-          git remote add ado https://${{ secrets.ADO_PAT }}@dev.azure.com/DigiSeeItDesign/League%20Haven/_git/ZVBL
+          git remote add ado https://${{ secrets.ADO_PAT }}@dev.azure.com/DigiSeeItDesign/League%20Haven/_git/League%20Haven
           git push ado --all
           git push ado --tags
