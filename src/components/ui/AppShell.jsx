@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { cn } from '../../lib/cn.js';
 import Sidebar from './Sidebar.jsx';
 import TopBar from './TopBar.jsx';
+import LiveScoreTicker from '../ticker/LiveScoreTicker.jsx';
 
 /**
  * AppShell — Premium SaaS layout with collapsible sidebar + sticky top bar.
@@ -91,6 +92,9 @@ export default function AppShell({
           onShowAbout={() => onNavigate('about')}
           onShowGuide={() => onNavigate('guide')}
         />
+
+        {/* Live score ticker — hidden when no in-progress games or dismissed */}
+        <LiveScoreTicker />
 
         {/* Page content */}
         <main className="p-4 lg:p-6 max-w-7xl mx-auto animate-fade-in">
