@@ -112,7 +112,7 @@ export default function UmpireDashboard({ onBack }) {
 
   function GameCard({ game, showButton, buttonLabel, onButtonClick, isProcessing, infoBadge }) {
     return (
-      <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-blue-500/50 transition-colors">
+      <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-chrome-500/50 transition-colors">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
@@ -121,9 +121,9 @@ export default function UmpireDashboard({ onBack }) {
             </div>
             
             <div className="flex items-center gap-2 justify-between mb-2">
-              <span className="font-semibold text-sm text-blue-300 truncate">{game.home_team_name}</span>
+              <span className="font-semibold text-sm text-chrome-300 truncate">{game.home_team_name}</span>
               <span className="text-xs text-gray-400">vs</span>
-              <span className="font-semibold text-sm text-blue-300 truncate">{game.away_team_name}</span>
+              <span className="font-semibold text-sm text-chrome-300 truncate">{game.away_team_name}</span>
             </div>
             
             {game.location_name && (
@@ -144,7 +144,7 @@ export default function UmpireDashboard({ onBack }) {
 
             {infoBadge && (
               <div className="mt-2">
-                <span className="inline-block px-2 py-0.5 bg-blue-900/40 text-blue-300 text-xs rounded-full font-semibold">
+                <span className="inline-block px-2 py-0.5 bg-chrome-900/40 text-chrome-300 text-xs rounded-full font-semibold">
                   {infoBadge}
                 </span>
               </div>
@@ -166,7 +166,7 @@ export default function UmpireDashboard({ onBack }) {
   }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading your dashboard…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+  if (error) return <div className="lh-alert lh-alert-error">Error: {error}</div>;
 
   return (
     <div>
@@ -202,7 +202,7 @@ export default function UmpireDashboard({ onBack }) {
             ) : null}
             <div>
               <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Certification</p>
-              <span className={profile.is_certified ? "text-sm text-green-300 font-semibold" : "text-sm text-gray-400"}>
+              <span className={profile.is_certified ? "text-sm text-action-300 font-semibold" : "text-sm text-gray-400"}>
                 {profile.is_certified ? '✓ Certified' : 'Not certified'}
               </span>
             </div>
@@ -216,7 +216,7 @@ export default function UmpireDashboard({ onBack }) {
           onClick={() => setActiveTab('completed')}
           className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'completed'
-              ? 'border-blue-500 text-blue-300'
+              ? 'border-chrome-500 text-chrome-300'
               : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -226,7 +226,7 @@ export default function UmpireDashboard({ onBack }) {
           onClick={() => setActiveTab('assigned')}
           className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'assigned'
-              ? 'border-blue-500 text-blue-300'
+              ? 'border-chrome-500 text-chrome-300'
               : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -236,7 +236,7 @@ export default function UmpireDashboard({ onBack }) {
           onClick={() => setActiveTab('interested')}
           className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'interested'
-              ? 'border-blue-500 text-blue-300'
+              ? 'border-chrome-500 text-chrome-300'
               : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -246,7 +246,7 @@ export default function UmpireDashboard({ onBack }) {
           onClick={() => setActiveTab('available')}
           className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'available'
-              ? 'border-blue-500 text-blue-300'
+              ? 'border-chrome-500 text-chrome-300'
               : 'border-transparent text-gray-400 hover:text-gray-300'
           }`}
         >
@@ -308,7 +308,7 @@ export default function UmpireDashboard({ onBack }) {
             <select
               value={filterSeason}
               onChange={(e) => setFilterSeason(e.target.value)}
-              className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500"
             >
               <option value="">All Seasons</option>
               {seasons.map(s => (

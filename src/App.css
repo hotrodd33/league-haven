@@ -454,6 +454,40 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════
+   Component Classes — Alerts / Feedback
+   ═══════════════════════════════════════════════════════ */
+.lh-alert {
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+.lh-alert-error   { background-color: rgb(127 29 29 / 0.3);  color: #f87171; }
+.lh-alert-success { background-color: rgb(5 46 22 / 0.3);    color: #4ade80; }
+.lh-alert-info    { background-color: rgb(30 58 138 / 0.3);   color: #60a5fa; }
+
+/* ═══════════════════════════════════════════════════════
+   Component Classes — Toggle Tabs
+   ═══════════════════════════════════════════════════════ */
+.lh-tab {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: background 150ms, color 150ms;
+  cursor: pointer;
+}
+.lh-tab-inactive {
+  background-color: #374151;
+  color: #9ca3af;
+}
+.lh-tab-inactive:hover { background-color: #4b5563; color: #d1d5db; }
+.lh-tab-active {
+  background-color: rgb(var(--sport-rgb));
+  color: #031;
+  box-shadow: 0 2px 8px -3px rgb(var(--sport-rgb) / 0.6);
+}
+
+/* ═══════════════════════════════════════════════════════
    Custom Scrollbar
    ═══════════════════════════════════════════════════════ */
 .scrollbar-thin::-webkit-scrollbar { width: 6px; }

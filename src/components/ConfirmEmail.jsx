@@ -26,7 +26,7 @@ export default function ConfirmEmail({ token, onDone }) {
         {status === 'confirming' && (
           <>
             <div className="text-4xl mb-4">⏳</div>
-            <h2 className="font-heading text-2xl font-bold text-blue-300 mb-3">Confirming…</h2>
+            <h2 className="font-heading text-2xl font-bold text-chrome-300 mb-3">Confirming…</h2>
             <p className="text-gray-400 text-sm">Verifying your email address.</p>
           </>
         )}
@@ -34,13 +34,13 @@ export default function ConfirmEmail({ token, onDone }) {
         {status === 'success' && (
           <>
             <div className="text-4xl mb-4">✅</div>
-            <h2 className="font-heading text-2xl font-bold text-green-300 mb-3">Email Confirmed!</h2>
+            <h2 className="font-heading text-2xl font-bold text-action-300 mb-3">Email Confirmed!</h2>
             <p className="text-gray-300 text-sm mb-6">
               {name ? `Welcome, ${name}! ` : ''}Your account is now active. You can sign in.
             </p>
             <button
               onClick={onDone}
-              className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              className="btn btn-sm btn-primary w-full"
             >
               Go to Sign In
             </button>
@@ -50,7 +50,7 @@ export default function ConfirmEmail({ token, onDone }) {
         {status === 'error' && (
           <>
             <div className="text-4xl mb-4">❌</div>
-            <h2 className="font-heading text-2xl font-bold text-red-300 mb-3">Confirmation Failed</h2>
+            <h2 className="font-heading text-2xl font-bold text-signal-300 mb-3">Confirmation Failed</h2>
             <p className="text-gray-300 text-sm mb-6">{errorMsg}</p>
             <button
               onClick={onDone}

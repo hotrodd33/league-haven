@@ -17,7 +17,7 @@ const labelCls = 'eyebrow block mb-1';
 const btnPrimary = 'btn btn-primary btn-md disabled:opacity-60';
 const btnSecondary = 'btn btn-secondary btn-md';
 const btnDanger = 'btn btn-danger btn-sm';
-const btnSm = 'px-3 py-1.5 text-xs font-semibold rounded';
+const btnSm = 'btn btn-xs';
 
 export default function OfficialsManager({ onBack }) {
   const { isSuperAdmin, isAccountant, isOrgAdmin, permissions, canEditOrg } = useAuth();
@@ -77,7 +77,7 @@ export default function OfficialsManager({ onBack }) {
   });
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading officials…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+  if (error) return <div className="lh-alert lh-alert-error">Error: {error}</div>;
 
   if (selectedOfficialId) {
     return <OfficialDetail officialId={selectedOfficialId} onBack={() => { setSelectedOfficialId(null); loadData(); }} />;
@@ -115,34 +115,34 @@ export default function OfficialsManager({ onBack }) {
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-gray-100 truncate cursor-pointer hover:text-blue-300 hover:underline" onClick={() => setSelectedOfficialId(official.id)}>{official.name}</h3>
+                    <h3 className="font-semibold text-gray-100 truncate cursor-pointer hover:text-chrome-300 hover:underline" onClick={() => setSelectedOfficialId(official.id)}>{official.name}</h3>
                     {official.org_ids?.length ? official.org_names.map((name, i) => (
-                      <span key={official.org_ids[i]} className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-900/40 text-blue-200">{name}</span>
+                      <span key={official.org_ids[i]} className="lh-badge lh-badge-info">{name}</span>
                     )) : (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-900/35 text-purple-200">League</span>
+                      <span className="lh-badge lh-badge-info">League</span>
                     )}
                     {canViewFinancials && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">{official.rate_per_game != null ? `$${Number(official.rate_per_game).toFixed(2)}/game` : 'Level Rate'}</span>
+                      <span className="lh-badge lh-badge-success">{official.rate_per_game != null ? `$${Number(official.rate_per_game).toFixed(2)}/game` : 'Level Rate'}</span>
                     )}
                     {official.linked_username && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-900/35 text-teal-200">@{official.linked_username}</span>
+                      <span className="lh-badge lh-badge-info">@{official.linked_username}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap mt-1.5">
                     {canViewFinancials && Number(official.total_owed) > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-900/35 text-amber-300">
+                      <span className="lh-badge lh-badge-warn">
                         ${Number(official.total_owed).toFixed(2)} owed
                       </span>
                     )}
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-900/30 text-blue-300">
+                    <span className="lh-badge lh-badge-info">
                       {official.assigned_games} assigned
                     </span>
                     {Number(official.interested_games) > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-cyan-900/30 text-cyan-300">
+                      <span className="lh-badge lh-badge-info">
                         {official.interested_games} interested
                       </span>
                     )}
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-700 text-gray-300">
+                    <span className="lh-badge lh-badge-neutral">
                       {official.completed_games} completed
                     </span>
                   </div>
@@ -150,7 +150,7 @@ export default function OfficialsManager({ onBack }) {
                     <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
                       <span className="text-[11px] text-gray-500">Ages:</span>
                       {official.age_group_ids.map(id => agMap[id]).filter(Boolean).map(name => (
-                        <span key={name} className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-900/30 text-indigo-300">{name}</span>
+                        <span key={name} className="lh-badge lh-badge-info">{name}</span>
                       ))}
                     </div>
                   )}
@@ -163,7 +163,7 @@ export default function OfficialsManager({ onBack }) {
                   {official.notes && <div className="text-sm text-gray-300 mt-1">{official.notes}</div>}
                 </div>
                 <div className="flex gap-1.5 shrink-0">
-                  <button onClick={() => { setEditing(official); setShowForm(true); }} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>
+                  <button onClick={() => { setEditing(official); setShowForm(true); }} className={`${btnSm} btn-secondary`}>Edit</button>
                   <button onClick={() => handleDelete(official)} disabled={deleting === official.id} className={btnDanger}>
                     {deleting === official.id ? '…' : 'Delete'}
                   </button>
@@ -284,7 +284,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
               <label className={labelCls}>Scope</label>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setScope('league')} className={`${btnSm} ${scope === 'league' ? 'bg-purple-700 text-white' : 'bg-gray-700 text-gray-200'}`}>League</button>
-                <button type="button" onClick={() => setScope('org')} className={`${btnSm} ${scope === 'org' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-gray-200'}`}>Organization</button>
+                <button type="button" onClick={() => setScope('org')} className={`${btnSm} ${scope === 'org' ? 'bg-chrome-700 text-white' : 'bg-gray-700 text-gray-200'}`}>Organization</button>
               </div>
             </div>
           )}
@@ -296,7 +296,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
                 {editableOrgs.map((org) => {
                   const checked = selectedOrgIds.includes(org.id);
                   return (
-                    <label key={org.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer text-sm ${checked ? 'bg-blue-700 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                    <label key={org.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer text-sm ${checked ? 'bg-chrome-700 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
                       <input
                         type="checkbox"
                         checked={checked}
@@ -396,7 +396,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
                 {ageGroups.filter(ag => ag.ump_required !== false).map((ag) => {
                   const checked = selectedAgeGroups.includes(ag.id);
                   return (
-                    <label key={ag.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-colors ${checked ? 'bg-blue-900/40 border-blue-500 text-blue-200' : 'bg-gray-900 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
+                    <label key={ag.id} className={`flex items-center gap-1.5 lh-tab cursor-pointer border transition-colors ${checked ? 'lh-tab-active border-action-500' : 'bg-gray-900 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
                       <input
                         type="checkbox"
                         checked={checked}
@@ -417,7 +417,7 @@ function OfficialForm({ official, orgs, isSuperAdmin, permissions, canEditOrg, o
             <textarea id="official-notes" name="notes" value={form.notes} onChange={handleChange} rows={3} className={inputCls} />
           </div>
 
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>

@@ -4,11 +4,11 @@ import { useAuth } from '../context/AuthContext.jsx';
 
 const btnSecondary = 'btn btn-secondary btn-md';
 const STATUS_COLORS = {
-  scheduled:   'bg-blue-900/40 text-blue-200',
-  in_progress: 'bg-amber-900/40 text-amber-200',
-  completed:   'bg-green-900/40 text-green-300',
-  cancelled:   'bg-red-900/40 text-red-300',
-  postponed:   'bg-gray-700 text-gray-300',
+  scheduled:   'lh-badge-info',
+  in_progress: 'lh-badge-warn',
+  completed:   'lh-badge-success',
+  cancelled:   'lh-badge-danger',
+  postponed:   'lh-badge-neutral',
 };
 const STATUS_LABELS = {
   scheduled: 'Scheduled',
@@ -153,7 +153,7 @@ export default function OfficialDetail({ officialId, onBack }) {
   }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading official…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+  if (error) return <div className="lh-alert lh-alert-error">Error: {error}</div>;
   if (!official) return <div className="py-8 text-center text-gray-400">Official not found</div>;
 
   const { games, summary } = gamesData;
@@ -180,12 +180,12 @@ export default function OfficialDetail({ officialId, onBack }) {
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <h1 className="text-xl font-heading font-bold text-white">{official.name}</h1>
               {official.org_ids?.length ? official.org_names.map((name, i) => (
-                <span key={official.org_ids[i]} className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-900/40 text-blue-200">{name}</span>
+                <span key={official.org_ids[i]} className="lh-badge lh-badge-info">{name}</span>
               )) : (
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-900/35 text-purple-200">League</span>
+                <span className="lh-badge lh-badge-info">League</span>
               )}
               {official.is_certified && (
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">Certified</span>
+                <span className="lh-badge lh-badge-success">Certified</span>
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-sm text-gray-300">
@@ -208,7 +208,7 @@ export default function OfficialDetail({ officialId, onBack }) {
           {canViewFinancials && (
             <div className="shrink-0 text-right">
               <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Default Rate</div>
-              <div className="text-2xl font-bold text-green-400">{official.rate_per_game != null ? formatMoney(official.rate_per_game) : 'Level Rate'}</div>
+              <div className="text-2xl font-bold text-action-400">{official.rate_per_game != null ? formatMoney(official.rate_per_game) : 'Level Rate'}</div>
               <div className="text-xs text-gray-400">per game</div>
             </div>
           )}
@@ -225,7 +225,7 @@ export default function OfficialDetail({ officialId, onBack }) {
           </div>
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
             <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Payments</div>
-            <div className="text-2xl font-bold text-green-400">{formatMoney(summary.total_payments)}</div>
+            <div className="text-2xl font-bold text-action-400">{formatMoney(summary.total_payments)}</div>
           </div>
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
             <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Due</div>
@@ -245,13 +245,13 @@ export default function OfficialDetail({ officialId, onBack }) {
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 text-sm font-heading font-bold uppercase tracking-wide whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab.key
-                  ? 'border-blue-500 text-blue-400'
+                  ? 'border-chrome-500 text-chrome-400'
                   : 'border-transparent text-gray-400 hover:text-gray-200'
               }`}
             >
               {tab.label}
-              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                activeTab === tab.key ? 'bg-blue-900/50 text-blue-300' : 'bg-gray-700 text-gray-400'
+              <span className={`ml-1.5 lh-badge ${
+                activeTab === tab.key ? 'lh-badge-info' : 'lh-badge-neutral'
               }`}>
                 {tabCounts[tab.key]}
               </span>
@@ -344,7 +344,7 @@ function GameRow({ game, canEdit, canViewFinancials, updating, onTogglePaid, onT
   const isFinalized = game.status === 'completed';
 
   return (
-    <div className={`rounded-lg border p-3 ${isFinalized ? 'border-gray-600 bg-gray-750' : 'border-gray-700 bg-gray-800/50'} ${game.no_show ? 'border-red-800/60' : ''}`}>
+    <div className={`rounded-lg border p-3 ${isFinalized ? 'border-gray-600 bg-gray-750' : 'border-gray-700 bg-gray-800/50'} ${game.no_show ? 'border-signal-800/60' : ''}`}>
       <div className="flex flex-col sm:flex-row sm:items-center gap-2">
         {/* Game info */}
         <div className="flex-1 min-w-0">
@@ -352,11 +352,11 @@ function GameRow({ game, canEdit, canViewFinancials, updating, onTogglePaid, onT
             <span className="text-sm font-medium text-gray-200">
               {game.home_team_name} vs {game.away_team_name}
             </span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${STATUS_COLORS[game.status] || 'bg-gray-700 text-gray-300'}`}>
+            <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-700 text-gray-300'}`}>
               {STATUS_LABELS[game.status] || game.status}
             </span>
             {game.no_show && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-900/40 text-red-300">No Show</span>
+              <span className="lh-badge lh-badge-danger">No Show</span>
             )}
           </div>
           <div className="text-xs text-gray-400">
@@ -390,7 +390,7 @@ function GameRow({ game, canEdit, canViewFinancials, updating, onTogglePaid, onT
                       onChange={(e) => setFeeValue(e.target.value)}
                       onBlur={() => setEditingFee(false)}
                       autoFocus
-                      className="w-20 px-1.5 py-0.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-20 px-1.5 py-0.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-action-500"
                     />
                   </form>
                 ) : (
@@ -398,8 +398,8 @@ function GameRow({ game, canEdit, canViewFinancials, updating, onTogglePaid, onT
                     onClick={() => { if (canEdit && !game.no_show) { setFeeValue(String(game.game_fee)); setEditingFee(true); } }}
                     className={`text-sm font-semibold tabular-nums ${
                       game.no_show
-                        ? 'text-red-400 line-through cursor-default'
-                        : canEdit ? 'text-gray-100 hover:text-blue-300 cursor-pointer' : 'text-gray-100 cursor-default'
+                        ? 'text-signal-400 line-through cursor-default'
+                        : canEdit ? 'text-gray-100 hover:text-chrome-300 cursor-pointer' : 'text-gray-100 cursor-default'
                     }`}
                     title={game.no_show ? 'No show — no payment' : canEdit ? 'Click to edit fee' : undefined}
                     disabled={!canEdit || game.no_show}
@@ -425,7 +425,7 @@ function GameRow({ game, canEdit, canViewFinancials, updating, onTogglePaid, onT
                   />
                 </label>
                 {game.no_show ? (
-                  <div className="text-[9px] text-red-400 mt-0.5">N/A</div>
+                  <div className="text-[9px] text-signal-400 mt-0.5">N/A</div>
                 ) : game.is_paid && game.paid_at ? (
                   <div className="text-[9px] text-gray-400 mt-0.5">
                     {new Date(game.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -456,7 +456,7 @@ function GameRow({ game, canEdit, canViewFinancials, updating, onTogglePaid, onT
             <button
               onClick={onUnassign}
               disabled={updating}
-              className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              className="text-xs text-signal-400 hover:text-signal-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               title="Unassign from game"
             >
               ✕ Remove
@@ -477,15 +477,15 @@ function InterestedGameRow({ game, canEdit, updating, onAssign }) {
             <span className="text-sm font-medium text-gray-200">
               {game.home_team_name} vs {game.away_team_name}
             </span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${STATUS_COLORS[game.status] || 'bg-gray-700 text-gray-300'}`}>
+            <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-700 text-gray-300'}`}>
               {STATUS_LABELS[game.status] || game.status}
             </span>
             {game.home_age_group && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-900/40 text-indigo-300">
+              <span className="lh-badge lh-badge-info">
                 {game.home_age_group}
               </span>
             )}
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-700 text-gray-300">
+            <span className="lh-badge lh-badge-neutral">
               {game.assigned_count} assigned
             </span>
           </div>
@@ -502,7 +502,7 @@ function InterestedGameRow({ game, canEdit, updating, onAssign }) {
             <button
               onClick={onAssign}
               disabled={updating}
-              className="px-3 py-1.5 bg-green-700 text-green-100 text-xs font-bold rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 bg-green-700 text-green-100 text-xs font-bold rounded-lg hover:bg-action-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {updating ? 'Assigning…' : 'Assign'}
             </button>

@@ -80,17 +80,17 @@ export default function PlayersPage({ onSelectPlayer }) {
     const rest = pitchRest[playerId];
     if (!rest) return null;
     if (rest.eligible_today) {
-      return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/20 text-green-300">Avail: Today</span>;
+      return <span className="lh-badge lh-badge-success">Avail: Today</span>;
     }
     const avail = rest.available_date;
     const label = avail ? `Avail: ${new Date(avail + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Resting';
-    return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500/20 text-red-300">{label}</span>;
+    return <span className="lh-badge lh-badge-danger">{label}</span>;
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-400 border-t-transparent" />
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-chrome-400 border-t-transparent" />
       </div>
     );
   }
@@ -106,13 +106,13 @@ export default function PlayersPage({ onSelectPlayer }) {
             placeholder="Search players..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-action-500 focus:border-transparent"
           />
         </div>
         <select
           value={filterOrg}
           onChange={e => { setFilterOrg(e.target.value); setFilterTeam(''); }}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-action-500"
         >
           <option value="">All Organizations</option>
           {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -120,7 +120,7 @@ export default function PlayersPage({ onSelectPlayer }) {
         <select
           value={filterTeam}
           onChange={e => setFilterTeam(e.target.value)}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-action-500"
         >
           <option value="">All Teams</option>
           {filteredTeamOptions.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -181,8 +181,8 @@ export default function PlayersPage({ onSelectPlayer }) {
             onClick={() => onSelectPlayer(p.id)}
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
-                <UserIcon className="w-5 h-5 text-blue-400" />
+              <div className="w-10 h-10 rounded-full bg-chrome-500/20 flex items-center justify-center shrink-0">
+                <UserIcon className="w-5 h-5 text-chrome-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">

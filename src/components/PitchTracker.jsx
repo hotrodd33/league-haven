@@ -248,20 +248,20 @@ export default function PitchTracker({ gameId, onBack }) {
   }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading game…</div>;
-  if (!game) return <div className="py-8 text-center text-red-400">Game not found</div>;
+  if (!game) return <div className="py-8 text-center text-signal-400">Game not found</div>;
 
   if (finalized) {
     return (
       <div className="max-w-lg mx-auto py-12 text-center">
-        <div className="bg-green-900/30 border border-green-200 rounded-xl p-6">
-          <svg className="w-12 h-12 text-green-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="bg-action-900/30 border border-action-200 rounded-xl p-6">
+          <svg className="w-12 h-12 text-action-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <h2 className="text-xl font-heading font-bold text-green-300 mb-2">Game Finalized</h2>
-          <p className="text-sm text-green-400 mb-1">
+          <h2 className="text-xl font-heading font-bold text-action-300 mb-2">Game Finalized</h2>
+          <p className="text-sm text-action-400 mb-1">
             {game.home_team_name} {homeScore} – {awayScore} {game.away_team_name}
           </p>
-          <p className="text-xs text-green-600 mb-4">{inning} innings · {activePitchers.length} pitchers tracked</p>
+          <p className="text-xs text-action-400 mb-4">{inning} innings · {activePitchers.length} pitchers tracked</p>
           <button onClick={onBack} className={btnPrimary}>← Back</button>
         </div>
       </div>
@@ -310,7 +310,7 @@ export default function PitchTracker({ gameId, onBack }) {
 
         {/* Home row */}
         <div className="grid grid-cols-[64px_1fr_auto_auto_auto] items-center gap-2 mb-2">
-          <div className="text-xs uppercase tracking-wide text-green-300 font-bold">Home</div>
+          <div className="text-xs uppercase tracking-wide text-action-300 font-bold">Home</div>
           <div className="flex items-center gap-2 min-w-0">
             <TeamLogo
               src={game.home_logo}
@@ -328,7 +328,7 @@ export default function PitchTracker({ gameId, onBack }) {
           </div>
           <button
             onClick={() => setHomeScore((s) => Math.max(0, s - 1))}
-            className="h-11 w-11 rounded-lg bg-red-900/35 text-red-300 text-2xl font-bold leading-none active:scale-95 hover:bg-red-800/60"
+            className="h-11 w-11 rounded-lg bg-signal-900/35 text-signal-300 text-2xl font-bold leading-none active:scale-95 hover:bg-signal-800/60"
             aria-label="Decrease home score"
           >
             −
@@ -338,7 +338,7 @@ export default function PitchTracker({ gameId, onBack }) {
           </div>
           <button
             onClick={() => setHomeScore((s) => s + 1)}
-            className="h-11 w-11 rounded-lg bg-green-900/35 text-green-300 text-2xl font-bold leading-none active:scale-95 hover:bg-green-800/60"
+            className="h-11 w-11 rounded-lg bg-action-900/35 text-action-300 text-2xl font-bold leading-none active:scale-95 hover:bg-action-800/60"
             aria-label="Increase home score"
           >
             +
@@ -347,7 +347,7 @@ export default function PitchTracker({ gameId, onBack }) {
 
         {/* Away row */}
         <div className="grid grid-cols-[64px_1fr_auto_auto_auto] items-center gap-2">
-          <div className="text-xs uppercase tracking-wide text-blue-300 font-bold">Away</div>
+          <div className="text-xs uppercase tracking-wide text-chrome-300 font-bold">Away</div>
           <div className="flex items-center gap-2 min-w-0">
             <TeamLogo
               src={game.away_logo}
@@ -365,7 +365,7 @@ export default function PitchTracker({ gameId, onBack }) {
           </div>
           <button
             onClick={() => setAwayScore((s) => Math.max(0, s - 1))}
-            className="h-11 w-11 rounded-lg bg-red-900/35 text-red-300 text-2xl font-bold leading-none active:scale-95 hover:bg-red-800/60"
+            className="h-11 w-11 rounded-lg bg-signal-900/35 text-signal-300 text-2xl font-bold leading-none active:scale-95 hover:bg-signal-800/60"
             aria-label="Decrease away score"
           >
             −
@@ -375,7 +375,7 @@ export default function PitchTracker({ gameId, onBack }) {
           </div>
           <button
             onClick={() => setAwayScore((s) => s + 1)}
-            className="h-11 w-11 rounded-lg bg-green-900/35 text-green-300 text-2xl font-bold leading-none active:scale-95 hover:bg-green-800/60"
+            className="h-11 w-11 rounded-lg bg-action-900/35 text-action-300 text-2xl font-bold leading-none active:scale-95 hover:bg-action-800/60"
             aria-label="Increase away score"
           >
             +
@@ -432,7 +432,7 @@ export default function PitchTracker({ gameId, onBack }) {
                 </div>
 
                 <div className="border-t border-gray-700 mt-4 pt-3">
-                  <button onClick={() => setAddingNewPlayer(true)} className="text-sm text-blue-400 hover:text-blue-200 font-medium">
+                  <button onClick={() => setAddingNewPlayer(true)} className="text-sm text-chrome-400 hover:text-chrome-200 font-medium">
                     + Add new player to roster
                   </button>
                 </div>
@@ -468,14 +468,14 @@ export default function PitchTracker({ gameId, onBack }) {
         </div>
       )}
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}
+      {error && <div className="lh-alert lh-alert-error mb-4">{error}</div>}
 
       {/* Action buttons */}
       <div className="flex flex-col gap-2 mt-6 mb-8">
         <button onClick={handleSaveProgress} disabled={saving} className="w-full px-4 py-3 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-60 transition-colors">
           {saving ? 'Saving…' : 'Save Progress'}
         </button>
-        <button onClick={handleFinalize} disabled={saving} className="w-full px-4 py-3 bg-green-700 text-white font-semibold rounded-lg hover:bg-green-800 disabled:opacity-60 transition-colors">
+        <button onClick={handleFinalize} disabled={saving} className="w-full px-4 py-3 bg-green-700 text-white font-semibold rounded-lg hover:bg-action-800 disabled:opacity-60 transition-colors">
           {saving ? 'Saving…' : '✓ Finalize Game'}
         </button>
       </div>
@@ -489,7 +489,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-heading font-bold uppercase tracking-wide" style={{ color: teamColor || '#9ca3af' }}>{label}</h3>
-        <button onClick={onAddPitcher} className="text-xs font-semibold text-blue-400 hover:text-blue-200">
+        <button onClick={onAddPitcher} className="text-xs font-semibold text-chrome-400 hover:text-chrome-200">
           + Add Pitcher
         </button>
       </div>
@@ -517,7 +517,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                 <div className="flex items-center gap-0 shrink-0">
                   <button
                     onClick={() => adjustCount(p.side, p.playerId, -1)}
-                    className="w-12 h-12 rounded-l-lg bg-red-900/35 text-red-300 text-2xl font-bold leading-none hover:bg-red-800/60 active:scale-95 transition-colors select-none"
+                    className="w-12 h-12 rounded-l-lg bg-signal-900/35 text-signal-300 text-2xl font-bold leading-none hover:bg-signal-800/60 active:scale-95 transition-colors select-none"
                     aria-label="Decrease pitch count"
                   >
                     −
@@ -527,7 +527,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                   </div>
                   <button
                     onClick={() => adjustCount(p.side, p.playerId, 1)}
-                    className="w-12 h-12 rounded-r-lg bg-green-900/35 text-green-300 text-2xl font-bold leading-none hover:bg-green-800/60 active:scale-95 transition-colors select-none"
+                    className="w-12 h-12 rounded-r-lg bg-action-900/35 text-action-300 text-2xl font-bold leading-none hover:bg-action-800/60 active:scale-95 transition-colors select-none"
                     aria-label="Increase pitch count"
                   >
                     +
@@ -537,7 +537,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                 {/* Remove */}
                 <button
                   onClick={() => removePitcher(p.side, p.playerId)}
-                  className="p-2.5 text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                  className="p-2.5 text-gray-300 hover:text-signal-400 transition-colors shrink-0"
                   title="Remove pitcher"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -46,7 +46,7 @@ export default function Directory({ onEditTeam }) {
   }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading directory…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error.message}</div>;
+  if (error) return <div className="lh-alert lh-alert-error">{error.message}</div>;
 
   return (
     <div>
@@ -55,7 +55,7 @@ export default function Directory({ onEditTeam }) {
         <div className="flex gap-2">
           <button
             onClick={() => setContactModal({ scope: 'league', scopeLabel: 'Entire League' })}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="btn btn-sm btn-primary flex items-center gap-1.5"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -64,7 +64,7 @@ export default function Directory({ onEditTeam }) {
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-600 transition-colors print:hidden"
+            className="btn btn-sm btn-primary flex items-center gap-1.5 print:hidden"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm0-12V3a1 1 0 011-1h4a1 1 0 011 1v4" />

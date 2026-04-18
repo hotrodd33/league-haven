@@ -116,7 +116,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
                 className={cn(
                   'flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors',
                   isActive
-                    ? 'border-blue-600 text-blue-400'
+                    ? 'border-blue-600 text-chrome-400'
                     : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
                 )}
               >
@@ -210,7 +210,7 @@ function TeamHeader({ team, recentGames, onContactTeam }) {
       <div className="flex items-center gap-3 shrink-0">
         <button
           onClick={onContactTeam}
-          className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded-lg transition-colors"
+          className="p-2 text-gray-400 hover:text-chrome-400 hover:bg-chrome-900/30 rounded-lg transition-colors"
           title="Email team"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -289,7 +289,7 @@ function OverviewTab({ team, recentGames, registrations, canViewPayment, onSelec
                     {fee != null && <span className="text-sm text-gray-300">${fee.toFixed(2)}</span>}
                     <span className={cn(
                       'px-2 py-0.5 rounded-full text-[11px] font-bold',
-                      paid ? 'bg-green-900/35 text-green-300' : 'bg-red-900/30 text-red-400'
+                      paid ? 'bg-action-900/35 text-action-300' : 'bg-signal-900/30 text-signal-400'
                     )}>
                       {paid ? 'Paid' : 'Unpaid'}
                     </span>
@@ -327,7 +327,7 @@ function RecentGameRow({ game, teamId, onSelect }) {
     else result = 'T';
   }
 
-  const resultColors = { W: 'text-green-400 bg-green-900/30', L: 'text-red-400 bg-red-900/30', T: 'text-gray-300 bg-gray-800' };
+  const resultColors = { W: 'text-action-400 bg-action-900/30', L: 'text-signal-400 bg-signal-900/30', T: 'text-gray-300 bg-gray-800' };
 
   const d = game.game_date ? new Date(game.game_date + 'T00:00:00') : null;
   const dateStr = d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';

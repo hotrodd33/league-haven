@@ -50,7 +50,7 @@ export default function Login({ onResetPassword }) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
       <div className="bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md border-t-4 border-baseball-600">
-        <h1 className="font-heading text-3xl font-bold mb-1 tracking-wide text-blue-300">⚾ LeagueHaven</h1>
+        <h1 className="font-heading text-3xl font-bold mb-1 tracking-wide text-chrome-300">⚾ LeagueHaven</h1>
         <p className="text-gray-400 mb-6 text-sm">
           {mode === 'login' ? 'Sign in to manage your team' : 'Reset your password'}
         </p>
@@ -72,28 +72,28 @@ export default function Login({ onResetPassword }) {
                 className={inputCls} />
             </div>
             {error && (
-              <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">
+              <div className="lh-alert lh-alert-error">
                 {error}
                 {isUnconfirmed && (
                   <button type="button" onClick={handleResendConfirmation}
-                    className="block mt-2 text-xs text-blue-400 hover:underline">
+                    className="block mt-2 text-xs text-chrome-400 hover:underline">
                     Resend confirmation email
                   </button>
                 )}
               </div>
             )}
             {resendMsg && (
-              <div className="bg-blue-900/30 text-blue-400 text-sm px-3 py-2 rounded-lg">{resendMsg}</div>
+              <div className="lh-alert lh-alert-info">{resendMsg}</div>
             )}
             <button type="submit" disabled={loading}
-              className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm">
+              className="btn btn-sm btn-primary w-full">
               {loading ? 'Signing in…' : 'Sign In'}
             </button>
             <div className="flex justify-between text-sm">
-              <button type="button" onClick={() => { setMode('forgot'); setForgotMsg(''); }} className="text-blue-400 hover:underline">
+              <button type="button" onClick={() => { setMode('forgot'); setForgotMsg(''); }} className="text-chrome-400 hover:underline">
                 Forgot password?
               </button>
-              <button type="button" onClick={() => { window.location.href = '?register'; }} className="text-blue-400 hover:underline">
+              <button type="button" onClick={() => { window.location.href = '?register'; }} className="text-chrome-400 hover:underline">
                 Create an account →
               </button>
             </div>
@@ -109,13 +109,13 @@ export default function Login({ onResetPassword }) {
                 placeholder="you@example.com" required className={inputCls} />
             </div>
             {forgotMsg && (
-              <div className="bg-blue-900/30 text-blue-400 text-sm px-3 py-2 rounded-lg">{forgotMsg}</div>
+              <div className="lh-alert lh-alert-info">{forgotMsg}</div>
             )}
             <button type="submit" disabled={forgotLoading}
-              className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm">
+              className="btn btn-sm btn-primary w-full">
               {forgotLoading ? 'Sending…' : 'Send Reset Link'}
             </button>
-            <button type="button" onClick={() => setMode('login')} className="w-full text-center text-sm text-blue-400 hover:underline">
+            <button type="button" onClick={() => setMode('login')} className="w-full text-center text-sm text-chrome-400 hover:underline">
               Back to sign in
             </button>
           </form>

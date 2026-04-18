@@ -80,7 +80,7 @@ export default function StaffList({ teamId, teamOrgId }) {
 
   if (!teamId) return null;
   if (loading) return <div className="py-8 text-center text-gray-400">Loading staff…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error.message}</div>;
+  if (error) return <div className="lh-alert lh-alert-error">{error.message}</div>;
 
   const teamStaff = staff.filter(s => s.role !== 'org_admin');
   const orgAdmins = staff.filter(s => s.role === 'org_admin');
@@ -96,7 +96,7 @@ export default function StaffList({ teamId, teamOrgId }) {
               + Existing Staff
             </button>
             <button onClick={() => { setEditing(null); setShowForm(true); }}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+              className="btn btn-sm btn-primary">
               + New Staff
             </button>
           </div>
@@ -109,14 +109,14 @@ export default function StaffList({ teamId, teamOrgId }) {
           <p className="text-xs text-gray-400 mb-2">Search for an existing staff member to add to this team:</p>
           <div className="flex gap-2 mb-2">
             <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name…" className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+              placeholder="Search by name…" className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500"
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }} />
             <select value={assignRole} onChange={(e) => setAssignRole(e.target.value)}
               className="px-2 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100">
               {ROLE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
             <button onClick={handleSearch} disabled={searching || !searchQuery.trim()}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+              className="btn btn-sm btn-primary disabled:opacity-50">
               {searching ? '…' : 'Search'}
             </button>
             <button onClick={() => { setShowAddExisting(false); setSearchQuery(''); setSearchResults([]); }}
@@ -133,7 +133,7 @@ export default function StaffList({ teamId, teamOrgId }) {
                     {s.email && <span className="text-gray-400 ml-2">{s.email}</span>}
                   </div>
                   <button onClick={() => handleAssignExisting(s.id)} disabled={assigning === s.id}
-                    className="px-3 py-1 text-xs font-semibold bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60">
+                    className="px-3 py-1 text-xs font-semibold bg-action-600 text-white rounded hover:bg-green-700 disabled:opacity-60">
                     {assigning === s.id ? '…' : 'Add to Team'}
                   </button>
                 </div>
@@ -165,11 +165,11 @@ export default function StaffList({ teamId, teamOrgId }) {
             <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Role</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Email</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Phone</th>
-                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Actions</th>}
+                  <th className="px-3 py-2 text-left eyebrow">Role</th>
+                  <th className="px-3 py-2 text-left eyebrow">Name</th>
+                  <th className="px-3 py-2 text-left eyebrow">Email</th>
+                  <th className="px-3 py-2 text-left eyebrow">Phone</th>
+                  {editable && <th className="px-3 py-2 text-left eyebrow">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -182,7 +182,7 @@ export default function StaffList({ teamId, teamOrgId }) {
                         <span>{m.email || '—'}</span>
                         {m.email && (
                           <button onClick={() => setContactModal({ scope: 'individual', scopeId: m.id, scopeLabel: m.name })}
-                            className="p-1 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded transition-colors" title="Email">
+                            className="p-1 text-gray-400 hover:text-chrome-400 hover:bg-chrome-900/30 rounded transition-colors" title="Email">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
@@ -201,7 +201,7 @@ export default function StaffList({ teamId, teamOrgId }) {
                             {deleting === m.id ? '…' : 'Remove'}
                           </button>
                           <button onClick={() => handleDeleteStaff(m)} disabled={deleting === m.id}
-                            className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
+                            className="btn btn-xs btn-danger"
                             title="Delete staff from all teams">
                             {deleting === m.id ? '…' : 'Del'}
                           </button>
@@ -231,7 +231,7 @@ export default function StaffList({ teamId, teamOrgId }) {
                         {deleting === m.id ? '…' : 'Remove'}
                       </button>
                       <button onClick={() => handleDeleteStaff(m)} disabled={deleting === m.id}
-                        className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                        className="btn btn-xs btn-danger">
                         {deleting === m.id ? '…' : 'Del'}
                       </button>
                     </div>
@@ -242,7 +242,7 @@ export default function StaffList({ teamId, teamOrgId }) {
                     <div className="flex items-center gap-1.5">
                       <span className="truncate">{m.email}</span>
                       <button onClick={() => setContactModal({ scope: 'individual', scopeId: m.id, scopeLabel: m.name })}
-                        className="p-1 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded transition-colors shrink-0" title="Email">
+                        className="p-1 text-gray-400 hover:text-chrome-400 hover:bg-chrome-900/30 rounded transition-colors shrink-0" title="Email">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
@@ -265,9 +265,9 @@ export default function StaffList({ teamId, teamOrgId }) {
             <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Email</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Phone</th>
+                  <th className="px-3 py-2 text-left eyebrow">Name</th>
+                  <th className="px-3 py-2 text-left eyebrow">Email</th>
+                  <th className="px-3 py-2 text-left eyebrow">Phone</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -279,7 +279,7 @@ export default function StaffList({ teamId, teamOrgId }) {
                         <span>{m.email || '—'}</span>
                         {m.email && (
                           <button onClick={() => setContactModal({ scope: 'individual', scopeId: m.id, scopeLabel: m.name })}
-                            className="p-1 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded transition-colors" title="Email">
+                            className="p-1 text-gray-400 hover:text-chrome-400 hover:bg-chrome-900/30 rounded transition-colors" title="Email">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
@@ -304,7 +304,7 @@ export default function StaffList({ teamId, teamOrgId }) {
                     <div className="flex items-center gap-1.5">
                       <span className="truncate">{m.email}</span>
                       <button onClick={() => setContactModal({ scope: 'individual', scopeId: m.id, scopeLabel: m.name })}
-                        className="p-1 text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 rounded transition-colors shrink-0" title="Email">
+                        className="p-1 text-gray-400 hover:text-chrome-400 hover:bg-chrome-900/30 rounded transition-colors shrink-0" title="Email">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
@@ -411,7 +411,7 @@ function StaffForm({ teamId, staff, onDone, onCancel }) {
             <label className="flex items-start gap-2 cursor-pointer">
               <input type="checkbox" checked={form.create_account}
                 onChange={e => setForm(prev => ({ ...prev, create_account: e.target.checked }))}
-                className="mt-0.5 rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500/30" />
+                className="mt-0.5 rounded border-gray-600 bg-gray-900 text-chrome-400 focus:ring-action-500/30" />
               <div>
                 <span className="text-sm font-semibold text-gray-200">Create user account</span>
                 <p className="text-xs text-gray-400">
@@ -421,12 +421,12 @@ function StaffForm({ teamId, staff, onDone, onCancel }) {
             </label>
           )}
 
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
-          {result && <div className="bg-green-900/30 text-green-400 text-sm px-3 py-2 rounded-lg">{result}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
+          {result && <div className="lh-alert lh-alert-success">{result}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+            <button type="submit" disabled={saving} className="btn btn-sm btn-primary disabled:opacity-50">
               {saving ? 'Saving…' : isEditing ? 'Update' : 'Add Staff'}
             </button>
           </div>

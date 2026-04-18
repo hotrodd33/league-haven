@@ -14,12 +14,12 @@ const ROLE_LABELS = {
 };
 
 const ROLE_COLORS = {
-  super_admin: 'bg-red-900/60 text-red-300 border-red-700',
-  org_admin: 'bg-blue-900/60 text-blue-300 border-blue-700',
-  team_manager: 'bg-green-900/60 text-green-300 border-green-700',
-  score_reporter: 'bg-yellow-900/60 text-yellow-300 border-yellow-700',
-  accountant: 'bg-purple-900/60 text-purple-300 border-purple-700',
-  umpire: 'bg-orange-900/60 text-orange-300 border-orange-700',
+  super_admin: 'lh-badge-danger',
+  org_admin: 'lh-badge-info',
+  team_manager: 'lh-badge-success',
+  score_reporter: 'lh-badge-warn',
+  accountant: 'lh-badge-info',
+  umpire: 'lh-badge-warn',
 };
 
 function formatDate(d) {
@@ -57,7 +57,7 @@ export default function MyAccount({ onChangePassword }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-chrome-400 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -65,7 +65,7 @@ export default function MyAccount({ onChangePassword }) {
   if (!data) return <p className="text-gray-400 text-center py-10">Failed to load account info.</p>;
 
   const { user, organizations, teams } = data;
-  const roleColor = ROLE_COLORS[user.role] || 'bg-gray-700 text-gray-300 border-gray-600';
+  const roleColor = ROLE_COLORS[user.role] || 'lh-badge-neutral';
 
   const initials = (user.name || user.username || '?')
     .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -87,7 +87,7 @@ export default function MyAccount({ onChangePassword }) {
         <div className="grid sm:grid-cols-2 gap-4 p-6">
           <InfoRow icon={<UserIcon className="w-4 h-4" />} label="Email" value={user.email || 'Not set'} />
           <InfoRow icon={<CogIcon className="w-4 h-4" />} label="Role"
-            value={<span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold border ${roleColor}`}>
+            value={<span className={`lh-badge ${roleColor}`}>
               {ROLE_LABELS[user.role] || user.role}
             </span>}
           />
@@ -98,7 +98,7 @@ export default function MyAccount({ onChangePassword }) {
         <div className="px-6 pb-5">
           <button
             onClick={onChangePassword}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+            className="btn btn-sm btn-primary"
           >
             Change Password
           </button>
@@ -188,12 +188,12 @@ export default function MyAccount({ onChangePassword }) {
                         setTestResult(`Error: ${e.message}`);
                       }
                     }}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+                    className="btn btn-xs btn-primary"
                   >
                     Send Test Notification
                   </button>
                   {testResult && (
-                    <p className={`text-xs mt-1.5 ${testResult.startsWith('Sent') ? 'text-green-400' : testResult.startsWith('Error') ? 'text-red-400' : 'text-gray-400'}`}>
+                    <p className={`text-xs mt-1.5 ${testResult.startsWith('Sent') ? 'text-action-400' : testResult.startsWith('Error') ? 'text-signal-400' : 'text-gray-400'}`}>
                       {testResult}
                     </p>
                   )}
@@ -213,7 +213,7 @@ export default function MyAccount({ onChangePassword }) {
         <p className="text-sm text-gray-400 mb-4">What you can access and manage in the system.</p>
 
         {isSuperAdmin ? (
-          <div className="rounded-lg bg-red-900/20 border border-red-800/40 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-lg bg-signal-900/20 border border-signal-800/40 px-4 py-3 text-sm text-signal-300">
             <span className="font-semibold">Full Access</span> — As a Super Admin you have unrestricted access to all organizations, teams, and settings.
           </div>
         ) : (
@@ -237,7 +237,7 @@ export default function MyAccount({ onChangePassword }) {
           <div className="grid gap-2">
             {organizations.map(org => (
               <div key={org.id} className="flex items-center gap-3 px-4 py-3 bg-gray-900/50 rounded-lg border border-gray-700/50">
-                <BuildingIcon className="w-5 h-5 text-blue-400 shrink-0" />
+                <BuildingIcon className="w-5 h-5 text-chrome-400 shrink-0" />
                 <span className="text-sm font-medium text-gray-200">{org.name}</span>
               </div>
             ))}

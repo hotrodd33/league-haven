@@ -9,16 +9,16 @@ const labelCls = 'eyebrow block mb-1';
 
 const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Low', color: 'text-gray-400' },
-  { value: 'normal', label: 'Normal', color: 'text-blue-400' },
+  { value: 'normal', label: 'Normal', color: 'text-chrome-400' },
   { value: 'high', label: 'High', color: 'text-amber-400' },
-  { value: 'urgent', label: 'Urgent', color: 'text-red-400' },
+  { value: 'urgent', label: 'Urgent', color: 'text-signal-400' },
 ];
 
 const PRIORITY_BADGE = {
   low: 'bg-gray-700 text-gray-300',
-  normal: 'bg-blue-900/40 text-blue-300',
+  normal: 'bg-chrome-900/40 text-chrome-300',
   high: 'bg-amber-900/40 text-amber-300',
-  urgent: 'bg-red-900/40 text-red-300',
+  urgent: 'bg-signal-900/40 text-signal-300',
 };
 
 function timeAgo(dateStr) {
@@ -124,7 +124,7 @@ export default function ManageAnnouncements() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-chrome-400 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -134,7 +134,7 @@ export default function ManageAnnouncements() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <MegaphoneIcon className="w-6 h-6 text-blue-400" />
+          <MegaphoneIcon className="w-6 h-6 text-chrome-400" />
           <h2 className="text-xl font-heading font-bold text-gray-100">Announcements</h2>
           <span className="text-xs text-gray-500">({announcements.length})</span>
         </div>
@@ -163,7 +163,7 @@ export default function ManageAnnouncements() {
                 )}
               >
                 <div className="flex items-start gap-3">
-                  <MegaphoneIcon className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                  <MegaphoneIcon className="w-5 h-5 text-chrome-400 shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-sm font-bold text-gray-100">{a.title}</h4>
@@ -187,14 +187,14 @@ export default function ManageAnnouncements() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => openEdit(a)}
-                      className="p-1.5 text-gray-400 hover:text-blue-400 rounded-lg hover:bg-gray-700 transition-colors"
+                      className="p-1.5 text-gray-400 hover:text-chrome-400 rounded-lg hover:bg-gray-700 transition-colors"
                       title="Edit"
                     >
                       <PencilIcon className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setDeleting(a)}
-                      className="p-1.5 text-gray-400 hover:text-red-400 rounded-lg hover:bg-gray-700 transition-colors"
+                      className="p-1.5 text-gray-400 hover:text-signal-400 rounded-lg hover:bg-gray-700 transition-colors"
                       title="Delete"
                     >
                       <TrashIcon className="w-4 h-4" />
@@ -224,7 +224,7 @@ export default function ManageAnnouncements() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-lg px-3 py-2">{error}</div>
+            <div className="text-sm text-signal-400 bg-signal-900/20 border border-signal-800 rounded-lg px-3 py-2">{error}</div>
           )}
 
           <div>
@@ -280,7 +280,7 @@ export default function ManageAnnouncements() {
               type="checkbox"
               checked={isActive}
               onChange={e => setIsActive(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-600 bg-gray-900 text-blue-500 focus:ring-blue-500/30"
+              className="w-4 h-4 rounded border-gray-600 bg-gray-900 text-blue-500 focus:ring-action-500/30"
             />
             <span className="text-sm text-gray-300">Active (visible to users)</span>
           </label>

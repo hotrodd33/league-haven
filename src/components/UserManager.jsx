@@ -10,7 +10,7 @@ const labelCls = "eyebrow block mb-1";
 const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
 const btnSecondary = "btn btn-secondary btn-md";
 const btnDanger = "btn btn-danger btn-sm";
-const btnSm = "px-3 py-1.5 text-xs font-semibold rounded";
+const btnSm = 'btn btn-xs';
 
 function formatLogin(ts) {
   if (!ts) return null;
@@ -29,12 +29,12 @@ const ROLE_LABELS = {
 };
 
 const ROLE_COLORS = {
-  super_admin: 'bg-purple-900/35 text-purple-200',
-  accountant: 'bg-amber-900/35 text-amber-200',
-  org_admin: 'bg-blue-900/40 text-blue-200',
-  team_manager: 'bg-green-900/35 text-green-300',
-  score_reporter: 'bg-gray-800 text-gray-300',
-  umpire: 'bg-teal-900/35 text-teal-200',
+  super_admin: 'lh-badge-danger',
+  accountant: 'lh-badge-warn',
+  org_admin: 'lh-badge-info',
+  team_manager: 'lh-badge-success',
+  score_reporter: 'lh-badge-neutral',
+  umpire: 'lh-badge-info',
 };
 
 export default function UserManager({ onBack, initialTab, showUsersTab = true }) {
@@ -94,8 +94,8 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
             <div className="flex border border-gray-700 rounded-lg overflow-hidden">
               {tabs.map(t => (
                 <button key={t.key} onClick={() => setTab(t.key)}
-                  className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                    tab === t.key ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
+                  className={`lh-tab ${
+                    tab === t.key ? 'lh-tab-active' : 'lh-tab-inactive'
                   }`}>{t.label}</button>
               ))}
             </div>
@@ -115,7 +115,7 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
       {/* Users tab */}
       {tab === 'users' && (<>
       {loading && <div className="py-8 text-center text-gray-400">Loading users…</div>}
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>}
+      {error && <div className="lh-alert lh-alert-error">Error: {error}</div>}
       {!loading && !error && (<>
 
       {users.length === 0 ? (
@@ -131,13 +131,13 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
             <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Username</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Email</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Role</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Last Login</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Permissions</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Actions</th>
+                  <th className="px-3 py-2 text-left eyebrow">Username</th>
+                  <th className="px-3 py-2 text-left eyebrow">Name</th>
+                  <th className="px-3 py-2 text-left eyebrow">Email</th>
+                  <th className="px-3 py-2 text-left eyebrow">Role</th>
+                  <th className="px-3 py-2 text-left eyebrow">Last Login</th>
+                  <th className="px-3 py-2 text-left eyebrow">Permissions</th>
+                  <th className="px-3 py-2 text-left eyebrow">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -148,7 +148,7 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
                     <td className="px-3 py-2 text-sm text-gray-400">{u.email || <span className="text-gray-300">—</span>}</td>
                     <td className="px-3 py-2">
                       <div className="flex gap-1 flex-wrap">
-                        <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full ${ROLE_COLORS[u.role] || 'bg-gray-800 text-gray-300'}`}>
+                        <span className={`lh-badge ${ROLE_COLORS[u.role] || 'lh-badge-neutral'}`}>
                           {ROLE_LABELS[u.role] || u.role}
                         </span>
                         {u.is_umpire && u.role !== 'umpire' && (
@@ -171,13 +171,13 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex gap-1">
-                        <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>
+                        <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} btn-secondary`}>Edit</button>
                         {u.role !== 'super_admin' && (
-                          <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-900/40 text-blue-200 hover:bg-blue-800/60`}>Perms</button>
+                          <button onClick={() => setEditingPerms(u)} className={`${btnSm} btn-chrome`}>Perms</button>
                         )}
                         {u.email && (
                           <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
-                            className={`${btnSm} bg-green-900/35 text-green-300 hover:bg-green-800/60`}>
+                            className={`${btnSm} bg-action-900/35 text-action-300 hover:bg-action-800/60`}>
                             {inviting === u.id ? '…' : 'Invite'}
                           </button>
                         )}
@@ -206,7 +206,7 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
                     </div>
                   </div>
                   <div className="flex gap-1 flex-wrap justify-end">
-                    <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full shrink-0 ${ROLE_COLORS[u.role] || 'bg-gray-800 text-gray-300'}`}>
+                    <span className={`lh-badge shrink-0 ${ROLE_COLORS[u.role] || 'lh-badge-neutral'}`}>
                       {ROLE_LABELS[u.role] || u.role}
                     </span>
                     {u.is_umpire && u.role !== 'umpire' && (
@@ -221,13 +221,13 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
                   </div>
                 )}
                 <div className="flex gap-1.5 pt-2 border-t border-gray-700">
-                  <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>
+                  <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} btn-secondary`}>Edit</button>
                   {u.role !== 'super_admin' && (
-                    <button onClick={() => setEditingPerms(u)} className={`${btnSm} bg-blue-900/40 text-blue-200 hover:bg-blue-800/60`}>Perms</button>
+                    <button onClick={() => setEditingPerms(u)} className={`${btnSm} btn-chrome`}>Perms</button>
                   )}
                   {u.email && (
                     <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
-                      className={`${btnSm} bg-green-900/35 text-green-300 hover:bg-green-800/60`}>
+                      className={`${btnSm} bg-action-900/35 text-action-300 hover:bg-action-800/60`}>
                       {inviting === u.id ? '…' : 'Invite'}
                     </button>
                   )}
@@ -346,7 +346,7 @@ function UserForm({ user, onDone, onCancel }) {
               <span className="text-xs text-gray-400">Grants umpire dashboard access alongside their primary role</span>
             </label>
           </div>
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
             <button type="submit" disabled={saving} className={btnPrimary}>
@@ -446,14 +446,14 @@ function PermissionsEditor({ user, onBack }) {
               <label key={org.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-900 cursor-pointer">
                 <input type="checkbox" checked={selectedOrgs.has(org.id)}
                   onChange={() => toggleOrg(org.id)}
-                  className="w-4 h-4 text-blue-600 rounded border-gray-600 focus:ring-blue-500" />
+                  className="w-4 h-4 text-action-600 rounded border-gray-600 focus:ring-action-500" />
                 <div>
                   <span className="font-semibold text-sm">{org.name}</span>
                   {org.team_count > 0 && (
                     <span className="text-xs text-gray-400 ml-2">({org.team_count} team{org.team_count !== 1 ? 's' : ''})</span>
                   )}
                   {selectedOrgs.has(org.id) && teamsByOrg[org.id]?.length > 0 && (
-                    <span className="text-xs text-blue-600 ml-2">→ includes all teams</span>
+                    <span className="text-xs text-chrome-400 ml-2">→ includes all teams</span>
                   )}
                 </div>
               </label>
@@ -482,7 +482,7 @@ function PermissionsEditor({ user, onBack }) {
                           checked={orgSelected || selectedTeams.has(t.id)}
                           disabled={orgSelected}
                           onChange={() => toggleTeam(t.id)}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-600 focus:ring-blue-500" />
+                          className="w-4 h-4 text-action-600 rounded border-gray-600 focus:ring-action-500" />
                         <span className="text-sm">{t.name}</span>
                         {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
                       </label>
@@ -500,7 +500,7 @@ function PermissionsEditor({ user, onBack }) {
                       <input type="checkbox"
                         checked={selectedTeams.has(t.id)}
                         onChange={() => toggleTeam(t.id)}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-600 focus:ring-blue-500" />
+                        className="w-4 h-4 text-action-600 rounded border-gray-600 focus:ring-action-500" />
                       <span className="text-sm">{t.name}</span>
                       {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
                     </label>
@@ -511,7 +511,7 @@ function PermissionsEditor({ user, onBack }) {
           </div>
         )}
 
-        {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+        {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-gray-700">
           <button onClick={onBack} className={btnSecondary}>Cancel</button>
@@ -572,7 +572,7 @@ function PendingApprovals() {
   }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading approvals…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+  if (error) return <div className="lh-alert lh-alert-error">Error: {error}</div>;
 
   const pendingUsers = pending.filter(u => u.approval_status === 'pending');
   const rejectedUsers = pending.filter(u => u.approval_status === 'rejected');
@@ -595,11 +595,11 @@ function PendingApprovals() {
             </div>
           </div>
           <div className="flex gap-1 items-center">
-            <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full ${ROLE_COLORS[u.role] || 'bg-gray-800 text-gray-300'}`}>
+            <span className={`lh-badge ${ROLE_COLORS[u.role] || 'lh-badge-neutral'}`}>
               {ROLE_LABELS[u.role] || u.role}
             </span>
             {!isPending && (
-              <span className="inline-block px-2 py-0.5 text-xs font-bold rounded-full bg-red-900/40 text-red-300">Rejected</span>
+              <span className="inline-block px-2 py-0.5 text-xs font-bold rounded-full bg-signal-900/40 text-signal-300">Rejected</span>
             )}
           </div>
         </div>
@@ -617,7 +617,7 @@ function PendingApprovals() {
         )}
 
         {u.approval_notes && (
-          <div className="text-xs text-red-400/80 mb-3 bg-red-900/20 rounded px-2 py-1">
+          <div className="text-xs text-signal-400/80 mb-3 bg-signal-900/20 rounded px-2 py-1">
             Rejection note: {u.approval_notes}
           </div>
         )}
@@ -626,18 +626,18 @@ function PendingApprovals() {
           {isPending && (
             <>
               <button onClick={() => handleApprove(u)} disabled={acting === u.id}
-                className={`${btnSm} bg-green-900/40 text-green-300 hover:bg-green-800/60`}>
+                className={`${btnSm} bg-action-900/40 text-action-300 hover:bg-action-800/60`}>
                 {acting === u.id ? '…' : 'Approve'}
               </button>
               <button onClick={() => { setRejectModal(u); setRejectNotes(''); }} disabled={acting === u.id}
-                className={`${btnSm} bg-red-900/40 text-red-300 hover:bg-red-900/60`}>
+                className={`${btnSm} btn-danger`}>
                 Reject
               </button>
             </>
           )}
           {!isPending && (
             <button onClick={() => handleReset(u)} disabled={acting === u.id}
-              className={`${btnSm} bg-amber-900/40 text-amber-300 hover:bg-amber-800/60`}>
+              className={`${btnSm} btn-warn`}>
               {acting === u.id ? '…' : 'Reset to Pending'}
             </button>
           )}
@@ -650,7 +650,7 @@ function PendingApprovals() {
     <div>
       {pendingUsers.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Pending ({pendingUsers.length})</h3>
+          <h3 className="eyebrow text-sm mb-3">Pending ({pendingUsers.length})</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {pendingUsers.map(renderUserCard)}
           </div>
@@ -659,7 +659,7 @@ function PendingApprovals() {
 
       {rejectedUsers.length > 0 && (
         <div>
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Rejected ({rejectedUsers.length})</h3>
+          <h3 className="eyebrow text-sm mb-3">Rejected ({rejectedUsers.length})</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {rejectedUsers.map(renderUserCard)}
           </div>

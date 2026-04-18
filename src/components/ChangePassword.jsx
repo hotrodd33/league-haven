@@ -30,7 +30,7 @@ export default function ChangePassword({ onClose }) {
         <h2 className="text-xl font-heading font-bold text-white mb-4">Change Password</h2>
 
         {success ? (
-          <div className="bg-green-900/30 text-green-400 text-sm px-3 py-2 rounded-lg">
+          <div className="lh-alert lh-alert-success">
             Password changed successfully!
           </div>
         ) : (
@@ -55,14 +55,14 @@ export default function ChangePassword({ onClose }) {
                 onChange={(e) => setConfirm(e.target.value)}
                 required minLength={8} autoComplete="new-password" className={inputCls} />
             </div>
-            {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+            {error && <div className="lh-alert lh-alert-error">{error}</div>}
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={onClose}
                 className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">
                 Cancel
               </button>
               <button type="submit" disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60">
+                className="btn btn-sm btn-primary disabled:opacity-50">
                 {loading ? 'Changing…' : 'Change Password'}
               </button>
             </div>

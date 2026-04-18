@@ -80,7 +80,7 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
 
       {/* Next actions */}
       <div className="w-full space-y-2">
-        <p className="text-xs font-semibold uppercase text-gray-400 tracking-wider text-center mb-3">
+        <p className="eyebrow text-center mb-3">
           What's next?
         </p>
 

@@ -147,12 +147,12 @@ export default function FileUpload({
       )}
 
       {/* Export instructions */}
-      <div className="bg-blue-900/30 rounded-xl p-4 border border-blue-100">
-        <h4 className="text-sm font-semibold text-blue-200 mb-2">{info.title}</h4>
+      <div className="bg-chrome-900/30 rounded-xl p-4 border border-blue-100">
+        <h4 className="text-sm font-semibold text-chrome-200 mb-2">{info.title}</h4>
         <ol className="space-y-1.5">
           {info.steps.map((step, i) => (
-            <li key={i} className="flex items-start gap-2 text-xs text-blue-300">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-blue-900/40 text-blue-200 flex items-center justify-center text-[10px] font-bold mt-0.5">
+            <li key={i} className="flex items-start gap-2 text-xs text-chrome-300">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-chrome-900/40 text-chrome-200 flex items-center justify-center text-[10px] font-bold mt-0.5">
                 {i + 1}
               </span>
               <span className="leading-relaxed">{step}</span>

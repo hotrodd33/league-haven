@@ -134,7 +134,7 @@ export default function DataManager({ onOpenImport }) {
                 {ENTITIES.map(ent => (
                   <button key={ent.key}
                     onClick={() => { setSelectedEntity(ent.key); setResult(null); setError(null); }}
-                    className={`text-left px-3 py-2 rounded-lg border text-sm transition-colors ${selectedEntity === ent.key ? 'border-blue-600 bg-blue-900/30 text-blue-300 font-semibold' : 'border-gray-700 hover:border-gray-600 text-gray-300'}`}
+                    className={`text-left px-3 py-2 rounded-lg border text-sm transition-colors ${selectedEntity === ent.key ? 'border-blue-600 bg-chrome-900/30 text-chrome-300 font-semibold' : 'border-gray-700 hover:border-gray-600 text-gray-300'}`}
                   >
                     <span className="mr-1">{ent.icon}</span> {ent.label}
                   </button>
@@ -148,7 +148,7 @@ export default function DataManager({ onOpenImport }) {
                 <div>
                   <label className={labelCls}>CSV File or Paste</label>
                   <div className="flex gap-2 mb-2">
-                    <label className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700 inline-block">
+                    <label className="btn btn-xs btn-primary cursor-pointer inline-block">
                       Choose File
                       <input type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" key={selectedEntity} />
                     </label>
@@ -195,11 +195,11 @@ export default function DataManager({ onOpenImport }) {
                   <p className="mt-1 pl-2">{entity?.cols}</p>
                 </details>
 
-                {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+                {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
                 <div className="flex justify-end">
                   <button onClick={handleImport} disabled={importing || !csv.trim()}
-                    className="px-5 py-2 bg-green-700 text-white text-sm font-semibold rounded-lg hover:bg-green-800 disabled:opacity-60"
+                    className="px-5 py-2 bg-green-700 text-white text-sm font-semibold rounded-lg hover:bg-action-800 disabled:opacity-60"
                   >{importing ? 'Importing…' : `Import ${entity?.label}`}</button>
                 </div>
               </>
@@ -207,13 +207,13 @@ export default function DataManager({ onOpenImport }) {
               /* Import results */
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="bg-green-900/30 border border-green-200 rounded-lg p-3">
-                    <div className="text-2xl font-bold text-green-400">{result.created}</div>
-                    <div className="text-xs text-green-600 font-semibold">Created</div>
+                  <div className="bg-action-900/30 border border-action-200 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-action-400">{result.created}</div>
+                    <div className="text-xs text-action-400 font-semibold">Created</div>
                   </div>
-                  <div className="bg-blue-900/30 border border-blue-200 rounded-lg p-3">
-                    <div className="text-2xl font-bold text-blue-400">{result.updated}</div>
-                    <div className="text-xs text-blue-600 font-semibold">Updated</div>
+                  <div className="bg-chrome-900/30 border border-chrome-200 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-chrome-400">{result.updated}</div>
+                    <div className="text-xs text-chrome-400 font-semibold">Updated</div>
                   </div>
                   <div className="bg-gray-900 border border-gray-700 rounded-lg p-3">
                     <div className="text-2xl font-bold text-gray-400">{result.skipped}</div>
@@ -261,12 +261,12 @@ export default function DataManager({ onOpenImport }) {
         {/* ── CLEAR TAB ── */}
         {tab === 'clear' && (
           <div className="space-y-4">
-            <div className="bg-red-900/30 border border-red-200 rounded-lg p-3 text-sm text-red-400">
+            <div className="bg-signal-900/30 border border-signal-200 rounded-lg p-3 text-sm text-signal-400">
               <strong>Warning:</strong> Clearing data is permanent and cannot be undone. Export your data first as a backup.
             </div>
 
             {clearResult && (
-              <div className="bg-green-900/30 border border-green-200 rounded-lg p-3 text-sm text-green-400">
+              <div className="bg-action-900/30 border border-action-200 rounded-lg p-3 text-sm text-action-400">
                 Cleared: {clearResult.cleared?.join(', ')}
               </div>
             )}
@@ -282,14 +282,14 @@ export default function DataManager({ onOpenImport }) {
                     {clearConfirm === idx ? (
                       <div className="flex gap-2">
                         <button onClick={() => setClearConfirm(null)}
-                          className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-300 rounded hover:bg-gray-600">Cancel</button>
+                          className="btn btn-xs btn-secondary">Cancel</button>
                         <button onClick={() => handleClear(group)} disabled={clearing}
-                          className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
+                          className="btn btn-xs btn-danger"
                         >{clearing ? 'Clearing…' : 'Yes, Delete'}</button>
                       </div>
                     ) : (
                       <button onClick={() => { setClearConfirm(idx); setClearResult(null); }}
-                        className="px-3 py-1.5 text-xs font-semibold bg-red-900/35 text-red-300 rounded hover:bg-red-800/60"
+                        className="btn btn-xs btn-danger"
                       >Clear</button>
                     )}
                   </div>

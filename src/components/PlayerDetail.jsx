@@ -34,8 +34,8 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit
         <button onClick={onBack} className="p-2 hover:bg-gray-700 rounded-lg transition-colors">
           <ChevronLeftIcon className="w-5 h-5 text-gray-400" />
         </button>
-        <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
-          <UserIcon className="w-6 h-6 text-blue-400" />
+        <div className="w-12 h-12 rounded-full bg-chrome-500/20 flex items-center justify-center">
+          <UserIcon className="w-6 h-6 text-chrome-400" />
         </div>
         <div>
           <h2 className="text-xl font-bold text-white">{currentPlayer.first_name} {currentPlayer.last_name}</h2>
@@ -56,7 +56,7 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit
             onClick={() => setTab(t.key)}
             className={`px-4 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors ${
               tab === t.key
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-800/50'
+                ? 'text-chrome-400 border-b-2 border-chrome-400 bg-gray-800/50'
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -148,7 +148,7 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
             <h3 className="eyebrow text-gray-300">Edit Player Info</h3>
           </div>
 
-          {error && <p className="text-sm text-red-400 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+          {error && <p className="text-sm text-signal-400 bg-signal-900/20 px-3 py-2 rounded-lg">{error}</p>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -196,9 +196,9 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
                     type="button"
                     key={p.id}
                     onClick={() => handlePositionToggle(p.id)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                    className={`lh-tab border transition-colors ${
                       form.position_ids.includes(p.id)
-                        ? 'bg-blue-600 border-blue-500 text-white'
+                        ? 'lh-tab-active border-action-500'
                         : 'bg-gray-700/40 border-gray-600 text-gray-300 hover:bg-gray-700'
                     }`}
                   >
@@ -211,7 +211,7 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
 
           <div className="flex gap-2 justify-end pt-2">
             <button type="button" onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+            <button type="submit" disabled={saving} className="btn btn-sm btn-primary">
               {saving ? 'Saving...' : 'Save'}
             </button>
           </div>
@@ -346,7 +346,7 @@ function TeamAssignments({ player, canEdit, onNavigateToTeam, onPlayerUpdated })
                       {orgTeams.map(t => (
                         <label key={t.id} className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-900 cursor-pointer">
                           <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleTeam(t.id)}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-600 focus:ring-blue-500" />
+                            className="w-4 h-4 text-action-600 rounded border-gray-600 focus:ring-action-500" />
                           <span className="text-sm text-gray-200">{t.name}</span>
                           {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
                         </label>
@@ -362,7 +362,7 @@ function TeamAssignments({ player, canEdit, onNavigateToTeam, onPlayerUpdated })
                     {unassignedTeams.map(t => (
                       <label key={t.id} className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-900 cursor-pointer">
                         <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleTeam(t.id)}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-600 focus:ring-blue-500" />
+                          className="w-4 h-4 text-action-600 rounded border-gray-600 focus:ring-action-500" />
                         <span className="text-sm text-gray-200">{t.name}</span>
                         {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
                       </label>
@@ -374,7 +374,7 @@ function TeamAssignments({ player, canEdit, onNavigateToTeam, onPlayerUpdated })
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-700">
               <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
               <button onClick={handleSave} disabled={saving}
-                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+                className="btn btn-sm btn-primary">
                 {saving ? 'Saving…' : 'Save Teams'}
               </button>
             </div>
@@ -436,7 +436,7 @@ function TeamRow({ team: t, player, canEdit, onNavigateToTeam, onPlayerUpdated }
   return (
     <div className="flex items-center gap-2 px-3 py-2 bg-gray-700/40 rounded-lg">
       <button
-        className="flex-1 text-left text-sm text-white hover:text-blue-300 transition-colors truncate"
+        className="flex-1 text-left text-sm text-white hover:text-chrome-300 transition-colors truncate"
         onClick={() => onNavigateToTeam?.(teamId, t.org_id)}
       >
         {t.team_name || t.name}
@@ -452,14 +452,14 @@ function TeamRow({ team: t, player, canEdit, onNavigateToTeam, onPlayerUpdated }
             onBlur={saveJersey}
             onKeyDown={e => { if (e.key === 'Enter') saveJersey(); if (e.key === 'Escape') { setJersey(t.jersey_number || ''); setJerseyEdit(false); } }}
             disabled={saving}
-            className="w-14 px-1.5 py-0.5 text-xs bg-gray-900 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-14 px-1.5 py-0.5 text-xs bg-gray-900 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-1 focus:ring-action-500"
             placeholder="—"
           />
         </div>
       ) : (
         <button
           onClick={() => canEdit && setJerseyEdit(true)}
-          className={`text-xs px-2 py-0.5 rounded-full ${t.jersey_number ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-600/30 text-gray-500'} ${canEdit ? 'hover:bg-blue-500/30 cursor-pointer' : ''}`}
+          className={`text-xs px-2 py-0.5 rounded-full ${t.jersey_number ? 'bg-chrome-500/20 text-chrome-300' : 'bg-gray-600/30 text-gray-500'} ${canEdit ? 'hover:bg-chrome-500/30 cursor-pointer' : ''}`}
           title={canEdit ? 'Click to edit jersey number' : undefined}
           disabled={!canEdit}
         >
@@ -494,7 +494,7 @@ function ContactsTab({ playerId, canEdit }) {
         {canEdit && (
           <button
             onClick={() => { setEditing(null); setShowForm(true); }}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+            className="btn btn-xs btn-primary flex items-center gap-1"
           >
             <PlusIcon className="w-3.5 h-3.5" /> Add
           </button>
@@ -514,8 +514,8 @@ function ContactsTab({ playerId, canEdit }) {
                 <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full capitalize">{c.relationship}</span>
                 {c.is_primary && <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full">Primary</span>}
               </div>
-              {c.email && <p className="text-sm text-gray-400 mt-1"><a href={`mailto:${c.email}`} className="text-blue-400 hover:text-blue-300 underline">{c.email}</a></p>}
-              {c.phone && <p className="text-sm text-gray-400"><a href={`tel:${c.phone}`} className="text-blue-400 hover:text-blue-300 underline">{c.phone}</a></p>}
+              {c.email && <p className="text-sm text-gray-400 mt-1"><a href={`mailto:${c.email}`} className="text-chrome-400 hover:text-chrome-300 underline">{c.email}</a></p>}
+              {c.phone && <p className="text-sm text-gray-400"><a href={`tel:${c.phone}`} className="text-chrome-400 hover:text-chrome-300 underline">{c.phone}</a></p>}
               {c.notes && <p className="text-xs text-gray-500 mt-1 italic">{c.notes}</p>}
             </div>
             {canEdit && (
@@ -528,7 +528,7 @@ function ContactsTab({ playerId, canEdit }) {
                   await deletePlayerContact(playerId, c.id);
                   load();
                 }} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
-                  <TrashIcon className="w-4 h-4 text-red-400" />
+                  <TrashIcon className="w-4 h-4 text-signal-400" />
                 </button>
               </div>
             )}
@@ -593,14 +593,14 @@ function ContactForm({ playerId, contact, onSaved, onCancel }) {
         <input placeholder="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputCls} />
         <input placeholder="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} />
         <label className="flex items-center gap-2 text-sm text-gray-300">
-          <input type="checkbox" checked={form.is_primary} onChange={e => setForm(f => ({ ...f, is_primary: e.target.checked }))} className="rounded border-gray-600 bg-gray-700 text-blue-500" />
+          <input type="checkbox" checked={form.is_primary} onChange={e => setForm(f => ({ ...f, is_primary: e.target.checked }))} className="rounded border-gray-600 bg-gray-700 text-action-500" />
           Primary Contact
         </label>
       </div>
       <input placeholder="Notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className={`${inputCls} w-full`} />
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
-        <button type="submit" disabled={saving} className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50">
+        <button type="submit" disabled={saving} className="btn btn-sm btn-primary">
           {saving ? 'Saving...' : contact ? 'Update' : 'Add Contact'}
         </button>
       </div>
@@ -756,7 +756,7 @@ function DocumentsTab({ playerId, canEdit }) {
       <div className="flex justify-between items-center">
         <h3 className="eyebrow text-gray-300">Documents</h3>
         {canEdit && (
-          <label className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors cursor-pointer">
+          <label className="btn btn-xs btn-primary flex items-center gap-1 cursor-pointer">
             <PlusIcon className="w-3.5 h-3.5" />
             {uploading ? 'Uploading...' : 'Upload'}
             <input type="file" className="hidden" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf" onChange={handleUpload} disabled={uploading} />
@@ -778,10 +778,10 @@ function DocumentsTab({ playerId, canEdit }) {
             </div>
           </div>
           <div className="flex gap-1">
-            <button onClick={() => handleDownload(d)} className="px-3 py-1 text-xs text-blue-400 hover:text-blue-300 transition-colors">Download</button>
+            <button onClick={() => handleDownload(d)} className="px-3 py-1 text-xs text-chrome-400 hover:text-chrome-300 transition-colors">Download</button>
             {canEdit && (
               <button onClick={() => handleDelete(d.id)} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
-                <TrashIcon className="w-4 h-4 text-red-400" />
+                <TrashIcon className="w-4 h-4 text-signal-400" />
               </button>
             )}
           </div>
@@ -853,9 +853,9 @@ function NotesTab({ playerId, canEdit }) {
             value={newNote}
             onChange={e => setNewNote(e.target.value)}
             placeholder="Add a note..."
-            className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-action-500 focus:border-transparent"
           />
-          <button type="submit" disabled={saving || !newNote.trim()} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+          <button type="submit" disabled={saving || !newNote.trim()} className="btn btn-sm btn-primary">
             {saving ? '...' : 'Add'}
           </button>
         </form>
@@ -873,11 +873,11 @@ function NotesTab({ playerId, canEdit }) {
                 value={editText}
                 onChange={e => setEditText(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:ring-2 focus:ring-action-500"
               />
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setEditingId(null)} className="text-xs text-gray-400 hover:text-white">Cancel</button>
-                <button onClick={() => handleUpdate(n.id)} className="text-xs text-blue-400 hover:text-blue-300">Save</button>
+                <button onClick={() => handleUpdate(n.id)} className="text-xs text-chrome-400 hover:text-chrome-300">Save</button>
               </div>
             </div>
           ) : (
@@ -895,7 +895,7 @@ function NotesTab({ playerId, canEdit }) {
                     <PencilIcon className="w-4 h-4 text-gray-400" />
                   </button>
                   <button onClick={() => handleDelete(n.id)} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
-                    <TrashIcon className="w-4 h-4 text-red-400" />
+                    <TrashIcon className="w-4 h-4 text-signal-400" />
                   </button>
                 </div>
               )}
@@ -911,7 +911,7 @@ function NotesTab({ playerId, canEdit }) {
 function Spinner() {
   return (
     <div className="flex items-center justify-center py-8">
-      <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-400 border-t-transparent" />
+      <div className="animate-spin rounded-full h-6 w-6 border-2 border-chrome-400 border-t-transparent" />
     </div>
   );
 }

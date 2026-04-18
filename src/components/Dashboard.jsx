@@ -73,14 +73,14 @@ function getWeatherForGame(game, weatherMap) {
 }
 
 const PRIORITY_STYLES = {
-  urgent: 'border-red-500/50 bg-red-950/30',
+  urgent: 'border-signal-500/50 bg-red-950/30',
   high: 'border-yellow-500/40 bg-yellow-950/20',
-  normal: 'border-blue-500/30 bg-blue-950/15',
+  normal: 'border-chrome-500/30 bg-blue-950/15',
   low: 'border-gray-600/30 bg-gray-900/20',
 };
 
 const PRIORITY_BADGES = {
-  urgent: 'bg-red-500/20 text-red-300',
+  urgent: 'bg-signal-500/20 text-signal-300',
   high: 'bg-yellow-500/20 text-yellow-300',
   normal: '',
   low: '',
@@ -296,7 +296,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
             <div className="flex justify-end">
               <button
                 onClick={() => onNavigate('announcements')}
-                className="text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors"
+                className="text-xs text-chrome-400 hover:text-chrome-300 font-semibold transition-colors"
               >
                 Manage Announcements →
               </button>
@@ -305,7 +305,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
           {announcements.map(a => (
             <div key={a.id} className={cn('rounded-xl border px-5 py-4', PRIORITY_STYLES[a.priority] || PRIORITY_STYLES.normal)}>
               <div className="flex items-start gap-3">
-                <MegaphoneIcon className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                <MegaphoneIcon className="w-5 h-5 text-chrome-400 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="text-sm font-bold text-gray-100">{a.title}</h4>
@@ -442,7 +442,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                     className={cn(
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg border',
                       w.playability.rating === 'unplayable'
-                        ? 'bg-red-950/20 border-red-500/30'
+                        ? 'bg-red-950/20 border-signal-500/30'
                         : 'bg-orange-950/15 border-orange-500/20',
                     )}
                   >
@@ -463,7 +463,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                     <div className="text-right shrink-0">
                       <span className={cn(
                         'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
-                        w.playability.rating === 'unplayable' ? 'bg-red-900/40 text-red-300' : 'bg-orange-900/40 text-orange-300',
+                        w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' : 'bg-orange-900/40 text-orange-300',
                       )}>
                         {w.playability.rating}
                       </span>
@@ -482,13 +482,13 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
       {/* ── Pitch Count Warnings ── */}
       {playersOnRest.length > 0 && (
         <section aria-label="Pitch count warnings">
-          <Card variant="bordered" className="border-red-500/30 bg-red-950/10">
+          <Card variant="bordered" className="border-signal-500/30 bg-red-950/10">
             <CardHeader>
               <div className="flex items-center justify-between w-full">
                 <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
-                  <BellIcon className="w-5 h-5 text-red-400" />
+                  <BellIcon className="w-5 h-5 text-signal-400" />
                   Pitch Rest Alerts
-                  <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-red-500/20 text-red-300">
+                  <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-signal-500/20 text-signal-300">
                     {playersOnRest.length}
                   </span>
                 </h3>
@@ -510,7 +510,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                         <span className="text-xs text-gray-400">{p.teams.map(t => t.team_name).join(', ')}</span>
                       )}
                     </div>
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/20 text-red-300 shrink-0 ml-3">
+                    <span className="lh-badge lh-badge-danger shrink-0 ml-3">
                       Avail: {new Date(p.available_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                     </span>
                   </div>
@@ -560,7 +560,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                         {g.location_name ? ` · ${g.location_name}` : ''}
                       </span>
                     </div>
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-dirt-500/20 text-dirt-300 shrink-0">
+                    <span className="lh-badge lh-badge-warn shrink-0">
                       No score
                     </span>
                   </div>
@@ -762,7 +762,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                       <div className="min-w-0">
                         <button
                           onClick={() => onViewPlayer?.(p.id)}
-                          className="text-sm font-medium text-gray-200 hover:text-blue-300 transition-colors block truncate text-left"
+                          className="text-sm font-medium text-gray-200 hover:text-chrome-300 transition-colors block truncate text-left"
                         >
                           {p.name}
                         </button>
@@ -772,7 +772,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                       </div>
                       <div className="flex flex-wrap gap-1 shrink-0 ml-3 justify-end">
                         {p.issues.map((issue, i) => (
-                          <span key={i} className="text-xs font-semibold px-2 py-0.5 rounded-full bg-baseball-500/20 text-baseball-300">
+                          <span key={i} className="lh-badge lh-badge-danger">
                             {issue}
                           </span>
                         ))}
@@ -909,7 +909,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
 function QuickAction({ icon, label, onClick, color = 'field' }) {
   const colors = {
     field:    'bg-field-900/35 text-field-300 hover:bg-field-900/50',
-    blue:     'bg-blue-900/35 text-blue-300 hover:bg-blue-900/55',
+    blue:     'bg-chrome-900/35 text-chrome-300 hover:bg-chrome-900/55',
     dirt:     'bg-dirt-900/35 text-dirt-300 hover:bg-dirt-900/50',
     baseball: 'bg-baseball-900/35 text-baseball-300 hover:bg-baseball-900/50',
   };

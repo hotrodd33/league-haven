@@ -82,7 +82,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
         <h2 className="text-xl font-heading font-bold text-white">Standings</h2>
         <div className="flex gap-2 items-center">
           <select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
             <option value="">Select Season</option>
             {seasons.map(s => (
               <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
@@ -91,7 +91,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
           <select
             value={divisionFilter}
             onChange={(e) => setDivisionFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500"
             disabled={!seasonId || divisionOptions.length === 0}
           >
             <option value="">All Divisions</option>
@@ -103,7 +103,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
         </div>
       </div>
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-4">{error.message}</div>}
+      {error && <div className="lh-alert lh-alert-error mb-4">{error.message}</div>}
 
       {!seasonId ? (
         <div className="py-12 text-center text-gray-400">Select a season to view standings.</div>
@@ -160,7 +160,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                           <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{winPct(team)}</td>
                           <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{team.runs_for}</td>
                           <td className="py-2.5 px-2 text-center text-gray-300 tabular-nums">{team.runs_against}</td>
-                          <td className={`py-2.5 px-2 text-center font-semibold tabular-nums ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                          <td className={`py-2.5 px-2 text-center font-semibold tabular-nums ${diff > 0 ? 'text-action-400' : diff < 0 ? 'text-signal-400' : 'text-gray-400'}`}>
                             {diff > 0 ? '+' : ''}{diff}
                           </td>
                         </tr>
@@ -195,7 +195,7 @@ export default function Standings({ onBack, onNavigateToTeam }) {
                         <span>W-L-T: {team.wins}-{team.losses}-{team.ties || 0}</span>
                         <span>PCT: {winPct(team)}</span>
                         <span>RA: {team.runs_against}</span>
-                        <span className={`font-semibold ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : ''}`}>
+                        <span className={`font-semibold ${diff > 0 ? 'text-action-400' : diff < 0 ? 'text-signal-400' : ''}`}>
                           DIFF: {diff > 0 ? '+' : ''}{diff}
                         </span>
                       </div>

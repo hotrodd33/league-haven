@@ -216,7 +216,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
   }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading game…</div>;
-  if (!game) return <div className="py-8 text-center text-red-400">Game not found</div>;
+  if (!game) return <div className="py-8 text-center text-signal-400">Game not found</div>;
 
   if (showTracker) {
     return <PitchTracker gameId={gameId} onBack={() => { setShowTracker(false); loadAll(); }} />;
@@ -263,7 +263,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
                 GC
               </span>
             )}
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
+            <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
               {game.status_label}
             </span>
           </div>
@@ -308,7 +308,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       {/* Weather card */}
       {weather && (
         <div className={`border rounded-xl p-4 sm:p-5 mb-4 ${
-          weather.playability?.rating === 'unplayable' ? 'bg-red-950/20 border-red-500/30' :
+          weather.playability?.rating === 'unplayable' ? 'bg-red-950/20 border-signal-500/30' :
           weather.playability?.rating === 'poor' ? 'bg-orange-950/15 border-orange-500/30' :
           'bg-gray-800 border-gray-700'
         }`}>
@@ -319,10 +319,10 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
             </h3>
             {weather.playability && (
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                weather.playability.rating === 'good' ? 'bg-green-900/40 text-green-300' :
+                weather.playability.rating === 'good' ? 'bg-action-900/40 text-action-300' :
                 weather.playability.rating === 'fair' ? 'bg-yellow-900/40 text-yellow-300' :
                 weather.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
-                'bg-red-900/40 text-red-300'
+                'bg-signal-900/40 text-signal-300'
               }`}>{weather.playability.rating}</span>
             )}
           </div>
@@ -354,7 +354,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
             <div className="text-center p-2 bg-gray-900/50 rounded-lg">
               {weather.uvIndex != null ? (
                 <>
-                  <div className={`text-lg font-bold ${weather.uvIndex >= 8 ? 'text-red-400' : weather.uvIndex >= 6 ? 'text-orange-400' : 'text-gray-100'}`}>
+                  <div className={`text-lg font-bold ${weather.uvIndex >= 8 ? 'text-signal-400' : weather.uvIndex >= 6 ? 'text-orange-400' : 'text-gray-100'}`}>
                     {Math.round(weather.uvIndex)}
                   </div>
                   <div className="text-[10px] text-gray-500">☀️ UV Index</div>
@@ -394,7 +394,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
             <h3 className="text-base font-heading font-bold uppercase tracking-wide text-white">Report Score</h3>
             <div className="flex items-center gap-3">
               {!editingScore && (
-                <button onClick={() => setEditingScore(true)} className="text-xs text-blue-400 font-semibold hover:underline">Edit</button>
+                <button onClick={() => setEditingScore(true)} className="text-xs text-chrome-400 font-semibold hover:underline">Edit</button>
               )}
             </div>
           </div>
@@ -439,7 +439,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
         </div>
       )}
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}
+      {error && <div className="lh-alert lh-alert-error mb-4">{error}</div>}
 
       {/* Pitch Counts — Home */}
       <PitchCountSection
@@ -557,7 +557,7 @@ function PitchCountSection({
           {dailyLimit && <span className="text-xs text-gray-400 shrink-0">Limit: {dailyLimit}/day</span>}
         </div>
         {canEdit && !isAdding && !editingPc && (
-          <button onClick={onStartAdd} className="px-2.5 py-1 text-xs font-semibold bg-blue-900/30 text-blue-200 rounded hover:bg-blue-800/40 transition-colors">+ Add Pitcher</button>
+          <button onClick={onStartAdd} className="px-2.5 py-1 text-xs font-semibold bg-chrome-900/30 text-chrome-200 rounded hover:bg-chrome-800/40 transition-colors">+ Add Pitcher</button>
         )}
       </div>
 
@@ -591,7 +591,7 @@ function PitchCountSection({
                       onChange={(e) => setPcForm(prev => ({ ...prev, pitch_count: e.target.value }))}
                       className={inputCls} />
                     {pcForm.pitch_count && dailyLimit && (Number(pcForm.pitch_count) + otherToday) > dailyLimit && (
-                      <div className="mt-1 text-xs text-red-400 font-semibold">Exceeds daily limit of {dailyLimit}</div>
+                      <div className="mt-1 text-xs text-signal-400 font-semibold">Exceeds daily limit of {dailyLimit}</div>
                     )}
                   </div>
                 </div>
@@ -604,13 +604,13 @@ function PitchCountSection({
               <div key={pc.id} className="md:grid md:grid-cols-12 md:gap-2 px-2.5 py-2 rounded hover:bg-gray-900 group border border-transparent hover:border-gray-700/80 transition-colors">
                 <div className="md:col-span-1 text-xs text-gray-400 font-mono mb-1 md:mb-0">#{pc.jersey_number || '—'}</div>
                 <div className="md:col-span-5 text-sm font-medium text-gray-100 truncate mb-1 md:mb-0">{pc.first_name} {pc.last_name}</div>
-                <div className={`md:col-span-2 text-sm font-bold md:text-right tabular-nums mb-1 md:mb-0 ${overLimit ? 'text-red-400' : 'text-gray-200'}`}>{pc.pitch_count}</div>
+                <div className={`md:col-span-2 text-sm font-bold md:text-right tabular-nums mb-1 md:mb-0 ${overLimit ? 'text-signal-400' : 'text-gray-200'}`}>{pc.pitch_count}</div>
                 <div className="md:col-span-2 md:text-right mb-1 md:mb-0">
                   {restDays != null && (() => {
                     const availDate = availableDate(restDays);
                     return (
                       <span className={`inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-full ${
-                        restDays >= 3 ? 'bg-red-900/35 text-red-300' :
+                        restDays >= 3 ? 'bg-signal-900/35 text-signal-300' :
                         restDays >= 2 ? DARK_BADGES.warning :
                         restDays >= 1 ? DARK_BADGES.warning :
                         DARK_BADGES.success
@@ -643,7 +643,7 @@ function PitchCountSection({
 
       {/* Add form */}
       {isAdding && (
-        <form onSubmit={onAdd} className="mt-3 bg-gray-900/65 border border-blue-700/30 rounded-lg p-3 sm:p-4 space-y-3">
+        <form onSubmit={onAdd} className="mt-3 bg-gray-900/65 border border-chrome-700/30 rounded-lg p-3 sm:p-4 space-y-3">
           <div>
             <label className={labelCls}>Player *</label>
             {availablePlayers.length > 0 ? (
@@ -668,7 +668,7 @@ function PitchCountSection({
 
             {/* Eligibility warning for selected player */}
             {selectedElig && !selectedElig.eligible && (
-              <div className="mt-2 bg-red-900/30 border border-red-400/35 text-red-300 text-xs rounded-lg px-3 py-2">
+              <div className="mt-2 bg-signal-900/30 border border-signal-400/35 text-signal-300 text-xs rounded-lg px-3 py-2">
                 <strong>⚠ Ineligible to pitch:</strong>
                 <ul className="mt-1 list-disc list-inside">
                   {selectedElig.reasons.map((r, i) => <li key={i}>{r}</li>)}
@@ -685,14 +685,14 @@ function PitchCountSection({
 
             {!addingNewPlayer && (
               <button type="button" onClick={onStartAddNewPlayer}
-                className="mt-1 text-xs text-green-300 font-semibold hover:underline">+ New Player</button>
+                className="mt-1 text-xs text-action-300 font-semibold hover:underline">+ New Player</button>
             )}
           </div>
 
           {/* Inline new player form */}
           {addingNewPlayer && (
-            <div className="bg-green-900/20 border border-green-400/30 rounded-lg p-3 space-y-2">
-              <div className="text-xs font-bold uppercase tracking-wide text-green-300 mb-1">Quick Add Player</div>
+            <div className="bg-action-900/20 border border-action-400/30 rounded-lg p-3 space-y-2">
+              <div className="eyebrow text-action-300 mb-1">Quick Add Player</div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className={labelCls}>First Name *</label>
@@ -715,7 +715,7 @@ function PitchCountSection({
               </div>
               <div className="flex gap-2">
                 <button type="button" disabled={savingNewPlayer} onClick={(e) => { e.preventDefault(); onSaveNewPlayer(); }}
-                  className="px-3 py-1.5 bg-green-700 text-white text-xs font-semibold rounded-lg hover:bg-green-800 disabled:opacity-60">
+                  className="px-3 py-1.5 bg-green-700 text-white text-xs font-semibold rounded-lg hover:bg-action-800 disabled:opacity-60">
                   {savingNewPlayer ? 'Adding…' : 'Add Player'}
                 </button>
                 <button type="button" onClick={onCancelAddNewPlayer}
@@ -741,7 +741,7 @@ function PitchCountSection({
                     return (
                       <div className="mt-1 space-y-0.5">
                         {total > dailyLimit && (
-                          <div className="text-xs text-red-400 font-semibold">⚠ Exceeds daily limit of {dailyLimit}</div>
+                          <div className="text-xs text-signal-400 font-semibold">⚠ Exceeds daily limit of {dailyLimit}</div>
                         )}
                         {rest != null && rest > 0 && (
                           <div className="text-xs text-gray-300">→ Will require <strong>{rest} rest day{rest !== 1 ? 's' : ''}</strong></div>

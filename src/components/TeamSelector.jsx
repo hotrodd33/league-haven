@@ -69,7 +69,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
   }
 
   if (loading) return <div className="p-4 text-center text-gray-400">Loading teams…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>;
+  if (error) return <div className="lh-alert lh-alert-error">{error}</div>;
 
   // Group teams by organization
   const grouped = {};
@@ -122,7 +122,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
             <button
               onClick={() => toggleOrg(orgName)}
               className={cn(
-                'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs font-bold uppercase tracking-wide transition-colors',
+                'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left eyebrow transition-colors',
                 hasSelected ? 'text-field-200 bg-field-900/20' : 'text-gray-400 hover:bg-gray-900'
               )}
             >
@@ -224,7 +224,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
           <div className="mt-2">
             <button
               onClick={() => { setEditing(false); setShowForm(true); }}
-              className="w-full px-2 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              className="btn btn-xs btn-primary w-full"
             >+ Add Team</button>
           </div>
         )}
@@ -243,7 +243,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="px-2 py-1.5 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                  className="btn btn-xs btn-danger"
                 >{deleting ? '…' : 'Delete'}</button>
               </div>
             </div>
@@ -264,7 +264,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
             <div className="flex gap-1">
               <button
                 onClick={() => { setEditing(false); setShowForm(true); }}
-                className="px-2 py-1 text-[11px] font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                className="btn btn-xs btn-primary"
               >+ Add Team</button>
             </div>
           )}
@@ -284,7 +284,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="px-2 py-1 text-[11px] font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                  className="btn btn-xs btn-danger"
                 >{deleting ? '…' : 'Delete'}</button>
               </div>
             </div>
@@ -534,7 +534,7 @@ function TeamForm({ team, onDone, onCancel }) {
                   <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                 </label>
                 {logoPreview && (
-                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-900/35 text-red-300 rounded hover:bg-red-800/60 w-fit">Remove</button>
+                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-signal-900/35 text-signal-300 rounded hover:bg-signal-800/60 w-fit">Remove</button>
                 )}
                 <p className="text-xs text-gray-400">Max 500 KB. If none, uses org logo.</p>
               </div>
@@ -609,10 +609,10 @@ function TeamForm({ team, onDone, onCancel }) {
               {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </div>
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+            <button type="submit" disabled={saving} className="btn btn-sm btn-primary disabled:opacity-50">
               {saving ? 'Saving…' : isEditing ? 'Update' : 'Add Team'}
             </button>
           </div>

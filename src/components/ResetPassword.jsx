@@ -25,15 +25,15 @@ export default function ResetPassword({ token, onDone }) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
       <div className="bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md border-t-4 border-baseball-600">
-        <h1 className="font-heading text-3xl font-bold mb-1 tracking-wide text-blue-300">LeagueHaven</h1>
+        <h1 className="font-heading text-3xl font-bold mb-1 tracking-wide text-chrome-300">LeagueHaven</h1>
 
         {success ? (
           <div>
-            <div className="bg-green-900/30 text-green-400 text-sm px-3 py-2 rounded-lg mb-4">
+            <div className="lh-alert lh-alert-success mb-4">
               Password has been reset successfully!
             </div>
             <button onClick={onDone}
-              className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm">
+              className="btn btn-sm btn-primary w-full">
               Go to Sign In
             </button>
           </div>
@@ -56,13 +56,13 @@ export default function ResetPassword({ token, onDone }) {
                   placeholder="Re-enter password" required minLength={8}
                   autoComplete="new-password" className={inputCls} />
               </div>
-              {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+              {error && <div className="lh-alert lh-alert-error">{error}</div>}
               <button type="submit" disabled={loading}
-                className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm">
+                className="btn btn-sm btn-primary w-full">
                 {loading ? 'Resetting…' : 'Reset Password'}
               </button>
               <button type="button" onClick={onDone}
-                className="w-full text-center text-sm text-blue-400 hover:underline">
+                className="w-full text-center text-sm text-chrome-400 hover:underline">
                 Back to sign in
               </button>
             </form>

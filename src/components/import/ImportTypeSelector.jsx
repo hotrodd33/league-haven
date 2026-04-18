@@ -49,7 +49,7 @@ const IMPORT_TYPES = [
 
 const colorMap = {
   field:    { bg: 'bg-field-900/35', icon: 'text-field-300', border: 'border-field-700', ring: 'ring-field-500', hoverBg: 'hover:bg-field-900/55' },
-  blue:     { bg: 'bg-blue-900/35', icon: 'text-blue-300', border: 'border-blue-700', ring: 'ring-blue-500', hoverBg: 'hover:bg-blue-900/55' },
+  blue:     { bg: 'bg-chrome-900/35', icon: 'text-chrome-300', border: 'border-chrome-700', ring: 'ring-blue-500', hoverBg: 'hover:bg-chrome-900/55' },
   dirt:     { bg: 'bg-dirt-900/35', icon: 'text-dirt-300', border: 'border-dirt-700', ring: 'ring-dirt-500', hoverBg: 'hover:bg-dirt-900/55' },
   baseball: { bg: 'bg-baseball-900/35', icon: 'text-baseball-300', border: 'border-baseball-700', ring: 'ring-baseball-500', hoverBg: 'hover:bg-baseball-900/55' },
 };

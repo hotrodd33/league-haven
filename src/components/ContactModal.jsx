@@ -62,7 +62,7 @@ export default function ContactModal({ scope, scopeId, scopeLabel, onClose }) {
 
         {success ? (
           <div>
-            <div className="bg-green-900/30 text-green-400 text-sm px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
+            <div className="lh-alert lh-alert-success mb-4 flex items-center gap-2">
               <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -70,7 +70,7 @@ export default function ContactModal({ scope, scopeId, scopeLabel, onClose }) {
             </div>
             <div className="flex justify-end">
               <button type="button" onClick={onClose}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700">
+                className="btn btn-sm btn-primary">
                 Done
               </button>
             </div>
@@ -81,7 +81,7 @@ export default function ContactModal({ scope, scopeId, scopeLabel, onClose }) {
             <div>
               <button type="button"
                 onClick={() => setShowRecipients(!showRecipients)}
-                className="text-sm text-blue-400 hover:text-blue-200 font-medium flex items-center gap-1">
+                className="text-sm text-chrome-400 hover:text-chrome-200 font-medium flex items-center gap-1">
                 <svg className={`w-4 h-4 transition-transform ${showRecipients ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
@@ -112,7 +112,7 @@ export default function ContactModal({ scope, scopeId, scopeLabel, onClose }) {
             </div>
 
             {error && (
-              <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>
+              <div className="lh-alert lh-alert-error">{error}</div>
             )}
 
             <div className="flex justify-end gap-3 pt-2">
@@ -122,7 +122,7 @@ export default function ContactModal({ scope, scopeId, scopeLabel, onClose }) {
               </button>
               <button type="submit"
                 disabled={sending || recipients.length === 0}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2">
+                className="btn btn-sm btn-primary disabled:opacity-50 flex items-center gap-2">
                 {sending && (
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />

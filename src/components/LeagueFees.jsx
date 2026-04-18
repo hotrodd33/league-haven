@@ -225,14 +225,14 @@ export default function LeagueFees({ onBack }) {
         </div>
       </div>
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>}
+      {error && <div className="lh-alert lh-alert-error mb-4">{error}</div>}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <SummaryCard label="Teams" value={summary.total_teams} />
         <SummaryCard label="Total Fees" value={fmt(summary.total_fees)} color="text-white" />
-        <SummaryCard label="Collected" value={fmt(summary.total_collected)} color="text-green-400" />
-        <SummaryCard label="Outstanding" value={fmt(summary.total_outstanding)} color={summary.total_outstanding > 0 ? 'text-red-400' : 'text-green-400'} />
+        <SummaryCard label="Collected" value={fmt(summary.total_collected)} color="text-action-400" />
+        <SummaryCard label="Outstanding" value={fmt(summary.total_outstanding)} color={summary.total_outstanding > 0 ? 'text-signal-400' : 'text-action-400'} />
       </div>
 
       {/* Filters */}
@@ -333,8 +333,8 @@ export default function LeagueFees({ onBack }) {
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      {reg.age_group && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-blue-900/35 text-blue-300">{reg.age_group}</span>}
-                      {reg.level && <span className="ml-1 px-1.5 py-0.5 rounded text-[11px] font-bold bg-purple-900/35 text-purple-300">{reg.level}</span>}
+                      {reg.age_group && <span className="lh-badge lh-badge-info">{reg.age_group}</span>}
+                      {reg.level && <span className="ml-1 lh-badge lh-badge-info">{reg.level}</span>}
                     </td>
                     <td className="px-3 py-3 text-gray-300 text-xs">{reg.season_name} {reg.season_year}</td>
                     <td className="px-3 py-3 text-right">
@@ -342,14 +342,14 @@ export default function LeagueFees({ onBack }) {
                         <div className="flex items-center justify-end gap-1">
                           <input type="number" min="0" step="0.01" value={editFeeValue}
                             onChange={(e) => setEditFeeValue(e.target.value)}
-                            className="w-20 px-2 py-1 bg-gray-900 border border-gray-600 rounded text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-20 px-2 py-1 bg-gray-900 border border-gray-600 rounded text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-action-500"
                             autoFocus onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFee(reg); if (e.key === 'Escape') setEditingFeeId(null); }} />
-                          <button onClick={() => handleSaveFee(reg)} className="text-blue-400 text-xs hover:underline">✓</button>
+                          <button onClick={() => handleSaveFee(reg)} className="text-chrome-400 text-xs hover:underline">✓</button>
                           <button onClick={() => setEditingFeeId(null)} className="text-gray-500 text-xs hover:underline">✗</button>
                         </div>
                       ) : (
                         <button onClick={() => { setEditingFeeId(reg.id); setEditFeeValue(reg.fee != null ? String(reg.fee) : ''); }}
-                          className="text-right hover:text-blue-400 transition-colors group" title="Click to edit fee">
+                          className="text-right hover:text-chrome-400 transition-colors group" title="Click to edit fee">
                           <span className="font-mono text-gray-100">{fmt(reg.effective_fee)}</span>
                           {reg.fee != null && <span className="ml-1 text-amber-400 text-[10px]" title="Custom override">✱</span>}
                           {reg.fee == null && reg.age_group_fee != null && <span className="ml-1 text-gray-500 text-[10px]" title="From age group config">AG</span>}
@@ -358,15 +358,15 @@ export default function LeagueFees({ onBack }) {
                     </td>
                     <td className="px-3 py-3 text-center">
                       {reg.is_paid ? (
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">Paid</span>
+                        <span className="lh-badge lh-badge-success">Paid</span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-900/35 text-red-300">Unpaid</span>
+                        <span className="lh-badge lh-badge-danger">Unpaid</span>
                       )}
                     </td>
                     <td className="px-3 py-3 text-xs text-gray-400">
                       {reg.is_paid ? (
                         <div>
-                          {reg.paid_amount != null && <span className="text-green-300">{fmt(reg.paid_amount)}</span>}
+                          {reg.paid_amount != null && <span className="text-action-300">{fmt(reg.paid_amount)}</span>}
                           {reg.check_number && <span className="ml-1">Chk #{reg.check_number}</span>}
                           {reg.paid_at && <div className="text-[10px] text-gray-500">{new Date(reg.paid_at).toLocaleDateString()}</div>}
                         </div>
@@ -383,12 +383,12 @@ export default function LeagueFees({ onBack }) {
                           </button>
                         ) : (
                           <button onClick={() => openPayment(reg)}
-                            className="px-2 py-1 text-[11px] font-semibold bg-green-700 text-white rounded hover:bg-green-600 transition-colors">
+                            className="px-2 py-1 text-[11px] font-semibold bg-green-700 text-white rounded hover:bg-action-600 transition-colors">
                             Pay
                           </button>
                         )}
                         <button onClick={() => handleRemove(reg)}
-                          className="px-2 py-1 text-[11px] font-semibold bg-red-900/35 text-red-300 rounded hover:bg-red-900/60 transition-colors">
+                          className="px-2 py-1 text-[11px] font-semibold bg-signal-900/35 text-signal-300 rounded hover:bg-signal-900/60 transition-colors">
                           ✕
                         </button>
                       </div>
@@ -412,15 +412,15 @@ export default function LeagueFees({ onBack }) {
                     <div className="text-[11px] text-gray-500">{reg.org_name} · {reg.season_name} {reg.season_year}</div>
                   </div>
                   {reg.is_paid ? (
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">Paid</span>
+                    <span className="lh-badge lh-badge-success">Paid</span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-900/35 text-red-300">Unpaid</span>
+                    <span className="lh-badge lh-badge-danger">Unpaid</span>
                   )}
                 </div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    {reg.age_group && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-blue-900/35 text-blue-300">{reg.age_group}</span>}
-                    {reg.level && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-purple-900/35 text-purple-300">{reg.level}</span>}
+                    {reg.age_group && <span className="lh-badge lh-badge-info">{reg.age_group}</span>}
+                    {reg.level && <span className="lh-badge lh-badge-info">{reg.level}</span>}
                   </div>
                   <span className="font-mono text-sm font-semibold text-gray-100">
                     {fmt(reg.effective_fee)}
@@ -438,7 +438,7 @@ export default function LeagueFees({ onBack }) {
                     </button>
                   ) : (
                     <button onClick={() => openPayment(reg)}
-                      className="flex-1 px-3 py-1.5 text-xs font-semibold bg-green-700 text-white rounded-lg hover:bg-green-600">
+                      className="flex-1 px-3 py-1.5 text-xs font-semibold bg-green-700 text-white rounded-lg hover:bg-action-600">
                       Record Payment
                     </button>
                   )}
@@ -447,7 +447,7 @@ export default function LeagueFees({ onBack }) {
                     Edit Fee
                   </button>
                   <button onClick={() => handleRemove(reg)}
-                    className="px-3 py-1.5 text-xs font-semibold bg-red-900/35 text-red-300 rounded-lg hover:bg-red-900/60">
+                    className="px-3 py-1.5 text-xs font-semibold bg-signal-900/35 text-signal-300 rounded-lg hover:bg-signal-900/60">
                     ✕
                   </button>
                 </div>

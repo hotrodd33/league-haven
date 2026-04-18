@@ -39,7 +39,7 @@ export default function PitcherRest({ teamId }) {
 
   if (!teamId) return null;
   if (loading) return <div className="mt-6 text-sm text-gray-400 text-center py-4">Loading pitcher data…</div>;
-  if (error) return <div className="mt-6 text-sm text-red-400 text-center py-4">{error}</div>;
+  if (error) return <div className="mt-6 text-sm text-signal-400 text-center py-4">{error}</div>;
   if (!data) return null;
 
   const { players, daily_limit, rules, today, season, age_category } = data;
@@ -118,7 +118,7 @@ export default function PitcherRest({ teamId }) {
                     <div className="col-span-1 text-xs text-gray-400 font-mono">{p.jersey_number || '—'}</div>
                     <div className="col-span-3 text-sm font-medium truncate">{p.first_name} {p.last_name}</div>
                     <div className="col-span-2 text-center">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>
+                      <span className={`lh-badge ${STATUS_BADGE[status]}`}>
                         {statusLabel(p)}
                       </span>
                     </div>
@@ -133,7 +133,7 @@ export default function PitcherRest({ teamId }) {
                     <div className="bg-gray-900 px-4 sm:px-6 py-3 border-b border-gray-700">
                       {/* Ineligibility reasons */}
                       {!p.eligible_today && p.reasons.length > 0 && (
-                        <div className="mb-3 bg-red-900/30 border border-red-200 text-red-400 text-xs rounded-lg px-3 py-2">
+                        <div className="mb-3 bg-signal-900/30 border border-signal-200 text-signal-400 text-xs rounded-lg px-3 py-2">
                           <strong>Ineligible to pitch today:</strong>
                           <ul className="mt-1 list-disc list-inside">
                             {p.reasons.map((r, i) => <li key={i}>{r}</li>)}
@@ -143,7 +143,7 @@ export default function PitcherRest({ teamId }) {
 
                       {/* Today info */}
                       {p.today_pitches > 0 && (
-                        <div className="mb-3 bg-blue-900/30 border border-blue-200 text-blue-300 text-xs rounded-lg px-3 py-2">
+                        <div className="mb-3 bg-chrome-900/30 border border-chrome-200 text-chrome-300 text-xs rounded-lg px-3 py-2">
                           Threw <strong>{p.today_pitches}</strong> pitches today
                           {p.rest_after_today != null && (
                             <> — needs <strong>{p.rest_after_today} rest day{p.rest_after_today !== 1 ? 's' : ''}</strong>
@@ -159,7 +159,7 @@ export default function PitcherRest({ teamId }) {
                       {/* Recent 7 days */}
                       {p.last_7_days.length > 0 ? (
                         <div>
-                          <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Last 7 Days</div>
+                          <div className="eyebrow mb-2">Last 7 Days</div>
                           <div className="space-y-1.5">
                             {p.last_7_days.map(day => (
                               <div key={day.date} className="flex items-center gap-3 text-xs">
@@ -215,12 +215,12 @@ export default function PitcherRest({ teamId }) {
         {/* Non-pitchers (available, haven't pitched) */}
         {nonPitchers.length > 0 && pitchers.length > 0 && (
           <div className="border-t border-gray-700 px-4 sm:px-6 py-3">
-            <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">
+            <div className="eyebrow mb-2">
               Have Not Pitched ({nonPitchers.length})
             </div>
             <div className="flex flex-wrap gap-2">
               {nonPitchers.map(p => (
-                <span key={p.player_id} className="text-xs bg-green-900/30 text-green-400 px-2 py-1 rounded-full font-medium">
+                <span key={p.player_id} className="text-xs bg-action-900/30 text-action-400 px-2 py-1 rounded-full font-medium">
                   {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.first_name} {p.last_name}
                 </span>
               ))}

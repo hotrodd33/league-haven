@@ -35,7 +35,7 @@ function toSortStamp(item) {
 }
 
 const PRACTICE_COLORS = {
-  practice: { bg: 'bg-blue-900/40', border: 'border-blue-500', text: 'text-blue-300', dot: 'bg-blue-500', badge: 'bg-blue-900/60 text-blue-300' },
+  practice: { bg: 'bg-chrome-900/40', border: 'border-chrome-500', text: 'text-chrome-300', dot: 'bg-blue-500', badge: 'bg-chrome-900/60 text-chrome-300' },
   event: { bg: 'bg-purple-900/40', border: 'border-purple-500', text: 'text-purple-300', dot: 'bg-purple-500', badge: 'bg-purple-900/60 text-purple-300' },
   maintenance: { bg: 'bg-amber-900/40', border: 'border-amber-500', text: 'text-amber-300', dot: 'bg-amber-500', badge: 'bg-amber-900/60 text-amber-300' },
 };
@@ -183,26 +183,26 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
             <button onClick={() => setViewMode('list')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              className={`lh-tab ${viewMode === 'list' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
               List
             </button>
             <button onClick={() => setViewMode('calendar')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded ${viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              className={`lh-tab ${viewMode === 'calendar' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
               Calendar
             </button>
             <button onClick={() => setShowSubscribe(true)}
-              className="px-3 py-1.5 text-xs font-semibold rounded bg-gray-700 text-gray-300 hover:bg-gray-600" title="Subscribe to calendar feed">
+              className="btn btn-xs btn-secondary" title="Subscribe to calendar feed">
               📅
             </button>
           </div>
           <button onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-            className="px-3 py-1.5 text-xs font-semibold rounded bg-gray-700 text-gray-300 hover:bg-gray-600" title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
+            className="btn btn-xs btn-secondary" title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
             {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
           </button>
           {isAdmin && (
             <button
               onClick={() => setShowForm((prev) => !prev)}
-              className="px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              className="btn btn-xs btn-primary"
             >
               {showForm ? 'Cancel' : '+ Add Game'}
             </button>
@@ -306,7 +306,7 @@ function GameCard({ game, teamId, onSelect, onTrack, canScore }) {
     else if (teamScore < oppScore) result = 'L';
     else result = 'T';
   }
-  const resultColor = result === 'W' ? 'text-green-400' : result === 'L' ? 'text-red-400' : result === 'T' ? 'text-gray-400' : '';
+  const resultColor = result === 'W' ? 'text-action-400' : result === 'L' ? 'text-signal-400' : result === 'T' ? 'text-gray-400' : '';
   const isUnplayed = game.status !== 'completed';
   const cardTone = isUnplayed ? 'bg-slate-800/85 border-slate-600/80' : 'bg-gray-800 border-gray-700';
 
@@ -339,7 +339,7 @@ function GameCard({ game, teamId, onSelect, onTrack, canScore }) {
                 ⚾ Track
               </button>
             )}
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
+            <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
               {game.status_label}
             </span>
           </>
@@ -383,7 +383,7 @@ function PracticeCard({ practice, editable, onEdit, onDelete, deleting }) {
             <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
               className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
             <button onClick={(e) => { e.stopPropagation(); onDelete(); }} disabled={deleting === practice.id}
-              className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+              className="btn btn-xs btn-danger">
               {deleting === practice.id ? '…' : 'Del'}
             </button>
           </>
@@ -460,13 +460,13 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
                 ${isToday ? 'ring-1 ring-blue-500' : ''}
                 ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}
               `}>
-              <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-blue-400' : 'text-gray-300'}`}>{day}</div>
+              <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
               <div className="space-y-0.5">
                 {dayItems.slice(0, 3).map((item, j) => {
                   if (item._type === 'game') {
                     const statusColor =
-                      item.status === 'completed' ? 'bg-green-900/40 text-green-300' :
-                      item.status === 'cancelled' ? 'bg-red-900/40 text-red-300 line-through' :
+                      item.status === 'completed' ? 'bg-action-900/40 text-action-300' :
+                      item.status === 'cancelled' ? 'bg-signal-900/40 text-signal-300 line-through' :
                       item.status === 'postponed' ? 'bg-amber-900/40 text-amber-300' :
                       'bg-slate-800/80 text-gray-300';
                     const isHome = item.home_team_id === teamId;
@@ -541,7 +541,7 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
                           {isCompleted ? (
                             <span className="font-extrabold text-white">{teamScore ?? '—'} – {oppScore ?? '—'}</span>
                           ) : (
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[item.status] || 'bg-gray-800'}`}>
+                            <span className={`lh-badge ${STATUS_COLORS[item.status] || 'bg-gray-800'}`}>
                               {item.status_label}
                             </span>
                           )}
@@ -598,7 +598,7 @@ function TeamSubscribeModal({ teamId, onClose }) {
         </p>
 
         <a href={webcalUrl}
-          className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors mb-4">
+          className="btn btn-md btn-primary w-full flex items-center justify-center gap-2 mb-4">
           📅 Open in Calendar App
         </a>
 
@@ -606,7 +606,7 @@ function TeamSubscribeModal({ teamId, onClose }) {
           <label className="eyebrow block mb-1">Or copy the feed URL</label>
           <div className="flex gap-2">
             <input type="text" readOnly value={icsUrl}
-              className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-gray-300 font-mono select-all focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-gray-300 font-mono select-all focus:outline-none focus:ring-2 focus:ring-action-500/30"
               onClick={e => e.target.select()} />
             <button onClick={handleCopy}
               className="px-3 py-2 bg-gray-700 text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-600 transition-colors shrink-0">
@@ -693,10 +693,10 @@ function PracticeEditModal({ practice, onDone, onCancel }) {
               {eventTypeOptions.map(opt => (
                 <button key={opt.value} type="button"
                   onClick={() => setForm(prev => ({ ...prev, event_type: opt.value }))}
-                  className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                  className={`flex-1 lh-tab ${
                     form.event_type === opt.value
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                      ? 'lh-tab-active'
+                      : 'lh-tab-inactive'
                   }`}>
                   {opt.label}
                 </button>
@@ -743,11 +743,11 @@ function PracticeEditModal({ practice, onDone, onCancel }) {
             <textarea id="pe-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} className={inputCls} />
           </div>
 
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+            <button type="submit" disabled={saving} className="btn btn-sm btn-primary disabled:opacity-50">
               {saving ? 'Saving…' : 'Update'}
             </button>
           </div>

@@ -100,7 +100,7 @@ export default function PreviewTable({
               highlight={row._confidence === 'exact'}
               className={cn(
                 row._confidence === 'possible' && 'bg-dirt-900/25',
-                row._confidence === 'new' && 'bg-blue-900/25',
+                row._confidence === 'new' && 'bg-chrome-900/25',
               )}
             >
               {isPlayerType && (
@@ -156,7 +156,7 @@ function MatchSummaryPill({ label, count, color }) {
   const colors = {
     field: 'bg-field-900/30 text-field-200',
     dirt:  'bg-dirt-900/30 text-dirt-200',
-    blue:  'bg-blue-900/40 text-blue-200',
+    blue:  'bg-chrome-900/40 text-chrome-200',
   };
 
   return (

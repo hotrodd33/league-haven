@@ -18,8 +18,8 @@ const btnSecondary = "btn btn-secondary btn-md";
 export default function LeagueConfig({ onBack }) {
   const [tab, setTab] = useState('age_groups');
 
-  const tabCls = (t) => `px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-    tab === t ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+  const tabCls = (t) => `lh-tab ${
+    tab === t ? 'lh-tab-active' : 'lh-tab-inactive'
   }`;
 
   return (
@@ -144,7 +144,7 @@ function BrandingConfig() {
         Set the app name and logo shown in the main sidebar header.
       </p>
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+      {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
       <form onSubmit={handleSaveName} className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
         <div>
@@ -186,7 +186,7 @@ function BrandingConfig() {
             type="button"
             onClick={handleRemoveLogo}
             disabled={!form.logo_url || removingLogo}
-            className="px-4 py-2 bg-red-700 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition-colors disabled:opacity-60"
+            className="btn btn-sm btn-danger"
           >
             {removingLogo ? 'Removing…' : 'Remove Logo'}
           </button>
@@ -245,7 +245,7 @@ function FeatureTogglesConfig() {
       <p className="text-xs text-gray-400">
         Enable or disable features for your league. Disabled features are hidden from the sidebar and all users.
       </p>
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+      {error && <div className="lh-alert lh-alert-error">{error}</div>}
       <div className="space-y-2">
         {FEATURE_DEFS.map(f => (
           <label key={f.key} className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded-lg p-4 cursor-pointer hover:border-gray-600 transition-colors">
@@ -261,8 +261,8 @@ function FeatureTogglesConfig() {
                 disabled={saving}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-blue-500/50 rounded-full
-                peer-checked:bg-blue-600 transition-colors" />
+              <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-action-500/50 rounded-full
+                peer-checked:bg-action-600 transition-colors" />
               <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform
                 peer-checked:translate-x-5" />
             </div>
@@ -333,7 +333,7 @@ function SchedulingConfig() {
         Controls available game start times in schedule forms.
       </p>
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+      {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
       <form onSubmit={handleSave} className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -454,7 +454,7 @@ function SeasonList() {
         Manage league seasons. The active season is used as the default when assigning divisions. Deleting a season removes all its divisions.
       </p>
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+      {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
 
       {showForm ? (
         <form onSubmit={handleSave} className="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4 space-y-3">
@@ -491,18 +491,18 @@ function SeasonList() {
       ) : (
         <div className="space-y-2">
           {seasons.map(s => (
-            <div key={s.id} className={`bg-gray-800 border rounded-lg p-3 flex items-center gap-3 ${s.is_active ? 'border-green-400 bg-green-900/30' : 'border-gray-700'}`}>
+            <div key={s.id} className={`bg-gray-800 border rounded-lg p-3 flex items-center gap-3 ${s.is_active ? 'border-action-400 bg-action-900/30' : 'border-gray-700'}`}>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-sm">{s.name}</span>
                   <span className="text-xs text-gray-400">({s.year})</span>
-                  {s.is_active && <span className="text-xs font-semibold text-green-300 bg-green-900/35 px-1.5 py-0.5 rounded">Active</span>}
+                  {s.is_active && <span className="text-xs font-semibold text-action-300 bg-action-900/35 px-1.5 py-0.5 rounded">Active</span>}
                 </div>
               </div>
               <div className="flex gap-1 shrink-0">
                 {!s.is_active && (
                   <button onClick={() => handleSetActive(s)}
-                    className="px-2 py-1 text-xs font-semibold bg-green-900/35 text-green-300 rounded hover:bg-green-800/60">
+                    className="px-2 py-1 text-xs font-semibold bg-action-900/35 text-action-300 rounded hover:bg-action-800/60">
                     Set Active
                   </button>
                 )}
@@ -511,7 +511,7 @@ function SeasonList() {
                   Edit
                 </button>
                 <button onClick={() => handleDelete(s)} disabled={deletingId === s.id}
-                  className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                  className="btn btn-xs btn-danger">
                   {deletingId === s.id ? '…' : 'Del'}
                 </button>
               </div>
@@ -600,7 +600,7 @@ function AgeGroupConfig() {
     <div>
       <h3 className="text-base font-heading font-bold text-white mb-3">Age Groups ({items.length})</h3>
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+      {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
 
       {/* Add form */}
       <form onSubmit={handleAdd} className="flex flex-wrap gap-2 mb-4 items-center">
@@ -677,7 +677,7 @@ function AgeGroupConfig() {
                   </label>
                   <div className="flex gap-1">
                     <button onClick={handleSaveEdit} disabled={savingEdit}
-                      className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60">
+                      className="btn btn-xs btn-primary disabled:opacity-50">
                       {savingEdit ? '…' : 'Save'}
                     </button>
                     <button onClick={() => setEditingId(null)}
@@ -692,19 +692,19 @@ function AgeGroupConfig() {
                     <span className="font-semibold text-sm">{item.name}</span>
                     <span className="text-xs text-gray-400">#{item.sort_order ?? 0}</span>
                     {item.ump_required !== false && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">
+                      <span className="lh-badge lh-badge-success">
                         Ump ${Number(item.umpire_rate ?? 50).toFixed(2)}/game
                       </span>
                     )}
                     {item.league_fee != null && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-900/35 text-amber-300">
+                      <span className="lh-badge lh-badge-warn">
                         Fee ${Number(item.league_fee).toFixed(2)}
                       </span>
                     )}
                     {item.ump_required === false ? (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-700 text-gray-400">No Ump</span>
+                      <span className="lh-badge lh-badge-neutral">No Ump</span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-900/35 text-green-300">Ump Required</span>
+                      <span className="lh-badge lh-badge-success">Ump Required</span>
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -713,7 +713,7 @@ function AgeGroupConfig() {
                       Edit
                     </button>
                     <button onClick={() => handleDelete(item)} disabled={deletingId === item.id}
-                      className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                      className="btn btn-xs btn-danger">
                       {deletingId === item.id ? '…' : 'Del'}
                     </button>
                   </div>
@@ -791,7 +791,7 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
     <div>
       <h3 className="text-base font-heading font-bold text-white mb-3">{title} ({items.length})</h3>
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+      {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
 
       {/* Add form */}
       <form onSubmit={handleAdd} className="flex gap-2 mb-4">
@@ -826,7 +826,7 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
                   </div>
                   <div className="flex gap-1">
                     <button onClick={handleSaveEdit} disabled={savingEdit}
-                      className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60">
+                      className="btn btn-xs btn-primary disabled:opacity-50">
                       {savingEdit ? '…' : 'Save'}
                     </button>
                     <button onClick={() => setEditingId(null)}
@@ -847,7 +847,7 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
                       Edit
                     </button>
                     <button onClick={() => handleDelete(item)} disabled={deletingId === item.id}
-                      className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                      className="btn btn-xs btn-danger">
                       {deletingId === item.id ? '…' : 'Del'}
                     </button>
                   </div>
@@ -994,7 +994,7 @@ function DivisionTree() {
             Create a hierarchy: League → Division → Sub-division → etc. Use "+ Sub" to nest divisions.
           </p>
 
-      {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-3">{error}</div>}
+      {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
 
       {/* Add root division */}
       {addingTo === 'root' ? (
@@ -1074,7 +1074,7 @@ function DivisionNode({
             </div>
             <div className="flex gap-1">
               <button onClick={() => handleSaveEdit(node.parent_id)} disabled={savingEdit}
-                className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60">
+                className="btn btn-xs btn-primary disabled:opacity-50">
                 {savingEdit ? '…' : 'Save'}
               </button>
               <button onClick={() => { cancelEdit(); setEditName(''); setEditOrder(0); }}
@@ -1095,7 +1095,7 @@ function DivisionNode({
             <div className="flex gap-1 shrink-0">
               <button onClick={() => { setAddingTo(node.id); setNewName(''); }}
                 title="Add sub-division"
-                className="px-2 py-1 text-xs font-semibold bg-blue-900/40 text-blue-200 rounded hover:bg-blue-800/60">
+                className="px-2 py-1 text-xs font-semibold bg-chrome-900/40 text-chrome-200 rounded hover:bg-chrome-800/60">
                 + Sub
               </button>
               <button onClick={() => startEdit(node)}
@@ -1103,7 +1103,7 @@ function DivisionNode({
                 Edit
               </button>
               <button onClick={() => handleDelete(node)} disabled={deletingId === node.id}
-                className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                className="btn btn-xs btn-danger">
                 {deletingId === node.id ? '…' : 'Del'}
               </button>
             </div>
@@ -1281,14 +1281,14 @@ function StatDefinitionsConfig() {
                   <div className="flex items-center gap-3">
                     <span className={`text-sm font-medium ${d.is_active ? 'text-white' : 'text-gray-500 line-through'}`}>{d.name}</span>
                     <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">{d.abbreviation}</span>
-                    {d.gc_column_name && <span className="text-xs text-green-400">GC: {d.gc_column_name}</span>}
+                    {d.gc_column_name && <span className="text-xs text-action-400">GC: {d.gc_column_name}</span>}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => handleToggleActive(d)} className={`text-xs px-2 py-1 rounded ${d.is_active ? 'text-yellow-400 hover:bg-yellow-500/10' : 'text-green-400 hover:bg-green-500/10'}`}>
+                    <button onClick={() => handleToggleActive(d)} className={`text-xs px-2 py-1 rounded ${d.is_active ? 'text-yellow-400 hover:bg-yellow-500/10' : 'text-action-400 hover:bg-action-500/10'}`}>
                       {d.is_active ? 'Disable' : 'Enable'}
                     </button>
-                    <button onClick={() => startEdit(d)} className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1">Edit</button>
-                    <button onClick={() => handleDelete(d.id)} className="text-xs text-red-400 hover:text-red-300 px-2 py-1">Delete</button>
+                    <button onClick={() => startEdit(d)} className="text-xs text-chrome-400 hover:text-chrome-300 px-2 py-1">Edit</button>
+                    <button onClick={() => handleDelete(d.id)} className="text-xs text-signal-400 hover:text-signal-300 px-2 py-1">Delete</button>
                   </div>
                 </div>
               ))}

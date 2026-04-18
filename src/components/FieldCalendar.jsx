@@ -12,8 +12,8 @@ const labelCls = "eyebrow block mb-1";
 const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
 
 const EVENT_COLORS = {
-  game_hold: { bg: 'bg-red-900/40', border: 'border-red-500', text: 'text-red-300', dot: 'bg-red-500' },
-  practice: { bg: 'bg-blue-900/40', border: 'border-blue-500', text: 'text-blue-300', dot: 'bg-blue-500' },
+  game_hold: { bg: 'bg-signal-900/40', border: 'border-signal-500', text: 'text-signal-300', dot: 'bg-signal-500' },
+  practice: { bg: 'bg-chrome-900/40', border: 'border-chrome-500', text: 'text-chrome-300', dot: 'bg-blue-500' },
   event: { bg: 'bg-purple-900/40', border: 'border-purple-500', text: 'text-purple-300', dot: 'bg-purple-500' },
   maintenance: { bg: 'bg-amber-900/40', border: 'border-amber-500', text: 'text-amber-300', dot: 'bg-amber-500' },
 };
@@ -169,11 +169,11 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700 shrink-0">
           <div className="flex items-center gap-1">
             <button onClick={() => setView('month')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded ${view === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              className={`lh-tab ${view === 'month' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
               Calendar
             </button>
             <button onClick={() => setView('list')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded ${view === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              className={`lh-tab ${view === 'list' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
               List
             </button>
           </div>
@@ -217,7 +217,7 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
                         ${isToday ? 'ring-1 ring-blue-500' : ''}
                         ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}
                       `}>
-                      <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-blue-400' : 'text-gray-300'}`}>{day}</div>
+                      <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
                       <div className="space-y-0.5">
                         {dayEvents.slice(0, 3).map((ev, j) => {
                           const c = EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
@@ -245,7 +245,7 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
                     </h3>
                     {editable && (
                       <button onClick={() => { setEditing(null); setShowForm(true); }}
-                        className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700">
+                        className="btn btn-xs btn-primary">
                         + Schedule
                       </button>
                     )}
@@ -346,7 +346,7 @@ function EventCard({ ev, editable, showDate, onEdit, onDelete, onViewGame, delet
             <div className="text-[10px] text-gray-500 mt-0.5">
               Booked by {ev.created_by_name}
               {ev.created_by_email && (
-                <> — <a href={`mailto:${ev.created_by_email}`} className="text-blue-400 underline hover:text-blue-300">{ev.created_by_email}</a></>
+                <> — <a href={`mailto:${ev.created_by_email}`} className="text-chrome-400 underline hover:text-chrome-300">{ev.created_by_email}</a></>
               )}
               {ev.created_at && (
                 <span className="ml-1">on {new Date(ev.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(ev.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
@@ -359,7 +359,7 @@ function EventCard({ ev, editable, showDate, onEdit, onDelete, onViewGame, delet
           <div className="flex gap-1 shrink-0">
             <button onClick={onEdit} className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
             <button onClick={onDelete} disabled={deleting === ev.id}
-              className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+              className="btn btn-xs btn-danger">
               {deleting === ev.id ? '…' : 'Del'}
             </button>
           </div>
@@ -571,10 +571,10 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
                       setEventType(opt.value);
                       if (opt.value !== 'game') setForm(prev => ({ ...prev, event_type: opt.value }));
                     }}
-                    className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                    className={`flex-1 lh-tab ${
                       eventType === opt.value
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                        ? 'lh-tab-active'
+                        : 'lh-tab-inactive'
                     }`}
                   >
                     {opt.label}
@@ -712,10 +712,10 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
             <label htmlFor="res-notes" className={labelCls}>Notes</label>
             <textarea id="res-notes" name="notes" value={form.notes} onChange={handleChange} rows={2}
               placeholder="Optional notes…"
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500" />
           </div>
 
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           {conflictDetails && (
             <div className="bg-amber-900/30 border border-amber-600 rounded-lg px-3 py-2 space-y-2">
@@ -726,7 +726,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
                   {c.created_by_name && (
                     <div>Booked by: <span className="font-semibold text-white">{c.created_by_name}</span>
                       {c.created_by_email && (
-                        <> — <a href={`mailto:${c.created_by_email}`} className="text-blue-400 underline hover:text-blue-300">{c.created_by_email}</a></>
+                        <> — <a href={`mailto:${c.created_by_email}`} className="text-chrome-400 underline hover:text-chrome-300">{c.created_by_email}</a></>
                       )}
                       {c.created_at && (
                         <span className="ml-1 text-amber-400">on {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
@@ -736,7 +736,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
                 </div>
               ))}
               {(conflictDetails.game_conflicts || []).length > 0 && (
-                <div className="text-xs text-red-300 font-semibold">A scheduled game (including 3-hr prep) blocks this time. Games always have priority.</div>
+                <div className="text-xs text-signal-300 font-semibold">A scheduled game (including 3-hr prep) blocks this time. Games always have priority.</div>
               )}
             </div>
           )}

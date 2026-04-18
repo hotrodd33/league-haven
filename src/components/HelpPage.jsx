@@ -68,7 +68,7 @@ export default function HelpPage({ onBack, initialTab = 'about' }) {
               onClick={() => setActiveTab(tab.key)}
               className={`px-5 py-3 text-sm font-heading font-bold uppercase tracking-wide transition-colors ${
                 activeTab === tab.key
-                  ? 'border-b-2 border-blue-500 text-blue-400 bg-gray-800'
+                  ? 'border-b-2 border-chrome-500 text-chrome-400 bg-gray-800'
                   : 'text-gray-400 hover:text-gray-200 hover:bg-gray-750'
               }`}
             >

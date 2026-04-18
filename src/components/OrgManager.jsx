@@ -14,7 +14,7 @@ const labelCls = "eyebrow block mb-1";
 const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
 const btnSecondary = "btn btn-secondary btn-md";
 const btnDanger = "btn btn-danger btn-sm";
-const btnSm = "px-3 py-1.5 text-xs font-semibold rounded";
+const btnSm = 'btn btn-xs';
 
 function summarizeOrgTeams(org) {
   const teams = org.teams || [];
@@ -119,7 +119,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   function handleFormDone() { setShowForm(false); setEditing(null); loadOrgs(); }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading organizations…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+  if (error) return <div className="lh-alert lh-alert-error">Error: {error}</div>;
 
   if (selectedOrg) {
     return <OrgDetailView org={selectedOrg} onBack={() => { setSelectedOrg(null); loadOrgs(); }} onNavigateToTeam={onNavigateToTeam} teamPayments={orgPayments.teams || {}} />;
@@ -188,7 +188,7 @@ function OrgListCard({ org, orgStats, orgPayment, canEdit, canViewFinancials, de
             {org.contact_name && <p className="text-sm text-gray-300 truncate">{org.contact_name}</p>}
           </div>
         </div>
-        <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0">
+        <span className="lh-badge lh-badge-sport shrink-0">
           {org.team_count} team{org.team_count !== 1 ? 's' : ''}
         </span>
       </div>
@@ -196,15 +196,15 @@ function OrgListCard({ org, orgStats, orgPayment, canEdit, canViewFinancials, de
       <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
         <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
           <div className="text-gray-400 uppercase tracking-wide font-semibold">Scheduled</div>
-          <div className="text-blue-300 font-bold text-sm mt-0.5">{scheduled}</div>
+          <div className="text-chrome-300 font-bold text-sm mt-0.5">{scheduled}</div>
         </div>
         <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
           <div className="text-gray-400 uppercase tracking-wide font-semibold">Played</div>
-          <div className="text-green-400 font-bold text-sm mt-0.5">{played}</div>
+          <div className="text-action-400 font-bold text-sm mt-0.5">{played}</div>
         </div>
         <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
           <div className="text-gray-400 uppercase tracking-wide font-semibold">Missing</div>
-          <div className={`font-bold text-sm mt-0.5 ${missingScores > 0 ? 'text-red-400' : 'text-gray-400'}`}>{missingScores}</div>
+          <div className={`font-bold text-sm mt-0.5 ${missingScores > 0 ? 'text-signal-400' : 'text-gray-400'}`}>{missingScores}</div>
         </div>
       </div>
 
@@ -216,11 +216,11 @@ function OrgListCard({ org, orgStats, orgPayment, canEdit, canViewFinancials, de
           </div>
           <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
             <div className="text-gray-400 uppercase tracking-wide font-semibold">Paid</div>
-            <div className="text-green-400 font-bold text-sm mt-0.5">${orgPayment.collected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-action-400 font-bold text-sm mt-0.5">${orgPayment.collected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </div>
           <div className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-2 text-center">
             <div className="text-gray-400 uppercase tracking-wide font-semibold">Owed</div>
-            <div className={`font-bold text-sm mt-0.5 ${orgPayment.outstanding > 0 ? 'text-red-400' : 'text-green-400'}`}>
+            <div className={`font-bold text-sm mt-0.5 ${orgPayment.outstanding > 0 ? 'text-signal-400' : 'text-action-400'}`}>
               ${orgPayment.outstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
@@ -236,7 +236,7 @@ function OrgListCard({ org, orgStats, orgPayment, canEdit, canViewFinancials, de
           <div className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-1.5">Age Groups</div>
           <div className="flex flex-wrap gap-1.5">
             {ageGroups.slice(0, 5).map((ageGroup) => (
-              <span key={ageGroup} className="px-2 py-0.5 rounded-full bg-blue-900/35 text-blue-200 text-xs font-semibold">
+              <span key={ageGroup} className="px-2 py-0.5 rounded-full bg-chrome-900/35 text-chrome-200 text-xs font-semibold">
                 {ageGroup}
               </span>
             ))}
@@ -266,7 +266,7 @@ function OrgListCard({ org, orgStats, orgPayment, canEdit, canViewFinancials, de
 
 
       <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
-        {canEdit && <button onClick={onEdit} className={`${btnSm} bg-gray-700 text-gray-200 hover:bg-gray-600`}>Edit</button>}
+        {canEdit && <button onClick={onEdit} className={`${btnSm} btn-secondary`}>Edit</button>}
         {isAdmin && (
           <button onClick={onDelete} disabled={deleting} className={btnDanger}>
             {deleting ? '…' : 'Delete'}
@@ -374,7 +374,7 @@ function OrgForm({ org, onDone, onCancel }) {
                   <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                 </label>
                 {logoPreview && (
-                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-900/35 text-red-300 rounded hover:bg-red-800/60 w-fit">Remove</button>
+                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-signal-900/35 text-signal-300 rounded hover:bg-signal-800/60 w-fit">Remove</button>
                 )}
                 <p className="text-xs text-gray-400">Max 500 KB. PNG, JPEG, GIF, WebP, or SVG.</p>
               </div>
@@ -418,7 +418,7 @@ function OrgForm({ org, onDone, onCancel }) {
           <div>
             <label htmlFor="org-notes" className={labelCls}>Notes</label>
             <textarea id="org-notes" name="notes" value={form.notes} onChange={handleChange} rows={3} placeholder="Any additional info…"
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500" />
           </div>
 
           <label className="flex items-start gap-2 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 cursor-pointer">
@@ -435,7 +435,7 @@ function OrgForm({ org, onDone, onCancel }) {
             </div>
           </label>
 
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
@@ -699,7 +699,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
       <div className="flex items-center justify-between gap-2 mb-2">
         <h3 className="text-base font-heading font-bold text-white">Teams ({orgTeams.length})</h3>
         {canManage && (
-          <button onClick={openCreateModal} className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700">
+          <button onClick={openCreateModal} className="btn btn-xs btn-primary">
             + Add Team
           </button>
         )}
@@ -728,7 +728,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                           {t.long_name || t.name}
                         </button>
                         {teamPayments[t.id] && !teamPayments[t.id].is_paid && (
-                          <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-900/35 text-red-300 whitespace-nowrap">Unpaid</span>
+                          <span className="lh-badge lh-badge-danger whitespace-nowrap">Unpaid</span>
                         )}
                       </div>
                     </td>
@@ -758,7 +758,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                       {t.long_name || t.name}
                     </button>
                     {teamPayments[t.id] && !teamPayments[t.id].is_paid && (
-                      <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-900/35 text-red-300">Unpaid</span>
+                      <span className="lh-badge lh-badge-danger">Unpaid</span>
                     )}
                   </div>
                   <div className="text-xs text-gray-400">{[t.age_group, t.level, t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : t.division].filter(Boolean).join(' · ') || '—'}</div>
@@ -836,7 +836,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                       <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                     </label>
                     {logoPreview && (
-                      <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-red-900/35 text-red-300 rounded hover:bg-red-800/60 w-fit">Remove</button>
+                      <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-signal-900/35 text-signal-300 rounded hover:bg-signal-800/60 w-fit">Remove</button>
                     )}
                     <p className="text-xs text-gray-400">Max 500 KB. If none, uses org logo.</p>
                   </div>
@@ -907,7 +907,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                 )}
               </div>
 
-              {createError && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{createError}</div>}
+              {createError && <div className="lh-alert lh-alert-error">{createError}</div>}
 
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => { setShowCreate(false); setEditingTeam(null); }} className={btnSecondary}>Cancel</button>
@@ -926,7 +926,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
             {unassignedTeams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           <button onClick={handleAssign} disabled={!selectedTeamId || assigning}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+            className="btn btn-sm btn-primary disabled:opacity-50">
             {assigning ? '…' : 'Assign'}
           </button>
         </div>

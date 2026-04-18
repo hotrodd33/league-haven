@@ -322,7 +322,7 @@ export default function TeamRegistration({ onDone }) {
       <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
         <div className="bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md border-t-4 border-blue-600 text-center">
           <div className="text-4xl mb-4">📧</div>
-          <h2 className="font-heading text-2xl font-bold text-blue-300 mb-3">Check Your Email</h2>
+          <h2 className="font-heading text-2xl font-bold text-chrome-300 mb-3">Check Your Email</h2>
           {extraInfo[success.role]}
           <p className="text-gray-300 text-sm mb-4">
             We've sent a confirmation link to <strong className="text-gray-100">{userInfo.email}</strong>. Please click the link to activate your account.
@@ -346,7 +346,7 @@ export default function TeamRegistration({ onDone }) {
           </button>
           <button
             onClick={() => { window.history.replaceState({}, '', window.location.pathname); onDone(); }}
-            className="w-full text-center text-sm text-blue-400 hover:underline"
+            className="w-full text-center text-sm text-chrome-400 hover:underline"
           >
             ← Back to Sign In
           </button>
@@ -467,7 +467,7 @@ export default function TeamRegistration({ onDone }) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
       <div className="bg-gray-800 rounded-lg shadow-card p-6 sm:p-8 w-full max-w-2xl border-t-4 border-baseball-600">
-        <h1 className="font-heading text-2xl font-bold mb-1 tracking-wide text-blue-300">⚾ LeagueHaven Registration</h1>
+        <h1 className="font-heading text-2xl font-bold mb-1 tracking-wide text-chrome-300">⚾ LeagueHaven Registration</h1>
         <p className="text-gray-400 mb-6 text-sm">
           {!role ? 'What best describes your role?' : 'Create your account'}
         </p>
@@ -478,14 +478,14 @@ export default function TeamRegistration({ onDone }) {
             {stepLabels.map((label, i) => (
               <div key={label} className="flex-1 flex flex-col items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-1 ${
-                  step > i + 1 ? 'bg-green-600 text-white' :
-                  step === i + 1 ? 'bg-blue-600 text-white' :
+                  step > i + 1 ? 'bg-action-600 text-white' :
+                  step === i + 1 ? 'lh-tab-active' :
                   'bg-gray-700 text-gray-400'
                 }`}>
                   {step > i + 1 ? '✓' : i + 1}
                 </div>
-                <span className={`text-[10px] uppercase tracking-wide font-semibold ${
-                  step === i + 1 ? 'text-blue-300' : 'text-gray-500'
+                <span className={`eyebrow ${
+                  step === i + 1 ? 'text-action-300' : 'text-gray-500'
                 }`}>{label}</span>
               </div>
             ))}
@@ -493,7 +493,7 @@ export default function TeamRegistration({ onDone }) {
         )}
 
         {error && (
-          <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>
+          <div className="lh-alert lh-alert-error mb-4">{error}</div>
         )}
 
         {/* ─── Role Selection ─── */}
@@ -501,9 +501,9 @@ export default function TeamRegistration({ onDone }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {ROLE_OPTIONS.map(r => {
               const accents = {
-                blue:   { border: 'border-blue-500', bg: 'bg-blue-900/20', text: 'text-blue-300' },
+                blue:   { border: 'border-chrome-500', bg: 'bg-chrome-900/20', text: 'text-chrome-300' },
                 amber:  { border: 'border-amber-500', bg: 'bg-amber-900/20', text: 'text-amber-300' },
-                green:  { border: 'border-green-500', bg: 'bg-green-900/20', text: 'text-green-300' },
+                green:  { border: 'border-action-500', bg: 'bg-action-900/20', text: 'text-action-300' },
                 purple: { border: 'border-purple-500', bg: 'bg-purple-900/20', text: 'text-purple-300' },
               };
               const a = accents[r.accent];
@@ -532,7 +532,7 @@ export default function TeamRegistration({ onDone }) {
               <span className="text-xs text-gray-500">
                 Registering as: <strong className="text-gray-300">{ROLE_OPTIONS.find(r => r.key === role)?.label}</strong>
               </span>
-              <button type="button" onClick={handleChangeRole} className="text-xs text-blue-400 hover:underline">Change</button>
+              <button type="button" onClick={handleChangeRole} className="text-xs text-chrome-400 hover:underline">Change</button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -581,14 +581,14 @@ export default function TeamRegistration({ onDone }) {
           <div className="space-y-4">
             <div className="flex gap-2">
               <button type="button" onClick={() => setOrgMode('existing')}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  orgMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                className={`flex-1 lh-tab ${
+                  orgMode === 'existing' ? 'lh-tab-active' : 'lh-tab-inactive'
                 }`}>
                 Join Existing Organization
               </button>
               <button type="button" onClick={() => setOrgMode('new')}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  orgMode === 'new' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                className={`flex-1 lh-tab ${
+                  orgMode === 'new' ? 'lh-tab-active' : 'lh-tab-inactive'
                 }`}>
                 Create New Organization
               </button>
@@ -668,7 +668,7 @@ export default function TeamRegistration({ onDone }) {
               <>
                 {teams.map((team, i) => renderTeamCard(team, i, { showCoachFields: true, showActions: true }))}
                 <button type="button" onClick={addTeam}
-                  className="w-full py-2 border-2 border-dashed border-gray-600 rounded-lg text-sm font-semibold text-gray-400 hover:border-blue-500 hover:text-blue-400 transition-colors">
+                  className="w-full py-2 border-2 border-dashed border-gray-600 rounded-lg text-sm font-semibold text-gray-400 hover:border-chrome-500 hover:text-chrome-400 transition-colors">
                   + Add Another Team
                 </button>
               </>
@@ -694,14 +694,14 @@ export default function TeamRegistration({ onDone }) {
 
             <div className="flex gap-2">
               <button type="button" onClick={() => setCoachTeamMode('existing')}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  coachTeamMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                className={`flex-1 lh-tab ${
+                  coachTeamMode === 'existing' ? 'lh-tab-active' : 'lh-tab-inactive'
                 }`}>
                 Join Existing Team
               </button>
               <button type="button" onClick={() => setCoachTeamMode('new')}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  coachTeamMode === 'new' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                className={`flex-1 lh-tab ${
+                  coachTeamMode === 'new' ? 'lh-tab-active' : 'lh-tab-inactive'
                 }`}>
                 Create New Team
               </button>
@@ -926,7 +926,7 @@ export default function TeamRegistration({ onDone }) {
 
             {/* Director: Coach invitation note */}
             {role === 'director' && teams.some(t => t.coach_email && t.coach_email.toLowerCase() !== userInfo.email.toLowerCase()) && (
-              <div className="bg-blue-900/20 border border-blue-800/40 rounded-lg px-3 py-2 text-xs text-blue-300">
+              <div className="bg-chrome-900/20 border border-chrome-800/40 rounded-lg px-3 py-2 text-xs text-chrome-300">
                 Coaches with email addresses will receive a login invitation with temporary credentials.
               </div>
             )}

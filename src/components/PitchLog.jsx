@@ -24,7 +24,7 @@ export default function PitchLog({ teamId }) {
 
   if (!teamId) return null;
   if (loading) return <div className="mt-6 text-sm text-gray-400 text-center py-4">Loading pitch log…</div>;
-  if (error) return <div className="mt-6 text-sm text-red-400 text-center py-4">{error}</div>;
+  if (error) return <div className="mt-6 text-sm text-signal-400 text-center py-4">{error}</div>;
   if (!data) return null;
 
   const { players, today, rules } = data;
@@ -116,13 +116,13 @@ export default function PitchLog({ teamId }) {
                   return (
                     <th
                       key={d}
-                      className={`text-center px-2 py-2 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${isToday ? 'text-blue-300 bg-blue-900/40' : isFuture ? 'text-gray-400 bg-gray-900/50' : 'text-gray-400'}`}
+                      className={`text-center px-2 py-2 eyebrow whitespace-nowrap ${isToday ? 'text-chrome-300 bg-chrome-900/40' : isFuture ? 'text-gray-400 bg-gray-900/50' : 'text-gray-400'}`}
                     >
                       {dayLabel(d)}
                     </th>
                   );
                 })}
-                <th className="text-center px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
+                <th className="text-center px-3 py-2 eyebrow whitespace-nowrap">
                   Total
                 </th>
               </tr>
@@ -147,15 +147,15 @@ export default function PitchLog({ teamId }) {
                     let cls = 'text-center px-2 py-2.5 tabular-nums';
                     if (isViolation) {
                       // Pitched on a rest day — dark red outline + background
-                      cls += ' bg-red-900/45 text-red-300 font-bold ring-2 ring-inset ring-red-500';
+                      cls += ' bg-signal-900/45 text-signal-300 font-bold ring-2 ring-inset ring-red-500';
                     } else if (isFutureRest) {
                       // Future rest day — red background
-                      cls += ' bg-red-900/25 text-red-400 font-semibold';
+                      cls += ' bg-signal-900/25 text-signal-400 font-semibold';
                     } else if (isRest && !count) {
                       // Past rest day, correctly rested — light highlight
-                      cls += ' bg-red-900/30 text-red-400';
+                      cls += ' bg-signal-900/30 text-signal-400';
                     } else if (isToday) {
-                      cls += ' bg-blue-900/40 font-semibold';
+                      cls += ' bg-chrome-900/40 font-semibold';
                     } else if (isFuture) {
                       cls += ' bg-gray-900/50';
                     } else {
@@ -167,7 +167,7 @@ export default function PitchLog({ teamId }) {
                       </td>
                     );
                   })}
-                  <td className="text-center px-3 py-2.5 tabular-nums font-bold text-blue-300">
+                  <td className="text-center px-3 py-2.5 tabular-nums font-bold text-chrome-300">
                     {p.pitches_last_7}
                   </td>
                 </tr>

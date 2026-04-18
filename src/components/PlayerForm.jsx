@@ -149,7 +149,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
                 <span className="text-xs text-gray-400">No positions available</span>
               ) : positions.map((pos) => (
                 <button key={pos.id} type="button" onClick={() => handlePositionToggle(pos.id)}
-                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${form.selectedPositions.includes(pos.id) ? 'bg-blue-600 text-white border-blue-800' : 'bg-gray-800 text-gray-300 border-gray-600 hover:border-blue-600'}`}>
+                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${form.selectedPositions.includes(pos.id) ? 'lh-tab-active border-action-800' : 'bg-gray-800 text-gray-300 border-gray-600 hover:border-action-600'}`}>
                   {pos.abbreviation || pos.name}
                 </button>
               ))}
@@ -220,7 +220,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className={labelCls + ' mb-0'}>Contacts</label>
-                <button type="button" onClick={addContact} className="text-xs font-semibold text-blue-400 hover:text-blue-300 underline">+ Add Contact</button>
+                <button type="button" onClick={addContact} className="text-xs font-semibold text-chrome-400 hover:text-chrome-300 underline">+ Add Contact</button>
               </div>
               <div className="space-y-3">
                 {contacts.map((contact, idx) => (
@@ -233,7 +233,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
                           Primary
                         </label>
                         {contacts.length > 1 && (
-                          <button type="button" onClick={() => removeContact(idx)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                          <button type="button" onClick={() => removeContact(idx)} className="text-xs text-signal-400 hover:text-signal-300">Remove</button>
                         )}
                       </div>
                     </div>
@@ -260,11 +260,11 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
             </div>
           )}
 
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+            <button type="submit" disabled={saving} className="btn btn-sm btn-primary disabled:opacity-50">
               {saving ? 'Saving…' : isEditing ? 'Update Player' : 'Add Player'}
             </button>
           </div>

@@ -1,15 +1,15 @@
 export const DARK_STATUS_COLORS = {
-  scheduled: 'bg-blue-900/40 text-blue-200',
-  in_progress: 'bg-amber-500/20 text-amber-200',
-  completed: 'bg-green-900/35 text-green-300',
-  cancelled: 'bg-red-900/35 text-red-300',
-  postponed: 'bg-gray-700 text-gray-300',
+  scheduled: 'lh-badge-info',
+  in_progress: 'lh-badge-warn',
+  completed: 'lh-badge-success',
+  cancelled: 'lh-badge-danger',
+  postponed: 'lh-badge-neutral',
 };
 
 export const DARK_BADGES = {
-  success: 'bg-green-900/35 text-green-300',
-  warning: 'bg-amber-500/20 text-amber-200',
-  danger: 'bg-red-900/35 text-red-300',
+  success: 'lh-badge-success',
+  warning: 'lh-badge-warn',
+  danger: 'lh-badge-danger',
 };
 
-export const DARK_TRACK_BUTTON_TONE = 'bg-cyan-500/20 text-cyan-100 border border-cyan-400/35 hover:bg-cyan-500/30 hover:border-cyan-300/50 active:scale-[0.98]';
+export const DARK_TRACK_BUTTON_TONE = 'btn btn-xs btn-chrome';

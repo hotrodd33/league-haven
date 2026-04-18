@@ -114,7 +114,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
     return <div className="py-12 text-center text-gray-400">Select a team to view the roster.</div>;
   }
   if (loading) return <div className="py-8 text-center text-gray-400">Loading roster…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error.message}</div>;
+  if (error) return <div className="lh-alert lh-alert-error">{error.message}</div>;
 
   return (
     <div>
@@ -130,7 +130,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
             <button onClick={() => setShowAddExisting(!showAddExisting)} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">
               + Existing Player
             </button>
-            <button onClick={onAddPlayer} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+            <button onClick={onAddPlayer} className="btn btn-sm btn-primary">
               + New Player
             </button>
           </div>
@@ -144,10 +144,10 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
           <div className="flex gap-2 mb-2">
             <input
               type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name…" className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600"
+              placeholder="Search by name…" className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-blue-600"
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
             />
-            <button onClick={handleSearch} disabled={searching || !searchQuery.trim()} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+            <button onClick={handleSearch} disabled={searching || !searchQuery.trim()} className="btn btn-sm btn-primary disabled:opacity-50">
               {searching ? '…' : 'Search'}
             </button>
             <button onClick={() => { setShowAddExisting(false); setSearchQuery(''); setSearchResults([]); }} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">
@@ -163,7 +163,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                     {p.positions?.length > 0 && <span className="text-gray-400 ml-2">{p.positions.map(pos => pos.abbreviation || pos.name).join(', ')}</span>}
                   </div>
                   <button onClick={() => handleAssignExisting(p.id)} disabled={assigning === p.id}
-                    className="px-3 py-1 text-xs font-semibold bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60">
+                    className="px-3 py-1 text-xs font-semibold bg-action-600 text-white rounded hover:bg-green-700 disabled:opacity-60">
                     {assigning === p.id ? '…' : 'Add to Team'}
                   </button>
                 </div>
@@ -204,15 +204,15 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                   {editable && <SortHeader col="bt" label="B/T" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />}
                   {editable && <SortHeader col="email" label="Parent Email" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />}
                   {editable && <SortHeader col="phone" label="Parent Phone" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />}
-                  {editable && <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Actions</th>}
+                  {editable && <th className="px-3 py-2 text-left eyebrow">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
                 {sortedPlayers.map((player) => (
                   <tr key={player.id} className="hover:bg-gray-900">
-                    <td className="px-3 py-2 font-bold text-blue-300">{player.jersey_number ?? '—'}</td>
+                    <td className="px-3 py-2 font-bold text-chrome-300">{player.jersey_number ?? '—'}</td>
                     <td className="px-3 py-2 font-semibold">
-                      <button onClick={() => onViewPlayer?.(player.id)} className="text-left hover:text-blue-300 transition-colors underline decoration-gray-600 hover:decoration-blue-400">
+                      <button onClick={() => onViewPlayer?.(player.id)} className="text-left hover:text-chrome-300 transition-colors underline decoration-gray-600 hover:decoration-blue-400">
                         {player.first_name} {player.last_name}
                       </button>
                     </td>
@@ -221,8 +221,8 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                     {editable && <td className="px-3 py-2">{player.grade || '—'}</td>}
                     {editable && <td className="px-3 py-2">{formatDOB(player.date_of_birth)}</td>}
                     {editable && <td className="px-3 py-2">{formatBatThrow(player)}</td>}
-                    {editable && <td className="px-3 py-2 break-all">{player.parent_email ? <a href={`mailto:${player.parent_email}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_email}</a> : '—'}</td>}
-                    {editable && <td className="px-3 py-2">{player.parent_phone ? <a href={`tel:${player.parent_phone}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_phone}</a> : '—'}</td>}
+                    {editable && <td className="px-3 py-2 break-all">{player.parent_email ? <a href={`mailto:${player.parent_email}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.parent_email}</a> : '—'}</td>}
+                    {editable && <td className="px-3 py-2">{player.parent_phone ? <a href={`tel:${player.parent_phone}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.parent_phone}</a> : '—'}</td>}
                     {editable && (
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex gap-1">
@@ -233,7 +233,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                             {deleting === player.id ? '…' : 'Remove'}
                           </button>
                           <button onClick={() => handleDeletePlayer(player)} disabled={deleting === player.id}
-                            className="px-2 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
+                            className="btn btn-xs btn-danger"
                             title="Delete player from all teams">
                             {deleting === player.id ? '…' : 'Del'}
                           </button>
@@ -252,8 +252,8 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
               <div key={player.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4 text-gray-200">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <span className="text-blue-300 font-bold text-lg mr-2">#{player.jersey_number ?? '—'}</span>
-                    <button onClick={() => onViewPlayer?.(player.id)} className="font-semibold text-base hover:text-blue-300 transition-colors underline decoration-gray-600 hover:decoration-blue-400">
+                    <span className="text-chrome-300 font-bold text-lg mr-2">#{player.jersey_number ?? '—'}</span>
+                    <button onClick={() => onViewPlayer?.(player.id)} className="font-semibold text-base hover:text-chrome-300 transition-colors underline decoration-gray-600 hover:decoration-blue-400">
                       {player.first_name} {player.last_name}
                     </button>
                   </div>
@@ -265,7 +265,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                         {deleting === player.id ? '…' : 'Remove'}
                       </button>
                       <button onClick={() => handleDeletePlayer(player)} disabled={deleting === player.id}
-                        className="px-2.5 py-1 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60">
+                        className="btn btn-xs btn-danger">
                         {deleting === player.id ? '…' : 'Del'}
                       </button>
                     </div>
@@ -276,8 +276,8 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                   {editable && <div><span className="font-medium text-gray-200">B/T:</span> {formatBatThrow(player)}</div>}
                   {editable && <div><span className="font-medium text-gray-200">Age:</span> {calculateAge(player.date_of_birth) ?? '—'}</div>}
                   {editable && <div><span className="font-medium text-gray-200">Grade:</span> {player.grade || '—'}</div>}
-                  {editable && player.parent_email && <div className="col-span-2 truncate"><span className="font-medium text-gray-200">Email:</span> <a href={`mailto:${player.parent_email}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_email}</a></div>}
-                  {editable && player.parent_phone && <div className="col-span-2"><span className="font-medium text-gray-200">Phone:</span> <a href={`tel:${player.parent_phone}`} className="text-blue-400 hover:text-blue-300 underline">{player.parent_phone}</a></div>}
+                  {editable && player.parent_email && <div className="col-span-2 truncate"><span className="font-medium text-gray-200">Email:</span> <a href={`mailto:${player.parent_email}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.parent_email}</a></div>}
+                  {editable && player.parent_phone && <div className="col-span-2"><span className="font-medium text-gray-200">Phone:</span> <a href={`tel:${player.parent_phone}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.parent_phone}</a></div>}
                 </div>
               </div>
             ))}
@@ -314,7 +314,7 @@ function formatBatThrow(player) {
 function SortHeader({ col, label, sortCol, sortDir, onClick }) {
   const arrow = sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
   return (
-    <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide cursor-pointer select-none hover:text-gray-200 transition-colors"
+    <th className="px-3 py-2 text-left eyebrow cursor-pointer select-none hover:text-gray-200 transition-colors"
       onClick={() => onClick(col)}>
       {label}{arrow}
     </th>

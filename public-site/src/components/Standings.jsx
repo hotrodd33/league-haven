@@ -124,17 +124,17 @@ export default function Standings() {
             <table className="w-full text-sm bg-white rounded-lg shadow-sm overflow-hidden">
               <thead>
                 <tr className="bg-gray-100 border-b border-gray-200">
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide w-8"></th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 tracking-wide">Team</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">PTS</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">GP</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">W</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">L</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">T</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">PCT</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">RF</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">RA</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold uppercase text-gray-500 tracking-wide">DIFF</th>
+                  <th className="px-3 py-2 text-left eyebrow w-8"></th>
+                  <th className="px-3 py-2 text-left eyebrow">Team</th>
+                  <th className="px-3 py-2 text-center eyebrow">PTS</th>
+                  <th className="px-3 py-2 text-center eyebrow">GP</th>
+                  <th className="px-3 py-2 text-center eyebrow">W</th>
+                  <th className="px-3 py-2 text-center eyebrow">L</th>
+                  <th className="px-3 py-2 text-center eyebrow">T</th>
+                  <th className="px-3 py-2 text-center eyebrow">PCT</th>
+                  <th className="px-3 py-2 text-center eyebrow">RF</th>
+                  <th className="px-3 py-2 text-center eyebrow">RA</th>
+                  <th className="px-3 py-2 text-center eyebrow">DIFF</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">

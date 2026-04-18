@@ -73,7 +73,7 @@ function UmpireStatusList({ officials, interestedUmpires }) {
       {items.map((item, i) => (
         <span key={i} className={`text-xs px-1.5 py-0.5 rounded font-medium ${
           item.status === 'assigned'
-            ? 'bg-green-900/50 text-green-300'
+            ? 'bg-action-900/50 text-action-300'
             : DARK_BADGES.warning
         }`}>
           {item.name}
@@ -300,7 +300,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const orgNames = Object.keys(teamsByOrg).sort();
 
   if (loading) return <div className="py-8 text-center text-gray-400">Loading schedule…</div>;
-  if (error) return <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">Error: {error}</div>;
+  if (error) return <div className="lh-alert lh-alert-error">Error: {error}</div>;
 
   if (trackingGameId) {
     return <PitchTracker gameId={trackingGameId} onBack={() => { setTrackingGameId(null); loadGames(); }} />;
@@ -318,20 +318,20 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
           <div className="flex gap-2">
             <div className="flex items-center gap-1 mr-2">
               <button onClick={() => setViewMode('list')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                className={`lh-tab ${viewMode === 'list' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
                 List
               </button>
               <button onClick={() => setViewMode('calendar')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded ${viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                className={`lh-tab ${viewMode === 'calendar' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
                 Calendar
               </button>
               <button onClick={() => setShowSubscribe(true)}
-                className="px-3 py-1.5 text-xs font-semibold rounded bg-gray-700 text-gray-300 hover:bg-gray-600" title="Subscribe to calendar feed">
+                className="btn btn-xs btn-secondary" title="Subscribe to calendar feed">
                 📅
               </button>
             </div>
             <button onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-              className="px-3 py-1.5 text-xs font-semibold rounded bg-gray-700 text-gray-300 hover:bg-gray-600" title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
+              className="btn btn-xs btn-secondary" title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
               {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
             </button>
             {canScheduleGames && (
@@ -346,14 +346,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-2">
           <select value={filterSeason} onChange={(e) => setFilterSeason(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
             <option value="">All Seasons</option>
             {seasons.map(s => (
               <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
             ))}
           </select>
           <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
             <option value="">All Teams</option>
             {orgNames.map(orgName => (
               <optgroup key={orgName} label={orgName}>
@@ -367,12 +367,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
             )}
           </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
             <option value="">All Statuses</option>
             {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
           <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
             <option value="">All Divisions</option>
             {sortedDivisions.map(div => (
               <option key={div} value={div}>{div}</option>
@@ -454,7 +454,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                                 )}
                                 {w.playability && w.playability.rating !== 'good' && (
                                   <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
-                                    w.playability.rating === 'unplayable' ? 'bg-red-900/40 text-red-300' :
+                                    w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
                                     w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
                                     'bg-yellow-900/40 text-yellow-300'
                                   }`}>{w.playability.rating}</span>
@@ -465,11 +465,11 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           {!!game.officials?.length && (
                             <div className="hidden lg:flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
                               {game.officials.map((o, i) => (
-                                <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-green-900/50 text-green-300">{o.name}</span>
+                                <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-action-900/50 text-action-300">{o.name}</span>
                               ))}
                             </div>
                           )}
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
+                          <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                             {game.status_label}
                           </span>
                           {game.is_gamechanger_imported && (
@@ -496,7 +496,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                               <button
                                 onClick={() => handleToggleInterest(game.id, isInterested)}
                                 disabled={managingInterest === game.id}
-                                className={`px-2 py-1 text-xs font-semibold rounded ${isInterested ? 'bg-green-700 text-white hover:bg-green-600' : 'bg-teal-700 text-white hover:bg-teal-600'} disabled:opacity-60`}
+                                className={`px-2 py-1 text-xs font-semibold rounded ${isInterested ? 'bg-green-700 text-white hover:bg-action-600' : 'bg-teal-700 text-white hover:bg-teal-600'} disabled:opacity-60`}
                               >
                                 {managingInterest === game.id ? '…' : (isInterested ? 'Interested' : 'I\'m Interested')}
                               </button>
@@ -523,7 +523,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           <span className="text-xs font-semibold text-gray-400 block">{formatTime(game.game_time) || 'TBD'}</span>
                           {divisionLabel && <span className="text-[11px] text-gray-400 block">{divisionLabel}</span>}
                         </div>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
+                        <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                           {game.status_label}
                         </span>
                         {game.is_gamechanger_imported && (
@@ -561,7 +561,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                             )}
                             {w.playability && w.playability.rating !== 'good' && (
                               <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
-                                w.playability.rating === 'unplayable' ? 'bg-red-900/40 text-red-300' :
+                                w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
                                 w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
                                 'bg-yellow-900/40 text-yellow-300'
                               }`}>{w.playability.rating}</span>
@@ -573,7 +573,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       {!!game.officials?.length && (
                         <div className="flex flex-wrap gap-1 mb-1" onClick={(e) => e.stopPropagation()}>
                           {game.officials.map((o, i) => (
-                            <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-green-900/50 text-green-300">{o.name}</span>
+                            <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-action-900/50 text-action-300">{o.name}</span>
                           ))}
                         </div>
                       )}
@@ -597,7 +597,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           <button
                             onClick={() => handleToggleInterest(game.id, isInterested)}
                             disabled={managingInterest === game.id}
-                            className={`px-2.5 py-1 text-xs font-semibold rounded ${isInterested ? 'bg-green-700 text-white hover:bg-green-600' : 'bg-teal-700 text-white hover:bg-teal-600'} disabled:opacity-60`}
+                            className={`px-2.5 py-1 text-xs font-semibold rounded ${isInterested ? 'bg-green-700 text-white hover:bg-action-600' : 'bg-teal-700 text-white hover:bg-teal-600'} disabled:opacity-60`}
                           >
                             {managingInterest === game.id ? '…' : (isInterested ? 'Interested' : 'I\'m Interested')}
                           </button>
@@ -685,13 +685,13 @@ function SubscribeModal({ filterTeam, filterSeason, onClose }) {
         <p className="text-sm text-gray-400 mb-4">
           Subscribe to this game schedule in your calendar app. Games will sync automatically as they're added or updated.
           {(filterTeam || filterSeason) && (
-            <span className="block mt-1 text-blue-400">Your current filters are included in this feed.</span>
+            <span className="block mt-1 text-chrome-400">Your current filters are included in this feed.</span>
           )}
         </p>
 
         {/* Quick subscribe button */}
         <a href={webcalUrl}
-          className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors mb-4">
+          className="btn btn-md btn-primary w-full flex items-center justify-center gap-2 mb-4">
           📅 Open in Calendar App
         </a>
 
@@ -705,7 +705,7 @@ function SubscribeModal({ filterTeam, filterSeason, onClose }) {
               type="text"
               readOnly
               value={icsUrl}
-              className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-gray-300 font-mono select-all focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-gray-300 font-mono select-all focus:outline-none focus:ring-2 focus:ring-action-500/30"
               onClick={e => e.target.select()}
             />
             <button onClick={handleCopy}
@@ -795,14 +795,14 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                 ${isToday ? 'ring-1 ring-blue-500' : ''}
                 ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}
               `}>
-              <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-blue-400' : 'text-gray-300'}`}>{day}</div>
+              <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
               <div className="space-y-0.5">
                 {dayGames.slice(0, 3).map((g, j) => {
                   const statusColor =
-                    g.status === 'completed' ? 'bg-green-900/40 text-green-300' :
-                    g.status === 'cancelled' ? 'bg-red-900/40 text-red-300 line-through' :
+                    g.status === 'completed' ? 'bg-action-900/40 text-action-300' :
+                    g.status === 'cancelled' ? 'bg-signal-900/40 text-signal-300 line-through' :
                     g.status === 'postponed' ? 'bg-amber-900/40 text-amber-300' :
-                    'bg-blue-900/40 text-blue-300';
+                    'bg-chrome-900/40 text-chrome-300';
                   return (
                     <div key={g.id || j} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${statusColor}`}>
                       {formatTime(g.game_time)} {g.home_team_name} vs {g.away_team_name}
@@ -872,7 +872,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                               )}
                               {w.playability && w.playability.rating !== 'good' && (
                                 <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded-full ${
-                                  w.playability.rating === 'unplayable' ? 'bg-red-900/40 text-red-300' :
+                                  w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
                                   w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
                                   'bg-yellow-900/40 text-yellow-300'
                                 }`}>{w.playability.rating}</span>
@@ -880,7 +880,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                             </span>
                           );
                         })()}
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor}`}>
+                        <span className={`lh-badge ${statusColor}`}>
                           {game.status_label}
                         </span>
                       </div>
@@ -1281,10 +1281,10 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                     key={opt.value}
                     type="button"
                     onClick={() => setEventType(opt.value)}
-                    className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                    className={`flex-1 lh-tab ${
                       eventType === opt.value
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                        ? 'lh-tab-active'
+                        : 'lh-tab-inactive'
                     }`}
                   >
                     {opt.label}
@@ -1378,11 +1378,11 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                         const checked = (form.official_ids || []).some((id) => String(id) === String(official.id));
                         const interested = interestedOfficialSet.has(Number(official.id));
                         const rowCls = checked
-                          ? 'border border-green-500/40 bg-green-900/20'
+                          ? 'border border-action-500/40 bg-action-900/20'
                           : interested
                             ? 'border border-amber-400/50 bg-amber-500/10'
-                            : 'border border-red-500/20 bg-red-900/10';
-                        const dotCls = checked ? 'bg-green-400' : interested ? 'bg-amber-300' : 'bg-red-500';
+                            : 'border border-signal-500/20 bg-signal-900/10';
+                        const dotCls = checked ? 'bg-action-400' : interested ? 'bg-amber-300' : 'bg-signal-500';
                         return (
                           <label key={official.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${rowCls}`}>
                             <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
@@ -1397,9 +1397,9 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                     </div>
                   )}
                   <div className="flex gap-4 mt-1.5 text-xs text-gray-400">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Assigned</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-action-400 inline-block" /> Assigned</span>
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-300 inline-block" /> Interested</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> No status</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-signal-500 inline-block" /> No status</span>
                   </div>
                 </div>
               )}
@@ -1490,10 +1490,10 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
           <div>
             <label htmlFor="game-notes" className={labelCls}>Notes</label>
             <textarea id="game-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Any additional info…"
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500" />
           </div>
 
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           {fieldConflicts && (
             <div className="bg-amber-900/30 border border-amber-600 text-amber-200 text-sm px-4 py-3 rounded-lg space-y-2">
@@ -1510,7 +1510,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                       Booked by: <span className="font-semibold text-white">{c.created_by_name}</span>
                       {c.created_by_email && (
                         <> — <a href={`mailto:${c.created_by_email}?subject=Field%20Reservation%20Conflict&body=Hi%20${encodeURIComponent(c.created_by_name)}%2C%0A%0AYour%20reservation%20%22${encodeURIComponent(c.title)}%22%20on%20${encodeURIComponent(form.game_date)}%20conflicts%20with%20a%20scheduled%20game.%20Games%20have%20priority%20so%20your%20reservation%20will%20need%20to%20be%20moved.%0A%0AThank%20you.`}
-                          className="text-blue-400 underline hover:text-blue-300">
+                          className="text-chrome-400 underline hover:text-chrome-300">
                           {c.created_by_email}
                         </a></>
                       )}
@@ -1577,7 +1577,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                 <div>
                   <label htmlFor="new-loc-comments" className={labelCls}>Comments</label>
                   <textarea id="new-loc-comments" name="comments" value={newLocation.comments} onChange={handleNewLocationChange} rows={2}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500"
                     placeholder="Optional notes"
                   />
                 </div>
@@ -1740,7 +1740,7 @@ function QuickCreateTeamForm({ onCreated, onCancel }) {
             </div>
           )}
 
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>

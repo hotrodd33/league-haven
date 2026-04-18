@@ -158,7 +158,7 @@ export default function FieldsPage({ onViewGame }) {
         <div className="flex items-center gap-3">
           {ageGroups.length > 0 && (
             <select value={filterAgeGroup} onChange={e => setFilterAgeGroup(e.target.value)}
-              className="px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+              className="px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
               <option value="">All Age Groups</option>
               {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
             </select>
@@ -225,7 +225,7 @@ export default function FieldsPage({ onViewGame }) {
         <div className="py-12 text-center text-gray-400">
           No field locations yet.
           {canEditAny && (
-            <><br /><button onClick={() => { setEditing(null); setFormOrgId(null); setShowForm(true); }} className="text-blue-400 underline mt-1 inline-block">Add a field</button></>
+            <><br /><button onClick={() => { setEditing(null); setFormOrgId(null); setShowForm(true); }} className="text-chrome-400 underline mt-1 inline-block">Add a field</button></>
           )}
         </div>
       ) : (
@@ -242,7 +242,7 @@ export default function FieldsPage({ onViewGame }) {
                   </div>
                   {editable && (
                     <button onClick={() => { setEditing(null); setFormOrgId(group.id); setShowForm(true); }}
-                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700">
+                      className="btn btn-xs btn-primary">
                       + Add Field
                     </button>
                   )}
@@ -253,12 +253,12 @@ export default function FieldsPage({ onViewGame }) {
                   <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
                     <thead>
                       <tr className="bg-gray-800 border-b-2 border-gray-700">
-                        <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Age Groups</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Address</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Lat / Lng</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Comments</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide w-44">{editable ? 'Actions' : 'Directions'}</th>
+                        <th className="px-3 py-2 text-left eyebrow">Name</th>
+                        <th className="px-3 py-2 text-left eyebrow">Age Groups</th>
+                        <th className="px-3 py-2 text-left eyebrow">Address</th>
+                        <th className="px-3 py-2 text-left eyebrow">Lat / Lng</th>
+                        <th className="px-3 py-2 text-left eyebrow">Comments</th>
+                        <th className="px-3 py-2 text-left eyebrow w-44">{editable ? 'Actions' : 'Directions'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
@@ -267,13 +267,13 @@ export default function FieldsPage({ onViewGame }) {
                         const isHighlighted = highlightedId === loc.id;
                         return (
                           <tr key={loc.id} onClick={() => handleRowClick(loc)}
-                            className={`${hasPin ? 'cursor-pointer hover:bg-blue-900/30' : ''} ${isHighlighted ? 'bg-blue-900/30 shadow-[inset_3px_0_0] shadow-blue-500' : ''} transition-colors`}>
+                            className={`${hasPin ? 'cursor-pointer hover:bg-chrome-900/30' : ''} ${isHighlighted ? 'bg-chrome-900/30 shadow-[inset_3px_0_0] shadow-blue-500' : ''} transition-colors`}>
                             <td className="px-3 py-2 font-semibold">{loc.name}</td>
                             <td className="px-3 py-2">
                               <div className="flex gap-1 flex-wrap">
                                 {(loc.age_groups || []).length > 0
                                   ? loc.age_groups.map(ag => (
-                                    <span key={ag.id} className="px-1.5 py-0.5 bg-blue-900/50 text-blue-300 text-[10px] font-semibold rounded">{ag.name}</span>
+                                    <span key={ag.id} className="px-1.5 py-0.5 bg-chrome-900/50 text-chrome-300 text-[10px] font-semibold rounded">{ag.name}</span>
                                   ))
                                   : <span className="text-gray-500 text-xs">All</span>}
                               </div>
@@ -284,10 +284,10 @@ export default function FieldsPage({ onViewGame }) {
                             <td className="px-3 py-2">
                               <div className="flex gap-1.5 flex-wrap">
                                 <button onClick={e => { e.stopPropagation(); setCalendarField(loc); }}
-                                  className="px-2.5 py-1 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Calendar</button>
+                                  className="px-2.5 py-1 bg-action-600 text-white text-xs font-semibold rounded hover:bg-green-700">Calendar</button>
                                 {hasPin && (
                                   <a href={directionsUrl(loc)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                                    className="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 no-underline">Directions</a>
+                                    className="btn btn-xs btn-primary no-underline">Directions</a>
                                 )}
                                 {editable && (
                                   <>
@@ -313,7 +313,7 @@ export default function FieldsPage({ onViewGame }) {
                     const isHighlighted = highlightedId === loc.id;
                     return (
                       <div key={loc.id} onClick={() => handleRowClick(loc)}
-                        className={`bg-gray-800 rounded-lg border p-4 text-gray-200 ${hasPin ? 'cursor-pointer' : ''} ${isHighlighted ? 'border-blue-400 bg-blue-900/30 shadow-card' : 'border-gray-700'}`}>
+                        className={`bg-gray-800 rounded-lg border p-4 text-gray-200 ${hasPin ? 'cursor-pointer' : ''} ${isHighlighted ? 'border-chrome-400 bg-chrome-900/30 shadow-card' : 'border-gray-700'}`}>
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-semibold text-sm">{loc.name}</h4>
                           {hasPin && <span className="text-[10px] font-mono text-gray-400 shrink-0 ml-2">{Number(loc.latitude).toFixed(4)}, {Number(loc.longitude).toFixed(4)}</span>}
@@ -322,17 +322,17 @@ export default function FieldsPage({ onViewGame }) {
                         {(loc.age_groups || []).length > 0 && (
                           <div className="flex gap-1 flex-wrap mb-1">
                             {loc.age_groups.map(ag => (
-                              <span key={ag.id} className="px-1.5 py-0.5 bg-blue-900/50 text-blue-300 text-[10px] font-semibold rounded">{ag.name}</span>
+                              <span key={ag.id} className="px-1.5 py-0.5 bg-chrome-900/50 text-chrome-300 text-[10px] font-semibold rounded">{ag.name}</span>
                             ))}
                           </div>
                         )}
                         {loc.comments && <p className="text-xs text-gray-400 mb-2">{loc.comments}</p>}
                         <div className="flex gap-2 pt-2 border-t border-gray-700" onClick={e => e.stopPropagation()}>
                           <button onClick={() => setCalendarField(loc)}
-                            className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Calendar</button>
+                            className="px-3 py-1.5 bg-action-600 text-white text-xs font-semibold rounded hover:bg-green-700">Calendar</button>
                           {hasPin && (
                             <a href={directionsUrl(loc)} target="_blank" rel="noopener noreferrer"
-                              className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 no-underline">Directions</a>
+                              className="btn btn-xs btn-primary no-underline">Directions</a>
                           )}
                           {editable && (
                             <>
@@ -550,7 +550,7 @@ function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, onDone, o
             </div>
           </div>
 
-          {reverseGeocoding && <p className="text-xs text-blue-400">Looking up address from pin…</p>}
+          {reverseGeocoding && <p className="text-xs text-chrome-400">Looking up address from pin…</p>}
 
           <div className="rounded-lg border border-gray-700 bg-gray-900/40 p-3 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -560,7 +560,7 @@ function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, onDone, o
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={handleLocateByAddress} disabled={locatingByAddress}
-                  className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 disabled:opacity-60">
+                  className="btn btn-xs btn-primary disabled:opacity-50">
                   {locatingByAddress ? 'Finding…' : 'Find on map'}
                 </button>
                 <button type="button" onClick={handleUseMyLocation} disabled={locatingByDevice}
@@ -620,9 +620,9 @@ function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, onDone, o
                       onClick={() => setSelectedAgeGroupIds(prev =>
                         selected ? prev.filter(id => id !== ag.id) : [...prev, ag.id]
                       )}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                      className={`lh-tab border transition-colors ${
                         selected
-                          ? 'bg-blue-600 border-blue-500 text-white'
+                          ? 'lh-tab-active border-action-500'
                           : 'bg-gray-900 border-gray-600 text-gray-300 hover:border-gray-500'
                       }`}>
                       {ag.name}
@@ -637,10 +637,10 @@ function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, onDone, o
             <label htmlFor="field-comments" className={labelCls}>Comments</label>
             <textarea id="field-comments" name="comments" value={form.comments} onChange={handleChange} rows={3}
               placeholder="Parking info, field condition notes, etc."
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500" />
           </div>
 
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>

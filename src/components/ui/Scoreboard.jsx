@@ -67,10 +67,10 @@ export default function Scoreboard({
             {weather?.playability && (
               <span className={cn(
                 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0',
-                weather.playability.rating === 'good' && 'bg-green-900/40 text-green-300',
+                weather.playability.rating === 'good' && 'bg-action-900/40 text-action-300',
                 weather.playability.rating === 'fair' && 'bg-yellow-900/40 text-yellow-300',
                 weather.playability.rating === 'poor' && 'bg-orange-900/40 text-orange-300',
-                weather.playability.rating === 'unplayable' && 'bg-red-900/40 text-red-300',
+                weather.playability.rating === 'unplayable' && 'bg-signal-900/40 text-signal-300',
               )}>
                 {weather.playability.rating}
               </span>
@@ -97,7 +97,7 @@ export default function Scoreboard({
               )}
               {weather.uvIndex != null && weather.uvIndex >= 6 && (
                 <span className={cn(
-                  weather.uvIndex >= 8 ? 'text-red-400' : 'text-orange-400',
+                  weather.uvIndex >= 8 ? 'text-signal-400' : 'text-orange-400',
                 )} title={`UV Index: ${weather.uvIndex}`}>
                   ☀️ UV {Math.round(weather.uvIndex)}
                 </span>

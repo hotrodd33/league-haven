@@ -151,11 +151,11 @@ export default function FieldLocations({ orgId, orgName }) {
             <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Name</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Address</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Lat / Lng</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide">Comments</th>
-                  <th className="px-3 py-2 text-left text-xs font-bold uppercase text-gray-400 tracking-wide w-44">{editable ? 'Actions' : 'Directions'}</th>
+                  <th className="px-3 py-2 text-left eyebrow">Name</th>
+                  <th className="px-3 py-2 text-left eyebrow">Address</th>
+                  <th className="px-3 py-2 text-left eyebrow">Lat / Lng</th>
+                  <th className="px-3 py-2 text-left eyebrow">Comments</th>
+                  <th className="px-3 py-2 text-left eyebrow w-44">{editable ? 'Actions' : 'Directions'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -167,8 +167,8 @@ export default function FieldLocations({ orgId, orgName }) {
                       key={loc.id}
                       onClick={() => handleRowClick(loc)}
                       className={`
-                        ${hasPin ? 'cursor-pointer hover:bg-blue-900/30' : ''}
-                        ${isHighlighted ? 'bg-blue-900/30 shadow-[inset_3px_0_0] shadow-blue-500' : ''}
+                        ${hasPin ? 'cursor-pointer hover:bg-chrome-900/30' : ''}
+                        ${isHighlighted ? 'bg-chrome-900/30 shadow-[inset_3px_0_0] shadow-blue-500' : ''}
                         transition-colors
                       `}
                     >
@@ -180,7 +180,7 @@ export default function FieldLocations({ orgId, orgName }) {
                         <div className="flex gap-1.5 flex-wrap">
                           {hasPin && (
                             <a href={directionsUrl(loc)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                              className="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 no-underline">
+                              className="btn btn-xs btn-primary no-underline">
                               Directions
                             </a>
                           )}
@@ -213,7 +213,7 @@ export default function FieldLocations({ orgId, orgName }) {
                   className={`
                     bg-gray-800 rounded-lg border p-4 text-gray-200
                     ${hasPin ? 'cursor-pointer' : ''}
-                    ${isHighlighted ? 'border-blue-400 bg-blue-900/30 shadow-card' : 'border-gray-700'}
+                    ${isHighlighted ? 'border-chrome-400 bg-chrome-900/30 shadow-card' : 'border-gray-700'}
                   `}
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -231,7 +231,7 @@ export default function FieldLocations({ orgId, orgName }) {
                   <div className="flex gap-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
                     {hasPin && (
                       <a href={directionsUrl(loc)} target="_blank" rel="noopener noreferrer"
-                        className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 no-underline">
+                        className="btn btn-xs btn-primary no-underline">
                         Directions
                       </a>
                     )}
@@ -435,7 +435,7 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
             </div>
           </div>
 
-          {reverseGeocoding && <p className="text-xs text-blue-400">Looking up address from pin…</p>}
+          {reverseGeocoding && <p className="text-xs text-chrome-400">Looking up address from pin…</p>}
 
           <div className="rounded-lg border border-gray-700 bg-gray-900/40 p-3 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -448,7 +448,7 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
                   type="button"
                   onClick={handleLocateByAddress}
                   disabled={locatingByAddress}
-                  className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 disabled:opacity-60"
+                  className="btn btn-xs btn-primary disabled:opacity-50"
                 >
                   {locatingByAddress ? 'Finding…' : 'Find on map'}
                 </button>
@@ -512,10 +512,10 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
             <label htmlFor="loc-comments" className={labelCls}>Comments</label>
             <textarea id="loc-comments" name="comments" value={form.comments} onChange={handleChange} rows={3}
               placeholder="Parking info, field condition notes, etc."
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500" />
           </div>
 
-          {error && <div className="bg-red-900/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
