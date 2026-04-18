@@ -1155,3 +1155,48 @@ export async function sendPushNotification({ title, body, scope, teamIds, orgIds
     body: JSON.stringify({ title, body, scope, teamIds, orgIds, url }),
   });
 }
+
+// ── Volunteer Roles (config) ──
+
+export async function fetchVolunteerRoles() {
+  return apiFetch('/league-config/volunteer-roles');
+}
+
+export async function createVolunteerRole(data) {
+  return apiFetch('/league-config/volunteer-roles', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateVolunteerRole(id, data) {
+  return apiFetch(`/league-config/volunteer-roles/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteVolunteerRole(id) {
+  return apiFetch(`/league-config/volunteer-roles/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Guardian Volunteer Interests ──
+
+export async function fetchGuardianVolunteers(guardianId) {
+  return apiFetch(`/player-contacts/guardian/${guardianId}/volunteers`);
+}
+
+export async function updateGuardianVolunteers(guardianId, roleIds) {
+  return apiFetch(`/player-contacts/guardian/${guardianId}/volunteers`, {
+    method: 'PUT',
+    body: JSON.stringify({ role_ids: roleIds }),
+  });
+}
+
+// ── All Guardians ──
+
+export async function fetchAllGuardians() {
+  return apiFetch('/player-contacts/all-guardians');
+}

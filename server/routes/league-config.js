@@ -462,4 +462,60 @@ router.delete('/divisions/:id', authMiddleware, requireAdmin, async (req, res) =
   }
 });
 
+// ── Volunteer Roles ──
+
+router.get('/volunteer-roles', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM volunteer_roles ORDER BY sort_order, name');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/volunteer-roles', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { name, sort_order } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+    const { rows } = await pool.query(
+      'INSERT INTO volunteer_roles (name, sort_order) VALUES ($1, $2) RETURNING *',
+      [name.trim(), sort_order ?? 0]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Volunteer role already exists' });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/volunteer-roles/:id', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { name, sort_order } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+    const { rows } = await pool.query(
+      'UPDATE volunteer_roles SET name = $1, sort_order = $2 WHERE id = $3 RETURNING *',
+      [name.trim(), sort_order ?? 0, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Volunteer role already exists' });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/volunteer-roles/:id', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query('DELETE FROM volunteer_roles WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

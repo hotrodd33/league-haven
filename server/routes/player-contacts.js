@@ -15,6 +15,79 @@ async function canEditPlayer(user, playerId) {
   return false;
 }
 
+// ── All Guardians List (for Guardians page) ──
+// MUST be defined before /:playerId to avoid route conflict
+
+// GET /player-contacts/all-guardians — list all guardians with players + volunteer roles
+router.get('/all-guardians', async (req, res) => {
+  try {
+    const { rows: guardians } = await pool.query(`
+      SELECT g.id, g.first_name, g.last_name, g.email, g.phone,
+             COALESCE(
+               json_agg(
+                 DISTINCT jsonb_build_object(
+                   'player_id', p.id, 'player_name', p.first_name || ' ' || p.last_name,
+                   'relationship', pg.relationship, 'team_names',
+                   (SELECT string_agg(DISTINCT t.team_name, ', ')
+                    FROM team_players tp JOIN teams t ON t.id = tp.team_id
+                    WHERE tp.player_id = p.id)
+                 )
+               ) FILTER (WHERE p.id IS NOT NULL), '[]'
+             ) AS players,
+             COALESCE(
+               array_agg(DISTINCT gv.role_id) FILTER (WHERE gv.role_id IS NOT NULL), '{}'
+             ) AS volunteer_role_ids
+      FROM guardians g
+      LEFT JOIN player_guardians pg ON pg.guardian_id = g.id
+      LEFT JOIN players p ON p.id = pg.player_id
+      LEFT JOIN guardian_volunteers gv ON gv.guardian_id = g.id
+      GROUP BY g.id
+      ORDER BY g.last_name, g.first_name
+    `);
+    res.json(guardians);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Guardian Volunteer Interests ──
+
+// GET /player-contacts/guardian/:guardianId/volunteers — volunteer role IDs for a guardian
+router.get('/guardian/:guardianId/volunteers', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT role_id FROM guardian_volunteers WHERE guardian_id = $1',
+      [req.params.guardianId]
+    );
+    res.json(rows.map(r => r.role_id));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /player-contacts/guardian/:guardianId/volunteers — replace volunteer role IDs
+router.put('/guardian/:guardianId/volunteers', authMiddleware, async (req, res) => {
+  try {
+    const { guardianId } = req.params;
+    const { role_ids } = req.body;
+    if (!Array.isArray(role_ids)) return res.status(400).json({ error: 'role_ids must be an array' });
+
+    await pool.query('DELETE FROM guardian_volunteers WHERE guardian_id = $1', [guardianId]);
+    for (const rid of role_ids) {
+      await pool.query(
+        'INSERT INTO guardian_volunteers (guardian_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [guardianId, rid]
+      );
+    }
+    res.json({ success: true, role_ids });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /player-contacts/:playerId — list guardians for a player
 router.get('/:playerId', async (req, res) => {
   try {

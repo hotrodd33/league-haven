@@ -8,6 +8,7 @@ import {
   fetchScheduleSettings, updateScheduleSettings,
   fetchStatDefinitions, createStatDefinition, updateStatDefinition, deleteStatDefinition,
   fetchFeatureToggles, updateFeatureToggles,
+  fetchVolunteerRoles, createVolunteerRole, updateVolunteerRole, deleteVolunteerRole,
 } from '../api/index.js';
 import { Button, Badge } from './ui/index.js';
 
@@ -36,6 +37,7 @@ export default function LeagueConfig({ onBack }) {
         <button className={tabCls('levels')} onClick={() => setTab('levels')}>Levels</button>
         <button className={tabCls('divisions')} onClick={() => setTab('divisions')}>Divisions</button>
         <button className={tabCls('stats')} onClick={() => setTab('stats')}>Stats</button>
+        <button className={tabCls('volunteers')} onClick={() => setTab('volunteers')}>Volunteer Roles</button>
       </div>
       {tab === 'branding' && <BrandingConfig />}
       {tab === 'features' && <FeatureTogglesConfig />}
@@ -51,6 +53,13 @@ export default function LeagueConfig({ onBack }) {
       )}
       {tab === 'divisions' && <DivisionTree />}
       {tab === 'stats' && <StatDefinitionsConfig />}
+      {tab === 'volunteers' && (
+        <ConfigList
+          title="Volunteer Roles" placeholder="e.g. Head Coach, Asst Coach, Board Member, Team Mom"
+          fetchItems={fetchVolunteerRoles} createItem={createVolunteerRole}
+          updateItem={updateVolunteerRole} deleteItem={deleteVolunteerRole}
+        />
+      )}
     </div>
   );
 }

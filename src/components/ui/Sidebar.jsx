@@ -39,6 +39,9 @@ export default function Sidebar({
   // Build Organization items based on role + feature toggles
   const orgItems = [];
   orgItems.push({ key: 'organizations', label: 'Organizations', icon: BuildingIcon });
+  if (isAdmin || isOrgAdmin) {
+    orgItems.push({ key: 'guardians', label: 'Guardians', icon: UserGroupIcon });
+  }
   if ((isAdmin || isOrgAdmin || isAccountant) && ft('feature_officials')) {
     orgItems.push({ key: 'officials', label: 'Officials', icon: UserGroupIcon });
   }

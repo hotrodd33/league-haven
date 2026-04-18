@@ -18,6 +18,7 @@ import MyAccount from './MyAccount.jsx';
 import ManageAnnouncements from './ManageAnnouncements.jsx';
 import TeamSelector from './TeamSelector.jsx';
 import TeamPage from './TeamPage.jsx';
+import GuardiansPage from './GuardiansPage.jsx';
 
 export default function FeatureRouter(props) {
     return (
@@ -92,6 +93,11 @@ function PageContent({
                 );
             }
             return <PlayersPage onSelectPlayer={onViewPlayer} />;
+
+        case 'guardians':
+            return (isAdmin || isOrgAdmin)
+                ? <GuardiansPage onViewPlayer={onViewPlayer} />
+                : null;
 
         case 'account':
             return <MyAccount onChangePassword={onChangePassword} />;

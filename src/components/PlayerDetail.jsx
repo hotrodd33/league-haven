@@ -7,6 +7,7 @@ import {
   updatePlayer, fetchPositions,
   fetchTeams, fetchOrganizations, assignPlayerToTeam, unassignPlayerFromTeam,
   updatePlayerJersey,
+  fetchVolunteerRoles, fetchGuardianVolunteers, updateGuardianVolunteers,
 } from '../api/index.js';
 import { ChevronLeftIcon, PlusIcon, TrashIcon, PencilIcon, DocumentIcon, ChatBubbleIcon, UserIcon, ChartBarIcon } from './ui/icons.jsx';
 import { formatDOB, calculateAge } from '../utils/dob.js';
@@ -492,12 +493,40 @@ function ContactsTab({ playerId, canEdit }) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [volunteerRoles, setVolunteerRoles] = useState([]);
+  const [guardianVolunteers, setGuardianVolunteers] = useState({});
 
   const load = useCallback(() => {
-    fetchPlayerContacts(playerId).then(setContacts).catch(console.error).finally(() => setLoading(false));
+    Promise.all([
+      fetchPlayerContacts(playerId),
+      fetchVolunteerRoles().catch(() => []),
+    ]).then(([c, vr]) => {
+      setContacts(c);
+      setVolunteerRoles(vr);
+      // Load volunteer interests for each guardian
+      Promise.all(
+        c.map(g => fetchGuardianVolunteers(g.id).then(ids => [g.id, ids]).catch(() => [g.id, []]))
+      ).then(results => {
+        const map = {};
+        for (const [gid, ids] of results) map[gid] = ids;
+        setGuardianVolunteers(map);
+      });
+    }).catch(console.error).finally(() => setLoading(false));
   }, [playerId]);
 
   useEffect(load, [load]);
+
+  async function toggleVolunteer(guardianId, roleId, checked) {
+    const current = guardianVolunteers[guardianId] || [];
+    const next = checked ? [...current, roleId] : current.filter(id => id !== roleId);
+    setGuardianVolunteers(prev => ({ ...prev, [guardianId]: next }));
+    try {
+      await updateGuardianVolunteers(guardianId, next);
+    } catch (err) {
+      console.error(err);
+      setGuardianVolunteers(prev => ({ ...prev, [guardianId]: current }));
+    }
+  }
 
   function handleSaved() { setShowForm(false); setEditing(null); load(); }
 
@@ -549,6 +578,25 @@ function ContactsTab({ playerId, canEdit }) {
               </div>
             )}
           </div>
+          {volunteerRoles.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-700">
+              <p className="text-xs font-medium text-gray-400 mb-1.5">Volunteer Interests</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {volunteerRoles.map(role => (
+                  <label key={role.id} className="flex items-center gap-1.5 text-sm text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={(guardianVolunteers[c.id] || []).includes(role.id)}
+                      onChange={e => toggleVolunteer(c.id, role.id, e.target.checked)}
+                      disabled={!canEdit}
+                      className="rounded border-gray-600 bg-gray-700 text-action-500"
+                    />
+                    {role.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ))}
 

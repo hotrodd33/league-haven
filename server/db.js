@@ -552,6 +552,25 @@ async function migrate() {
     );
   `);
 
+  // ── Volunteer roles (configurable list) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS volunteer_roles (
+      id SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+
+  // ── Guardian ↔ Volunteer role junction (interest tracking) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS guardian_volunteers (
+      guardian_id INTEGER NOT NULL REFERENCES guardians(id) ON DELETE CASCADE,
+      role_id INTEGER NOT NULL REFERENCES volunteer_roles(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (guardian_id, role_id)
+    );
+  `);
+
   // ── Player notes ──
   await pool.query(`
     CREATE TABLE IF NOT EXISTS player_notes (
