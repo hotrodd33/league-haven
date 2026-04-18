@@ -508,7 +508,7 @@ async function migrate() {
     );
   `);
 
-  // ── Player contacts (multiple per player) ──
+  // ── Player contacts (multiple per player) ── (LEGACY — kept for migration)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS player_contacts (
       id SERIAL PRIMARY KEY,
@@ -521,6 +521,34 @@ async function migrate() {
       is_primary BOOLEAN NOT NULL DEFAULT FALSE,
       notes TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // ── Guardians (standalone people, linkable to multiple players) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS guardians (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      email TEXT,
+      phone TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // ── Player ↔ Guardian junction ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS player_guardians (
+      id SERIAL PRIMARY KEY,
+      player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      guardian_id INTEGER NOT NULL REFERENCES guardians(id) ON DELETE CASCADE,
+      relationship TEXT NOT NULL DEFAULT 'parent',
+      is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (player_id, guardian_id)
     );
   `);
 
@@ -738,6 +766,41 @@ async function migrate() {
   await pool.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS hat_size TEXT;`);
   await pool.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS needs_new_jersey BOOLEAN NOT NULL DEFAULT FALSE;`);
   await pool.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS needs_new_hat BOOLEAN NOT NULL DEFAULT FALSE;`);
+
+  // ── Deduplicate player_contacts (keep newest per player + name combo) ──
+  await pool.query(`
+    DELETE FROM player_contacts
+    WHERE id NOT IN (
+      SELECT DISTINCT ON (player_id, LOWER(COALESCE(first_name,'')), LOWER(COALESCE(last_name,''))) id
+      FROM player_contacts
+      ORDER BY player_id, LOWER(COALESCE(first_name,'')), LOWER(COALESCE(last_name,'')), created_at DESC
+    )
+  `);
+
+  // ── Player own contact info ──
+  await pool.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS email TEXT;`);
+  await pool.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS phone TEXT;`);
+
+  // ── Migrate player_contacts → guardians + player_guardians (one-time) ──
+  await pool.query(`
+    INSERT INTO guardians (first_name, last_name, email, phone, created_at)
+    SELECT DISTINCT ON (LOWER(TRIM(first_name)), LOWER(TRIM(last_name)), LOWER(COALESCE(TRIM(email),'')))
+           TRIM(first_name), TRIM(last_name), NULLIF(TRIM(email),''), NULLIF(TRIM(phone),''), MIN(created_at)
+    FROM player_contacts
+    WHERE NOT EXISTS (SELECT 1 FROM guardians LIMIT 1)
+    GROUP BY TRIM(first_name), TRIM(last_name), LOWER(COALESCE(TRIM(email),''))
+    ORDER BY LOWER(TRIM(first_name)), LOWER(TRIM(last_name)), LOWER(COALESCE(TRIM(email),'')), MIN(created_at)
+  `);
+  await pool.query(`
+    INSERT INTO player_guardians (player_id, guardian_id, relationship, is_primary, notes, created_at)
+    SELECT pc.player_id, g.id, pc.relationship, pc.is_primary, pc.notes, pc.created_at
+    FROM player_contacts pc
+    JOIN guardians g ON LOWER(TRIM(g.first_name)) = LOWER(TRIM(pc.first_name))
+                    AND LOWER(TRIM(g.last_name)) = LOWER(TRIM(pc.last_name))
+                    AND LOWER(COALESCE(TRIM(g.email),'')) = LOWER(COALESCE(TRIM(pc.email),''))
+    WHERE NOT EXISTS (SELECT 1 FROM player_guardians LIMIT 1)
+    ON CONFLICT (player_id, guardian_id) DO NOTHING
+  `);
 
   // ── Announcements ──
   await pool.query(`

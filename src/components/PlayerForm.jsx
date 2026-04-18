@@ -24,6 +24,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
     selectedPositions: [], dateOfBirth: '',
     battingHand: '', throwingHand: '', grade: '',
     jerseySize: '', hatSize: '', needsNewJersey: false, needsNewHat: false,
+    playerEmail: '', playerPhone: '',
   });
 
   const [contacts, setContacts] = useState([{ ...EMPTY_CONTACT, is_primary: true }]);
@@ -41,6 +42,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
         grade: player.grade || '',
         jerseySize: player.jersey_size || '', hatSize: player.hat_size || '',
         needsNewJersey: !!player.needs_new_jersey, needsNewHat: !!player.needs_new_hat,
+        playerEmail: player.email || '', playerPhone: player.phone || '',
       });
     }
   }, [player]);
@@ -102,6 +104,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
       grade: form.grade || null,
       jersey_size: form.jerseySize || null, hat_size: form.hatSize || null,
       needs_new_jersey: form.needsNewJersey, needs_new_hat: form.needsNewHat,
+      email: form.playerEmail || null, phone: form.playerPhone || null,
       contacts: validContacts.map(c => ({
         first_name: c.first_name.trim(),
         last_name: c.last_name.trim(),
@@ -185,18 +188,24 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
             </div>
           </div>
 
-          {/* Contacts */}
+          {/* Player Contact Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="Player Email" id="playerEmail" name="playerEmail" type="email" value={form.playerEmail} onChange={handleChange} placeholder="player@email.com" />
+            <Input label="Player Phone" id="playerPhone" name="playerPhone" type="tel" value={form.playerPhone} onChange={handleChange} placeholder="555-555-5555" />
+          </div>
+
+          {/* Guardians */}
           {!isEditing && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="eyebrow block">Contacts</label>
-                <button type="button" onClick={addContact} className="text-xs font-semibold text-chrome-400 hover:text-chrome-300 underline">+ Add Contact</button>
+                <label className="eyebrow block">Guardians</label>
+                <button type="button" onClick={addContact} className="text-xs font-semibold text-chrome-400 hover:text-chrome-300 underline">+ Add Guardian</button>
               </div>
               <div className="space-y-3">
                 {contacts.map((contact, idx) => (
                   <div key={idx} className="bg-gray-900 border border-gray-700 rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-gray-300">Contact {idx + 1}</span>
+                      <span className="text-xs font-semibold text-gray-300">Guardian {idx + 1}</span>
                       <div className="flex items-center gap-3">
                         <label className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
                           <input type="checkbox" checked={contact.is_primary} onChange={(e) => handleContactChange(idx, 'is_primary', e.target.checked)} className="accent-action-500" />

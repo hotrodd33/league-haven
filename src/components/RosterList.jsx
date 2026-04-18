@@ -44,8 +44,8 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
         case 'grade': va = a.grade ?? ''; vb = b.grade ?? ''; break;
         case 'dob': va = a.date_of_birth || ''; vb = b.date_of_birth || ''; break;
         case 'bt': va = formatBatThrow(a); vb = formatBatThrow(b); break;
-        case 'email': va = (a.parent_email || '').toLowerCase(); vb = (b.parent_email || '').toLowerCase(); break;
-        case 'phone': va = a.parent_phone || ''; vb = b.parent_phone || ''; break;
+        case 'email': va = (a.email || a.parent_email || '').toLowerCase(); vb = (b.email || b.parent_email || '').toLowerCase(); break;
+        case 'phone': va = a.phone || a.parent_phone || ''; vb = b.phone || b.parent_phone || ''; break;
         default: return 0;
       }
       if (typeof va === 'number' && typeof vb === 'number') return va - vb;
@@ -222,8 +222,8 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                     {editable && <td className="px-3 py-2">{player.grade || '—'}</td>}
                     {editable && <td className="px-3 py-2">{formatDOB(player.date_of_birth)}</td>}
                     {editable && <td className="px-3 py-2">{formatBatThrow(player)}</td>}
-                    {editable && <td className="px-3 py-2 break-all">{player.parent_email ? <a href={`mailto:${player.parent_email}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.parent_email}</a> : '—'}</td>}
-                    {editable && <td className="px-3 py-2">{player.parent_phone ? <a href={`tel:${player.parent_phone}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.parent_phone}</a> : '—'}</td>}
+                    {editable && <td className="px-3 py-2 break-all">{(player.email || player.parent_email) ? <a href={`mailto:${player.email || player.parent_email}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.email || player.parent_email}</a> : '—'}</td>}
+                    {editable && <td className="px-3 py-2">{(player.phone || player.parent_phone) ? <a href={`tel:${player.phone || player.parent_phone}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.phone || player.parent_phone}</a> : '—'}</td>}
                     {editable && (
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex gap-1">
@@ -277,8 +277,8 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                   {editable && <div><span className="font-medium text-gray-200">B/T:</span> {formatBatThrow(player)}</div>}
                   {editable && <div><span className="font-medium text-gray-200">Age:</span> {calculateAge(player.date_of_birth) ?? '—'}</div>}
                   {editable && <div><span className="font-medium text-gray-200">Grade:</span> {player.grade || '—'}</div>}
-                  {editable && player.parent_email && <div className="col-span-2 truncate"><span className="font-medium text-gray-200">Email:</span> <a href={`mailto:${player.parent_email}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.parent_email}</a></div>}
-                  {editable && player.parent_phone && <div className="col-span-2"><span className="font-medium text-gray-200">Phone:</span> <a href={`tel:${player.parent_phone}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.parent_phone}</a></div>}
+                  {editable && (player.email || player.parent_email) && <div className="col-span-2 truncate"><span className="font-medium text-gray-200">Email:</span> <a href={`mailto:${player.email || player.parent_email}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.email || player.parent_email}</a></div>}
+                  {editable && (player.phone || player.parent_phone) && <div className="col-span-2"><span className="font-medium text-gray-200">Phone:</span> <a href={`tel:${player.phone || player.parent_phone}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.phone || player.parent_phone}</a></div>}
                 </div>
               </div>
             ))}

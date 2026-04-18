@@ -211,11 +211,12 @@ export async function fetchAllPlayers(filters = {}) {
   return apiFetch(`/players?${params}`);
 }
 
-// ── Player Contacts ──
+// ── Player Guardians ──
 
 export async function fetchPlayerContacts(playerId) {
   return apiFetch(`/player-contacts/${playerId}`);
 }
+export const fetchPlayerGuardians = fetchPlayerContacts;
 
 export async function createPlayerContact(playerId, data) {
   return apiFetch(`/player-contacts/${playerId}`, {
@@ -223,6 +224,7 @@ export async function createPlayerContact(playerId, data) {
     body: JSON.stringify(data),
   });
 }
+export const createPlayerGuardian = createPlayerContact;
 
 export async function updatePlayerContact(playerId, contactId, data) {
   return apiFetch(`/player-contacts/${playerId}/${contactId}`, {
@@ -230,10 +232,12 @@ export async function updatePlayerContact(playerId, contactId, data) {
     body: JSON.stringify(data),
   });
 }
+export const updatePlayerGuardian = updatePlayerContact;
 
 export async function deletePlayerContact(playerId, contactId) {
   return apiFetch(`/player-contacts/${playerId}/${contactId}`, { method: 'DELETE' });
 }
+export const deletePlayerGuardian = deletePlayerContact;
 
 // ── Player Notes ──
 

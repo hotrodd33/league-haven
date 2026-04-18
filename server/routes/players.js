@@ -50,15 +50,16 @@ router.get('/', async (req, res) => {
     }
     let players = await Promise.all(result.rows.map(withPositions));
 
-    // Enrich with primary contact info from player_contacts
+    // Enrich with primary guardian contact info
     const allPlayerIds = players.map(p => p.id);
     if (allPlayerIds.length) {
       const { rows: contacts } = await pool.query(
-        `SELECT DISTINCT ON (player_id) player_id, first_name AS contact_first_name,
-                last_name AS contact_last_name, email, phone
-         FROM player_contacts
-         WHERE player_id = ANY($1)
-         ORDER BY player_id, is_primary DESC, id ASC`, [allPlayerIds]
+        `SELECT DISTINCT ON (pg.player_id) pg.player_id, g.first_name AS contact_first_name,
+                g.last_name AS contact_last_name, g.email, g.phone
+         FROM player_guardians pg
+         JOIN guardians g ON g.id = pg.guardian_id
+         WHERE pg.player_id = ANY($1)
+         ORDER BY pg.player_id, pg.is_primary DESC, pg.id ASC`, [allPlayerIds]
       );
       const contactMap = {};
       for (const c of contacts) contactMap[c.player_id] = c;
@@ -66,8 +67,8 @@ router.get('/', async (req, res) => {
         const c = contactMap[p.id];
         return {
           ...p,
-          parent_email: p.parent_email || c?.email || null,
-          parent_phone: p.parent_phone || c?.phone || null,
+          parent_email: p.email || c?.email || p.parent_email || null,
+          parent_phone: p.phone || c?.phone || p.parent_phone || null,
         };
       });
     }
@@ -145,7 +146,8 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     const { team_id, first_name, last_name, jersey_number, date_of_birth,
             batting_hand, throwing_hand, parent_email, parent_phone, grade, position_ids, contacts,
-            jersey_size, hat_size, needs_new_jersey, needs_new_hat } = req.body;
+            jersey_size, hat_size, needs_new_jersey, needs_new_hat,
+            email: playerEmail, phone: playerPhone } = req.body;
 
     if (!first_name || !last_name) {
       return res.status(400).json({ error: 'first_name and last_name are required' });
@@ -160,11 +162,12 @@ router.post('/', authMiddleware, async (req, res) => {
     await client.query('BEGIN');
 
     const { rows } = await client.query(
-      `INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade, jersey_size, hat_size, needs_new_jersey, needs_new_hat)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+      `INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade, jersey_size, hat_size, needs_new_jersey, needs_new_hat, email, phone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
       [first_name, last_name, normalizeDOB(date_of_birth), batting_hand || null, throwing_hand || null,
        parent_email || null, parent_phone || null, grade || null,
-       jersey_size || null, hat_size || null, !!needs_new_jersey, !!needs_new_hat]
+       jersey_size || null, hat_size || null, !!needs_new_jersey, !!needs_new_hat,
+       playerEmail || null, playerPhone || null]
     );
     const playerId = rows[0].id;
 
@@ -182,17 +185,30 @@ router.post('/', authMiddleware, async (req, res) => {
       }
     }
 
-    // Save contacts
+    // Save contacts as guardians
     if (Array.isArray(contacts)) {
       for (const c of contacts) {
         if (!c.first_name || !c.last_name) continue;
+        // Find or create guardian
+        let guardianId;
+        if (c.email) {
+          const { rows: byEmail } = await client.query('SELECT id FROM guardians WHERE LOWER(email) = LOWER($1) LIMIT 1', [c.email.trim()]);
+          if (byEmail.length) guardianId = byEmail[0].id;
+        }
+        if (!guardianId) {
+          const { rows: created } = await client.query(
+            'INSERT INTO guardians (first_name, last_name, email, phone) VALUES ($1, $2, $3, $4) RETURNING id',
+            [c.first_name.trim(), c.last_name.trim(), c.email || null, c.phone || null]
+          );
+          guardianId = created[0].id;
+        }
         if (c.is_primary) {
-          await client.query('UPDATE player_contacts SET is_primary = FALSE WHERE player_id = $1', [playerId]);
+          await client.query('UPDATE player_guardians SET is_primary = FALSE WHERE player_id = $1', [playerId]);
         }
         await client.query(
-          `INSERT INTO player_contacts (player_id, relationship, first_name, last_name, email, phone, is_primary)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [playerId, c.relationship || 'parent', c.first_name, c.last_name, c.email || null, c.phone || null, c.is_primary || false]
+          `INSERT INTO player_guardians (player_id, guardian_id, relationship, is_primary)
+           VALUES ($1, $2, $3, $4) ON CONFLICT (player_id, guardian_id) DO UPDATE SET relationship = $3, is_primary = $4`,
+          [playerId, guardianId, c.relationship || 'parent', c.is_primary || false]
         );
       }
     }
@@ -234,7 +250,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const { first_name, last_name, date_of_birth, batting_hand, throwing_hand,
             parent_email, parent_phone, grade, position_ids,
             team_id, jersey_number,
-            jersey_size, hat_size, needs_new_jersey, needs_new_hat } = req.body;
+            jersey_size, hat_size, needs_new_jersey, needs_new_hat,
+            email: playerEmail, phone: playerPhone } = req.body;
 
     await client.query('BEGIN');
 
@@ -244,6 +261,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         date_of_birth = $3, batting_hand = $4, throwing_hand = $5,
         parent_email = $6, parent_phone = $7, grade = $8,
         jersey_size = $9, hat_size = $10, needs_new_jersey = $11, needs_new_hat = $12,
+        email = $14, phone = $15,
         updated_at = NOW()
        WHERE id = $13`,
       [
@@ -259,7 +277,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
         hat_size !== undefined ? (hat_size || null) : existing.hat_size,
         needs_new_jersey !== undefined ? !!needs_new_jersey : existing.needs_new_jersey,
         needs_new_hat !== undefined ? !!needs_new_hat : existing.needs_new_hat,
-        id
+        id,
+        playerEmail !== undefined ? (playerEmail || null) : existing.email,
+        playerPhone !== undefined ? (playerPhone || null) : existing.phone,
       ]
     );
 

@@ -231,26 +231,32 @@ router.get('/export/:entity', async (req, res) => {
         const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT p.first_name, p.last_name, p.date_of_birth, p.batting_hand, p.throwing_hand, p.grade,
+                  p.email AS player_email, p.phone AS player_phone,
                   p.jersey_size, p.hat_size, p.needs_new_jersey, p.needs_new_hat,
-                  pc1.first_name AS parent1_first_name, pc1.last_name AS parent1_last_name,
-                  pc1.email AS parent1_email, pc1.phone AS parent1_phone,
-                  pc2.first_name AS parent2_first_name, pc2.last_name AS parent2_last_name,
-                  pc2.email AS parent2_email, pc2.phone AS parent2_phone,
+                  g1.first_name AS guardian1_first_name, g1.last_name AS guardian1_last_name,
+                  g1.email AS guardian1_email, g1.phone AS guardian1_phone,
+                  pg1.relationship AS guardian1_relationship,
+                  g2.first_name AS guardian2_first_name, g2.last_name AS guardian2_last_name,
+                  g2.email AS guardian2_email, g2.phone AS guardian2_phone,
+                  pg2.relationship AS guardian2_relationship,
                   COALESCE(string_agg(DISTINCT CASE WHEN o.name IS NOT NULL THEN t.name || ' (' || o.name || ')' ELSE t.name END, '; '), '') AS teams,
                   COALESCE(string_agg(DISTINCT tp.jersey_number::text, '; '), '') AS jersey_numbers
            FROM players p
            LEFT JOIN team_players tp ON tp.player_id = p.id
            LEFT JOIN teams t ON t.id = tp.team_id
            LEFT JOIN organizations o ON o.id = t.org_id
-           LEFT JOIN LATERAL (SELECT first_name, last_name, email, phone FROM player_contacts WHERE player_id = p.id ORDER BY is_primary DESC, created_at LIMIT 1) pc1 ON TRUE
-           LEFT JOIN LATERAL (SELECT first_name, last_name, email, phone FROM player_contacts WHERE player_id = p.id ORDER BY is_primary DESC, created_at LIMIT 1 OFFSET 1) pc2 ON TRUE
+           LEFT JOIN LATERAL (SELECT pg.guardian_id, pg.relationship FROM player_guardians pg WHERE pg.player_id = p.id ORDER BY pg.is_primary DESC, pg.id LIMIT 1) pg1 ON TRUE
+           LEFT JOIN guardians g1 ON g1.id = pg1.guardian_id
+           LEFT JOIN LATERAL (SELECT pg.guardian_id, pg.relationship FROM player_guardians pg WHERE pg.player_id = p.id ORDER BY pg.is_primary DESC, pg.id LIMIT 1 OFFSET 1) pg2 ON TRUE
+           LEFT JOIN guardians g2 ON g2.id = pg2.guardian_id
            ${where}
-           GROUP BY p.id, pc1.first_name, pc1.last_name, pc1.email, pc1.phone, pc2.first_name, pc2.last_name, pc2.email, pc2.phone
+           GROUP BY p.id, g1.first_name, g1.last_name, g1.email, g1.phone, pg1.relationship,
+                    g2.first_name, g2.last_name, g2.email, g2.phone, pg2.relationship
            ORDER BY p.last_name, p.first_name`, params
         );
-        csvLines = ['first_name,last_name,date_of_birth,batting_hand,throwing_hand,grade,jersey_size,hat_size,needs_new_jersey,needs_new_hat,team,jersey_number,parent1_first_name,parent1_last_name,parent1_email,parent1_phone,parent2_first_name,parent2_last_name,parent2_email,parent2_phone'];
+        csvLines = ['first_name,last_name,date_of_birth,batting_hand,throwing_hand,grade,player_email,player_phone,jersey_size,hat_size,needs_new_jersey,needs_new_hat,team,jersey_number,guardian1_first_name,guardian1_last_name,guardian1_email,guardian1_phone,guardian1_relationship,guardian2_first_name,guardian2_last_name,guardian2_email,guardian2_phone,guardian2_relationship'];
         for (const r of rows) {
-          csvLines.push([r.first_name, r.last_name, r.date_of_birth, r.batting_hand, r.throwing_hand, r.grade, r.jersey_size, r.hat_size, r.needs_new_jersey, r.needs_new_hat, r.teams, r.jersey_numbers, r.parent1_first_name, r.parent1_last_name, r.parent1_email, r.parent1_phone, r.parent2_first_name, r.parent2_last_name, r.parent2_email, r.parent2_phone].map(csvEsc).join(','));
+          csvLines.push([r.first_name, r.last_name, r.date_of_birth, r.batting_hand, r.throwing_hand, r.grade, r.player_email, r.player_phone, r.jersey_size, r.hat_size, r.needs_new_jersey, r.needs_new_hat, r.teams, r.jersey_numbers, r.guardian1_first_name, r.guardian1_last_name, r.guardian1_email, r.guardian1_phone, r.guardian1_relationship, r.guardian2_first_name, r.guardian2_last_name, r.guardian2_email, r.guardian2_phone, r.guardian2_relationship].map(csvEsc).join(','));
         }
         break;
       }
@@ -602,6 +608,8 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const batCol = findCol(headers, 'batting_hand', 'bats', 'bat');
         const thrCol = findCol(headers, 'throwing_hand', 'throws', 'throw');
         const gradeCol = findCol(headers, 'grade');
+        const playerEmailCol = findCol(headers, 'player_email');
+        const playerPhoneCol = findCol(headers, 'player_phone');
         const teamCol = findCol(headers, 'team', 'team_name', 'teams');
         const jerseyCol = findCol(headers, 'jersey_number', 'jersey', 'number');
         const jerseySizeCol = findCol(headers, 'jersey_size');
@@ -609,15 +617,17 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const needsJerseyCol = findCol(headers, 'needs_new_jersey');
         const needsHatCol = findCol(headers, 'needs_new_hat');
 
-        // Parent / Guardian contacts
-        const p1FnCol = findCol(headers, 'parent1_first_name', 'parent_first_name', 'parent first name', 'parent first');
-        const p1LnCol = findCol(headers, 'parent1_last_name', 'parent_last_name', 'parent last name', 'parent last');
-        const p1EmailCol = findCol(headers, 'parent1_email', 'parent_email', 'parent email', 'email');
-        const p1PhoneCol = findCol(headers, 'parent1_phone', 'parent_phone', 'parent phone', 'phone');
-        const p2FnCol = findCol(headers, 'parent2_first_name', 'parent 2 first name');
-        const p2LnCol = findCol(headers, 'parent2_last_name', 'parent 2 last name');
-        const p2EmailCol = findCol(headers, 'parent2_email', 'parent 2 email');
-        const p2PhoneCol = findCol(headers, 'parent2_phone', 'parent 2 phone');
+        // Guardian contacts (supports both "guardian" and legacy "parent" column names)
+        const g1FnCol = findCol(headers, 'guardian1_first_name', 'parent1_first_name', 'parent_first_name', 'parent first name', 'parent first');
+        const g1LnCol = findCol(headers, 'guardian1_last_name', 'parent1_last_name', 'parent_last_name', 'parent last name', 'parent last');
+        const g1EmailCol = findCol(headers, 'guardian1_email', 'parent1_email', 'parent_email', 'parent email');
+        const g1PhoneCol = findCol(headers, 'guardian1_phone', 'parent1_phone', 'parent_phone', 'parent phone');
+        const g1RelCol = findCol(headers, 'guardian1_relationship');
+        const g2FnCol = findCol(headers, 'guardian2_first_name', 'parent2_first_name', 'parent 2 first name');
+        const g2LnCol = findCol(headers, 'guardian2_last_name', 'parent2_last_name', 'parent 2 last name');
+        const g2EmailCol = findCol(headers, 'guardian2_email', 'parent2_email', 'parent 2 email');
+        const g2PhoneCol = findCol(headers, 'guardian2_phone', 'parent2_phone', 'parent 2 phone');
+        const g2RelCol = findCol(headers, 'guardian2_relationship');
 
         const VALID_GRADES = ['Pre K','K','1','2','3','4','5','6','7','8','9','10','11','12'];
         const teamLookup = await buildTeamLookup();
@@ -625,6 +635,49 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const { rows: existing } = await pool.query('SELECT id, first_name, last_name FROM players');
         const playerLookup = {};
         for (const p of existing) playerLookup[(p.first_name + '|' + p.last_name).toLowerCase()] = p.id;
+
+        // Helper: find or create guardian, link to player
+        async function upsertGuardian(playerId, gFn, gLn, gEmail, gPhone, relationship, isPrimary) {
+          if (!gFn && !gLn && !gEmail && !gPhone) return;
+          // Find existing guardian by email first, then by name
+          let guardianId;
+          if (gEmail) {
+            const { rows: byEmail } = await pool.query('SELECT id FROM guardians WHERE LOWER(email) = LOWER($1) LIMIT 1', [gEmail.trim()]);
+            if (byEmail.length) {
+              guardianId = byEmail[0].id;
+              await pool.query('UPDATE guardians SET first_name = COALESCE(NULLIF($1,\'\'), first_name), last_name = COALESCE(NULLIF($2,\'\'), last_name), phone = COALESCE(NULLIF($3,\'\'), phone), updated_at = NOW() WHERE id = $4',
+                [gFn || '', gLn || '', gPhone || '', guardianId]);
+            }
+          }
+          if (!guardianId && (gFn || gLn)) {
+            const { rows: byName } = await pool.query(
+              'SELECT id FROM guardians WHERE LOWER(COALESCE(first_name,\'\')) = LOWER($1) AND LOWER(COALESCE(last_name,\'\')) = LOWER($2) LIMIT 1',
+              [gFn || '', gLn || '']
+            );
+            if (byName.length) {
+              guardianId = byName[0].id;
+              await pool.query('UPDATE guardians SET email = COALESCE(email, NULLIF($1,\'\')), phone = COALESCE(phone, NULLIF($2,\'\')), updated_at = NOW() WHERE id = $3',
+                [gEmail || '', gPhone || '', guardianId]);
+            }
+          }
+          if (!guardianId) {
+            const { rows: created } = await pool.query(
+              'INSERT INTO guardians (first_name, last_name, email, phone) VALUES ($1, $2, $3, $4) RETURNING id',
+              [gFn || '', gLn || '', gEmail || null, gPhone || null]
+            );
+            guardianId = created[0].id;
+          }
+          // Link to player
+          if (isPrimary) {
+            await pool.query('UPDATE player_guardians SET is_primary = FALSE WHERE player_id = $1', [playerId]);
+          }
+          await pool.query(
+            `INSERT INTO player_guardians (player_id, guardian_id, relationship, is_primary)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (player_id, guardian_id) DO UPDATE SET relationship = $3, is_primary = $4`,
+            [playerId, guardianId, relationship || 'parent', isPrimary]
+          );
+        }
 
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i];
@@ -647,21 +700,25 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
                   hat_size = COALESCE(NULLIF($7,''), hat_size),
                   needs_new_jersey = COALESCE($8, needs_new_jersey),
                   needs_new_hat = COALESCE($9, needs_new_hat),
+                  email = COALESCE(NULLIF($10,''), email),
+                  phone = COALESCE(NULLIF($11,''), phone),
                   updated_at = NOW()
                 WHERE id = $5`,
                 [dobCol ? (normalizeDOB(r[dobCol]) || '') : '', hand(batCol ? r[batCol] : ''), hand(thrCol ? r[thrCol] : ''),
                  grade(gradeCol ? r[gradeCol] : ''), exId,
                  jerseySizeCol ? r[jerseySizeCol] || '' : '', hatSizeCol ? r[hatSizeCol] || '' : '',
-                 toBool(needsJerseyCol ? r[needsJerseyCol] : ''), toBool(needsHatCol ? r[needsHatCol] : '')]
+                 toBool(needsJerseyCol ? r[needsJerseyCol] : ''), toBool(needsHatCol ? r[needsHatCol] : ''),
+                 playerEmailCol ? r[playerEmailCol] || '' : '', playerPhoneCol ? r[playerPhoneCol] || '' : '']
               );
               results.updated++;
             } else if (!exId) {
               const { rows: nr } = await pool.query(
-                'INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, grade, jersey_size, hat_size, needs_new_jersey, needs_new_hat) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id',
+                'INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, grade, jersey_size, hat_size, needs_new_jersey, needs_new_hat, email, phone) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id',
                 [fn, ln, dobCol ? normalizeDOB(r[dobCol]) : null, hand(batCol ? r[batCol] : ''), hand(thrCol ? r[thrCol] : ''),
                  grade(gradeCol ? r[gradeCol] : ''),
                  jerseySizeCol ? r[jerseySizeCol] || null : null, hatSizeCol ? r[hatSizeCol] || null : null,
-                 toBool(needsJerseyCol ? r[needsJerseyCol] : ''), toBool(needsHatCol ? r[needsHatCol] : '')]
+                 toBool(needsJerseyCol ? r[needsJerseyCol] : ''), toBool(needsHatCol ? r[needsHatCol] : ''),
+                 playerEmailCol ? r[playerEmailCol] || null : null, playerPhoneCol ? r[playerPhoneCol] || null : null]
               );
               playerLookup[key] = nr[0].id;
               results.created++;
@@ -686,30 +743,20 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
               }
             }
 
-            // Insert parent/guardian contacts
-            const p1Fn = p1FnCol ? r[p1FnCol] : '';
-            const p1Ln = p1LnCol ? r[p1LnCol] : '';
-            const p1Email = p1EmailCol ? r[p1EmailCol] : '';
-            const p1Phone = p1PhoneCol ? r[p1PhoneCol] : '';
-            if (p1Fn || p1Ln || p1Email || p1Phone) {
-              await pool.query(
-                `INSERT INTO player_contacts (player_id, relationship, first_name, last_name, email, phone, is_primary)
-                 VALUES ($1, 'parent', $2, $3, $4, $5, true) ON CONFLICT DO NOTHING`,
-                [playerId, p1Fn || null, p1Ln || null, p1Email || null, p1Phone || null]
-              );
-            }
+            // Upsert guardians
+            const g1Fn = g1FnCol ? r[g1FnCol] : '';
+            const g1Ln = g1LnCol ? r[g1LnCol] : '';
+            const g1Email = g1EmailCol ? r[g1EmailCol] : '';
+            const g1Phone = g1PhoneCol ? r[g1PhoneCol] : '';
+            const g1Rel = g1RelCol ? r[g1RelCol] : 'parent';
+            await upsertGuardian(playerId, g1Fn, g1Ln, g1Email, g1Phone, g1Rel, true);
 
-            const p2Fn = p2FnCol ? r[p2FnCol] : '';
-            const p2Ln = p2LnCol ? r[p2LnCol] : '';
-            const p2Email = p2EmailCol ? r[p2EmailCol] : '';
-            const p2Phone = p2PhoneCol ? r[p2PhoneCol] : '';
-            if (p2Fn || p2Ln || p2Email || p2Phone) {
-              await pool.query(
-                `INSERT INTO player_contacts (player_id, relationship, first_name, last_name, email, phone, is_primary)
-                 VALUES ($1, 'parent', $2, $3, $4, $5, false) ON CONFLICT DO NOTHING`,
-                [playerId, p2Fn || null, p2Ln || null, p2Email || null, p2Phone || null]
-              );
-            }
+            const g2Fn = g2FnCol ? r[g2FnCol] : '';
+            const g2Ln = g2LnCol ? r[g2LnCol] : '';
+            const g2Email = g2EmailCol ? r[g2EmailCol] : '';
+            const g2Phone = g2PhoneCol ? r[g2PhoneCol] : '';
+            const g2Rel = g2RelCol ? r[g2RelCol] : 'parent';
+            await upsertGuardian(playerId, g2Fn, g2Ln, g2Email, g2Phone, g2Rel, false);
           } catch (err) { results.errors.push(`Row ${i + 2}: ${err.message}`); }
         }
         break;

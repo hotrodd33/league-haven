@@ -14,7 +14,7 @@ import { Button, Input, Select } from './ui';
 
 const TABS = [
   { key: 'info', label: 'Info' },
-  { key: 'contacts', label: 'Contacts' },
+  { key: 'contacts', label: 'Guardians' },
   { key: 'stats', label: 'Stats' },
   { key: 'documents', label: 'Documents' },
   { key: 'notes', label: 'Notes' },
@@ -102,6 +102,8 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
       grade: player.grade || '',
       batting_hand: player.batting_hand || '',
       throwing_hand: player.throwing_hand || '',
+      email: player.email || '',
+      phone: player.phone || '',
       jersey_size: player.jersey_size || '',
       hat_size: player.hat_size || '',
       needs_new_jersey: !!player.needs_new_jersey,
@@ -124,6 +126,8 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
         grade: form.grade || null,
         batting_hand: form.batting_hand || null,
         throwing_hand: form.throwing_hand || null,
+        email: form.email || null,
+        phone: form.phone || null,
         jersey_size: form.jersey_size || null,
         hat_size: form.hat_size || null,
         needs_new_jersey: form.needs_new_jersey,
@@ -167,6 +171,8 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
               <option value="">—</option>
               {GRADE_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
             </Select>
+            <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            <Input label="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
             <Select label="Bats" value={form.batting_hand} onChange={e => setForm(f => ({ ...f, batting_hand: e.target.value }))}>
               <option value="">—</option>
               {BATTING_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
@@ -232,6 +238,8 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
     { label: 'Date of Birth', value: formatDOB(player.date_of_birth) },
     { label: 'Age', value: age != null ? age : '—' },
     { label: 'Grade', value: player.grade || '—' },
+    { label: 'Email', value: player.email ? <a href={`mailto:${player.email}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.email}</a> : '—' },
+    { label: 'Phone', value: player.phone ? <a href={`tel:${player.phone}`} className="text-chrome-400 hover:text-chrome-300 underline">{player.phone}</a> : '—' },
     { label: 'Bats / Throws', value: `${player.batting_hand || '—'} / ${player.throwing_hand || '—'}` },
     { label: 'Positions', value: player.positions?.length ? player.positions.map(p => p.abbreviation).join(', ') : '—' },
     { label: 'Jersey Size', value: player.jersey_size ? `${player.jersey_size}${player.needs_new_jersey ? ' ⚠️ needs new' : ''}` : '—' },
@@ -498,7 +506,7 @@ function ContactsTab({ playerId, canEdit }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h3 className="eyebrow text-gray-300">Contacts</h3>
+        <h3 className="eyebrow text-gray-300">Guardians</h3>
         {canEdit && (
           <button
             onClick={() => { setEditing(null); setShowForm(true); }}
@@ -510,7 +518,7 @@ function ContactsTab({ playerId, canEdit }) {
       </div>
 
       {!contacts.length && !showForm && (
-        <p className="text-sm text-gray-500 py-4 text-center">No contacts added yet</p>
+        <p className="text-sm text-gray-500 py-4 text-center">No guardians added yet</p>
       )}
 
       {contacts.map(c => (
