@@ -80,8 +80,8 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit
 const BATTING_OPTIONS = ['R', 'L', 'S'];
 const THROWING_OPTIONS = ['R', 'L'];
 const GRADE_OPTIONS = ['Pre K', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-const JERSEY_SIZE_OPTIONS = ['YXS', 'YS', 'YM', 'YL', 'YXL', 'AS', 'AM', 'AL', 'AXL', 'A2XL', 'A3XL'];
-const HAT_SIZE_OPTIONS = ['Youth', 'Adult S/M', 'Adult L/XL', '6 3/8', '6 1/2', '6 5/8', '6 3/4', '6 7/8', '7', '7 1/8', '7 1/4', '7 3/8', '7 1/2', '7 5/8', '7 3/4', '7 7/8', '8'];
+const JERSEY_SIZE_OPTIONS = ['Youth - XS', 'Youth - S', 'Youth - SM', 'Youth - MD', 'Youth - M', 'Youth - L', 'Youth - LG', 'Youth - XL', 'Adult - SM', 'Adult - MD', 'Adult - LG', 'Adult - XL'];
+const HAT_SIZE_OPTIONS = ['XS/S', 'S/M', 'M/L', 'L/XL', 'Snapback', 'Visor'];
 
 function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
   const [editing, setEditing] = useState(false);
