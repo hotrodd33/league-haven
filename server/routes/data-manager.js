@@ -350,8 +350,20 @@ router.get('/export/:entity', async (req, res) => {
         return res.status(400).json({ error: `Unknown entity: ${entity}` });
     }
 
+    // Build descriptive filename: entity_filter_YYYY-MM-DD.csv
+    const datePart = new Date().toISOString().slice(0, 10);
+    let filterPart = 'all';
+    if (teamId) {
+      const { rows: tRows } = await pool.query('SELECT name FROM teams WHERE id = $1', [teamId]);
+      if (tRows.length) filterPart = tRows[0].name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+    } else if (orgId) {
+      const { rows: oRows } = await pool.query('SELECT name FROM organizations WHERE id = $1', [orgId]);
+      if (oRows.length) filterPart = oRows[0].name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+    }
+    const filename = `${entity}_${filterPart}_${datePart}.csv`;
+
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=${entity}.csv`);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csvLines.join('\n'));
   } catch (err) {
     console.error(err);

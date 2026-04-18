@@ -41,6 +41,19 @@ export default function DataManager({ onOpenImport }) {
   const [orgs, setOrgs] = useState([]);
   const [teams, setTeams] = useState([]);
 
+  const exportFilename = (entityKey, tId, oId) => {
+    const date = new Date().toISOString().slice(0, 10);
+    let filter = 'all';
+    if (tId) {
+      const t = teams.find(t => String(t.id) === String(tId));
+      if (t) filter = t.name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+    } else if (oId) {
+      const o = orgs.find(o => String(o.id) === String(oId));
+      if (o) filter = o.name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+    }
+    return `${entityKey}_${filter}_${date}.csv`;
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -160,7 +173,7 @@ export default function DataManager({ onOpenImport }) {
                         <input type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" key={selectedEntity} />
                       </label>
                     </Button>
-                    <Button variant="secondary" size="xs" as="a" href={exportDataUrl(selectedEntity)} download={`${selectedEntity}.csv`}>
+                    <Button variant="secondary" size="xs" as="a" href={exportDataUrl(selectedEntity)} download={exportFilename(selectedEntity)}>
                       Export Current {entity?.label}
                     </Button>
                   </div>
@@ -272,13 +285,13 @@ export default function DataManager({ onOpenImport }) {
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {ENTITIES.map(ent => (
-                <a key={ent.key} href={exportDataUrl(ent.key, { teamId: exportTeamId || undefined, orgId: exportOrgId || undefined })} download={`${ent.key}.csv`}
+                <a key={ent.key} href={exportDataUrl(ent.key, { teamId: exportTeamId || undefined, orgId: exportOrgId || undefined })} download={exportFilename(ent.key, exportTeamId, exportOrgId)}
                   className="flex items-center gap-3 px-4 py-3 border border-gray-700 rounded-lg hover:bg-gray-900 transition-colors"
                 >
                   <span className="text-xl">{ent.icon}</span>
                   <div>
                     <div className="text-sm font-semibold text-gray-200">{ent.label}</div>
-                    <div className="text-xs text-gray-400">{ent.key}.csv</div>
+                    <div className="text-xs text-gray-400">{exportFilename(ent.key, exportTeamId, exportOrgId)}</div>
                   </div>
                   <svg className="ml-auto w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 </a>
