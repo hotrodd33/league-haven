@@ -872,8 +872,12 @@ export async function clearData(entities) {
   });
 }
 
-export function exportDataUrl(entity) {
-  return `${API_BASE}/data-manager/export/${entity}`;
+export function exportDataUrl(entity, { teamId, orgId } = {}) {
+  const params = new URLSearchParams();
+  if (teamId) params.set('team_id', teamId);
+  if (orgId) params.set('org_id', orgId);
+  const qs = params.toString();
+  return `${API_BASE}/data-manager/export/${entity}${qs ? '?' + qs : ''}`;
 }
 
 export async function importData(entity, csv, mode, seasonId) {

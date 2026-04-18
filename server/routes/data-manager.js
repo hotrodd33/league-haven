@@ -177,14 +177,20 @@ router.post('/clear', authMiddleware, requireAdmin, async (req, res) => {
 // ── EXPORT ──
 
 // GET /data-manager/export/:entity
+// Optional query params: ?team_id=N&org_id=N to narrow results
 router.get('/export/:entity', async (req, res) => {
   try {
     const { entity } = req.params;
+    const teamId = req.query.team_id ? parseInt(req.query.team_id) : null;
+    const orgId = req.query.org_id ? parseInt(req.query.org_id) : null;
     let csvLines = [];
 
     switch (entity) {
       case 'organizations': {
-        const { rows } = await pool.query('SELECT name, contact_name, contact_email, contact_phone, address, city, state, zip, notes FROM organizations ORDER BY name');
+        const params = [];
+        let where = '';
+        if (orgId) { params.push(orgId); where = ' WHERE id = $1'; }
+        const { rows } = await pool.query(`SELECT name, contact_name, contact_email, contact_phone, address, city, state, zip, notes FROM organizations${where} ORDER BY name`, params);
         csvLines = ['name,contact_name,contact_email,contact_phone,address,city,state,zip,notes'];
         for (const r of rows) {
           csvLines.push([r.name, r.contact_name, r.contact_email, r.contact_phone, r.address, r.city, r.state, r.zip, r.notes].map(csvEsc).join(','));
@@ -192,9 +198,14 @@ router.get('/export/:entity', async (req, res) => {
         break;
       }
       case 'teams': {
+        const params = [];
+        const conditions = [];
+        if (orgId) { params.push(orgId); conditions.push(`t.org_id = $${params.length}`); }
+        if (teamId) { params.push(teamId); conditions.push(`t.id = $${params.length}`); }
+        const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT t.id, t.name, t.abbreviation, t.team_city, t.team_color, t.team_mascot, t.primary_color, t.secondary_color, o.name AS org_name, t.age_group, t.level
-           FROM teams t LEFT JOIN organizations o ON o.id = t.org_id ORDER BY o.name, t.name`
+           FROM teams t LEFT JOIN organizations o ON o.id = t.org_id${where} ORDER BY o.name, t.name`, params
         );
         const { rows: divRows } = await pool.query(
           `WITH RECURSIVE tree AS (
@@ -213,6 +224,11 @@ router.get('/export/:entity', async (req, res) => {
         break;
       }
       case 'players': {
+        const params = [];
+        const conditions = [];
+        if (teamId) { params.push(teamId); conditions.push(`tp.team_id = $${params.length}`); }
+        if (orgId) { params.push(orgId); conditions.push(`t.org_id = $${params.length}`); }
+        const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT p.first_name, p.last_name, p.date_of_birth, p.batting_hand, p.throwing_hand, p.grade,
                   pc1.first_name AS parent1_first_name, pc1.last_name AS parent1_last_name,
@@ -227,8 +243,9 @@ router.get('/export/:entity', async (req, res) => {
            LEFT JOIN organizations o ON o.id = t.org_id
            LEFT JOIN LATERAL (SELECT first_name, last_name, email, phone FROM player_contacts WHERE player_id = p.id ORDER BY is_primary DESC, created_at LIMIT 1) pc1 ON TRUE
            LEFT JOIN LATERAL (SELECT first_name, last_name, email, phone FROM player_contacts WHERE player_id = p.id ORDER BY is_primary DESC, created_at LIMIT 1 OFFSET 1) pc2 ON TRUE
+           ${where}
            GROUP BY p.id, pc1.first_name, pc1.last_name, pc1.email, pc1.phone, pc2.first_name, pc2.last_name, pc2.email, pc2.phone
-           ORDER BY p.last_name, p.first_name`
+           ORDER BY p.last_name, p.first_name`, params
         );
         csvLines = ['first_name,last_name,date_of_birth,batting_hand,throwing_hand,grade,team,jersey_number,parent1_first_name,parent1_last_name,parent1_email,parent1_phone,parent2_first_name,parent2_last_name,parent2_email,parent2_phone'];
         for (const r of rows) {
@@ -237,6 +254,11 @@ router.get('/export/:entity', async (req, res) => {
         break;
       }
       case 'staff': {
+        const params = [];
+        const conditions = [];
+        if (teamId) { params.push(teamId); conditions.push(`tsa.team_id = $${params.length}`); }
+        if (orgId) { params.push(orgId); conditions.push(`t.org_id = $${params.length}`); }
+        const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT sm.name, sm.email, sm.phone,
                   COALESCE(string_agg(DISTINCT CASE WHEN o.name IS NOT NULL THEN t.name || ' (' || o.name || ')' ELSE t.name END, '; '), '') AS teams,
@@ -245,7 +267,8 @@ router.get('/export/:entity', async (req, res) => {
            LEFT JOIN team_staff_assignments tsa ON tsa.staff_id = sm.id
            LEFT JOIN teams t ON t.id = tsa.team_id
            LEFT JOIN organizations o ON o.id = t.org_id
-           GROUP BY sm.id ORDER BY sm.name`
+           ${where}
+           GROUP BY sm.id ORDER BY sm.name`, params
         );
         csvLines = ['name,email,phone,team,role'];
         for (const r of rows) {
@@ -254,9 +277,12 @@ router.get('/export/:entity', async (req, res) => {
         break;
       }
       case 'locations': {
+        const params = [];
+        let where = '';
+        if (orgId) { params.push(orgId); where = ' WHERE fl.org_id = $1'; }
         const { rows } = await pool.query(
           `SELECT fl.name, o.name AS org_name, fl.address, fl.city, fl.state, fl.zip, fl.latitude, fl.longitude, fl.comments
-           FROM field_locations fl LEFT JOIN organizations o ON o.id = fl.org_id ORDER BY o.name, fl.name`
+           FROM field_locations fl LEFT JOIN organizations o ON o.id = fl.org_id${where} ORDER BY o.name, fl.name`, params
         );
         csvLines = ['name,org_name,address,city,state,zip,latitude,longitude,comments'];
         for (const r of rows) {
@@ -265,6 +291,11 @@ router.get('/export/:entity', async (req, res) => {
         break;
       }
       case 'games': {
+        const params = [];
+        const conditions = [];
+        if (teamId) { params.push(teamId); conditions.push(`(g.home_team_id = $${params.length} OR g.away_team_id = $${params.length})`); }
+        if (orgId) { params.push(orgId); conditions.push(`(ht.org_id = $${params.length} OR at.org_id = $${params.length})`); }
+        const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT g.game_date, g.game_time, g.status, g.home_score, g.away_score, g.innings_played, g.notes,
                   CASE WHEN ho.name IS NOT NULL THEN ht.name || ' (' || ho.name || ')' ELSE ht.name END AS home_team,
@@ -277,7 +308,8 @@ router.get('/export/:entity', async (req, res) => {
            LEFT JOIN organizations ao ON ao.id = at.org_id
            LEFT JOIN field_locations fl ON fl.id = g.location_id
            LEFT JOIN league_seasons ls ON ls.id = g.season_id
-           ORDER BY g.game_date, g.game_time`
+           ${where}
+           ORDER BY g.game_date, g.game_time`, params
         );
         csvLines = ['game_date,game_time,home_team,away_team,location,season,status,home_score,away_score,innings_played,notes'];
         for (const r of rows) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { clearData, exportDataUrl, importData, fetchSeasons } from '../api/index.js';
+import { clearData, exportDataUrl, importData, fetchSeasons, fetchTeams, fetchOrganizations } from '../api/index.js';
 import { Button, Input, Select, Card } from './ui';
 
 const ENTITIES = [
@@ -36,12 +36,18 @@ export default function DataManager({ onOpenImport }) {
   const [clearing, setClearing] = useState(false);
   const [clearConfirm, setClearConfirm] = useState(null);
   const [clearResult, setClearResult] = useState(null);
+  const [exportOrgId, setExportOrgId] = useState('');
+  const [exportTeamId, setExportTeamId] = useState('');
+  const [orgs, setOrgs] = useState([]);
+  const [teams, setTeams] = useState([]);
 
   useEffect(() => {
     (async () => {
       try {
-        const ss = await fetchSeasons();
+        const [ss, ts, os] = await Promise.all([fetchSeasons(), fetchTeams(), fetchOrganizations()]);
         setSeasons(ss);
+        setTeams(ts);
+        setOrgs(os);
         const active = ss.find(s => s.is_active);
         setSeasonId(active ? active.id : ss.length > 0 ? ss[0].id : null);
       } catch {}
@@ -242,9 +248,31 @@ export default function DataManager({ onOpenImport }) {
         {tab === 'export' && (
           <div className="space-y-3">
             <p className="text-sm text-gray-300">Download current data as CSV files. Use these as templates for importing.</p>
+            <div className="flex flex-wrap gap-3 mb-2">
+              <div className="flex-1 min-w-[160px]">
+                <label className="lh-eyebrow block mb-1">Filter by Organization</label>
+                <Select value={exportOrgId} onChange={e => { setExportOrgId(e.target.value); setExportTeamId(''); }}>
+                  <option value="">All Organizations</option>
+                  {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </Select>
+              </div>
+              <div className="flex-1 min-w-[160px]">
+                <label className="lh-eyebrow block mb-1">Filter by Team</label>
+                <Select value={exportTeamId} onChange={e => setExportTeamId(e.target.value)}>
+                  <option value="">All Teams</option>
+                  {teams.filter(t => !exportOrgId || String(t.org_id) === String(exportOrgId)).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </Select>
+              </div>
+            </div>
+            {(exportOrgId || exportTeamId) && (
+              <p className="text-xs text-action-400">
+                Filtering: {exportTeamId ? teams.find(t => String(t.id) === String(exportTeamId))?.name : orgs.find(o => String(o.id) === String(exportOrgId))?.name}
+                {' '}<button className="underline text-gray-400 hover:text-gray-200" onClick={() => { setExportOrgId(''); setExportTeamId(''); }}>Clear</button>
+              </p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {ENTITIES.map(ent => (
-                <a key={ent.key} href={exportDataUrl(ent.key)} download={`${ent.key}.csv`}
+                <a key={ent.key} href={exportDataUrl(ent.key, { teamId: exportTeamId || undefined, orgId: exportOrgId || undefined })} download={`${ent.key}.csv`}
                   className="flex items-center gap-3 px-4 py-3 border border-gray-700 rounded-lg hover:bg-gray-900 transition-colors"
                 >
                   <span className="text-xl">{ent.icon}</span>
