@@ -231,6 +231,7 @@ router.get('/export/:entity', async (req, res) => {
         const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT p.first_name, p.last_name, p.date_of_birth, p.batting_hand, p.throwing_hand, p.grade,
+                  p.jersey_size, p.hat_size, p.needs_new_jersey, p.needs_new_hat,
                   pc1.first_name AS parent1_first_name, pc1.last_name AS parent1_last_name,
                   pc1.email AS parent1_email, pc1.phone AS parent1_phone,
                   pc2.first_name AS parent2_first_name, pc2.last_name AS parent2_last_name,
@@ -247,9 +248,9 @@ router.get('/export/:entity', async (req, res) => {
            GROUP BY p.id, pc1.first_name, pc1.last_name, pc1.email, pc1.phone, pc2.first_name, pc2.last_name, pc2.email, pc2.phone
            ORDER BY p.last_name, p.first_name`, params
         );
-        csvLines = ['first_name,last_name,date_of_birth,batting_hand,throwing_hand,grade,team,jersey_number,parent1_first_name,parent1_last_name,parent1_email,parent1_phone,parent2_first_name,parent2_last_name,parent2_email,parent2_phone'];
+        csvLines = ['first_name,last_name,date_of_birth,batting_hand,throwing_hand,grade,jersey_size,hat_size,needs_new_jersey,needs_new_hat,team,jersey_number,parent1_first_name,parent1_last_name,parent1_email,parent1_phone,parent2_first_name,parent2_last_name,parent2_email,parent2_phone'];
         for (const r of rows) {
-          csvLines.push([r.first_name, r.last_name, r.date_of_birth, r.batting_hand, r.throwing_hand, r.grade, r.teams, r.jersey_numbers, r.parent1_first_name, r.parent1_last_name, r.parent1_email, r.parent1_phone, r.parent2_first_name, r.parent2_last_name, r.parent2_email, r.parent2_phone].map(csvEsc).join(','));
+          csvLines.push([r.first_name, r.last_name, r.date_of_birth, r.batting_hand, r.throwing_hand, r.grade, r.jersey_size, r.hat_size, r.needs_new_jersey, r.needs_new_hat, r.teams, r.jersey_numbers, r.parent1_first_name, r.parent1_last_name, r.parent1_email, r.parent1_phone, r.parent2_first_name, r.parent2_last_name, r.parent2_email, r.parent2_phone].map(csvEsc).join(','));
         }
         break;
       }
@@ -591,6 +592,10 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const gradeCol = findCol(headers, 'grade');
         const teamCol = findCol(headers, 'team', 'team_name', 'teams');
         const jerseyCol = findCol(headers, 'jersey_number', 'jersey', 'number');
+        const jerseySizeCol = findCol(headers, 'jersey_size');
+        const hatSizeCol = findCol(headers, 'hat_size');
+        const needsJerseyCol = findCol(headers, 'needs_new_jersey');
+        const needsHatCol = findCol(headers, 'needs_new_hat');
 
         // Parent / Guardian contacts
         const p1FnCol = findCol(headers, 'parent1_first_name', 'parent_first_name', 'parent first name', 'parent first');
@@ -616,6 +621,7 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
 
           const hand = (v) => { const u = (v || '').toUpperCase(); return ['R', 'L', 'S'].includes(u) ? u : null; };
           const grade = (v) => VALID_GRADES.includes(v) ? v : null;
+          const toBool = (v) => v ? ['true','1','yes'].includes(String(v).toLowerCase()) : null;
 
           try {
             const key = (fn + '|' + ln).toLowerCase();
@@ -624,17 +630,26 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
               await pool.query(
                 `UPDATE players SET date_of_birth = COALESCE(NULLIF($1,''), date_of_birth),
                   batting_hand = COALESCE($2, batting_hand), throwing_hand = COALESCE($3, throwing_hand),
-                  grade = COALESCE($4, grade), updated_at = NOW()
+                  grade = COALESCE($4, grade),
+                  jersey_size = COALESCE(NULLIF($6,''), jersey_size),
+                  hat_size = COALESCE(NULLIF($7,''), hat_size),
+                  needs_new_jersey = COALESCE($8, needs_new_jersey),
+                  needs_new_hat = COALESCE($9, needs_new_hat),
+                  updated_at = NOW()
                 WHERE id = $5`,
                 [dobCol ? (normalizeDOB(r[dobCol]) || '') : '', hand(batCol ? r[batCol] : ''), hand(thrCol ? r[thrCol] : ''),
-                 grade(gradeCol ? r[gradeCol] : ''), exId]
+                 grade(gradeCol ? r[gradeCol] : ''), exId,
+                 jerseySizeCol ? r[jerseySizeCol] || '' : '', hatSizeCol ? r[hatSizeCol] || '' : '',
+                 toBool(needsJerseyCol ? r[needsJerseyCol] : ''), toBool(needsHatCol ? r[needsHatCol] : '')]
               );
               results.updated++;
             } else if (!exId) {
               const { rows: nr } = await pool.query(
-                'INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, grade) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+                'INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, grade, jersey_size, hat_size, needs_new_jersey, needs_new_hat) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id',
                 [fn, ln, dobCol ? normalizeDOB(r[dobCol]) : null, hand(batCol ? r[batCol] : ''), hand(thrCol ? r[thrCol] : ''),
-                 grade(gradeCol ? r[gradeCol] : '')]
+                 grade(gradeCol ? r[gradeCol] : ''),
+                 jerseySizeCol ? r[jerseySizeCol] || null : null, hatSizeCol ? r[hatSizeCol] || null : null,
+                 toBool(needsJerseyCol ? r[needsJerseyCol] : ''), toBool(needsHatCol ? r[needsHatCol] : '')]
               );
               playerLookup[key] = nr[0].id;
               results.created++;

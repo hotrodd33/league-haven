@@ -80,6 +80,8 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit
 const BATTING_OPTIONS = ['R', 'L', 'S'];
 const THROWING_OPTIONS = ['R', 'L'];
 const GRADE_OPTIONS = ['Pre K', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const JERSEY_SIZE_OPTIONS = ['YXS', 'YS', 'YM', 'YL', 'YXL', 'AS', 'AM', 'AL', 'AXL', 'A2XL', 'A3XL'];
+const HAT_SIZE_OPTIONS = ['Youth', 'Adult S/M', 'Adult L/XL', '6 3/8', '6 1/2', '6 5/8', '6 3/4', '6 7/8', '7', '7 1/8', '7 1/4', '7 3/8', '7 1/2', '7 5/8', '7 3/4', '7 7/8', '8'];
 
 function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
   const [editing, setEditing] = useState(false);
@@ -100,6 +102,10 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
       grade: player.grade || '',
       batting_hand: player.batting_hand || '',
       throwing_hand: player.throwing_hand || '',
+      jersey_size: player.jersey_size || '',
+      hat_size: player.hat_size || '',
+      needs_new_jersey: !!player.needs_new_jersey,
+      needs_new_hat: !!player.needs_new_hat,
       position_ids: (player.positions || []).map(p => p.id),
     });
     setError(null);
@@ -118,6 +124,10 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
         grade: form.grade || null,
         batting_hand: form.batting_hand || null,
         throwing_hand: form.throwing_hand || null,
+        jersey_size: form.jersey_size || null,
+        hat_size: form.hat_size || null,
+        needs_new_jersey: form.needs_new_jersey,
+        needs_new_hat: form.needs_new_hat,
         position_ids: form.position_ids,
       });
       onPlayerUpdated({ ...player, ...updated });
@@ -165,7 +175,24 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
               <option value="">—</option>
               {THROWING_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
             </Select>
-
+            <Select label="Jersey Size" value={form.jersey_size} onChange={e => setForm(f => ({ ...f, jersey_size: e.target.value }))}>
+              <option value="">—</option>
+              {JERSEY_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            </Select>
+            <Select label="Hat Size" value={form.hat_size} onChange={e => setForm(f => ({ ...f, hat_size: e.target.value }))}>
+              <option value="">—</option>
+              {HAT_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            </Select>
+          </div>
+          <div className="flex gap-6 mt-1">
+            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+              <input type="checkbox" checked={form.needs_new_jersey} onChange={e => setForm(f => ({ ...f, needs_new_jersey: e.target.checked }))} className="accent-action-500" />
+              Needs New Jersey
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+              <input type="checkbox" checked={form.needs_new_hat} onChange={e => setForm(f => ({ ...f, needs_new_hat: e.target.checked }))} className="accent-action-500" />
+              Needs New Hat
+            </label>
           </div>
 
           {positions.length > 0 && (
@@ -207,6 +234,8 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
     { label: 'Grade', value: player.grade || '—' },
     { label: 'Bats / Throws', value: `${player.batting_hand || '—'} / ${player.throwing_hand || '—'}` },
     { label: 'Positions', value: player.positions?.length ? player.positions.map(p => p.abbreviation).join(', ') : '—' },
+    { label: 'Jersey Size', value: player.jersey_size ? `${player.jersey_size}${player.needs_new_jersey ? ' ⚠️ needs new' : ''}` : '—' },
+    { label: 'Hat Size', value: player.hat_size ? `${player.hat_size}${player.needs_new_hat ? ' ⚠️ needs new' : ''}` : '—' },
   ];
 
   return (
