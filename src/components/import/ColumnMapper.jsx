@@ -85,14 +85,14 @@ export default function ColumnMapper({ headers = [], mappings = {}, onChange }) 
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="font-heading text-lg font-bold text-gray-100">
+        <h3 className="font-display text-lg font-bold text-gray-100">
           Map Columns
         </h3>
         <p className="mt-1 text-sm text-gray-400">
           We detected <strong className="text-gray-200">{headers.length}</strong> columns in your file.
           Match each column to the correct player field.
           {mappedCount > 0 && (
-            <span className="text-field-300"> ({mappedCount} auto-mapped)</span>
+            <span className="text-action-300"> ({mappedCount} auto-mapped)</span>
           )}
         </p>
       </div>
@@ -129,10 +129,9 @@ export default function ColumnMapper({ headers = [], mappings = {}, onChange }) 
                       value={value}
                       onChange={(e) => handleChange(field.key, e.target.value)}
                       className={cn(
-                        'w-48 rounded-lg border bg-gray-900 px-3 py-1.5 text-sm transition-colors',
-                        'focus:outline-none focus:ring-2 focus:ring-field-600',
+                        'lh-select w-48',
                         value
-                          ? 'border-field-700 text-gray-200'
+                          ? 'border-action-700 text-gray-200'
                           : 'border-gray-700 text-gray-500',
                       )}
                     >

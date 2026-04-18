@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { fetchDirectory } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
 import ContactModal from './ContactModal.jsx';
+import { Button, Card } from './ui';
 
 const ROLE_LABELS = {
   head_coach: 'Head Coach',
@@ -51,26 +52,24 @@ export default function Directory({ onEditTeam }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-heading text-2xl font-bold tracking-wide text-field-300">Team Directory</h2>
+        <h2 className="font-display text-2xl font-bold tracking-wide text-action-300">Team Directory</h2>
         <div className="flex gap-2">
-          <button
+          <Button
+            size="sm"
             onClick={() => setContactModal({ scope: 'league', scopeLabel: 'Entire League' })}
-            className="btn btn-sm btn-primary flex items-center gap-1.5"
+            icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
             Email League
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={handlePrint}
-            className="btn btn-sm btn-primary flex items-center gap-1.5 print:hidden"
+            className="print:hidden"
+            icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm0-12V3a1 1 0 011-1h4a1 1 0 011 1v4" /></svg>}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm0-12V3a1 1 0 011-1h4a1 1 0 011 1v4" />
-            </svg>
             Print
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -86,7 +85,7 @@ export default function Directory({ onEditTeam }) {
               })}>
                 <OrgLogo src={org.logo_url} name={org.name} />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-heading text-lg font-semibold tracking-wide text-field-300 truncate">{org.name}</h3>
+                  <h3 className="font-display text-lg font-semibold tracking-wide text-action-300 truncate">{org.name}</h3>
                   <div className="text-xs text-gray-400">
                     {org.teams.length} team{org.teams.length !== 1 ? 's' : ''}
                     {org.city && ` · ${org.city}${org.state ? ', ' + org.state : ''}`}
@@ -96,13 +95,13 @@ export default function Directory({ onEditTeam }) {
                 {(org.contact_name || org.contact_email || org.contact_phone) && (
                   <div className="hidden sm:block text-right text-sm shrink-0">
                     {org.contact_name && <div className="font-semibold text-gray-200">{org.contact_name}</div>}
-                    {org.contact_email && <div className="text-field-300 text-xs">{org.contact_email}</div>}
+                    {org.contact_email && <div className="text-action-300 text-xs">{org.contact_email}</div>}
                     {org.contact_phone && <div className="text-gray-400 text-xs">{org.contact_phone}</div>}
                   </div>
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); setContactModal({ scope: 'org', scopeId: org.id, scopeLabel: org.name }); }}
-                  className="p-1.5 text-gray-400 hover:text-field-300 hover:bg-field-900/30 rounded transition-colors shrink-0"
+                  className="p-1.5 text-gray-400 hover:text-action-300 hover:bg-action-900/30 rounded transition-colors shrink-0"
                   title={`Email ${org.name}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -115,7 +114,7 @@ export default function Directory({ onEditTeam }) {
               {(org.contact_name || org.contact_email || org.contact_phone) && (
                 <div className="sm:hidden mt-3 text-sm">
                   {org.contact_name && <div className="font-semibold text-gray-200">{org.contact_name}</div>}
-                  {org.contact_email && <div className="text-field-300 text-xs">{org.contact_email}</div>}
+                  {org.contact_email && <div className="text-action-300 text-xs">{org.contact_email}</div>}
                   {org.contact_phone && <div className="text-gray-400 text-xs">{org.contact_phone}</div>}
                 </div>
               )}
@@ -153,7 +152,7 @@ export default function Directory({ onEditTeam }) {
                         {editable && (
                           <button
                             onClick={(e) => { e.stopPropagation(); onEditTeam(team.id, org.id); }}
-                            className="mr-1 p-1.5 text-gray-400 hover:text-field-300 hover:bg-field-900/30 rounded transition-colors"
+                            className="mr-1 p-1.5 text-gray-400 hover:text-action-300 hover:bg-action-900/30 rounded transition-colors"
                             title="Manage team"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -163,7 +162,7 @@ export default function Directory({ onEditTeam }) {
                         )}
                         <button
                           onClick={(e) => { e.stopPropagation(); setContactModal({ scope: 'team', scopeId: team.id, scopeLabel: team.long_name || team.name }); }}
-                          className="mr-3 sm:mr-5 p-1.5 text-gray-400 hover:text-field-300 hover:bg-field-900/30 rounded transition-colors"
+                          className="mr-3 sm:mr-5 p-1.5 text-gray-400 hover:text-action-300 hover:bg-action-900/30 rounded transition-colors"
                           title={`Email ${team.long_name || team.name}`}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -185,7 +184,7 @@ export default function Directory({ onEditTeam }) {
                                     <span className="font-semibold text-gray-200">{s.name}</span>
                                   </div>
                                   <div className="flex gap-4 text-xs sm:ml-auto">
-                                    {s.email && <span className="text-field-300">{s.email}</span>}
+                                    {s.email && <span className="text-action-300">{s.email}</span>}
                                     {s.phone && <span className="text-gray-400">{s.phone}</span>}
                                   </div>
                                 </div>

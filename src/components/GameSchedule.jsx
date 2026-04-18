@@ -13,12 +13,7 @@ import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
-const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
-const btnSecondary = "btn btn-secondary btn-md";
-const btnDanger = "btn btn-danger btn-sm";
+import { Button, Input, Modal } from './ui/index.js';
 
 const STATUS_OPTIONS = [
   { value: 'scheduled', label: 'Scheduled' },
@@ -314,7 +309,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     <div>
       <div className="sticky top-16 z-20 -mx-4 lg:-mx-6 px-4 lg:px-6 pt-2 pb-3 mb-4 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-          <h2 className="text-xl font-heading font-bold text-white">Game Schedule ({filteredGames.length})</h2>
+          <h2 className="text-xl font-display font-bold text-white">Game Schedule ({filteredGames.length})</h2>
           <div className="flex gap-2">
             <div className="flex items-center gap-1 mr-2">
               <button onClick={() => setViewMode('list')}
@@ -325,35 +320,33 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                 className={`lh-tab ${viewMode === 'calendar' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
                 Calendar
               </button>
-              <button onClick={() => setShowSubscribe(true)}
-                className="btn btn-xs btn-secondary" title="Subscribe to calendar feed">
+              <Button size="xs" variant="secondary" onClick={() => setShowSubscribe(true)} title="Subscribe to calendar feed">
                 📅
-              </button>
+              </Button>
             </div>
-            <button onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-              className="btn btn-xs btn-secondary" title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
+            <Button size="xs" variant="secondary" onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')} title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
               {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
-            </button>
+            </Button>
             {canScheduleGames && (
               <>
-                <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Schedule</button>
+                <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Schedule</Button>
               </>
             )}
-            {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
+            {onBack && <Button variant="secondary" onClick={onBack}>← Teams</Button>}
           </div>
         </div>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-2">
           <select value={filterSeason} onChange={(e) => setFilterSeason(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
+            className="lh-select min-w-[160px]">
             <option value="">All Seasons</option>
             {seasons.map(s => (
               <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
             ))}
           </select>
           <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
+            className="lh-select min-w-[180px]">
             <option value="">All Teams</option>
             {orgNames.map(orgName => (
               <optgroup key={orgName} label={orgName}>
@@ -367,12 +360,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
             )}
           </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
+            className="lh-select min-w-[140px]">
             <option value="">All Statuses</option>
             {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
           <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}
-            className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
+            className="lh-select min-w-[140px]">
             <option value="">All Divisions</option>
             {sortedDivisions.map(div => (
               <option key={div} value={div}>{div}</option>
@@ -389,7 +382,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
               {canScheduleGames && (
                 <>
                   <br />
-                  <button onClick={() => setShowForm(true)} className="text-field-300 underline mt-1 inline-block">Schedule the first event</button>
+                  <button onClick={() => setShowForm(true)} className="text-action-300 underline mt-1 inline-block">Schedule the first event</button>
                 </>
               )}
             </div>
@@ -397,7 +390,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
         <div className="space-y-6">
           {sortedDateKeys.map(dateKey => (
             <div key={dateKey} ref={(el) => { dateSectionRefs.current[dateKey] = el; }}>
-              <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
+              <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
                 {formatDate(dateKey)}
               </h3>
 
@@ -410,7 +403,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                     const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
                     return (
                       <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                        className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                        className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                         {/* Time + Division */}
                         <div className="w-28 text-center shrink-0">
                           <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
@@ -420,7 +413,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                         {/* Matchup */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline">{game.home_team_name}</button>
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{game.home_team_name}</button>
                             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                           </div>
                           <div className="px-2 shrink-0">
@@ -432,7 +425,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           </div>
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline">{game.away_team_name}</button>
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{game.away_team_name}</button>
                           </div>
                         </div>
 
@@ -478,28 +471,26 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                             </span>
                           )}
                           {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                            <button onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}
-                              className={`px-2 py-1 text-xs font-semibold rounded ${DARK_TRACK_BUTTON_TONE}`}>⚾ Track</button>
+                            <Button size="xs" variant="warn" onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}>⚾ Track</Button>
                           )}
                           {canEditThisGame && (
                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                              <button onClick={() => { setEditing(game); setShowForm(true); }}
-                                className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
+                              <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
                               {canDeleteGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                                <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
-                                  className={btnDanger}>{deleting === game.id ? '…' : 'Del'}</button>
+                                <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Del'}</Button>
                               )}
                             </div>
                           )}
                           {isUmpire && game.status === 'scheduled' && (
                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                              <button
+                              <Button
+                                size="xs"
+                                variant={isInterested ? 'primary' : 'chrome'}
                                 onClick={() => handleToggleInterest(game.id, isInterested)}
                                 disabled={managingInterest === game.id}
-                                className={`px-2 py-1 text-xs font-semibold rounded ${isInterested ? 'bg-green-700 text-white hover:bg-action-600' : 'bg-teal-700 text-white hover:bg-teal-600'} disabled:opacity-60`}
                               >
                                 {managingInterest === game.id ? '…' : (isInterested ? 'Interested' : 'I\'m Interested')}
-                              </button>
+                              </Button>
                             </div>
                           )}
                         </div>
@@ -517,7 +508,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                   const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
                   return (
                     <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                      className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                      className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                       <div className="flex items-center justify-between mb-2">
                         <div>
                           <span className="text-xs font-semibold text-gray-400 block">{formatTime(game.game_time) || 'TBD'}</span>
@@ -534,12 +525,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
-                        <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-field-300 hover:text-field-100 hover:underline text-left">{game.home_team_name}</button>
+                        <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.home_team_name}</button>
                         {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.home_score ?? '—'}</span>}
                       </div>
                       <div className="flex items-center gap-2 mb-2">
                         <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
-                        <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-field-300 hover:text-field-100 hover:underline text-left">{game.away_team_name}</button>
+                        <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.away_team_name}</button>
                         {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.away_score ?? '—'}</span>}
                       </div>
                       {game.location_name && (
@@ -580,27 +571,25 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
                       <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
                         {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                          <button onClick={() => setTrackingGameId(game.id)}
-                            className={`px-2.5 py-1 text-xs font-semibold rounded ${DARK_TRACK_BUTTON_TONE}`}>⚾ Track</button>
+                          <Button size="xs" variant="warn" onClick={() => setTrackingGameId(game.id)}>⚾ Track</Button>
                         )}
                         {canEditThisGame && (
                           <>
-                            <button onClick={() => { setEditing(game); setShowForm(true); }}
-                              className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
+                            <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
                             {canDeleteGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                              <button onClick={() => handleDelete(game)} disabled={deleting === game.id}
-                                className={btnDanger}>{deleting === game.id ? '…' : 'Delete'}</button>
+                              <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Delete'}</Button>
                             )}
                           </>
                         )}
                         {isUmpire && game.status === 'scheduled' && (
-                          <button
+                          <Button
+                            size="xs"
+                            variant={isInterested ? 'primary' : 'chrome'}
                             onClick={() => handleToggleInterest(game.id, isInterested)}
                             disabled={managingInterest === game.id}
-                            className={`px-2.5 py-1 text-xs font-semibold rounded ${isInterested ? 'bg-green-700 text-white hover:bg-action-600' : 'bg-teal-700 text-white hover:bg-teal-600'} disabled:opacity-60`}
                           >
                             {managingInterest === game.id ? '…' : (isInterested ? 'Interested' : 'I\'m Interested')}
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -675,13 +664,7 @@ function SubscribeModal({ filterTeam, filterSeason, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-heading font-bold text-white">Subscribe to Calendar</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl leading-none">&times;</button>
-        </div>
-
+    <Modal open onClose={onClose} title="Subscribe to Calendar" size="md">
         <p className="text-sm text-gray-400 mb-4">
           Subscribe to this game schedule in your calendar app. Games will sync automatically as they're added or updated.
           {(filterTeam || filterSeason) && (
@@ -697,7 +680,7 @@ function SubscribeModal({ filterTeam, filterSeason, onClose }) {
 
         {/* Manual URL copy */}
         <div className="mb-4">
-          <label className="eyebrow block mb-1">
+          <label className="lh-eyebrow block mb-1">
             Or copy the feed URL
           </label>
           <div className="flex gap-2">
@@ -705,13 +688,12 @@ function SubscribeModal({ filterTeam, filterSeason, onClose }) {
               type="text"
               readOnly
               value={icsUrl}
-              className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-gray-300 font-mono select-all focus:outline-none focus:ring-2 focus:ring-action-500/30"
+              className="lh-input flex-1 font-mono text-xs"
               onClick={e => e.target.select()}
             />
-            <button onClick={handleCopy}
-              className="px-3 py-2 bg-gray-700 text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-600 transition-colors shrink-0">
+            <Button size="sm" variant="secondary" onClick={handleCopy}>
               {copied ? '✓ Copied' : 'Copy'}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -720,8 +702,7 @@ function SubscribeModal({ filterTeam, filterSeason, onClose }) {
           <p><strong>Apple Calendar:</strong> Click "Open in Calendar App" above, or File → New Subscription</p>
           <p><strong>Outlook:</strong> Add calendar → Subscribe from web → paste the link</p>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -762,7 +743,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
           <button onClick={onPrevMonth} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <button onClick={onToday} className="px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 rounded">Today</button>
+          <Button size="xs" variant="ghost" onClick={onToday}>Today</Button>
           <span className="text-sm font-semibold text-white min-w-[140px] text-center">{MONTH_NAMES[month]} {year}</span>
           <button onClick={onNextMonth} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
@@ -792,7 +773,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
             <button key={dateStr} type="button"
               onClick={() => setSelectedDate(isSelected ? null : dateStr)}
               className={`min-h-[80px] p-1 text-left rounded transition-colors
-                ${isToday ? 'ring-1 ring-blue-500' : ''}
+                ${isToday ? 'ring-1 ring-chrome-500' : ''}
                 ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}
               `}>
               <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
@@ -834,7 +815,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                 return (
                   <div key={game.id}
                     onClick={() => onSelectGame(game.id)}
-                    className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                    className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="text-sm font-semibold text-gray-300 w-20 shrink-0 text-center">
@@ -844,7 +825,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                           <div className="flex items-center gap-1.5">
                             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                             <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }}
-                              className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline">{game.home_team_name}</button>
+                              className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{game.home_team_name}</button>
                           </div>
                           <span className="text-xs text-gray-500 shrink-0">
                             {game.status === 'completed'
@@ -854,7 +835,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                           <div className="flex items-center gap-1.5">
                             <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
                             <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }}
-                              className="font-semibold text-sm truncate text-field-300 hover:text-field-100 hover:underline">{game.away_team_name}</button>
+                              className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{game.away_team_name}</button>
                           </div>
                         </div>
                       </div>
@@ -1233,7 +1214,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
             return;
           }
           handleChange(e);
-        }} required className={inputCls}>
+        }} required className="lh-select">
           <option value="">— Select Team —</option>
           {orgNames.map(orgName => (
             <optgroup key={orgName} label={orgName}>
@@ -1265,16 +1246,12 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">
-          {isEditing ? 'Edit Game' : isGame ? 'Schedule Game' : `Schedule ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`}
-        </h2>
+    <Modal open onClose={onCancel} title={isEditing ? 'Edit Game' : isGame ? 'Schedule Game' : `Schedule ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Event Type Toggle — only on create, not edit */}
           {!isEditing && eventTypeOptions.length > 1 && (
             <div>
-              <label className={labelCls}>Type</label>
+              <label className="lh-eyebrow block mb-1">Type</label>
               <div className="flex gap-1 p-1 bg-gray-900 rounded-lg">
                 {eventTypeOptions.map(opt => (
                   <button
@@ -1298,8 +1275,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
             <>
               {/* Season */}
               <div>
-                <label htmlFor="game-season" className={labelCls}>Season</label>
-                <select id="game-season" name="season_id" value={form.season_id} onChange={handleChange} className={inputCls}>
+                <label htmlFor="game-season" className="lh-eyebrow block mb-1">Season</label>
+                <select id="game-season" name="season_id" value={form.season_id} onChange={handleChange} className="lh-select">
                   <option value="">— None —</option>
                   {seasons.map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
@@ -1310,11 +1287,11 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               {/* Teams */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="game-home" className={labelCls}>Home Team *</label>
+                  <label htmlFor="game-home" className="lh-eyebrow block mb-1">Home Team *</label>
                   <TeamSelect id="game-home" name="home_team_id" value={form.home_team_id} />
                 </div>
                 <div>
-                  <label htmlFor="game-away" className={labelCls}>Away Team *</label>
+                  <label htmlFor="game-away" className="lh-eyebrow block mb-1">Away Team *</label>
                   <TeamSelect id="game-away" name="away_team_id" value={form.away_team_id} />
                 </div>
               </div>
@@ -1322,12 +1299,12 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               {/* Date/Time */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="game-date" className={labelCls}>Date *</label>
-                  <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} required className={inputCls} />
+                  <label htmlFor="game-date" className="lh-eyebrow block mb-1">Date *</label>
+                  <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} required className="lh-input" />
                 </div>
                 <div>
-                  <label htmlFor="game-time" className={labelCls}>Time</label>
-                  <select id="game-time" name="game_time" value={form.game_time} onChange={handleChange} className={inputCls}>
+                  <label htmlFor="game-time" className="lh-eyebrow block mb-1">Time</label>
+                  <select id="game-time" name="game_time" value={form.game_time} onChange={handleChange} className="lh-select">
                     <option value="">— Select Time —</option>
                     {timeSlots.map((slot) => (
                       <option key={slot} value={slot}>{formatTime(slot)}</option>
@@ -1342,17 +1319,17 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               {/* Location */}
               <div>
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <label htmlFor="game-location" className={`${labelCls} mb-0`}>Location</label>
+                  <label htmlFor="game-location" className="lh-eyebrow mb-0">Location</label>
                   <button
                     type="button"
                     onClick={() => setShowAddLocationForm(true)}
                     disabled={!homeOrgId}
-                    className="text-xs font-semibold text-field-300 hover:text-field-100 underline disabled:opacity-50 disabled:no-underline"
+                    className="text-xs font-semibold text-action-300 hover:text-action-100 underline disabled:opacity-50 disabled:no-underline"
                   >
                     + Add new field
                   </button>
                 </div>
-                <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className={inputCls} disabled={!homeOrgId}>
+                <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId}>
                   <option value="">— None —</option>
                   {locations
                     .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
@@ -1369,7 +1346,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
               {officialsEnabled && (
                 <div>
-                  <label className={labelCls}>Umpire Assignment</label>
+                  <label className="lh-eyebrow block mb-1">Umpire Assignment</label>
                   {officials.length === 0 ? (
                     <p className="text-xs text-gray-400">No officials available for this organization. Add officials in the Officials module.</p>
                   ) : (
@@ -1407,66 +1384,63 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               {/* Status + Score + Innings */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label htmlFor="game-status" className={labelCls}>Status</label>
-                  <select id="game-status" name="status" value={form.status} onChange={handleChange} className={inputCls}>
+                  <label htmlFor="game-status" className="lh-eyebrow block mb-1">Status</label>
+                  <select id="game-status" name="status" value={form.status} onChange={handleChange} className="lh-select">
                     {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="game-home-score" className={labelCls}>Home Score</label>
-                  <input id="game-home-score" name="home_score" type="number" min="0" value={form.home_score} onChange={handleChange} className={inputCls} placeholder="—" />
+                  <label htmlFor="game-home-score" className="lh-eyebrow block mb-1">Home Score</label>
+                  <input id="game-home-score" name="home_score" type="number" min="0" value={form.home_score} onChange={handleChange} className="lh-input" placeholder="—" />
                 </div>
                 <div>
-                  <label htmlFor="game-away-score" className={labelCls}>Away Score</label>
-                  <input id="game-away-score" name="away_score" type="number" min="0" value={form.away_score} onChange={handleChange} className={inputCls} placeholder="—" />
+                  <label htmlFor="game-away-score" className="lh-eyebrow block mb-1">Away Score</label>
+                  <input id="game-away-score" name="away_score" type="number" min="0" value={form.away_score} onChange={handleChange} className="lh-input" placeholder="—" />
                 </div>
                 <div>
-                  <label htmlFor="game-innings" className={labelCls}>Innings</label>
-                  <input id="game-innings" name="innings_played" type="number" min="1" max="99" value={form.innings_played} onChange={handleChange} className={inputCls} placeholder="6" />
+                  <label htmlFor="game-innings" className="lh-eyebrow block mb-1">Innings</label>
+                  <input id="game-innings" name="innings_played" type="number" min="1" max="99" value={form.innings_played} onChange={handleChange} className="lh-input" placeholder="6" />
                 </div>
               </div>
             </>
           ) : (
             <>
               {/* Reservation fields — Practice / Event / Maintenance */}
-              <div>
-                <label htmlFor="res-title" className={labelCls}>Title *</label>
-                <input id="res-title" type="text" value={resForm.title}
+              <Input label="Title *" id="res-title" value={resForm.title}
                   onChange={e => setResForm(prev => ({ ...prev, title: e.target.value }))}
-                  required placeholder="e.g. 10U Practice" className={inputCls} />
-              </div>
+                  required placeholder="e.g. 10U Practice" />
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="res-team" className={labelCls}>Team</label>
+                  <label htmlFor="res-team" className="lh-eyebrow block mb-1">Team</label>
                   <select id="res-team" value={resForm.team_id}
                     onChange={e => setResForm(prev => ({ ...prev, team_id: e.target.value }))}
-                    className={inputCls}>
+                    className="lh-select">
                     <option value="">— None —</option>
                     {visibleTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="res-date" className={labelCls}>Date *</label>
-                  <input id="res-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} required className={inputCls} />
+                  <label htmlFor="res-date" className="lh-eyebrow block mb-1">Date *</label>
+                  <input id="res-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} required className="lh-input" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="res-start" className={labelCls}>Start Time *</label>
+                  <label htmlFor="res-start" className="lh-eyebrow block mb-1">Start Time *</label>
                   <select id="res-start" value={resForm.start_time}
                     onChange={e => setResForm(prev => ({ ...prev, start_time: e.target.value }))}
-                    required className={inputCls}>
+                    required className="lh-select">
                     <option value="">— Select —</option>
                     {resTimeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="res-end" className={labelCls}>End Time *</label>
+                  <label htmlFor="res-end" className="lh-eyebrow block mb-1">End Time *</label>
                   <select id="res-end" value={resForm.end_time}
                     onChange={e => setResForm(prev => ({ ...prev, end_time: e.target.value }))}
-                    required className={inputCls}>
+                    required className="lh-select">
                     <option value="">— Select —</option>
                     {resTimeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -1475,8 +1449,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
               {/* Location — required for reservations */}
               <div>
-                <label htmlFor="res-location" className={labelCls}>Location *</label>
-                <select id="res-location" name="location_id" value={form.location_id} onChange={handleChange} required className={inputCls}>
+                <label htmlFor="res-location" className="lh-eyebrow block mb-1">Location *</label>
+                <select id="res-location" name="location_id" value={form.location_id} onChange={handleChange} required className="lh-select">
                   <option value="">— Select Field —</option>
                   {locations.map(l => (
                     <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
@@ -1488,9 +1462,9 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
           {/* Notes */}
           <div>
-            <label htmlFor="game-notes" className={labelCls}>Notes</label>
+            <label htmlFor="game-notes" className="lh-eyebrow block mb-1">Notes</label>
             <textarea id="game-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Any additional info…"
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500" />
+              className="lh-input" />
           </div>
 
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
@@ -1523,72 +1497,51 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               ))}
               <p className="text-xs text-amber-400">Games always have priority. Please contact the person(s) above to notify them their reservation needs to move.</p>
               <div className="flex gap-2 pt-1">
-                <button type="button" onClick={handleConfirmSave}
-                  className="px-3 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded hover:bg-amber-700">
+                <Button size="xs" variant="warn" onClick={handleConfirmSave}>
                   Schedule Anyway
-                </button>
-                <button type="button" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}
-                  className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">
+                </Button>
+                <Button size="xs" variant="secondary" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}>
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
-            <button type="submit" disabled={saving} className={btnPrimary}>
+            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" disabled={saving} loading={saving}>
               {saving ? 'Saving…' : isEditing ? 'Update' : isGame ? 'Schedule Game' : `Book ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`}
-            </button>
+            </Button>
           </div>
         </form>
 
         {showAddLocationForm && (
-          <div className="fixed inset-0 z-[60] bg-black/50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4 border border-gray-700">
-              <h3 className="text-lg font-heading font-bold text-white mb-1">Add Field Location</h3>
+          <Modal open onClose={() => setShowAddLocationForm(false)} title="Add Field Location" size="lg">
               <p className="text-xs text-gray-400 mb-4">This will be added to {selectedHomeTeam?.org_name || 'the selected home team organization'}.</p>
-
               <form onSubmit={handleAddLocation} className="space-y-3">
-                <div>
-                  <label htmlFor="new-loc-name" className={labelCls}>Field Name *</label>
-                  <input id="new-loc-name" name="name" value={newLocation.name} onChange={handleNewLocationChange} required className={inputCls} placeholder="e.g. Hok-Si-La Park Field 1" />
-                </div>
+                <Input label="Field Name *" id="new-loc-name" name="name" value={newLocation.name} onChange={handleNewLocationChange} required placeholder="e.g. Hok-Si-La Park Field 1" />
 
                 <div className="grid grid-cols-2 sm:grid-cols-[2fr_1fr_70px_90px] gap-3">
-                  <div className="col-span-2 sm:col-span-1">
-                    <label htmlFor="new-loc-address" className={labelCls}>Address</label>
-                    <input id="new-loc-address" name="address" value={newLocation.address} onChange={handleNewLocationChange} className={inputCls} placeholder="123 Main St" />
-                  </div>
-                  <div>
-                    <label htmlFor="new-loc-city" className={labelCls}>City</label>
-                    <input id="new-loc-city" name="city" value={newLocation.city} onChange={handleNewLocationChange} className={inputCls} />
-                  </div>
-                  <div>
-                    <label htmlFor="new-loc-state" className={labelCls}>State</label>
-                    <input id="new-loc-state" name="state" value={newLocation.state} onChange={handleNewLocationChange} maxLength={2} className={inputCls} placeholder="MN" />
-                  </div>
-                  <div>
-                    <label htmlFor="new-loc-zip" className={labelCls}>ZIP</label>
-                    <input id="new-loc-zip" name="zip" value={newLocation.zip} onChange={handleNewLocationChange} maxLength={10} className={inputCls} />
-                  </div>
+                  <Input label="Address" wrapperClassName="col-span-2 sm:col-span-1" id="new-loc-address" name="address" value={newLocation.address} onChange={handleNewLocationChange} placeholder="123 Main St" />
+                  <Input label="City" id="new-loc-city" name="city" value={newLocation.city} onChange={handleNewLocationChange} />
+                  <Input label="State" id="new-loc-state" name="state" value={newLocation.state} onChange={handleNewLocationChange} maxLength={2} placeholder="MN" />
+                  <Input label="ZIP" id="new-loc-zip" name="zip" value={newLocation.zip} onChange={handleNewLocationChange} maxLength={10} />
                 </div>
 
                 <div>
-                  <label htmlFor="new-loc-comments" className={labelCls}>Comments</label>
+                  <label htmlFor="new-loc-comments" className="lh-eyebrow block mb-1">Comments</label>
                   <textarea id="new-loc-comments" name="comments" value={newLocation.comments} onChange={handleNewLocationChange} rows={2}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500"
+                    className="lh-input"
                     placeholder="Optional notes"
                   />
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">
-                  <button type="button" onClick={() => setShowAddLocationForm(false)} className={btnSecondary}>Cancel</button>
-                  <button type="submit" disabled={addingLocation} className={btnPrimary}>{addingLocation ? 'Adding…' : 'Add Field'}</button>
+                  <Button variant="secondary" onClick={() => setShowAddLocationForm(false)}>Cancel</Button>
+                  <Button type="submit" disabled={addingLocation} loading={addingLocation}>{addingLocation ? 'Adding…' : 'Add Field'}</Button>
                 </div>
               </form>
-            </div>
-          </div>
+          </Modal>
         )}
 
         {showCreateTeam && (
@@ -1602,8 +1555,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
             onCancel={() => setShowCreateTeam(null)}
           />
         )}
-      </div>
-    </div>
+      </Modal>
   );
 }
 
@@ -1661,72 +1613,61 @@ function QuickCreateTeamForm({ onCreated, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 my-4 border border-gray-700">
-        <h3 className="text-lg font-heading font-bold text-white mb-1">Create Opponent Team</h3>
+    <Modal open onClose={onCancel} title="Create Opponent Team" size="md">
         <p className="text-xs text-gray-400 mb-4">Quickly add a team that doesn&apos;t exist yet. Organization is optional for opponent teams.</p>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label htmlFor="qt-city" className={labelCls}>Team City *</label>
-              <input id="qt-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="qt-mascot" className={labelCls}>Team Mascot</label>
-              <input id="qt-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="qt-color" className={labelCls}>Team Color</label>
-              <input id="qt-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" className={inputCls} />
-            </div>
+            <Input label="Team City *" id="qt-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" />
+            <Input label="Team Mascot" id="qt-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" />
+            <Input label="Team Color" id="qt-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="qt-primary" className={labelCls}>Primary Color</label>
+              <label htmlFor="qt-primary" className="lh-eyebrow block mb-1">Primary Color</label>
               <div className="flex items-center gap-2">
                 <input id="qt-primary" type="color" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
-                <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+                <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
               </div>
             </div>
             <div>
-              <label htmlFor="qt-secondary" className={labelCls}>Secondary Color</label>
+              <label htmlFor="qt-secondary" className="lh-eyebrow block mb-1">Secondary Color</label>
               <div className="flex items-center gap-2">
                 <input id="qt-secondary" type="color" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
-                <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+                <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="qt-age" className={labelCls}>Age Group</label>
+              <label htmlFor="qt-age" className="lh-eyebrow block mb-1">Age Group</label>
               {ageGroups.length > 0 ? (
-                <select id="qt-age" name="age_group" value={form.age_group} onChange={handleChange} className={inputCls}>
+                <select id="qt-age" name="age_group" value={form.age_group} onChange={handleChange} className="lh-select">
                   <option value="">— Select —</option>
                   {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
                 </select>
               ) : (
-                <input id="qt-age" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className={inputCls} />
+                <input id="qt-age" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className="lh-input" />
               )}
             </div>
             <div>
-              <label htmlFor="qt-level" className={labelCls}>Level</label>
+              <label htmlFor="qt-level" className="lh-eyebrow block mb-1">Level</label>
               {levels.length > 0 ? (
-                <select id="qt-level" name="level" value={form.level} onChange={handleChange} className={inputCls}>
+                <select id="qt-level" name="level" value={form.level} onChange={handleChange} className="lh-select">
                   <option value="">— Select —</option>
                   {levels.map(lv => <option key={lv.id} value={lv.name}>{lv.name}</option>)}
                 </select>
               ) : (
-                <input id="qt-level" name="level" type="text" value={form.level} onChange={handleChange} placeholder="e.g. Competitive" className={inputCls} />
+                <input id="qt-level" name="level" type="text" value={form.level} onChange={handleChange} placeholder="e.g. Competitive" className="lh-input" />
               )}
             </div>
           </div>
 
           <div>
-            <label htmlFor="qt-org" className={labelCls}>Organization</label>
-            <select id="qt-org" name="org_id" value={form.org_id} onChange={handleChange} className={inputCls}>
+            <label htmlFor="qt-org" className="lh-eyebrow block mb-1">Organization</label>
+            <select id="qt-org" name="org_id" value={form.org_id} onChange={handleChange} className="lh-select">
               <option value="">— None (opponent) —</option>
               {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
@@ -1743,11 +1684,10 @@ function QuickCreateTeamForm({ onCreated, onCancel }) {
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
-            <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Creating…' : 'Create Team'}</button>
+            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Creating…' : 'Create Team'}</Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

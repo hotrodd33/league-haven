@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { changePassword } from '../api/index.js';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
+import { Button, Input, Modal } from './ui';
 
 export default function ChangePassword({ onClose }) {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -25,50 +23,62 @@ export default function ChangePassword({ onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">Change Password</h2>
-
-        {success ? (
-          <div className="lh-alert lh-alert-success">
-            Password changed successfully!
+    <Modal
+      open
+      onClose={onClose}
+      size="sm"
+      title="Change Password"
+      footer={
+        !success && (
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+            <Button size="sm" loading={loading} onClick={() => document.getElementById('change-pwd-form').requestSubmit()}>
+              {loading ? 'Changing…' : 'Change Password'}
+            </Button>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="cur-pwd" className={labelCls}>Current Password</label>
-              <input id="cur-pwd" type="password" value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required autoComplete="current-password" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="new-pwd" className={labelCls}>New Password</label>
-              <input id="new-pwd" type="password" value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="8+ chars, upper, lower, number" required minLength={8}
-                autoComplete="new-password" className={inputCls} />
-              <p className="text-xs text-gray-500 mt-1">At least 8 characters with uppercase, lowercase, and a number</p>
-            </div>
-            <div>
-              <label htmlFor="confirm-pwd" className={labelCls}>Confirm New Password</label>
-              <input id="confirm-pwd" type="password" value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                required minLength={8} autoComplete="new-password" className={inputCls} />
-            </div>
-            {error && <div className="lh-alert lh-alert-error">{error}</div>}
-            <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={onClose}
-                className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                Cancel
-              </button>
-              <button type="submit" disabled={loading}
-                className="btn btn-sm btn-primary disabled:opacity-50">
-                {loading ? 'Changing…' : 'Change Password'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+        )
+      }
+    >
+      {success ? (
+        <div className="lh-alert lh-alert-success">
+          Password changed successfully!
+        </div>
+      ) : (
+        <form id="change-pwd-form" onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="Current Password"
+            id="cur-pwd"
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+          <Input
+            label="New Password"
+            id="new-pwd"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="8+ chars, upper, lower, number"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            helper="At least 8 characters with uppercase, lowercase, and a number"
+          />
+          <Input
+            label="Confirm New Password"
+            id="confirm-pwd"
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
+          {error && <div className="lh-alert lh-alert-error">{error}</div>}
+        </form>
+      )}
+    </Modal>
   );
 }

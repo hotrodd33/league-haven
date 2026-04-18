@@ -11,10 +11,7 @@ import {
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
-
-const inputCls = 'lh-input';
-const btnPrimary = 'btn btn-primary btn-md disabled:opacity-60';
-const btnSecondary = 'btn btn-secondary btn-md disabled:opacity-60';
+import { Button, Badge, Input, Select, Modal } from './ui';
 
 export default function LeagueFees({ onBack }) {
   const { isSuperAdmin } = useAuth();
@@ -212,16 +209,16 @@ export default function LeagueFees({ onBack }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className={btnSecondary}>← Back</button>
-          <h2 className="text-xl font-heading font-bold text-white">League Fees</h2>
+          <Button variant="secondary" onClick={onBack}>← Back</Button>
+          <h2 className="text-xl font-display font-bold text-white">League Fees</h2>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => { setShowRegister(!showRegister); setRegisterSeasonId(seasonFilter); }} className={btnPrimary}>
+          <Button onClick={() => { setShowRegister(!showRegister); setRegisterSeasonId(seasonFilter); }}>
             + Register Team
-          </button>
-          <button onClick={handleBulkRegister} disabled={bulking} className={btnSecondary}>
+          </Button>
+          <Button variant="secondary" onClick={handleBulkRegister} disabled={bulking}>
             {bulking ? 'Registering…' : 'Register All Teams'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -237,60 +234,49 @@ export default function LeagueFees({ onBack }) {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4">
-        <select value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)}
-          className={`${inputCls} !w-auto min-w-[140px]`}>
+        <Select value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)}
+          className="!w-auto min-w-[140px]">
           <option value="">All Seasons</option>
           {seasons.map(s => (
             <option key={s.id} value={s.id}>{s.name} {s.year}{s.is_active ? ' ●' : ''}</option>
           ))}
-        </select>
-        <select value={ageGroupFilter} onChange={(e) => setAgeGroupFilter(e.target.value)}
-          className={`${inputCls} !w-auto min-w-[120px]`}>
+        </Select>
+        <Select value={ageGroupFilter} onChange={(e) => setAgeGroupFilter(e.target.value)}
+          className="!w-auto min-w-[120px]">
           <option value="">All Ages</option>
           {ageGroups.map(ag => (
             <option key={ag.id} value={ag.name}>{ag.name}</option>
           ))}
-        </select>
-        <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}
-          className={`${inputCls} !w-auto min-w-[120px]`}>
+        </Select>
+        <Select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}
+          className="!w-auto min-w-[120px]">
           <option value="">All Status</option>
           <option value="paid">Paid</option>
           <option value="unpaid">Unpaid</option>
-        </select>
+        </Select>
       </div>
 
       {/* Register form */}
       {showRegister && (
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-4">
-          <h3 className="text-sm font-heading font-bold text-white mb-3">Register Team</h3>
+          <h3 className="text-sm font-display font-bold text-white mb-3">Register Team</h3>
           <form onSubmit={handleRegister} className="flex flex-wrap gap-2 items-end">
-            <div className="flex-1 min-w-[160px]">
-              <label className="eyebrow block mb-1">Team</label>
-              <select value={registerTeamId} onChange={(e) => setRegisterTeamId(e.target.value)} className={inputCls} required>
-                <option value="">Select team…</option>
-                {unregisteredTeams.map(t => (
-                  <option key={t.id} value={t.id}>{t.name} ({t.age_group || 'No AG'})</option>
-                ))}
-              </select>
-            </div>
-            <div className="min-w-[140px]">
-              <label className="eyebrow block mb-1">Season</label>
-              <select value={registerSeasonId} onChange={(e) => setRegisterSeasonId(e.target.value)} className={inputCls} required>
-                <option value="">Select season…</option>
-                {seasons.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} {s.year}</option>
-                ))}
-              </select>
-            </div>
-            <div className="min-w-[100px]">
-              <label className="eyebrow block mb-1">Fee Override</label>
-              <input type="number" min="0" step="0.01" value={registerFee} onChange={(e) => setRegisterFee(e.target.value)}
-                placeholder="Age group rate" className={inputCls} />
-            </div>
-            <button type="submit" disabled={registering} className={btnPrimary}>
-              {registering ? 'Registering…' : 'Register'}
-            </button>
-            <button type="button" onClick={() => setShowRegister(false)} className={btnSecondary}>Cancel</button>
+            <Select label="Team" value={registerTeamId} onChange={(e) => setRegisterTeamId(e.target.value)} wrapperClassName="flex-1 min-w-[160px]" required>
+              <option value="">Select team…</option>
+              {unregisteredTeams.map(t => (
+                <option key={t.id} value={t.id}>{t.name} ({t.age_group || 'No AG'})</option>
+              ))}
+            </Select>
+            <Select label="Season" value={registerSeasonId} onChange={(e) => setRegisterSeasonId(e.target.value)} wrapperClassName="min-w-[140px]" required>
+              <option value="">Select season…</option>
+              {seasons.map(s => (
+                <option key={s.id} value={s.id}>{s.name} {s.year}</option>
+              ))}
+            </Select>
+            <Input label="Fee Override" type="number" min="0" step="0.01" value={registerFee} onChange={(e) => setRegisterFee(e.target.value)}
+              placeholder="Age group rate" wrapperClassName="min-w-[100px]" />
+            <Button type="submit" loading={registering}>Register</Button>
+            <Button type="button" variant="ghost" onClick={() => setShowRegister(false)}>Cancel</Button>
           </form>
         </div>
       )}
@@ -333,8 +319,8 @@ export default function LeagueFees({ onBack }) {
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      {reg.age_group && <span className="lh-badge lh-badge-info">{reg.age_group}</span>}
-                      {reg.level && <span className="ml-1 lh-badge lh-badge-info">{reg.level}</span>}
+                      {reg.age_group && <Badge variant="info">{reg.age_group}</Badge>}
+                      {reg.level && <Badge variant="info" className="ml-1">{reg.level}</Badge>}
                     </td>
                     <td className="px-3 py-3 text-gray-300 text-xs">{reg.season_name} {reg.season_year}</td>
                     <td className="px-3 py-3 text-right">
@@ -358,9 +344,9 @@ export default function LeagueFees({ onBack }) {
                     </td>
                     <td className="px-3 py-3 text-center">
                       {reg.is_paid ? (
-                        <span className="lh-badge lh-badge-success">Paid</span>
+                        <Badge variant="success">Paid</Badge>
                       ) : (
-                        <span className="lh-badge lh-badge-danger">Unpaid</span>
+                        <Badge variant="danger">Unpaid</Badge>
                       )}
                     </td>
                     <td className="px-3 py-3 text-xs text-gray-400">
@@ -412,15 +398,15 @@ export default function LeagueFees({ onBack }) {
                     <div className="text-[11px] text-gray-500">{reg.org_name} · {reg.season_name} {reg.season_year}</div>
                   </div>
                   {reg.is_paid ? (
-                    <span className="lh-badge lh-badge-success">Paid</span>
+                    <Badge variant="success">Paid</Badge>
                   ) : (
-                    <span className="lh-badge lh-badge-danger">Unpaid</span>
+                    <Badge variant="danger">Unpaid</Badge>
                   )}
                 </div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    {reg.age_group && <span className="lh-badge lh-badge-info">{reg.age_group}</span>}
-                    {reg.level && <span className="lh-badge lh-badge-info">{reg.level}</span>}
+                    {reg.age_group && <Badge variant="info">{reg.age_group}</Badge>}
+                    {reg.level && <Badge variant="info">{reg.level}</Badge>}
                   </div>
                   <span className="font-mono text-sm font-semibold text-gray-100">
                     {fmt(reg.effective_fee)}
@@ -459,38 +445,24 @@ export default function LeagueFees({ onBack }) {
 
       {/* Payment Modal */}
       {payingReg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setPayingReg(null)}>
-          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-elevated w-full max-w-md mx-4 p-5 animate-scale-in" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-heading font-bold text-white mb-1">Record Payment</h3>
+        <Modal open onClose={() => setPayingReg(null)} size="md" title="Record Payment">
             <p className="text-sm text-gray-400 mb-4">{payingReg.team_name} — {payingReg.season_name} {payingReg.season_year}</p>
 
             <div className="space-y-3">
-              <div>
-                <label className="eyebrow block mb-1">Amount</label>
-                <input type="number" min="0" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
-                  className={inputCls} placeholder={payingReg.effective_fee != null ? String(payingReg.effective_fee) : '0.00'} />
-              </div>
-              <div>
-                <label className="eyebrow block mb-1">Check Number</label>
-                <input type="text" value={payCheck} onChange={(e) => setPayCheck(e.target.value)}
-                  className={inputCls} placeholder="Optional" />
-              </div>
-              <div>
-                <label className="eyebrow block mb-1">Notes</label>
-                <input type="text" value={payNotes} onChange={(e) => setPayNotes(e.target.value)}
-                  className={inputCls} placeholder="Optional" />
-              </div>
+              <Input label="Amount" type="number" min="0" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
+                placeholder={payingReg.effective_fee != null ? String(payingReg.effective_fee) : '0.00'} />
+              <Input label="Check Number" type="text" value={payCheck} onChange={(e) => setPayCheck(e.target.value)}
+                placeholder="Optional" />
+              <Input label="Notes" type="text" value={payNotes} onChange={(e) => setPayNotes(e.target.value)}
+                placeholder="Optional" />
               <div className="text-[11px] text-gray-500">Payment method: Check</div>
             </div>
 
             <div className="flex gap-2 mt-5">
-              <button onClick={handlePaymentSave} disabled={paymentSaving} className={`flex-1 ${btnPrimary}`}>
-                {paymentSaving ? 'Saving…' : 'Record Payment'}
-              </button>
-              <button onClick={() => setPayingReg(null)} className={btnSecondary}>Cancel</button>
+              <Button className="flex-1" onClick={handlePaymentSave} loading={paymentSaving}>Record Payment</Button>
+              <Button variant="ghost" onClick={() => setPayingReg(null)}>Cancel</Button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
@@ -500,7 +472,7 @@ function SummaryCard({ label, value, color = 'text-white' }) {
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
       <div className="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">{label}</div>
-      <div className={`text-lg font-heading font-bold ${color}`}>{value}</div>
+      <div className={`text-lg font-display font-bold ${color}`}>{value}</div>
     </div>
   );
 }

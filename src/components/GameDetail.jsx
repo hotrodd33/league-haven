@@ -8,13 +8,8 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
+import { Button, Input, Select } from './ui/index.js';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
-const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
-const btnSecondary = "btn btn-secondary btn-md";
-const btnDanger = "btn btn-danger btn-xs";
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
 const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-black px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-[#00f092]';
@@ -237,19 +232,16 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
     <div>
       {/* Back button + tracker */}
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={onBack} className={btnSecondary}>← Back to Schedule</button>
+        <Button variant="secondary" onClick={onBack}>← Back to Schedule</Button>
         {onOpenImport && (userCanScore || userCanEdit) && (
-          <button
-            onClick={() => onOpenImport(game.id)}
-            className="px-3 py-2 bg-[#00AEEF] text-white text-sm font-semibold rounded-lg hover:brightness-105 transition"
-          >
+          <Button variant="chrome" onClick={() => onOpenImport(game.id)}>
             Import from GC
-          </button>
+          </Button>
         )}
         {userCanScore && game.status !== 'completed' && (
-          <button onClick={() => setShowTracker(true)} className="px-4 py-2 bg-amber-500 text-gray-900 text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
+          <Button variant="warn" onClick={() => setShowTracker(true)}>
             ⚾ Pitch Tracker
-          </button>
+          </Button>
         )}
       </div>
 
@@ -273,7 +265,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
         <div className="flex items-center justify-center gap-3 sm:gap-6 mb-3">
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-12 h-12" />
-            <button onClick={() => onNavigateToTeam?.(game.home_team_id, game.home_org_id)} className="font-bold text-sm text-center truncate w-full text-field-300 hover:text-field-100 hover:underline">{game.home_team_name}</button>
+            <button onClick={() => onNavigateToTeam?.(game.home_team_id, game.home_org_id)} className="font-bold text-sm text-center truncate w-full text-action-300 hover:text-action-100 hover:underline">{game.home_team_name}</button>
             <div className="w-12 h-1 rounded-full" style={{ background: game.home_primary_color || '#ccc' }} />
             <span className="text-xs text-gray-400 uppercase">Home</span>
           </div>
@@ -287,7 +279,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
           </div>
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
             <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-12 h-12" />
-            <button onClick={() => onNavigateToTeam?.(game.away_team_id, game.away_org_id)} className="font-bold text-sm text-center truncate w-full text-field-300 hover:text-field-100 hover:underline">{game.away_team_name}</button>
+            <button onClick={() => onNavigateToTeam?.(game.away_team_id, game.away_org_id)} className="font-bold text-sm text-center truncate w-full text-action-300 hover:text-action-100 hover:underline">{game.away_team_name}</button>
             <div className="w-12 h-1 rounded-full" style={{ background: game.away_primary_color || '#ccc' }} />
             <span className="text-xs text-gray-400 uppercase">Away</span>
           </div>
@@ -313,7 +305,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
           'bg-gray-800 border-gray-700'
         }`}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-gray-100 flex items-center gap-2">
+            <h3 className="text-sm font-display font-bold uppercase tracking-wide text-gray-100 flex items-center gap-2">
               {weather.icon} Game Day Weather
               {weather.isForecast && <span className="text-[10px] font-normal normal-case text-gray-500 italic">(forecast)</span>}
             </h3>
@@ -391,7 +383,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       {userCanScore && (
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-heading font-bold uppercase tracking-wide text-white">Report Score</h3>
+            <h3 className="text-base font-display font-bold uppercase tracking-wide text-white">Report Score</h3>
             <div className="flex items-center gap-3">
               {!editingScore && (
                 <button onClick={() => setEditingScore(true)} className="text-xs text-chrome-400 font-semibold hover:underline">Edit</button>
@@ -402,31 +394,22 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
           {editingScore ? (
             <form onSubmit={handleSaveScore} className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className={labelCls}>Home Score</label>
-                  <input type="number" min="0" value={scoreForm.home_score}
+                <Input label="Home Score" type="number" min="0" value={scoreForm.home_score}
                     onChange={(e) => setScoreForm(prev => ({ ...prev, home_score: e.target.value }))}
-                    className={inputCls} placeholder="—" />
-                </div>
-                <div>
-                  <label className={labelCls}>Away Score</label>
-                  <input type="number" min="0" value={scoreForm.away_score}
+                    placeholder="—" />
+                <Input label="Away Score" type="number" min="0" value={scoreForm.away_score}
                     onChange={(e) => setScoreForm(prev => ({ ...prev, away_score: e.target.value }))}
-                    className={inputCls} placeholder="—" />
-                </div>
-                <div>
-                  <label className={labelCls}>Innings</label>
-                  <input type="number" min="1" max="99" value={scoreForm.innings_played}
+                    placeholder="—" />
+                <Input label="Innings" type="number" min="1" max="99" value={scoreForm.innings_played}
                     onChange={(e) => setScoreForm(prev => ({ ...prev, innings_played: e.target.value }))}
-                    className={inputCls} placeholder="6" />
-                </div>
+                    placeholder="6" />
               </div>
               <div className="flex gap-2">
-                <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Saving…' : 'Save Score'}</button>
-                <button type="button" onClick={() => {
+                <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Saving…' : 'Save Score'}</Button>
+                <Button variant="secondary" onClick={() => {
                   setEditingScore(false);
                   setScoreForm({ home_score: game.home_score ?? '', away_score: game.away_score ?? '', innings_played: game.innings_played ?? '' });
-                }} className={btnSecondary}>Cancel</button>
+                }}>Cancel</Button>
               </div>
             </form>
           ) : (
@@ -553,11 +536,11 @@ function PitchCountSection({
     <div className={`border rounded-xl p-4 sm:p-5 mb-4 shadow-sm ${sectionTone}`}>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
-          <h3 className="text-base font-heading font-bold uppercase tracking-wide text-white truncate">{label}</h3>
+          <h3 className="text-base font-display font-bold uppercase tracking-wide text-white truncate">{label}</h3>
           {dailyLimit && <span className="text-xs text-gray-400 shrink-0">Limit: {dailyLimit}/day</span>}
         </div>
         {canEdit && !isAdding && !editingPc && (
-          <button onClick={onStartAdd} className="px-2.5 py-1 text-xs font-semibold bg-chrome-900/30 text-chrome-200 rounded hover:bg-chrome-800/40 transition-colors">+ Add Pitcher</button>
+          <Button size="xs" variant="chrome" onClick={onStartAdd}>+ Add Pitcher</Button>
         )}
       </div>
 
@@ -586,18 +569,18 @@ function PitchCountSection({
                 <div className="text-sm font-semibold text-gray-100">{pc.first_name} {pc.last_name} {pc.jersey_number ? `#${pc.jersey_number}` : ''}</div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className={labelCls}>Pitch Count *</label>
+                    <label className="lh-eyebrow block mb-1">Pitch Count *</label>
                     <input type="number" min="0" required value={pcForm.pitch_count}
                       onChange={(e) => setPcForm(prev => ({ ...prev, pitch_count: e.target.value }))}
-                      className={inputCls} />
+                      className="lh-input" />
                     {pcForm.pitch_count && dailyLimit && (Number(pcForm.pitch_count) + otherToday) > dailyLimit && (
                       <div className="mt-1 text-xs text-signal-400 font-semibold">Exceeds daily limit of {dailyLimit}</div>
                     )}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Saving…' : 'Save'}</button>
-                  <button type="button" onClick={onCancelEdit} className={btnSecondary}>Cancel</button>
+                  <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+                  <Button variant="secondary" onClick={onCancelEdit}>Cancel</Button>
                 </div>
               </form>
             ) : (
@@ -625,8 +608,8 @@ function PitchCountSection({
                 </div>
                 {canEdit && (
                   <div className="md:col-span-2 flex gap-1 md:justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onStartEdit(pc)} className="px-2 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
-                    <button onClick={() => onDelete(pc)} className={btnDanger}>×</button>
+                    <Button size="xs" variant="secondary" onClick={() => onStartEdit(pc)}>Edit</Button>
+                    <Button size="xs" variant="danger" onClick={() => onDelete(pc)}>×</Button>
                   </div>
                 )}
               </div>
@@ -645,10 +628,10 @@ function PitchCountSection({
       {isAdding && (
         <form onSubmit={onAdd} className="mt-3 bg-gray-900/65 border border-chrome-700/30 rounded-lg p-3 sm:p-4 space-y-3">
           <div>
-            <label className={labelCls}>Player *</label>
+            <label className="lh-eyebrow block mb-1">Player *</label>
             {availablePlayers.length > 0 ? (
               <select value={pcForm.player_id} onChange={(e) => setPcForm(prev => ({ ...prev, player_id: e.target.value }))}
-                required className={inputCls}>
+                required className="lh-select">
                 <option value="">— Select Player —</option>
                 {availablePlayers.map(p => {
                   const elig = eligMap[p.id];
@@ -694,32 +677,21 @@ function PitchCountSection({
             <div className="bg-action-900/20 border border-action-400/30 rounded-lg p-3 space-y-2">
               <div className="eyebrow text-action-300 mb-1">Quick Add Player</div>
               <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className={labelCls}>First Name *</label>
-                  <input type="text" required value={newPlayerForm.first_name}
+                <Input label="First Name *" type="text" required value={newPlayerForm.first_name}
                     onChange={(e) => setNewPlayerForm(prev => ({ ...prev, first_name: e.target.value }))}
-                    className={inputCls} placeholder="First" />
-                </div>
-                <div>
-                  <label className={labelCls}>Last Name *</label>
-                  <input type="text" required value={newPlayerForm.last_name}
+                    placeholder="First" />
+                <Input label="Last Name *" type="text" required value={newPlayerForm.last_name}
                     onChange={(e) => setNewPlayerForm(prev => ({ ...prev, last_name: e.target.value }))}
-                    className={inputCls} placeholder="Last" />
-                </div>
-                <div>
-                  <label className={labelCls}>Jersey #</label>
-                  <input type="text" value={newPlayerForm.jersey_number}
+                    placeholder="Last" />
+                <Input label="Jersey #" type="text" value={newPlayerForm.jersey_number}
                     onChange={(e) => setNewPlayerForm(prev => ({ ...prev, jersey_number: e.target.value }))}
-                    className={inputCls} placeholder="#" />
-                </div>
+                    placeholder="#" />
               </div>
               <div className="flex gap-2">
-                <button type="button" disabled={savingNewPlayer} onClick={(e) => { e.preventDefault(); onSaveNewPlayer(); }}
-                  className="px-3 py-1.5 bg-green-700 text-white text-xs font-semibold rounded-lg hover:bg-action-800 disabled:opacity-60">
+                <Button size="xs" disabled={savingNewPlayer} onClick={(e) => { e.preventDefault(); onSaveNewPlayer(); }}>
                   {savingNewPlayer ? 'Adding…' : 'Add Player'}
-                </button>
-                <button type="button" onClick={onCancelAddNewPlayer}
-                  className="px-3 py-1.5 bg-gray-700 text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
+                </Button>
+                <Button size="xs" variant="secondary" onClick={onCancelAddNewPlayer}>Cancel</Button>
               </div>
             </div>
           )}
@@ -728,10 +700,10 @@ function PitchCountSection({
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className={labelCls}>Pitch Count *</label>
+                  <label className="lh-eyebrow block mb-1">Pitch Count *</label>
                   <input type="number" min="0" required value={pcForm.pitch_count}
                     onChange={(e) => setPcForm(prev => ({ ...prev, pitch_count: e.target.value }))}
-                    className={inputCls} />
+                    className="lh-input" />
                   {/* Real-time pitch count feedback */}
                   {pcForm.pitch_count && dailyLimit && (() => {
                     const entered = Number(pcForm.pitch_count);
@@ -758,9 +730,9 @@ function PitchCountSection({
           )}
           <div className="flex flex-wrap gap-2 pt-1">
             {availablePlayers.length > 0 && (
-              <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Adding…' : 'Add'}</button>
+              <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Adding…' : 'Add'}</Button>
             )}
-            <button type="button" onClick={onCancelAdd} className={btnSecondary}>Cancel</button>
+            <Button variant="secondary" onClick={onCancelAdd}>Cancel</Button>
           </div>
         </form>
       )}

@@ -3,6 +3,7 @@ import { fetchMe, fetchNotificationPrefs, updateNotificationPrefs, sendTestPush 
 import { useAuth } from '../context/AuthContext.jsx';
 import { UserIcon, UsersIcon, BuildingIcon, CogIcon, BellIcon } from './ui/icons.jsx';
 import { usePushNotifications } from '../hooks/usePushNotifications.js';
+import { Button, Card, CardBody, CardHeader, Badge } from './ui';
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin',
@@ -14,12 +15,12 @@ const ROLE_LABELS = {
 };
 
 const ROLE_COLORS = {
-  super_admin: 'lh-badge-danger',
-  org_admin: 'lh-badge-info',
-  team_manager: 'lh-badge-success',
-  score_reporter: 'lh-badge-warn',
-  accountant: 'lh-badge-info',
-  umpire: 'lh-badge-warn',
+  super_admin: 'danger',
+  org_admin: 'info',
+  team_manager: 'success',
+  score_reporter: 'warning',
+  accountant: 'info',
+  umpire: 'warning',
 };
 
 function formatDate(d) {
@@ -74,9 +75,9 @@ export default function MyAccount({ onChangePassword }) {
     <div className="space-y-6 max-w-3xl mx-auto">
 
       {/* Profile Card */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-card overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-900/60 to-field-900/40 px-6 py-5 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-field-900 text-field-400 flex items-center justify-center text-2xl font-bold border-2 border-field-700">
+      <Card variant="bordered">
+        <div className="bg-gradient-to-r from-chrome-900/60 to-action-900/40 px-6 py-5 flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-action-900 text-action-400 flex items-center justify-center text-2xl font-bold border-2 border-action-700">
             {initials}
           </div>
           <div>
@@ -84,67 +85,62 @@ export default function MyAccount({ onChangePassword }) {
             <p className="text-sm text-gray-400">@{user.username}</p>
           </div>
         </div>
-        <div className="grid sm:grid-cols-2 gap-4 p-6">
-          <InfoRow icon={<UserIcon className="w-4 h-4" />} label="Email" value={user.email || 'Not set'} />
-          <InfoRow icon={<CogIcon className="w-4 h-4" />} label="Role"
-            value={<span className={`lh-badge ${roleColor}`}>
-              {ROLE_LABELS[user.role] || user.role}
-            </span>}
-          />
-          <InfoRow label="Member Since" value={formatDate(user.created_at)} />
-          <InfoRow label="Last Login" value={formatDate(user.last_login_at)} />
-          {user.is_umpire && <InfoRow label="Umpire" value="Yes" />}
-        </div>
-        <div className="px-6 pb-5">
-          <button
-            onClick={onChangePassword}
-            className="btn btn-sm btn-primary"
-          >
-            Change Password
-          </button>
-        </div>
-      </div>
+        <CardBody>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <InfoRow icon={<UserIcon className="w-4 h-4" />} label="Email" value={user.email || 'Not set'} />
+            <InfoRow icon={<CogIcon className="w-4 h-4" />} label="Role"
+              value={<Badge variant={roleColor}>{ROLE_LABELS[user.role] || user.role}</Badge>}
+            />
+            <InfoRow label="Member Since" value={formatDate(user.created_at)} />
+            <InfoRow label="Last Login" value={formatDate(user.last_login_at)} />
+            {user.is_umpire && <InfoRow label="Umpire" value="Yes" />}
+          </div>
+          <div className="mt-5">
+            <Button size="sm" onClick={onChangePassword}>
+              Change Password
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
 
       {/* Notifications */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-card p-6">
-        <h3 className="text-base font-bold text-gray-100 mb-1 flex items-center gap-2">
-          <BellIcon className="w-5 h-5 text-gray-400" />
-          Notifications
-        </h3>
-        <p className="text-sm text-gray-400 mb-4">
-          Receive push notifications for schedule changes, cancellations, and league announcements.
-        </p>
+      <Card variant="bordered">
+        <CardBody>
+          <h3 className="text-base font-bold text-gray-100 mb-1 flex items-center gap-2">
+            <BellIcon className="w-5 h-5 text-gray-400" />
+            Notifications
+          </h3>
+          <p className="text-sm text-gray-400 mb-4">
+            Receive push notifications for schedule changes, cancellations, and league announcements.
+          </p>
 
-        {!push.supported ? (
-          <p className="text-sm text-gray-500">Push notifications are not supported on this browser.</p>
-        ) : push.permission === 'denied' ? (
-          <div className="rounded-lg bg-yellow-900/20 border border-yellow-800/40 px-4 py-3 text-sm text-yellow-300">
-            Notifications are blocked. Please enable them in your browser settings.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-200">
-                  {push.subscribed ? 'Notifications enabled' : 'Notifications disabled'}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {push.subscribed
-                    ? 'Toggle categories below to choose what you receive.'
-                    : 'Enable to get notified about schedule changes and important updates.'}
-                </p>
-              </div>
-              <button
-                onClick={push.subscribed ? push.unsubscribe : push.subscribe}
-                disabled={push.loading}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  push.subscribed
-                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                    : 'bg-field-700 hover:bg-field-600 text-white'
-                } disabled:opacity-50`}
-              >
-                {push.loading ? 'Loading...' : push.subscribed ? 'Disable' : 'Enable'}
-              </button>
+          {!push.supported ? (
+            <p className="text-sm text-gray-500">Push notifications are not supported on this browser.</p>
+          ) : push.permission === 'denied' ? (
+            <div className="lh-alert lh-alert-info">
+              Notifications are blocked. Please enable them in your browser settings.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-200">
+                    {push.subscribed ? 'Notifications enabled' : 'Notifications disabled'}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {push.subscribed
+                      ? 'Toggle categories below to choose what you receive.'
+                      : 'Enable to get notified about schedule changes and important updates.'}
+                  </p>
+                </div>
+                <Button
+                  variant={push.subscribed ? 'secondary' : 'primary'}
+                  size="sm"
+                  loading={push.loading}
+                  onClick={push.subscribed ? push.unsubscribe : push.subscribe}
+                >
+                  {push.loading ? 'Loading...' : push.subscribed ? 'Disable' : 'Enable'}
+                </Button>
             </div>
 
             {push.subscribed && (
@@ -171,7 +167,8 @@ export default function MyAccount({ onChangePassword }) {
                   onChange={() => togglePref('announcements')}
                 />
                 <div className="pt-2">
-                  <button
+                  <Button
+                    size="xs"
                     onClick={async () => {
                       setTestResult('Sending...');
                       try {
@@ -188,10 +185,9 @@ export default function MyAccount({ onChangePassword }) {
                         setTestResult(`Error: ${e.message}`);
                       }
                     }}
-                    className="btn btn-xs btn-primary"
                   >
                     Send Test Notification
-                  </button>
+                  </Button>
                   {testResult && (
                     <p className={`text-xs mt-1.5 ${testResult.startsWith('Sent') ? 'text-action-400' : testResult.startsWith('Error') ? 'text-signal-400' : 'text-gray-400'}`}>
                       {testResult}
@@ -202,18 +198,20 @@ export default function MyAccount({ onChangePassword }) {
             )}
           </div>
         )}
-      </div>
+        </CardBody>
+      </Card>
 
       {/* Permissions Summary */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-card p-6">
-        <h3 className="text-base font-bold text-gray-100 mb-1 flex items-center gap-2">
-          <CogIcon className="w-5 h-5 text-gray-400" />
-          Permissions
-        </h3>
-        <p className="text-sm text-gray-400 mb-4">What you can access and manage in the system.</p>
+      <Card variant="bordered">
+        <CardBody>
+          <h3 className="text-base font-bold text-gray-100 mb-1 flex items-center gap-2">
+            <CogIcon className="w-5 h-5 text-gray-400" />
+            Permissions
+          </h3>
+          <p className="text-sm text-gray-400 mb-4">What you can access and manage in the system.</p>
 
         {isSuperAdmin ? (
-          <div className="rounded-lg bg-signal-900/20 border border-signal-800/40 px-4 py-3 text-sm text-signal-300">
+          <div className="lh-alert lh-alert-error">
             <span className="font-semibold">Full Access</span> — As a Super Admin you have unrestricted access to all organizations, teams, and settings.
           </div>
         ) : (
@@ -225,15 +223,17 @@ export default function MyAccount({ onChangePassword }) {
             />
           </div>
         )}
-      </div>
+        </CardBody>
+      </Card>
 
       {/* Organizations */}
       {!isSuperAdmin && organizations.length > 0 && (
-        <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-card p-6">
-          <h3 className="text-base font-bold text-gray-100 mb-4 flex items-center gap-2">
-            <BuildingIcon className="w-5 h-5 text-gray-400" />
-            My Organizations
-          </h3>
+        <Card variant="bordered">
+          <CardBody>
+            <h3 className="text-base font-bold text-gray-100 mb-4 flex items-center gap-2">
+              <BuildingIcon className="w-5 h-5 text-gray-400" />
+              My Organizations
+            </h3>
           <div className="grid gap-2">
             {organizations.map(org => (
               <div key={org.id} className="flex items-center gap-3 px-4 py-3 bg-gray-900/50 rounded-lg border border-gray-700/50">
@@ -242,16 +242,18 @@ export default function MyAccount({ onChangePassword }) {
               </div>
             ))}
           </div>
-        </div>
+          </CardBody>
+        </Card>
       )}
 
       {/* Teams */}
       {!isSuperAdmin && teams.length > 0 && (
-        <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-card p-6">
-          <h3 className="text-base font-bold text-gray-100 mb-4 flex items-center gap-2">
-            <UsersIcon className="w-5 h-5 text-gray-400" />
-            My Teams
-          </h3>
+        <Card variant="bordered">
+          <CardBody>
+            <h3 className="text-base font-bold text-gray-100 mb-4 flex items-center gap-2">
+              <UsersIcon className="w-5 h-5 text-gray-400" />
+              My Teams
+            </h3>
           <div className="grid gap-2">
             {teams.map(team => (
               <div key={team.id} className="flex items-center justify-between px-4 py-3 bg-gray-900/50 rounded-lg border border-gray-700/50">
@@ -264,7 +266,8 @@ export default function MyAccount({ onChangePassword }) {
               </div>
             ))}
           </div>
-        </div>
+          </CardBody>
+        </Card>
       )}
 
       {isSuperAdmin && (
@@ -290,9 +293,7 @@ function InfoRow({ icon, label, value }) {
 function PermissionLine({ label, description, color }) {
   return (
     <div className="flex items-start gap-3 px-4 py-3 bg-gray-900/50 rounded-lg border border-gray-700/50">
-      <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold border shrink-0 mt-0.5 ${color}`}>
-        {label}
-      </span>
+      <Badge variant={color} className="shrink-0 mt-0.5">{label}</Badge>
       <span className="text-sm text-gray-400">{description}</span>
     </div>
   );
@@ -321,7 +322,7 @@ function PrefToggle({ label, description, checked, disabled, onChange }) {
           onChange={onChange}
           className="sr-only peer"
         />
-        <div className="w-10 h-5 bg-gray-600 rounded-full peer peer-checked:bg-field-600 peer-disabled:opacity-50 transition-colors" />
+        <div className="w-10 h-5 bg-gray-600 rounded-full peer peer-checked:bg-action-600 peer-disabled:opacity-50 transition-colors" />
         <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-5 transition-transform" />
       </div>
     </label>

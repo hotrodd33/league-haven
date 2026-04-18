@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { clearData, exportDataUrl, importData, fetchSeasons } from '../api/index.js';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
+import { Button, Input, Select, Card } from './ui';
 
 const ENTITIES = [
   { key: 'organizations', label: 'Organizations', icon: '🏢', cols: 'name, contact_name, contact_email, contact_phone, address, city, state, zip, notes' },
@@ -92,11 +90,11 @@ export default function DataManager({ onOpenImport }) {
   const rowCount = csv.trim() ? csv.trim().split(/\r?\n/).length - 1 : 0;
   const needsSeason = ['teams', 'divisions'].includes(selectedEntity);
 
-  const tabCls = (t) => `px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${tab === t ? 'bg-gray-800 text-gray-100 border border-b-0 border-gray-700' : 'bg-gray-800 text-gray-400 hover:text-gray-300'}`;
+  const tabCls = (t) => `lh-tab ${tab === t ? 'lh-tab-active' : 'lh-tab-inactive'}`;
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-heading font-bold text-white mb-1">Data Manager</h1>
+      <h1 className="text-2xl font-display font-bold text-white mb-1">Data Manager</h1>
       <p className="text-sm text-gray-400 mb-4">Import, export, and manage all league data via CSV.</p>
 
       {/* Tabs */}
@@ -113,28 +111,30 @@ export default function DataManager({ onOpenImport }) {
           <div className="space-y-4">
             {/* GameChanger wizard shortcut */}
             {onOpenImport && (
-              <div className="flex items-center justify-between bg-dirt-900/20 border border-dirt-700 rounded-xl px-4 py-3">
+              <div className="flex items-center justify-between bg-accent-900/20 border border-accent-700 rounded-xl px-4 py-3">
                 <div>
                   <p className="text-sm font-semibold text-gray-100">Import from GameChanger</p>
                   <p className="text-xs text-gray-400 mt-0.5">Box scores, rosters, and schedules with guided team &amp; player mapping.</p>
                 </div>
-                <button
+                <Button
+                  variant="warn"
+                  size="sm"
                   onClick={onOpenImport}
-                  className="ml-4 shrink-0 px-4 py-2 bg-dirt-700 hover:bg-dirt-600 text-white text-sm font-semibold rounded-lg transition-colors"
+                  className="ml-4 shrink-0"
                 >
                   Open Wizard
-                </button>
+                </Button>
               </div>
             )}
 
             {/* Entity selector */}
             <div>
-              <label className={labelCls}>What to import</label>
+              <label className="eyebrow block mb-1">What to import</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {ENTITIES.map(ent => (
                   <button key={ent.key}
                     onClick={() => { setSelectedEntity(ent.key); setResult(null); setError(null); }}
-                    className={`text-left px-3 py-2 rounded-lg border text-sm transition-colors ${selectedEntity === ent.key ? 'border-blue-600 bg-chrome-900/30 text-chrome-300 font-semibold' : 'border-gray-700 hover:border-gray-600 text-gray-300'}`}
+                    className={`text-left px-3 py-2 rounded-lg border text-sm transition-colors ${selectedEntity === ent.key ? 'border-chrome-600 bg-chrome-900/30 text-chrome-300 font-semibold' : 'border-gray-700 hover:border-gray-600 text-gray-300'}`}
                   >
                     <span className="mr-1">{ent.icon}</span> {ent.label}
                   </button>
@@ -146,48 +146,50 @@ export default function DataManager({ onOpenImport }) {
               <>
                 {/* File upload / paste */}
                 <div>
-                  <label className={labelCls}>CSV File or Paste</label>
+                  <label className="eyebrow block mb-1">CSV File or Paste</label>
                   <div className="flex gap-2 mb-2">
-                    <label className="btn btn-xs btn-primary cursor-pointer inline-block">
-                      Choose File
-                      <input type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" key={selectedEntity} />
-                    </label>
-                    <a href={exportDataUrl(selectedEntity)} download={`${selectedEntity}.csv`}
-                      className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600 inline-block"
-                    >Export Current {entity?.label}</a>
+                    <Button size="xs" className="cursor-pointer">
+                      <label className="cursor-pointer">
+                        Choose File
+                        <input type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" key={selectedEntity} />
+                      </label>
+                    </Button>
+                    <Button variant="secondary" size="xs" as="a" href={exportDataUrl(selectedEntity)} download={`${selectedEntity}.csv`}>
+                      Export Current {entity?.label}
+                    </Button>
                   </div>
                   {fileName && <p className="text-xs text-gray-400 mb-1">Loaded: {fileName}</p>}
                   <textarea value={csv} onChange={(e) => setCsv(e.target.value)} rows={8}
                     placeholder={`Paste ${entity?.label} CSV here...\n\nExpected columns:\n${entity?.cols}`}
-                    className={inputCls + ' font-mono text-xs'}
+                    className="lh-input font-mono text-xs"
                   />
                   {rowCount > 0 && <p className="text-xs text-gray-400 mt-1">{rowCount} data row{rowCount !== 1 ? 's' : ''} detected</p>}
                 </div>
 
                 {/* Season for division/team matching */}
                 {needsSeason && seasons.length > 0 && (
-                  <div>
-                    <label className={labelCls}>Season (for division matching)</label>
-                    <select value={seasonId || ''} onChange={(e) => setSeasonId(e.target.value ? Number(e.target.value) : null)} className={inputCls}>
-                      <option value="">— No division matching —</option>
-                      {seasons.map(s => <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>)}
-                    </select>
-                  </div>
+                  <Select
+                    label="Season (for division matching)"
+                    value={seasonId || ''}
+                    onChange={(e) => setSeasonId(e.target.value ? Number(e.target.value) : null)}
+                  >
+                    <option value="">— No division matching —</option>
+                    {seasons.map(s => <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>)}
+                  </Select>
                 )}
 
                 {/* Mode */}
-                <div>
-                  <label className={labelCls}>Mode</label>
-                  <select value={mode} onChange={(e) => setMode(e.target.value)} className={inputCls}>
-                    <option value="create_update">Create new & update existing</option>
-                    <option value="create_only">Create new only (skip existing)</option>
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {mode === 'create_update'
-                      ? 'Matched records will be updated with non-empty CSV values. New records will be created.'
-                      : 'Only new records will be created. Existing matches are skipped.'}
-                  </p>
-                </div>
+                <Select
+                  label="Mode"
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value)}
+                  helper={mode === 'create_update'
+                    ? 'Matched records will be updated with non-empty CSV values. New records will be created.'
+                    : 'Only new records will be created. Existing matches are skipped.'}
+                >
+                  <option value="create_update">Create new & update existing</option>
+                  <option value="create_only">Create new only (skip existing)</option>
+                </Select>
 
                 {/* Column reference */}
                 <details className="text-xs text-gray-400">
@@ -198,9 +200,9 @@ export default function DataManager({ onOpenImport }) {
                 {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
                 <div className="flex justify-end">
-                  <button onClick={handleImport} disabled={importing || !csv.trim()}
-                    className="px-5 py-2 bg-green-700 text-white text-sm font-semibold rounded-lg hover:bg-action-800 disabled:opacity-60"
-                  >{importing ? 'Importing…' : `Import ${entity?.label}`}</button>
+                  <Button onClick={handleImport} disabled={importing || !csv.trim()} loading={importing}>
+                    {importing ? 'Importing…' : `Import ${entity?.label}`}
+                  </Button>
                 </div>
               </>
             ) : (
@@ -229,8 +231,7 @@ export default function DataManager({ onOpenImport }) {
                   </div>
                 )}
                 <div className="flex justify-end gap-3">
-                  <button onClick={() => { setResult(null); setCsv(''); setFileName(''); }}
-                    className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Import More</button>
+                  <Button variant="secondary" size="sm" onClick={() => { setResult(null); setCsv(''); setFileName(''); }}>Import More</Button>
                 </div>
               </div>
             )}
@@ -281,16 +282,15 @@ export default function DataManager({ onOpenImport }) {
                     </div>
                     {clearConfirm === idx ? (
                       <div className="flex gap-2">
-                        <button onClick={() => setClearConfirm(null)}
-                          className="btn btn-xs btn-secondary">Cancel</button>
-                        <button onClick={() => handleClear(group)} disabled={clearing}
-                          className="btn btn-xs btn-danger"
-                        >{clearing ? 'Clearing…' : 'Yes, Delete'}</button>
+                        <Button size="xs" variant="secondary" onClick={() => setClearConfirm(null)}>Cancel</Button>
+                        <Button size="xs" variant="danger" onClick={() => handleClear(group)} disabled={clearing} loading={clearing}>
+                          {clearing ? 'Clearing…' : 'Yes, Delete'}
+                        </Button>
                       </div>
                     ) : (
-                      <button onClick={() => { setClearConfirm(idx); setClearResult(null); }}
-                        className="btn btn-xs btn-danger"
-                      >Clear</button>
+                      <Button size="xs" variant="danger" onClick={() => { setClearConfirm(idx); setClearResult(null); }}>
+                        Clear
+                      </Button>
                     )}
                   </div>
                 </div>

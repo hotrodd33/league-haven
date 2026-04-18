@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { fetchAllPlayers, fetchOrganizations, fetchTeams, fetchAllPitchRest } from '../api/index.js';
 import { MagnifyingGlassIcon, UserIcon } from './ui/icons.jsx';
 import { calculateAge } from '../utils/dob.js';
+import { Input, Select, Badge, Card, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell, TableEmpty } from './ui';
 
 export default function PlayersPage({ onSelectPlayer }) {
   const [players, setPlayers] = useState([]);
@@ -80,11 +81,11 @@ export default function PlayersPage({ onSelectPlayer }) {
     const rest = pitchRest[playerId];
     if (!rest) return null;
     if (rest.eligible_today) {
-      return <span className="lh-badge lh-badge-success">Avail: Today</span>;
+      return <Badge variant="success">Avail: Today</Badge>;
     }
     const avail = rest.available_date;
     const label = avail ? `Avail: ${new Date(avail + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Resting';
-    return <span className="lh-badge lh-badge-danger">{label}</span>;
+    return <Badge variant="danger">{label}</Badge>;
   }
 
   if (loading) {
@@ -99,120 +100,111 @@ export default function PlayersPage({ onSelectPlayer }) {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search players..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-action-500 focus:border-transparent"
-          />
-        </div>
-        <select
+        <Input
+          wrapperClassName="flex-1"
+          type="text"
+          placeholder="Search players..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          icon={<MagnifyingGlassIcon className="w-4 h-4" />}
+        />
+        <Select
           value={filterOrg}
           onChange={e => { setFilterOrg(e.target.value); setFilterTeam(''); }}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-action-500"
         >
           <option value="">All Organizations</option>
           {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-        </select>
-        <select
+        </Select>
+        <Select
           value={filterTeam}
           onChange={e => setFilterTeam(e.target.value)}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-action-500"
         >
           <option value="">All Teams</option>
           {filteredTeamOptions.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
+        </Select>
       </div>
 
       <p className="text-sm text-gray-400">{sorted.length} player{sorted.length !== 1 ? 's' : ''}</p>
 
       {/* Desktop Table */}
-      <div className="hidden md:block bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-800 text-gray-400 text-left text-xs uppercase tracking-wider">
-              <SortTh col="name" label="Name" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
-              <th className="px-4 py-3">Pitching</th>
-              <SortTh col="age" label="Age" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
-              <SortTh col="grade" label="Grade" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
-              <SortTh col="bt" label="B/T" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
-              <SortTh col="team" label="Team(s)" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
-              <SortTh col="org" label="Organization" sortCol={sortCol} sortDir={sortDir} onClick={toggleSort} />
+      <div className="hidden md:block">
+        <Table>
+          <TableHead>
+            <tr>
+              <TableHeaderCell sortable sorted={sortCol === 'name'} sortDir={sortDir} onClick={() => toggleSort('name')}>Name</TableHeaderCell>
+              <TableHeaderCell>Pitching</TableHeaderCell>
+              <TableHeaderCell sortable sorted={sortCol === 'age'} sortDir={sortDir} onClick={() => toggleSort('age')}>Age</TableHeaderCell>
+              <TableHeaderCell sortable sorted={sortCol === 'grade'} sortDir={sortDir} onClick={() => toggleSort('grade')}>Grade</TableHeaderCell>
+              <TableHeaderCell sortable sorted={sortCol === 'bt'} sortDir={sortDir} onClick={() => toggleSort('bt')}>B/T</TableHeaderCell>
+              <TableHeaderCell sortable sorted={sortCol === 'team'} sortDir={sortDir} onClick={() => toggleSort('team')}>Team(s)</TableHeaderCell>
+              <TableHeaderCell sortable sorted={sortCol === 'org'} sortDir={sortDir} onClick={() => toggleSort('org')}>Organization</TableHeaderCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700/50">
+          </TableHead>
+          <TableBody>
             {sorted.map(p => (
-              <tr
+              <TableRow
                 key={p.id}
-                className="hover:bg-gray-700/30 cursor-pointer transition-colors"
+                className="cursor-pointer"
                 onClick={() => onSelectPlayer(p.id)}
               >
-                <td className="px-4 py-3 font-medium text-white">
+                <TableCell className="font-medium text-white">
                   {p.first_name} {p.last_name}
-                </td>
-                <td className="px-4 py-3"><PitchRestBadge playerId={p.id} /></td>
-                <td className="px-4 py-3 text-gray-300">{calculateAge(p.date_of_birth) ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-300">{p.grade || '—'}</td>
-                <td className="px-4 py-3 text-gray-300">{p.batting_hand || '—'}/{p.throwing_hand || '—'}</td>
-                <td className="px-4 py-3 text-gray-300">
+                </TableCell>
+                <TableCell><PitchRestBadge playerId={p.id} /></TableCell>
+                <TableCell>{calculateAge(p.date_of_birth) ?? '—'}</TableCell>
+                <TableCell>{p.grade || '—'}</TableCell>
+                <TableCell>{p.batting_hand || '—'}/{p.throwing_hand || '—'}</TableCell>
+                <TableCell>
                   {p.teams?.length ? p.teams.map(t => t.team_name).join(', ') : '—'}
-                </td>
-                <td className="px-4 py-3 text-gray-300">
+                </TableCell>
+                <TableCell>
                   {p.teams?.length ? [...new Set(p.teams.map(t => t.org_name).filter(Boolean))].join(', ') : '—'}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {!sorted.length && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No players found</td></tr>
+              <TableEmpty colSpan={7} message="No players found" />
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Mobile Cards */}
       <div className="md:hidden space-y-2">
         {sorted.map(p => (
-          <div
+          <Card
             key={p.id}
-            className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 cursor-pointer hover:bg-gray-700/40 transition-colors"
+            variant="bordered"
+            hoverable
+            className="cursor-pointer"
             onClick={() => onSelectPlayer(p.id)}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-chrome-500/20 flex items-center justify-center shrink-0">
-                <UserIcon className="w-5 h-5 text-chrome-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold text-white truncate">{p.first_name} {p.last_name}</p>
-                  <PitchRestBadge playerId={p.id} />
+            <div className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-chrome-500/20 flex items-center justify-center shrink-0">
+                  <UserIcon className="w-5 h-5 text-chrome-400" />
                 </div>
-                <p className="text-xs text-gray-400 truncate">
-                  {p.teams?.length ? p.teams.map(t => t.team_name).join(', ') : 'Unassigned'}
-                </p>
-              </div>
-              <div className="text-right text-xs text-gray-400">
-                {calculateAge(p.date_of_birth) != null ? `${calculateAge(p.date_of_birth)}y` : ''}{' '}
-                {p.grade ? `Gr ${p.grade}` : ''}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-white truncate">{p.first_name} {p.last_name}</p>
+                    <PitchRestBadge playerId={p.id} />
+                  </div>
+                  <p className="text-xs text-gray-400 truncate">
+                    {p.teams?.length ? p.teams.map(t => t.team_name).join(', ') : 'Unassigned'}
+                  </p>
+                </div>
+                <div className="text-right text-xs text-gray-400">
+                  {calculateAge(p.date_of_birth) != null ? `${calculateAge(p.date_of_birth)}y` : ''}{' '}
+                  {p.grade ? `Gr ${p.grade}` : ''}
+                </div>
               </div>
             </div>
-          </div>
+          </Card>
         ))}
         {!sorted.length && (
           <p className="text-center text-gray-500 py-8">No players found</p>
         )}
       </div>
     </div>
-  );
-}
-
-function SortTh({ col, label, sortCol, sortDir, onClick }) {
-  const arrow = sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
-  return (
-    <th className="px-4 py-3 cursor-pointer select-none hover:text-gray-200 transition-colors" onClick={() => onClick(col)}>
-      {label}{arrow}
-    </th>
   );
 }

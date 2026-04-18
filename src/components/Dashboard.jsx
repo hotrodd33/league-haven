@@ -75,7 +75,7 @@ function getWeatherForGame(game, weatherMap) {
 const PRIORITY_STYLES = {
   urgent: 'border-signal-500/50 bg-red-950/30',
   high: 'border-yellow-500/40 bg-yellow-950/20',
-  normal: 'border-chrome-500/30 bg-blue-950/15',
+  normal: 'border-chrome-500/30 bg-chrome-950/15',
   low: 'border-gray-600/30 bg-gray-900/20',
 };
 
@@ -241,16 +241,16 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* ── Hero Welcome ── */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-800 via-blue-700 to-field-700 text-white p-6 sm:p-8 shadow-elevated border border-blue-600/30">
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-chrome-800 via-chrome-700 to-action-700 text-white p-6 sm:p-8 shadow-elevated border border-chrome-600/30">
         {/* Decorative diamond pattern */}
         <div className="absolute inset-0 bg-diamond-pattern opacity-20 pointer-events-none" aria-hidden="true" />
-        <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-field-600/20 rounded-full blur-3xl" aria-hidden="true" />
-        <div className="absolute -left-8 -top-8 w-32 h-32 bg-dirt-600/15 rounded-full blur-2xl" aria-hidden="true" />
+        <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-action-600/20 rounded-full blur-3xl" aria-hidden="true" />
+        <div className="absolute -left-8 -top-8 w-32 h-32 bg-accent-600/15 rounded-full blur-2xl" aria-hidden="true" />
 
         <div className="relative">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="font-heading text-2xl sm:text-3xl font-bold tracking-wide">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-wide">
                 {greeting()}, {firstName}
               </h2>
               <p className="mt-1 text-white/70 text-sm">
@@ -279,7 +279,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                 size="sm"
                 icon={<DatabaseIcon className="w-4 h-4" />}
                 onClick={() => onNavigate?.('data')}
-                className="bg-field-600/80 hover:bg-field-600 backdrop-blur-sm border border-white/10"
+                className="bg-action-600/80 hover:bg-action-600 backdrop-blur-sm border border-white/10"
               >
                 Data Manager
               </Button>
@@ -365,16 +365,16 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
       {todaysGames.length > 0 && (
         <section aria-label="Today's games">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-heading text-lg font-bold text-gray-100 flex items-center gap-2">
-              <ClockIcon className="w-5 h-5 text-baseball-500" />
+            <h3 className="font-display text-lg font-bold text-gray-100 flex items-center gap-2">
+              <ClockIcon className="w-5 h-5 text-signal-500" />
               Today's Games
-              <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-baseball-600/30 text-baseball-300">
+              <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-signal-600/30 text-signal-300">
                 {todaysGames.length}
               </span>
             </h3>
             <button
               onClick={() => onNavigate?.('schedule')}
-              className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
+              className="text-xs font-semibold text-action-300 hover:text-action-200 transition-colors flex items-center gap-1"
             >
               Full Schedule <span aria-hidden="true">→</span>
             </button>
@@ -428,7 +428,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
           <section aria-label="Weather alerts">
             <Card variant="bordered" className="border-orange-500/30 bg-orange-950/10">
               <CardHeader>
-                <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
+                <h3 className="font-display text-base font-bold text-gray-100 flex items-center gap-2">
                   ⚠️ Weather Alerts
                   <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-orange-500/20 text-orange-300">
                     {weatherAlerts.length}
@@ -485,7 +485,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
           <Card variant="bordered" className="border-signal-500/30 bg-red-950/10">
             <CardHeader>
               <div className="flex items-center justify-between w-full">
-                <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
+                <h3 className="font-display text-base font-bold text-gray-100 flex items-center gap-2">
                   <BellIcon className="w-5 h-5 text-signal-400" />
                   Pitch Rest Alerts
                   <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-signal-500/20 text-signal-300">
@@ -494,7 +494,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                 </h3>
                 <button
                   onClick={() => onNavigate?.('players')}
-                  className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
+                  className="text-xs font-semibold text-action-300 hover:text-action-200 transition-colors flex items-center gap-1"
                 >
                   All Players <span aria-hidden="true">→</span>
                 </button>
@@ -529,19 +529,19 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
       {/* ── Unscored Games ── */}
       {unscoredGames.length > 0 && (
         <section aria-label="Unscored games">
-          <Card variant="bordered" className="border-dirt-500/30 bg-dirt-950/10">
+          <Card variant="bordered" className="border-accent-500/30 bg-accent-950/10">
             <CardHeader>
               <div className="flex items-center justify-between w-full">
-                <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
-                  <ClipboardIcon className="w-5 h-5 text-dirt-400" />
+                <h3 className="font-display text-base font-bold text-gray-100 flex items-center gap-2">
+                  <ClipboardIcon className="w-5 h-5 text-accent-400" />
                   Scores Needed
-                  <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-dirt-500/20 text-dirt-300">
+                  <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-accent-500/20 text-accent-300">
                     {unscoredGames.length}
                   </span>
                 </h3>
                 <button
                   onClick={() => onNavigate?.('schedule')}
-                  className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
+                  className="text-xs font-semibold text-action-300 hover:text-action-200 transition-colors flex items-center gap-1"
                 >
                   Schedule <span aria-hidden="true">→</span>
                 </button>
@@ -582,13 +582,13 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
         {/* Upcoming Games — 2/3 width */}
         <section className="lg:col-span-2 space-y-4" aria-label="Upcoming games">
           <div className="flex items-center justify-between">
-            <h3 className="font-heading text-lg font-bold text-gray-100 flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-field-600" />
+            <h3 className="font-display text-lg font-bold text-gray-100 flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5 text-action-600" />
               Upcoming Games
             </h3>
             <button
               onClick={() => onNavigate?.('schedule')}
-              className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
+              className="text-xs font-semibold text-action-300 hover:text-action-200 transition-colors flex items-center gap-1"
             >
               View All <span aria-hidden="true">→</span>
             </button>
@@ -649,8 +649,8 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
           {/* Quick Actions */}
           <Card variant="field">
             <CardHeader>
-              <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
-                <SparklesIcon className="w-4 h-4 text-field-600" />
+              <h3 className="font-display text-base font-bold text-gray-100 flex items-center gap-2">
+                <SparklesIcon className="w-4 h-4 text-action-600" />
                 Quick Actions
               </h3>
             </CardHeader>
@@ -701,7 +701,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
             <Card variant="bordered">
               <CardBody className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <ChartBarIcon className="w-4 h-4 text-field-600 shrink-0" />
+                  <ChartBarIcon className="w-4 h-4 text-action-600 shrink-0" />
                   <h4 className="text-sm font-bold text-gray-100">Season Overview</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -720,7 +720,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                     </div>
                     <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-field-500 to-field-600 rounded-full transition-all duration-500"
+                        className="h-full bg-gradient-to-r from-action-500 to-action-600 rounded-full transition-all duration-500"
                         style={{ width: `${scopedGames.length > 0 ? (completedGames.length / scopedGames.length) * 100 : 0}%` }}
                       />
                     </div>
@@ -737,19 +737,19 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Roster Alerts */}
           {rosterAlerts.length > 0 && (
-            <Card variant="bordered" className="border-baseball-500/30 bg-baseball-950/10">
+            <Card variant="bordered" className="border-signal-500/30 bg-signal-950/10">
               <CardHeader>
                 <div className="flex items-center justify-between w-full">
-                  <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
-                    <UsersIcon className="w-5 h-5 text-baseball-400" />
+                  <h3 className="font-display text-base font-bold text-gray-100 flex items-center gap-2">
+                    <UsersIcon className="w-5 h-5 text-signal-400" />
                     Roster Alerts
-                    <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-baseball-500/20 text-baseball-300">
+                    <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full bg-signal-500/20 text-signal-300">
                       {rosterAlerts.length}
                     </span>
                   </h3>
                   <button
                     onClick={() => onNavigate?.('players')}
-                    className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
+                    className="text-xs font-semibold text-action-300 hover:text-action-200 transition-colors flex items-center gap-1"
                   >
                     All Players <span aria-hidden="true">→</span>
                   </button>
@@ -793,8 +793,8 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
           {activity.length > 0 && (
             <Card variant="bordered">
               <CardHeader>
-                <h3 className="font-heading text-base font-bold text-gray-100 flex items-center gap-2">
-                  <ClockIcon className="w-4 h-4 text-field-600" />
+                <h3 className="font-display text-base font-bold text-gray-100 flex items-center gap-2">
+                  <ClockIcon className="w-4 h-4 text-action-600" />
                   Recent Activity
                 </h3>
               </CardHeader>
@@ -818,13 +818,13 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
       {recentResults.length > 0 && (
         <section aria-label="Recent results">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-heading text-lg font-bold text-gray-100 flex items-center gap-2">
-              <TrophyIcon className="w-5 h-5 text-dirt-600" />
+            <h3 className="font-display text-lg font-bold text-gray-100 flex items-center gap-2">
+              <TrophyIcon className="w-5 h-5 text-accent-600" />
               Recent Results
             </h3>
             <button
               onClick={() => onNavigate?.('standings')}
-              className="text-xs font-semibold text-field-300 hover:text-field-200 transition-colors flex items-center gap-1"
+              className="text-xs font-semibold text-action-300 hover:text-action-200 transition-colors flex items-center gap-1"
             >
               Standings <span aria-hidden="true">→</span>
             </button>
@@ -867,11 +867,11 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
       <section aria-label="Data management">
         <Card variant="dirt" className="overflow-hidden">
           <div className="flex flex-col sm:flex-row items-center gap-6 p-6 sm:p-8">
-            <div className="shrink-0 w-16 h-16 rounded-2xl bg-dirt-900/30 flex items-center justify-center">
-              <DatabaseIcon className="w-8 h-8 text-dirt-300" />
+            <div className="shrink-0 w-16 h-16 rounded-2xl bg-accent-900/30 flex items-center justify-center">
+              <DatabaseIcon className="w-8 h-8 text-accent-300" />
             </div>
             <div className="flex-1 text-center sm:text-left">
-              <h3 className="font-heading text-lg font-bold text-gray-100">
+              <h3 className="font-display text-lg font-bold text-gray-100">
                 Data Manager
               </h3>
               <p className="mt-1 text-sm text-gray-400">
@@ -908,10 +908,10 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
 
 function QuickAction({ icon, label, onClick, color = 'field' }) {
   const colors = {
-    field:    'bg-field-900/35 text-field-300 hover:bg-field-900/50',
+    field:    'bg-action-900/35 text-action-300 hover:bg-action-900/50',
     blue:     'bg-chrome-900/35 text-chrome-300 hover:bg-chrome-900/55',
-    dirt:     'bg-dirt-900/35 text-dirt-300 hover:bg-dirt-900/50',
-    baseball: 'bg-baseball-900/35 text-baseball-300 hover:bg-baseball-900/50',
+    dirt:     'bg-accent-900/35 text-accent-300 hover:bg-accent-900/50',
+    baseball: 'bg-signal-900/35 text-signal-300 hover:bg-signal-900/50',
   };
 
   return (
@@ -932,7 +932,7 @@ function QuickAction({ icon, label, onClick, color = 'field' }) {
 function MiniStat({ label, value }) {
   return (
     <div className="text-center p-2 bg-gray-900 rounded-lg">
-      <p className="text-xl font-heading font-bold text-gray-100 tabular-nums">{value}</p>
+      <p className="text-xl font-display font-bold text-gray-100 tabular-nums">{value}</p>
       <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mt-0.5">{label}</p>
     </div>
   );

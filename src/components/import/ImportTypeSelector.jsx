@@ -48,17 +48,17 @@ const IMPORT_TYPES = [
 ];
 
 const colorMap = {
-  field:    { bg: 'bg-field-900/35', icon: 'text-field-300', border: 'border-field-700', ring: 'ring-field-500', hoverBg: 'hover:bg-field-900/55' },
-  blue:     { bg: 'bg-chrome-900/35', icon: 'text-chrome-300', border: 'border-chrome-700', ring: 'ring-blue-500', hoverBg: 'hover:bg-chrome-900/55' },
-  dirt:     { bg: 'bg-dirt-900/35', icon: 'text-dirt-300', border: 'border-dirt-700', ring: 'ring-dirt-500', hoverBg: 'hover:bg-dirt-900/55' },
-  baseball: { bg: 'bg-baseball-900/35', icon: 'text-baseball-300', border: 'border-baseball-700', ring: 'ring-baseball-500', hoverBg: 'hover:bg-baseball-900/55' },
+  field:    { bg: 'bg-action-900/35', icon: 'text-action-300', border: 'border-action-700', ring: 'ring-action-500', hoverBg: 'hover:bg-action-900/55' },
+  blue:     { bg: 'bg-chrome-900/35', icon: 'text-chrome-300', border: 'border-chrome-700', ring: 'ring-chrome-500', hoverBg: 'hover:bg-chrome-900/55' },
+  dirt:     { bg: 'bg-accent-900/35', icon: 'text-accent-300', border: 'border-accent-700', ring: 'ring-accent-500', hoverBg: 'hover:bg-accent-900/55' },
+  baseball: { bg: 'bg-signal-900/35', icon: 'text-signal-300', border: 'border-signal-700', ring: 'ring-signal-500', hoverBg: 'hover:bg-signal-900/55' },
 };
 
 export default function ImportTypeSelector({ selected, onSelect }) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="font-heading text-lg font-bold text-gray-100">
+        <h3 className="font-display text-lg font-bold text-gray-100">
           What would you like to import?
         </h3>
         <p className="mt-1 text-sm text-gray-400">
@@ -114,7 +114,7 @@ export default function ImportTypeSelector({ selected, onSelect }) {
                   <p className="text-[10px] font-semibold uppercase text-gray-400 tracking-wide mb-1">
                     How to export
                   </p>
-                  <p className="text-xs text-field-300 font-medium flex items-center gap-1">
+                  <p className="text-xs text-action-300 font-medium flex items-center gap-1">
                     <SparklesIcon className="w-3 h-3 shrink-0" />
                     {type.howTo}
                   </p>

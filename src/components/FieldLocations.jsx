@@ -6,6 +6,7 @@ import {
   fetchLocations, createLocation, updateLocation, deleteLocation,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { Button, Input, Card, CardBody, Modal, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } from './ui';
 
 // Fix default marker icons for bundled builds
 delete L.Icon.Default.prototype._getIconUrl;
@@ -15,11 +16,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
-const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
-const btnSecondary = "btn btn-secondary btn-xs";
-const btnDanger = "btn btn-danger btn-sm";
 const DEFAULT_MAP_CENTER = [44.4497, -92.2663]; // Lake City, MN
 
 function directionsUrl(loc) {
@@ -100,8 +96,8 @@ export default function FieldLocations({ orgId, orgName }) {
   return (
     <div className="mt-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-        <h3 className="text-base font-heading font-bold text-white">Field Locations{orgName ? ` — ${orgName}` : ''}</h3>
-        {editable && <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Field</button>}
+        <h3 className="text-base font-display font-bold text-white">Field Locations{orgName ? ` — ${orgName}` : ''}</h3>
+        {editable && <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Add Field</Button>}
       </div>
 
       {/* Map */}
@@ -168,7 +164,7 @@ export default function FieldLocations({ orgId, orgName }) {
                       onClick={() => handleRowClick(loc)}
                       className={`
                         ${hasPin ? 'cursor-pointer hover:bg-chrome-900/30' : ''}
-                        ${isHighlighted ? 'bg-chrome-900/30 shadow-[inset_3px_0_0] shadow-blue-500' : ''}
+                        ${isHighlighted ? 'bg-chrome-900/30 shadow-[inset_3px_0_0] shadow-chrome-500' : ''}
                         transition-colors
                       `}
                     >
@@ -186,10 +182,10 @@ export default function FieldLocations({ orgId, orgName }) {
                           )}
                           {editable && (
                             <>
-                              <button onClick={(e) => { e.stopPropagation(); setEditing(loc); setShowForm(true); }} className={btnSecondary}>Edit</button>
-                              <button onClick={(e) => { e.stopPropagation(); handleDelete(loc); }} disabled={deleting === loc.id} className={btnDanger}>
+                              <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); setEditing(loc); setShowForm(true); }}>Edit</Button>
+                              <Button size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); handleDelete(loc); }} disabled={deleting === loc.id}>
                                 {deleting === loc.id ? '…' : 'Del'}
-                              </button>
+                              </Button>
                             </>
                           )}
                         </div>
@@ -237,10 +233,10 @@ export default function FieldLocations({ orgId, orgName }) {
                     )}
                     {editable && (
                       <>
-                        <button onClick={() => { setEditing(loc); setShowForm(true); }} className={btnSecondary}>Edit</button>
-                        <button onClick={() => handleDelete(loc)} disabled={deleting === loc.id} className={btnDanger}>
+                        <Button size="xs" variant="secondary" onClick={() => { setEditing(loc); setShowForm(true); }}>Edit</Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(loc)} disabled={deleting === loc.id}>
                           {deleting === loc.id ? '…' : 'Del'}
-                        </button>
+                        </Button>
                       </>
                     )}
                   </div>
@@ -407,32 +403,15 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Field Location' : 'Add Field Location'}</h2>
+    <Modal open onClose={onCancel} size="lg" title={isEditing ? 'Edit Field Location' : 'Add Field Location'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="loc-name" className={labelCls}>Field Name *</label>
-            <input id="loc-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="e.g. Community Park Field 1" className={inputCls} />
-          </div>
+          <Input label="Field Name *" id="loc-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="e.g. Community Park Field 1" />
 
           <div className="grid grid-cols-2 sm:grid-cols-[2fr_1fr_70px_90px] gap-3">
-            <div className="col-span-2 sm:col-span-1">
-              <label htmlFor="loc-address" className={labelCls}>Address</label>
-              <input id="loc-address" name="address" type="text" value={form.address} onChange={handleChange} placeholder="123 Main St" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="loc-city" className={labelCls}>City</label>
-              <input id="loc-city" name="city" type="text" value={form.city} onChange={handleChange} className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="loc-state" className={labelCls}>State</label>
-              <input id="loc-state" name="state" type="text" value={form.state} onChange={handleChange} maxLength={2} placeholder="OH" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="loc-zip" className={labelCls}>ZIP</label>
-              <input id="loc-zip" name="zip" type="text" value={form.zip} onChange={handleChange} maxLength={10} className={inputCls} />
-            </div>
+            <Input wrapperClassName="col-span-2 sm:col-span-1" label="Address" id="loc-address" name="address" type="text" value={form.address} onChange={handleChange} placeholder="123 Main St" />
+            <Input label="City" id="loc-city" name="city" type="text" value={form.city} onChange={handleChange} />
+            <Input label="State" id="loc-state" name="state" type="text" value={form.state} onChange={handleChange} maxLength={2} placeholder="OH" />
+            <Input label="ZIP" id="loc-zip" name="zip" type="text" value={form.zip} onChange={handleChange} maxLength={10} />
           </div>
 
           {reverseGeocoding && <p className="text-xs text-chrome-400">Looking up address from pin…</p>}
@@ -444,29 +423,32 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
                 <p className="text-xs text-gray-400">Click the map or drag the pin — address auto-fills from the pin location.</p>
               </div>
               <div className="flex gap-2">
-                <button
+                <Button
                   type="button"
+                  size="xs"
                   onClick={handleLocateByAddress}
                   disabled={locatingByAddress}
-                  className="btn btn-xs btn-primary disabled:opacity-50"
+                  loading={locatingByAddress}
                 >
                   {locatingByAddress ? 'Finding…' : 'Find on map'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  size="xs"
+                  variant="ghost"
                   onClick={handleUseMyLocation}
                   disabled={locatingByDevice}
-                  className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600 disabled:opacity-60"
                 >
                   {locatingByDevice ? 'Locating…' : 'Use my location'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  size="xs"
+                  variant="secondary"
                   onClick={() => setForm((prev) => ({ ...prev, latitude: '', longitude: '' }))}
-                  className="px-3 py-1.5 bg-gray-800 text-gray-200 text-xs font-semibold rounded border border-gray-600 hover:bg-gray-700"
                 >
                   Clear pin
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -498,33 +480,26 @@ function LocationForm({ orgId, location, onDone, onCancel }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="loc-lat" className={labelCls}>Latitude</label>
-              <input id="loc-lat" name="latitude" type="number" step="any" value={form.latitude} onChange={handleChange} placeholder="41.4822" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="loc-lng" className={labelCls}>Longitude</label>
-              <input id="loc-lng" name="longitude" type="number" step="any" value={form.longitude} onChange={handleChange} placeholder="-81.7987" className={inputCls} />
-            </div>
+            <Input label="Latitude" id="loc-lat" name="latitude" type="number" step="any" value={form.latitude} onChange={handleChange} placeholder="41.4822" />
+            <Input label="Longitude" id="loc-lng" name="longitude" type="number" step="any" value={form.longitude} onChange={handleChange} placeholder="-81.7987" />
           </div>
 
           <div>
-            <label htmlFor="loc-comments" className={labelCls}>Comments</label>
+            <label htmlFor="loc-comments" className="eyebrow block">Comments</label>
             <textarea id="loc-comments" name="comments" value={form.comments} onChange={handleChange} rows={3}
               placeholder="Parking info, field condition notes, etc."
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500" />
+              className="lh-input mt-1" />
           </div>
 
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className={btnPrimary}>
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" disabled={saving} loading={saving}>
               {saving ? 'Saving…' : isEditing ? 'Update' : 'Add Location'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

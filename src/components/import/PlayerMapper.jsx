@@ -39,7 +39,7 @@ export default function PlayerMapper({
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="font-heading text-lg font-bold text-gray-100">
+        <h3 className="font-display text-lg font-bold text-gray-100">
           Map Pitchers
         </h3>
         <p className="mt-1 text-sm text-gray-400">
@@ -85,13 +85,13 @@ export default function PlayerMapper({
                     'rounded-xl border p-4 transition-colors',
                     isNew
                       ? 'border-amber-300 bg-amber-50/50'
-                      : 'border-field-700 bg-field-900/20'
+                      : 'border-action-700 bg-action-900/20'
                   )}
                 >
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm',
-                      isNew ? 'bg-amber-100 text-amber-600' : 'bg-field-900/30 text-field-600'
+                      isNew ? 'bg-amber-100 text-amber-600' : 'bg-action-900/30 text-action-600'
                     )}>
                       {isNew ? '+' : '✓'}
                     </div>
@@ -111,7 +111,7 @@ export default function PlayerMapper({
                       </div>
 
                       {isAutoMatched && (
-                        <p className="text-xs text-field-600 mt-0.5">
+                        <p className="text-xs text-action-600 mt-0.5">
                           Auto-matched to {matchedName || `Player #${pm.suggestedPlayerId}`}
                         </p>
                       )}
@@ -123,8 +123,7 @@ export default function PlayerMapper({
                           onChange({ ...mappings, [pm.gcName]: val });
                         }}
                         className={cn(
-                          'mt-2 w-full rounded-lg border bg-gray-800 px-3 py-2 text-sm text-gray-100',
-                          'focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500',
+                          'lh-select mt-2 w-full',
                           isNew && 'border-amber-300'
                         )}
                       >

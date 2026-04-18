@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { marked } from 'marked';
 import readmeRaw from '../../README.md?raw';
 import guideRaw from '../../USER_GUIDE.md?raw';
+import { Button, Card, CardBody } from './ui';
 
 // Configure marked for safe rendering
 marked.setOptions({ breaks: true, gfm: true });
@@ -54,23 +55,19 @@ export default function HelpPage({ onBack, initialTab = 'about' }) {
       `}</style>
 
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={onBack} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+        <Button variant="secondary" size="sm" onClick={onBack}>
           ← Back
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+      <Card variant="bordered">
         {/* Tab bar */}
         <div className="flex border-b border-gray-700">
           {TABS.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-3 text-sm font-heading font-bold uppercase tracking-wide transition-colors ${
-                activeTab === tab.key
-                  ? 'border-b-2 border-chrome-500 text-chrome-400 bg-gray-800'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-750'
-              }`}
+              className={`lh-tab ${activeTab === tab.key ? 'lh-tab-active' : 'lh-tab-inactive'}`}
             >
               {tab.label}
             </button>
@@ -78,13 +75,13 @@ export default function HelpPage({ onBack, initialTab = 'about' }) {
         </div>
 
         {/* Content */}
-        <div className="p-5 sm:p-8">
-            <div
-              className="md-content"
-              dangerouslySetInnerHTML={{ __html: rendered }}
-            />
-        </div>
-      </div>
+        <CardBody className="p-5 sm:p-8">
+          <div
+            className="md-content"
+            dangerouslySetInnerHTML={{ __html: rendered }}
+          />
+        </CardBody>
+      </Card>
     </div>
   );
 }

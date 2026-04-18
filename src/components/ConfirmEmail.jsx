@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { confirmEmail } from '../api/index.js';
+import { Button, Card, CardBody } from './ui';
 
 export default function ConfirmEmail({ token, onDone }) {
   const [status, setStatus] = useState('confirming'); // 'confirming' | 'success' | 'error'
@@ -18,49 +19,45 @@ export default function ConfirmEmail({ token, onDone }) {
       });
   }, [token]);
 
+  const cardVariant = status === 'success' ? 'action' : status === 'error' ? 'signal' : 'chrome';
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
-      <div className={`bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md text-center border-t-4 ${
-        status === 'success' ? 'border-green-600' : status === 'error' ? 'border-red-600' : 'border-blue-600'
-      }`}>
-        {status === 'confirming' && (
-          <>
-            <div className="text-4xl mb-4">⏳</div>
-            <h2 className="font-heading text-2xl font-bold text-chrome-300 mb-3">Confirming…</h2>
-            <p className="text-gray-400 text-sm">Verifying your email address.</p>
-          </>
-        )}
+      <Card variant={cardVariant} className="w-full max-w-md text-center">
+        <CardBody className="p-8">
+          {status === 'confirming' && (
+            <>
+              <div className="text-4xl mb-4">⏳</div>
+              <h2 className="font-display text-2xl font-bold text-chrome-300 mb-3">Confirming…</h2>
+              <p className="text-gray-400 text-sm">Verifying your email address.</p>
+            </>
+          )}
 
-        {status === 'success' && (
-          <>
-            <div className="text-4xl mb-4">✅</div>
-            <h2 className="font-heading text-2xl font-bold text-action-300 mb-3">Email Confirmed!</h2>
-            <p className="text-gray-300 text-sm mb-6">
-              {name ? `Welcome, ${name}! ` : ''}Your account is now active. You can sign in.
-            </p>
-            <button
-              onClick={onDone}
-              className="btn btn-sm btn-primary w-full"
-            >
-              Go to Sign In
-            </button>
-          </>
-        )}
+          {status === 'success' && (
+            <>
+              <div className="text-4xl mb-4">✅</div>
+              <h2 className="font-display text-2xl font-bold text-action-300 mb-3">Email Confirmed!</h2>
+              <p className="text-gray-300 text-sm mb-6">
+                {name ? `Welcome, ${name}! ` : ''}Your account is now active. You can sign in.
+              </p>
+              <Button size="sm" onClick={onDone} className="w-full">
+                Go to Sign In
+              </Button>
+            </>
+          )}
 
-        {status === 'error' && (
-          <>
-            <div className="text-4xl mb-4">❌</div>
-            <h2 className="font-heading text-2xl font-bold text-signal-300 mb-3">Confirmation Failed</h2>
-            <p className="text-gray-300 text-sm mb-6">{errorMsg}</p>
-            <button
-              onClick={onDone}
-              className="w-full py-2.5 bg-gray-700 text-gray-200 font-semibold rounded-lg hover:bg-gray-600 transition-colors text-sm"
-            >
-              Go to Sign In
-            </button>
+          {status === 'error' && (
+            <>
+              <div className="text-4xl mb-4">❌</div>
+              <h2 className="font-display text-2xl font-bold text-signal-300 mb-3">Confirmation Failed</h2>
+              <p className="text-gray-300 text-sm mb-6">{errorMsg}</p>
+              <Button variant="secondary" size="sm" onClick={onDone} className="w-full">
+                Go to Sign In
+              </Button>
           </>
         )}
-      </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }

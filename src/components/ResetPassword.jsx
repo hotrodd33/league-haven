@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { resetPassword } from '../api/index.js';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
+import { Button, Card, CardBody, Input } from './ui';
 
 export default function ResetPassword({ token, onDone }) {
   const [password, setPassword] = useState('');
@@ -24,51 +22,58 @@ export default function ResetPassword({ token, onDone }) {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
-      <div className="bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md border-t-4 border-baseball-600">
-        <h1 className="font-heading text-3xl font-bold mb-1 tracking-wide text-chrome-300">LeagueHaven</h1>
+      <Card variant="signal" className="w-full max-w-md">
+        <CardBody className="p-8">
+          <h1 className="font-display text-3xl font-bold mb-1 tracking-wide text-chrome-300">LeagueHaven</h1>
 
-        {success ? (
-          <div>
-            <div className="lh-alert lh-alert-success mb-4">
-              Password has been reset successfully!
+          {success ? (
+            <div>
+              <div className="lh-alert lh-alert-success mb-4">
+                Password has been reset successfully!
+              </div>
+              <Button size="sm" onClick={onDone} className="w-full">
+                Go to Sign In
+              </Button>
             </div>
-            <button onClick={onDone}
-              className="btn btn-sm btn-primary w-full">
-              Go to Sign In
-            </button>
-          </div>
-        ) : (
-          <>
-            <p className="text-gray-400 mb-6 text-sm">Choose a new password</p>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="new-password" className={labelCls}>New Password</label>
-                <input id="new-password" type="password" value={password}
+          ) : (
+            <>
+              <p className="text-gray-400 mb-6 text-sm">Choose a new password</p>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <Input
+                  label="New Password"
+                  id="new-password"
+                  type="password"
+                  value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="8+ chars, upper, lower, number" required minLength={8}
-                  autoComplete="new-password" className={inputCls} />
-                <p className="text-xs text-gray-500 mt-1">At least 8 characters with uppercase, lowercase, and a number</p>
-              </div>
-              <div>
-                <label htmlFor="confirm-password" className={labelCls}>Confirm Password</label>
-                <input id="confirm-password" type="password" value={confirm}
+                  placeholder="8+ chars, upper, lower, number"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  helper="At least 8 characters with uppercase, lowercase, and a number"
+                />
+                <Input
+                  label="Confirm Password"
+                  id="confirm-password"
+                  type="password"
+                  value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  placeholder="Re-enter password" required minLength={8}
-                  autoComplete="new-password" className={inputCls} />
-              </div>
-              {error && <div className="lh-alert lh-alert-error">{error}</div>}
-              <button type="submit" disabled={loading}
-                className="btn btn-sm btn-primary w-full">
-                {loading ? 'Resetting…' : 'Reset Password'}
-              </button>
-              <button type="button" onClick={onDone}
-                className="w-full text-center text-sm text-chrome-400 hover:underline">
-                Back to sign in
-              </button>
-            </form>
-          </>
-        )}
-      </div>
+                  placeholder="Re-enter password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+                {error && <div className="lh-alert lh-alert-error">{error}</div>}
+                <Button type="submit" size="sm" loading={loading} className="w-full">
+                  {loading ? 'Resetting…' : 'Reset Password'}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onDone} className="w-full">
+                  Back to sign in
+                </Button>
+              </form>
+            </>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }

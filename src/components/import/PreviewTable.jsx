@@ -46,7 +46,7 @@ export default function PreviewTable({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-heading text-lg font-bold text-gray-100">
+          <h3 className="font-display text-lg font-bold text-gray-100">
             Preview & Match
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -99,7 +99,7 @@ export default function PreviewTable({
               key={idx}
               highlight={row._confidence === 'exact'}
               className={cn(
-                row._confidence === 'possible' && 'bg-dirt-900/25',
+                row._confidence === 'possible' && 'bg-accent-900/25',
                 row._confidence === 'new' && 'bg-chrome-900/25',
               )}
             >
@@ -154,8 +154,8 @@ export default function PreviewTable({
 
 function MatchSummaryPill({ label, count, color }) {
   const colors = {
-    field: 'bg-field-900/30 text-field-200',
-    dirt:  'bg-dirt-900/30 text-dirt-200',
+    field: 'bg-action-900/30 text-action-200',
+    dirt:  'bg-accent-900/30 text-accent-200',
     blue:  'bg-chrome-900/40 text-chrome-200',
   };
 
@@ -164,7 +164,7 @@ function MatchSummaryPill({ label, count, color }) {
       'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold',
       colors[color],
     )}>
-      <span className="text-base font-heading">{count}</span>
+      <span className="text-base font-display">{count}</span>
       {label}
     </span>
   );

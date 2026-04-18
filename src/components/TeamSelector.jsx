@@ -3,9 +3,7 @@ import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivis
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo, { HomePlate, plateLabel } from './TeamLogo.jsx';
 import { cn } from '../lib/cn.js';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
+import { Button, Input, Select, Modal } from './ui/index.js';
 
 export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChanged }) {
   const { isAdmin, permissions } = useAuth();
@@ -123,7 +121,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
               onClick={() => toggleOrg(orgName)}
               className={cn(
                 'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left eyebrow transition-colors',
-                hasSelected ? 'text-field-200 bg-field-900/20' : 'text-gray-400 hover:bg-gray-900'
+                hasSelected ? 'text-action-200 bg-action-900/20' : 'text-gray-400 hover:bg-gray-900'
               )}
             >
               {org.logo && (
@@ -236,15 +234,15 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 <p className="text-sm font-semibold text-gray-200 truncate">{selected.name}</p>
               </div>
               <div className="flex gap-1.5 shrink-0">
-                <button
+                <Button
+                  size="xs" variant="secondary"
                   onClick={() => { setEditing(true); setShowForm(true); }}
-                  className="px-2 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
-                >Edit</button>
-                <button
+                >Edit</Button>
+                <Button
+                  size="xs" variant="danger"
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="btn btn-xs btn-danger"
-                >{deleting ? '…' : 'Delete'}</button>
+                >{deleting ? '…' : 'Delete'}</Button>
               </div>
             </div>
           </div>
@@ -262,10 +260,10 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Teams</p>
           {isAdmin && (
             <div className="flex gap-1">
-              <button
+              <Button
+                size="xs"
                 onClick={() => { setEditing(false); setShowForm(true); }}
-                className="btn btn-xs btn-primary"
-              >+ Add Team</button>
+              >+ Add Team</Button>
             </div>
           )}
         </div>
@@ -277,15 +275,15 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 <p className="text-sm font-semibold text-gray-200 truncate">{selected.name}</p>
               </div>
               <div className="flex gap-1.5 shrink-0">
-                <button
+                <Button
+                  size="xs" variant="secondary"
                   onClick={() => { setEditing(true); setShowForm(true); }}
-                  className="px-2 py-1 text-[11px] font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
-                >Edit</button>
-                <button
+                >Edit</Button>
+                <Button
+                  size="xs" variant="danger"
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="btn btn-xs btn-danger"
-                >{deleting ? '…' : 'Delete'}</button>
+                >{deleting ? '…' : 'Delete'}</Button>
               </div>
             </div>
           </div>
@@ -311,7 +309,7 @@ function TeamItem({ team, isSelected, onSelect }) {
       className={cn(
         'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors text-sm',
         isSelected
-          ? 'bg-field-900/30 text-field-200 font-semibold shadow-sm ring-1 ring-field-300'
+          ? 'bg-action-900/30 text-action-200 font-semibold shadow-sm ring-1 ring-action-300'
           : 'text-gray-300 hover:bg-gray-900'
       )}
     >
@@ -478,37 +476,26 @@ function TeamForm({ team, onDone, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Team' : 'Add Team'}</h2>
+    <Modal open onClose={onCancel} size="md" title={isEditing ? 'Edit Team' : 'Add Team'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label htmlFor="team-city" className={labelCls}>Team City *</label>
-              <input id="team-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="team-mascot" className={labelCls}>Team Mascot</label>
-              <input id="team-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="team-color" className={labelCls}>Team Color</label>
-              <input id="team-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" className={inputCls} />
-            </div>
+            <Input label="Team City *" id="team-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" />
+            <Input label="Team Mascot" id="team-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" />
+            <Input label="Team Color" id="team-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="primary-color" className={labelCls}>Primary Color</label>
+              <label htmlFor="primary-color" className="lh-eyebrow">Primary Color</label>
               <div className="flex items-center gap-2">
                 <input id="primary-color" type="color" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
-                <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+                <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
               </div>
             </div>
             <div>
-              <label htmlFor="secondary-color" className={labelCls}>Secondary Color</label>
+              <label htmlFor="secondary-color" className="lh-eyebrow">Secondary Color</label>
               <div className="flex items-center gap-2">
                 <input id="secondary-color" type="color" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
-                <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+                <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
               </div>
             </div>
           </div>
@@ -525,7 +512,7 @@ function TeamForm({ team, onDone, onCancel }) {
             </div>
           )}
           <div>
-            <label className={labelCls}>Team Logo</label>
+            <label className="lh-eyebrow">Team Logo</label>
             <div className="flex items-center gap-3">
               {logoPreview && <img src={logoPreview} alt="Logo preview" className="w-14 h-14 object-contain rounded border border-gray-700" />}
               <div className="flex flex-col gap-1">
@@ -542,33 +529,33 @@ function TeamForm({ team, onDone, onCancel }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="team-age-group" className={labelCls}>Age Group</label>
+              <label htmlFor="team-age-group" className="lh-eyebrow">Age Group</label>
               {ageGroups.length > 0 ? (
-                <select id="team-age-group" name="age_group" value={form.age_group} onChange={handleChange} className={inputCls}>
+                <select id="team-age-group" name="age_group" value={form.age_group} onChange={handleChange} className="lh-select">
                   <option value="">— Select —</option>
                   {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
                 </select>
               ) : (
-                <input id="team-age-group" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className={inputCls} />
+                <input id="team-age-group" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className="lh-input" />
               )}
             </div>
             <div>
-              <label htmlFor="team-level" className={labelCls}>Level</label>
+              <label htmlFor="team-level" className="lh-eyebrow">Level</label>
               {levels.length > 0 ? (
-                <select id="team-level" name="level" value={form.level} onChange={handleChange} className={inputCls}>
+                <select id="team-level" name="level" value={form.level} onChange={handleChange} className="lh-select">
                   <option value="">— Select —</option>
                   {levels.map(lv => <option key={lv.id} value={lv.name}>{lv.name}</option>)}
                 </select>
               ) : (
-                <input id="team-level" name="level" type="text" value={form.level} onChange={handleChange} placeholder="e.g. Competitive" className={inputCls} />
+                <input id="team-level" name="level" type="text" value={form.level} onChange={handleChange} placeholder="e.g. Competitive" className="lh-input" />
               )}
             </div>
           </div>
           <div>
-            <label className={labelCls}>Season / Divisions</label>
+            <label className="lh-eyebrow">Season / Divisions</label>
             {seasons.length > 0 ? (
               <>
-                <select value={selectedSeasonId || ''} onChange={handleSeasonChange} className={inputCls + ' mb-2'}>
+                <select value={selectedSeasonId || ''} onChange={handleSeasonChange} className="lh-select mb-2">
                   {seasons.map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
                   ))}
@@ -602,22 +589,16 @@ function TeamForm({ team, onDone, onCancel }) {
               </p>
             )}
           </div>
-          <div>
-            <label htmlFor="team-org" className={labelCls}>Organization</label>
-            <select id="team-org" name="org_id" value={form.org_id} onChange={handleChange} className={inputCls}>
+          <Select label="Organization" id="team-org" name="org_id" value={form.org_id} onChange={handleChange}>
               <option value="">— None —</option>
               {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
-          </div>
+          </Select>
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className="btn btn-sm btn-primary disabled:opacity-50">
-              {saving ? 'Saving…' : isEditing ? 'Update' : 'Add Team'}
-            </button>
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" size="sm" loading={saving}>{isEditing ? 'Update' : 'Add Team'}</Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

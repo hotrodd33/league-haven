@@ -116,7 +116,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
                 className={cn(
                   'flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors',
                   isActive
-                    ? 'border-blue-600 text-chrome-400'
+                    ? 'border-chrome-600 text-chrome-400'
                     : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
                 )}
               >
@@ -184,7 +184,7 @@ function TeamHeader({ team, recentGames, onContactTeam }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <h2 className="text-xl font-heading font-bold text-white truncate">{team.name}</h2>
+        <h2 className="text-xl font-display font-bold text-white truncate">{team.name}</h2>
         <div className="flex items-center gap-3 text-sm text-gray-400 mt-0.5 flex-wrap">
           {team.org_name && <span>{team.org_name}</span>}
           {team.age_group && (
@@ -236,7 +236,7 @@ function OverviewTab({ team, recentGames, registrations, canViewPayment, onSelec
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Team Info */}
       <div className="bg-gray-800 rounded-xl shadow-card p-4">
-        <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-3">Team Info</h3>
+        <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-3">Team Info</h3>
         <dl className="space-y-2 text-sm">
           {team?.org_name && <InfoRow label="Organization" value={team.org_name} />}
           {team?.age_group && <InfoRow label="Age Group" value={team.age_group} />}
@@ -260,7 +260,7 @@ function OverviewTab({ team, recentGames, registrations, canViewPayment, onSelec
 
       {/* Recent Games */}
       <div className="bg-gray-800 rounded-xl shadow-card p-4">
-        <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-3">Recent Games</h3>
+        <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-3">Recent Games</h3>
         {recentGames.length === 0 ? (
           <p className="text-sm text-gray-400 py-4 text-center">No completed games yet</p>
         ) : (
@@ -275,7 +275,7 @@ function OverviewTab({ team, recentGames, registrations, canViewPayment, onSelec
       {/* Payment Status */}
       {canViewPayment && registrations.length > 0 && (
         <div className="bg-gray-800 rounded-xl shadow-card p-4 md:col-span-2">
-          <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-3">Payment Status</h3>
+          <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-3">Payment Status</h3>
           <div className="space-y-2">
             {registrations.map(reg => {
               const fee = reg.effective_fee;

@@ -9,11 +9,7 @@ import {
   fetchStatDefinitions, createStatDefinition, updateStatDefinition, deleteStatDefinition,
   fetchFeatureToggles, updateFeatureToggles,
 } from '../api/index.js';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
-const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
-const btnSecondary = "btn btn-secondary btn-md";
+import { Button, Badge } from './ui/index.js';
 
 export default function LeagueConfig({ onBack }) {
   const [tab, setTab] = useState('age_groups');
@@ -25,8 +21,8 @@ export default function LeagueConfig({ onBack }) {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-xl font-heading font-bold text-white">League Configuration</h2>
-        {onBack && <button onClick={onBack} className={btnSecondary}>← Back</button>}
+        <h2 className="text-xl font-display font-bold text-white">League Configuration</h2>
+        {onBack && <Button variant="secondary" onClick={onBack}>← Back</Button>}
       </div>
       <p className="text-sm text-gray-400 mb-4">
         Configure age groups, levels, and divisions for the league. These populate dropdowns when creating or editing teams.
@@ -139,7 +135,7 @@ function BrandingConfig() {
 
   return (
     <div className="space-y-5">
-      <h3 className="text-base font-heading font-bold text-white">App Branding</h3>
+      <h3 className="text-base font-display font-bold text-white">App Branding</h3>
       <p className="text-xs text-gray-400">
         Set the app name and logo shown in the main sidebar header.
       </p>
@@ -148,23 +144,23 @@ function BrandingConfig() {
 
       <form onSubmit={handleSaveName} className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
         <div>
-          <label className={labelCls}>Application Name</label>
+          <label className="lh-eyebrow block mb-1">Application Name</label>
           <input
             type="text"
             maxLength={48}
             value={form.app_name}
             onChange={(e) => setForm((prev) => ({ ...prev, app_name: e.target.value }))}
-            className={inputCls}
+            className="lh-input"
             placeholder="League app name"
           />
         </div>
-        <button type="submit" disabled={savingName || !(form.app_name || '').trim()} className={btnPrimary}>
+        <Button type="submit" disabled={savingName || !(form.app_name || '').trim()}>
           {savingName ? 'Saving…' : 'Save Name'}
-        </button>
+        </Button>
       </form>
 
       <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
-        <label className={labelCls}>Application Logo</label>
+        <label className="lh-eyebrow block mb-1">Application Logo</label>
         <div className="flex items-center gap-3">
           {form.logo_url ? (
             <img src={form.logo_url} alt="App logo preview" className="w-14 h-14 rounded-lg object-cover bg-gray-800" />
@@ -178,18 +174,13 @@ function BrandingConfig() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <label className={`${btnPrimary} cursor-pointer ${uploadingLogo ? 'opacity-60 pointer-events-none' : ''}`}>
+          <label className={`btn btn-primary btn-md cursor-pointer ${uploadingLogo ? 'opacity-60 pointer-events-none' : ''}`}>
             {uploadingLogo ? 'Uploading…' : 'Upload Logo'}
             <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
           </label>
-          <button
-            type="button"
-            onClick={handleRemoveLogo}
-            disabled={!form.logo_url || removingLogo}
-            className="btn btn-sm btn-danger"
-          >
+          <Button size="sm" variant="danger" onClick={handleRemoveLogo} disabled={!form.logo_url || removingLogo}>
             {removingLogo ? 'Removing…' : 'Remove Logo'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -241,7 +232,7 @@ function FeatureTogglesConfig() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-heading font-bold text-white">Feature Toggles</h3>
+      <h3 className="text-lg font-display font-bold text-white">Feature Toggles</h3>
       <p className="text-xs text-gray-400">
         Enable or disable features for your league. Disabled features are hidden from the sidebar and all users.
       </p>
@@ -328,7 +319,7 @@ function SchedulingConfig() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-base font-heading font-bold text-white">Game Time Window</h3>
+      <h3 className="text-base font-display font-bold text-white">Game Time Window</h3>
       <p className="text-xs text-gray-400">
         Controls available game start times in schedule forms.
       </p>
@@ -338,31 +329,31 @@ function SchedulingConfig() {
       <form onSubmit={handleSave} className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className={labelCls}>Start Time</label>
+            <label className="lh-eyebrow block mb-1">Start Time</label>
             <input
               type="time"
               value={form.game_start_time}
               onChange={(e) => setForm((prev) => ({ ...prev, game_start_time: e.target.value }))}
-              className={inputCls}
+              className="lh-input"
               required
             />
           </div>
           <div>
-            <label className={labelCls}>End Time</label>
+            <label className="lh-eyebrow block mb-1">End Time</label>
             <input
               type="time"
               value={form.game_end_time}
               onChange={(e) => setForm((prev) => ({ ...prev, game_end_time: e.target.value }))}
-              className={inputCls}
+              className="lh-input"
               required
             />
           </div>
           <div>
-            <label className={labelCls}>Increment</label>
+            <label className="lh-eyebrow block mb-1">Increment</label>
             <select
               value={form.game_time_increment_minutes}
               onChange={(e) => setForm((prev) => ({ ...prev, game_time_increment_minutes: Number(e.target.value) }))}
-              className={inputCls}
+              className="lh-select"
             >
               {[5, 10, 15, 20, 30, 45, 60].map((n) => (
                 <option key={n} value={n}>{n} min</option>
@@ -371,9 +362,9 @@ function SchedulingConfig() {
           </div>
         </div>
 
-        <button type="submit" disabled={saving} className={btnPrimary}>
+        <Button type="submit" disabled={saving} loading={saving}>
           {saving ? 'Saving…' : 'Save Scheduling'}
-        </button>
+        </Button>
       </form>
     </div>
   );
@@ -449,7 +440,7 @@ function SeasonList() {
 
   return (
     <div>
-      <h3 className="text-base font-heading font-bold text-white mb-3">Seasons ({seasons.length})</h3>
+      <h3 className="text-base font-display font-bold text-white mb-3">Seasons ({seasons.length})</h3>
       <p className="text-xs text-gray-400 mb-3">
         Manage league seasons. The active season is used as the default when assigning divisions. Deleting a season removes all its divisions.
       </p>
@@ -460,14 +451,14 @@ function SeasonList() {
         <form onSubmit={handleSave} className="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Year *</label>
+              <label className="lh-eyebrow block mb-1">Year *</label>
               <input type="number" value={form.year} onChange={(e) => setForm(prev => ({ ...prev, year: Number(e.target.value) }))}
-                required min="2000" max="2100" className={inputCls} />
+                required min="2000" max="2100" className="lh-input" />
             </div>
             <div>
-              <label className={labelCls}>Name *</label>
+              <label className="lh-eyebrow block mb-1">Name *</label>
               <input type="text" value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                required placeholder="e.g. Spring 2026" className={inputCls} />
+                required placeholder="e.g. Spring 2026" className="lh-input" />
             </div>
           </div>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -476,14 +467,14 @@ function SeasonList() {
             Set as active season
           </label>
           <div className="flex gap-2">
-            <button type="submit" disabled={saving || !form.name.trim()} className={btnPrimary}>
+            <Button type="submit" disabled={saving || !form.name.trim()} loading={saving}>
               {saving ? '…' : editingSeason ? 'Update' : 'Add Season'}
-            </button>
-            <button type="button" onClick={() => setShowForm(false)} className={btnSecondary}>Cancel</button>
+            </Button>
+            <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
           </div>
         </form>
       ) : (
-        <button onClick={openAdd} className={`${btnPrimary} mb-4`}>+ Add Season</button>
+        <Button className="mb-4" onClick={openAdd}>+ Add Season</Button>
       )}
 
       {seasons.length === 0 ? (
@@ -501,19 +492,12 @@ function SeasonList() {
               </div>
               <div className="flex gap-1 shrink-0">
                 {!s.is_active && (
-                  <button onClick={() => handleSetActive(s)}
-                    className="px-2 py-1 text-xs font-semibold bg-action-900/35 text-action-300 rounded hover:bg-action-800/60">
-                    Set Active
-                  </button>
+                  <Button size="xs" onClick={() => handleSetActive(s)}>Set Active</Button>
                 )}
-                <button onClick={() => openEdit(s)}
-                  className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
-                  Edit
-                </button>
-                <button onClick={() => handleDelete(s)} disabled={deletingId === s.id}
-                  className="btn btn-xs btn-danger">
+                <Button size="xs" variant="secondary" onClick={() => openEdit(s)}>Edit</Button>
+                <Button size="xs" variant="danger" onClick={() => handleDelete(s)} disabled={deletingId === s.id}>
                   {deletingId === s.id ? '…' : 'Del'}
-                </button>
+                </Button>
               </div>
             </div>
           ))}
@@ -598,7 +582,7 @@ function AgeGroupConfig() {
 
   return (
     <div>
-      <h3 className="text-base font-heading font-bold text-white mb-3">Age Groups ({items.length})</h3>
+      <h3 className="text-base font-display font-bold text-white mb-3">Age Groups ({items.length})</h3>
 
       {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
 
@@ -606,14 +590,14 @@ function AgeGroupConfig() {
       <form onSubmit={handleAdd} className="flex flex-wrap gap-2 mb-4 items-center">
         <input
           type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
-          placeholder="e.g. 8U, 10U, 12U, 14U" className={`flex-1 min-w-[120px] ${inputCls}`}
+          placeholder="e.g. 8U, 10U, 12U, 14U" className="flex-1 min-w-[120px] lh-input"
         />
         {newUmpRequired && (
           <div className="flex items-center gap-1">
             <span className="text-xs text-gray-400">Ump $</span>
             <input
               type="number" min="0" step="0.01" value={newRate} onChange={(e) => setNewRate(e.target.value)}
-              placeholder="50" className={`w-20 ${inputCls}`} title="Umpire rate per game"
+              placeholder="50" className="w-20 lh-input" title="Umpire rate per game"
             />
           </div>
         )}
@@ -621,7 +605,7 @@ function AgeGroupConfig() {
           <span className="text-xs text-gray-400">Fee $</span>
           <input
             type="number" min="0" step="0.01" value={newLeagueFee} onChange={(e) => setNewLeagueFee(e.target.value)}
-            placeholder="—" className={`w-20 ${inputCls}`} title="League registration fee"
+            placeholder="—" className="w-20 lh-input" title="League registration fee"
           />
         </div>
         <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
@@ -629,9 +613,9 @@ function AgeGroupConfig() {
             className="rounded border-gray-600" />
           Ump Required
         </label>
-        <button type="submit" disabled={adding || !newName.trim()} className={btnPrimary}>
+        <Button type="submit" disabled={adding || !newName.trim()} loading={adding}>
           {adding ? '…' : '+ Add'}
-        </button>
+        </Button>
       </form>
 
       {items.length === 0 ? (
@@ -644,14 +628,14 @@ function AgeGroupConfig() {
                 <div className="flex-1 flex flex-col sm:flex-row gap-2">
                   <input
                     type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-                    className={`flex-1 ${inputCls}`} autoFocus
+                    className="flex-1 lh-input" autoFocus
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(); } }}
                   />
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-gray-400 whitespace-nowrap">Order:</label>
                     <input
                       type="number" value={editOrder} onChange={(e) => setEditOrder(Number(e.target.value))}
-                      className={`w-20 ${inputCls}`}
+                      className="w-20 lh-input"
                     />
                   </div>
                   {editUmpRequired && (
@@ -659,7 +643,7 @@ function AgeGroupConfig() {
                       <label className="text-xs text-gray-400 whitespace-nowrap">Ump $:</label>
                       <input
                         type="number" min="0" step="0.01" value={editRate} onChange={(e) => setEditRate(e.target.value)}
-                        className={`w-24 ${inputCls}`}
+                        className="w-24 lh-input"
                       />
                     </div>
                   )}
@@ -667,7 +651,7 @@ function AgeGroupConfig() {
                     <label className="text-xs text-gray-400 whitespace-nowrap">Fee $:</label>
                     <input
                       type="number" min="0" step="0.01" value={editLeagueFee} onChange={(e) => setEditLeagueFee(e.target.value)}
-                      placeholder="—" className={`w-24 ${inputCls}`}
+                      placeholder="—" className="w-24 lh-input"
                     />
                   </div>
                   <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
@@ -676,14 +660,12 @@ function AgeGroupConfig() {
                     Ump Required
                   </label>
                   <div className="flex gap-1">
-                    <button onClick={handleSaveEdit} disabled={savingEdit}
-                      className="btn btn-xs btn-primary disabled:opacity-50">
+                    <Button size="xs" onClick={handleSaveEdit} disabled={savingEdit} loading={savingEdit}>
                       {savingEdit ? '…' : 'Save'}
-                    </button>
-                    <button onClick={() => setEditingId(null)}
-                      className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
+                    </Button>
+                    <Button size="xs" variant="secondary" onClick={() => setEditingId(null)}>
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -692,30 +674,26 @@ function AgeGroupConfig() {
                     <span className="font-semibold text-sm">{item.name}</span>
                     <span className="text-xs text-gray-400">#{item.sort_order ?? 0}</span>
                     {item.ump_required !== false && (
-                      <span className="lh-badge lh-badge-success">
+                      <Badge variant="success">
                         Ump ${Number(item.umpire_rate ?? 50).toFixed(2)}/game
-                      </span>
+                      </Badge>
                     )}
                     {item.league_fee != null && (
-                      <span className="lh-badge lh-badge-warn">
+                      <Badge variant="warning">
                         Fee ${Number(item.league_fee).toFixed(2)}
-                      </span>
+                      </Badge>
                     )}
                     {item.ump_required === false ? (
-                      <span className="lh-badge lh-badge-neutral">No Ump</span>
+                      <Badge variant="neutral">No Ump</Badge>
                     ) : (
-                      <span className="lh-badge lh-badge-success">Ump Required</span>
+                      <Badge variant="success">Ump Required</Badge>
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <button onClick={() => startEdit(item)}
-                      className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
-                      Edit
-                    </button>
-                    <button onClick={() => handleDelete(item)} disabled={deletingId === item.id}
-                      className="btn btn-xs btn-danger">
+                    <Button size="xs" variant="secondary" onClick={() => startEdit(item)}>Edit</Button>
+                    <Button size="xs" variant="danger" onClick={() => handleDelete(item)} disabled={deletingId === item.id}>
                       {deletingId === item.id ? '…' : 'Del'}
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
@@ -789,7 +767,7 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
 
   return (
     <div>
-      <h3 className="text-base font-heading font-bold text-white mb-3">{title} ({items.length})</h3>
+      <h3 className="text-base font-display font-bold text-white mb-3">{title} ({items.length})</h3>
 
       {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
 
@@ -797,11 +775,11 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
       <form onSubmit={handleAdd} className="flex gap-2 mb-4">
         <input
           type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
-          placeholder={placeholder} className={`flex-1 ${inputCls}`}
+          placeholder={placeholder} className="flex-1 lh-input"
         />
-        <button type="submit" disabled={adding || !newName.trim()} className={btnPrimary}>
+        <Button type="submit" disabled={adding || !newName.trim()} loading={adding}>
           {adding ? '…' : '+ Add'}
-        </button>
+        </Button>
       </form>
 
       {items.length === 0 ? (
@@ -814,25 +792,23 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
                 <div className="flex-1 flex flex-col sm:flex-row gap-2">
                   <input
                     type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-                    className={`flex-1 ${inputCls}`} autoFocus
+                    className="flex-1 lh-input" autoFocus
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(); } }}
                   />
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-gray-400 whitespace-nowrap">Order:</label>
                     <input
                       type="number" value={editOrder} onChange={(e) => setEditOrder(Number(e.target.value))}
-                      className={`w-20 ${inputCls}`}
+                      className="w-20 lh-input"
                     />
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={handleSaveEdit} disabled={savingEdit}
-                      className="btn btn-xs btn-primary disabled:opacity-50">
+                    <Button size="xs" onClick={handleSaveEdit} disabled={savingEdit} loading={savingEdit}>
                       {savingEdit ? '…' : 'Save'}
-                    </button>
-                    <button onClick={() => setEditingId(null)}
-                      className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
+                    </Button>
+                    <Button size="xs" variant="secondary" onClick={() => setEditingId(null)}>
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -842,14 +818,10 @@ function ConfigList({ title, placeholder, fetchItems, createItem, updateItem, de
                     <span className="text-xs text-gray-400 ml-2">#{item.sort_order ?? 0}</span>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <button onClick={() => startEdit(item)}
-                      className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
-                      Edit
-                    </button>
-                    <button onClick={() => handleDelete(item)} disabled={deletingId === item.id}
-                      className="btn btn-xs btn-danger">
+                    <Button size="xs" variant="secondary" onClick={() => startEdit(item)}>Edit</Button>
+                    <Button size="xs" variant="danger" onClick={() => handleDelete(item)} disabled={deletingId === item.id}>
                       {deletingId === item.id ? '…' : 'Del'}
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
@@ -968,13 +940,13 @@ function DivisionTree() {
 
   return (
     <div>
-      <h3 className="text-base font-heading font-bold text-white mb-3">Divisions ({totalCount})</h3>
+      <h3 className="text-base font-display font-bold text-white mb-3">Divisions ({totalCount})</h3>
 
       {/* Season selector */}
       <div className="mb-4">
-        <label className={labelCls}>Season</label>
+        <label className="lh-eyebrow block mb-1">Season</label>
         {seasons.length > 0 ? (
-          <select value={selectedSeasonId || ''} onChange={handleSeasonChange} className={inputCls + ' max-w-xs'}>
+          <select value={selectedSeasonId || ''} onChange={handleSeasonChange} className="lh-select max-w-xs">
             {seasons.map(s => (
               <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
             ))}
@@ -1001,18 +973,18 @@ function DivisionTree() {
         <div className="flex gap-2 mb-4">
           <input
             type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
-            placeholder="e.g. North Conference" className={`flex-1 ${inputCls}`} autoFocus
+            placeholder="e.g. North Conference" className="flex-1 lh-input" autoFocus
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(null); } if (e.key === 'Escape') { setAddingTo(null); setNewName(''); } }}
           />
-          <button onClick={() => handleAdd(null)} disabled={adding || !newName.trim()} className={btnPrimary}>
+          <Button onClick={() => handleAdd(null)} disabled={adding || !newName.trim()} loading={adding}>
             {adding ? '…' : 'Add'}
-          </button>
-          <button onClick={() => { setAddingTo(null); setNewName(''); }} className={btnSecondary}>Cancel</button>
+          </Button>
+          <Button variant="secondary" onClick={() => { setAddingTo(null); setNewName(''); }}>Cancel</Button>
         </div>
       ) : (
-        <button onClick={() => { setAddingTo('root'); setNewName(''); }} className={`${btnPrimary} mb-4`}>
+        <Button className="mb-4" onClick={() => { setAddingTo('root'); setNewName(''); }}>
           + Add Top-Level Division
-        </button>
+        </Button>
       )}
 
       {tree.length === 0 ? (
@@ -1062,24 +1034,23 @@ function DivisionNode({
           <div className="flex-1 flex flex-col sm:flex-row gap-2">
             <input
               type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-              className={`flex-1 ${inputCls}`} autoFocus
+              className="flex-1 lh-input" autoFocus
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(node.parent_id); } }}
             />
             <div className="flex items-center gap-2">
               <label className="text-xs text-gray-400 whitespace-nowrap">Order:</label>
               <input
                 type="number" value={editOrder} onChange={(e) => setEditOrder(Number(e.target.value))}
-                className={`w-20 ${inputCls}`}
+                className="w-20 lh-input"
               />
             </div>
             <div className="flex gap-1">
-              <button onClick={() => handleSaveEdit(node.parent_id)} disabled={savingEdit}
-                className="btn btn-xs btn-primary disabled:opacity-50">
+              <Button size="xs" onClick={() => handleSaveEdit(node.parent_id)} disabled={savingEdit} loading={savingEdit}>
                 {savingEdit ? '…' : 'Save'}
-              </button>
-              <button onClick={() => { cancelEdit(); setEditName(''); setEditOrder(0); }}
-                className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
-              >Cancel</button>
+              </Button>
+              <Button size="xs" variant="secondary" onClick={() => { cancelEdit(); setEditName(''); setEditOrder(0); }}>
+                Cancel
+              </Button>
             </div>
           </div>
         ) : (
@@ -1093,19 +1064,13 @@ function DivisionNode({
               <span className="text-xs text-gray-400">{depthLabel}</span>
             </div>
             <div className="flex gap-1 shrink-0">
-              <button onClick={() => { setAddingTo(node.id); setNewName(''); }}
-                title="Add sub-division"
-                className="px-2 py-1 text-xs font-semibold bg-chrome-900/40 text-chrome-200 rounded hover:bg-chrome-800/60">
+              <Button size="xs" variant="chrome" onClick={() => { setAddingTo(node.id); setNewName(''); }} title="Add sub-division">
                 + Sub
-              </button>
-              <button onClick={() => startEdit(node)}
-                className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">
-                Edit
-              </button>
-              <button onClick={() => handleDelete(node)} disabled={deletingId === node.id}
-                className="btn btn-xs btn-danger">
+              </Button>
+              <Button size="xs" variant="secondary" onClick={() => startEdit(node)}>Edit</Button>
+              <Button size="xs" variant="danger" onClick={() => handleDelete(node)} disabled={deletingId === node.id}>
                 {deletingId === node.id ? '…' : 'Del'}
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -1117,13 +1082,13 @@ function DivisionNode({
           <input
             type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
             placeholder={`New sub-division under "${node.name}"`}
-            className={`flex-1 ${inputCls}`} autoFocus
+            className="flex-1 lh-input" autoFocus
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(node.id); } if (e.key === 'Escape') { setAddingTo(null); setNewName(''); } }}
           />
-          <button onClick={() => handleAdd(node.id)} disabled={adding || !newName.trim()} className={btnPrimary}>
+          <Button size="xs" onClick={() => handleAdd(node.id)} disabled={adding || !newName.trim()} loading={adding}>
             {adding ? '…' : 'Add'}
-          </button>
-          <button onClick={() => { setAddingTo(null); setNewName(''); }} className={btnSecondary}>Cancel</button>
+          </Button>
+          <Button size="xs" variant="secondary" onClick={() => { setAddingTo(null); setNewName(''); }}>Cancel</Button>
         </div>
       )}
 
@@ -1225,46 +1190,46 @@ function StatDefinitionsConfig() {
           <h3 className="text-lg font-bold text-white">Stat Definitions</h3>
           <p className="text-sm text-gray-400">Configure which stats can be tracked per player per game. Set a GC Column Name to auto-map from GameChanger imports.</p>
         </div>
-        <button onClick={startNew} className={btnPrimary}>+ Add Stat</button>
+        <Button onClick={startNew}>+ Add Stat</Button>
       </div>
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className={labelCls}>Name</label>
-              <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="e.g. Hits" />
+              <label className="lh-eyebrow block mb-1">Name</label>
+              <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="lh-input" placeholder="e.g. Hits" />
             </div>
             <div>
-              <label className={labelCls}>Abbreviation</label>
-              <input required value={form.abbreviation} onChange={e => setForm(f => ({ ...f, abbreviation: e.target.value }))} className={inputCls} placeholder="e.g. H" />
+              <label className="lh-eyebrow block mb-1">Abbreviation</label>
+              <input required value={form.abbreviation} onChange={e => setForm(f => ({ ...f, abbreviation: e.target.value }))} className="lh-input" placeholder="e.g. H" />
             </div>
             <div>
-              <label className={labelCls}>Category</label>
-              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className={inputCls}>
+              <label className="lh-eyebrow block mb-1">Category</label>
+              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="lh-select">
                 {categories.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelCls}>Data Type</label>
-              <select value={form.data_type} onChange={e => setForm(f => ({ ...f, data_type: e.target.value }))} className={inputCls}>
+              <label className="lh-eyebrow block mb-1">Data Type</label>
+              <select value={form.data_type} onChange={e => setForm(f => ({ ...f, data_type: e.target.value }))} className="lh-select">
                 <option value="integer">Integer</option>
                 <option value="decimal">Decimal</option>
                 <option value="text">Text</option>
               </select>
             </div>
             <div>
-              <label className={labelCls}>Sort Order</label>
-              <input type="number" value={form.sort_order} onChange={e => setForm(f => ({ ...f, sort_order: parseInt(e.target.value) || 0 }))} className={inputCls} />
+              <label className="lh-eyebrow block mb-1">Sort Order</label>
+              <input type="number" value={form.sort_order} onChange={e => setForm(f => ({ ...f, sort_order: parseInt(e.target.value) || 0 }))} className="lh-input" />
             </div>
             <div>
-              <label className={labelCls}>GC Column Name</label>
-              <input value={form.gc_column_name} onChange={e => setForm(f => ({ ...f, gc_column_name: e.target.value }))} className={inputCls} placeholder="e.g. H, AB, RBI" />
+              <label className="lh-eyebrow block mb-1">GC Column Name</label>
+              <input value={form.gc_column_name} onChange={e => setForm(f => ({ ...f, gc_column_name: e.target.value }))} className="lh-input" placeholder="e.g. H, AB, RBI" />
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={() => { setShowForm(false); setEditing(null); }} className={btnSecondary}>Cancel</button>
-            <button type="submit" disabled={saving} className={btnPrimary}>{saving ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
+            <Button variant="secondary" onClick={() => { setShowForm(false); setEditing(null); }}>Cancel</Button>
+            <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Saving...' : editing ? 'Update' : 'Create'}</Button>
           </div>
         </form>
       )}

@@ -8,13 +8,7 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldLocations from './FieldLocations.jsx';
 import { HomePlate, plateLabel } from './TeamLogo.jsx';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
-const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
-const btnSecondary = "btn btn-secondary btn-md";
-const btnDanger = "btn btn-danger btn-sm";
-const btnSm = 'btn btn-xs';
+import { Button, Badge, Input, Modal } from './ui/index.js';
 
 function summarizeOrgTeams(org) {
   const teams = org.teams || [];
@@ -128,10 +122,10 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h2 className="text-xl font-heading font-bold text-white">Organizations ({orgs.length})</h2>
+        <h2 className="text-xl font-display font-bold text-white">Organizations ({orgs.length})</h2>
         <div className="flex gap-2">
-          {isAdmin && <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add Organization</button>}
-          {onBack && <button onClick={onBack} className={btnSecondary}>← Teams</button>}
+          {isAdmin && <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Add Organization</Button>}
+          {onBack && <Button variant="secondary" onClick={onBack}>← Teams</Button>}
         </div>
       </div>
 
@@ -141,7 +135,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
           {isAdmin && (
             <>
               <br />
-              <button onClick={() => setShowForm(true)} className="text-field-300 underline mt-1 inline-block">Add the first organization</button>
+              <button onClick={() => setShowForm(true)} className="text-action-300 underline mt-1 inline-block">Add the first organization</button>
             </>
           )}
         </div>
@@ -184,13 +178,13 @@ function OrgListCard({ org, orgStats, orgPayment, canEdit, canViewFinancials, de
         <div className="flex items-center gap-2 min-w-0">
           {org.logo_url && <img src={org.logo_url} alt="" className="w-9 h-9 object-contain rounded shrink-0" />}
           <div className="min-w-0">
-            <h3 className="font-heading font-bold text-base text-white truncate">{org.name}</h3>
+            <h3 className="font-display font-bold text-base text-white truncate">{org.name}</h3>
             {org.contact_name && <p className="text-sm text-gray-300 truncate">{org.contact_name}</p>}
           </div>
         </div>
-        <span className="lh-badge lh-badge-sport shrink-0">
+        <Badge variant="sport" className="shrink-0">
           {org.team_count} team{org.team_count !== 1 ? 's' : ''}
-        </span>
+        </Badge>
       </div>
 
       <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
@@ -252,7 +246,7 @@ function OrgListCard({ org, orgStats, orgPayment, canEdit, canViewFinancials, de
           <div className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-1.5">Levels</div>
           <div className="flex flex-wrap gap-1.5">
             {levels.slice(0, 4).map((level) => (
-              <span key={level} className="px-2 py-0.5 rounded-full bg-field-900/30 text-field-300 text-xs font-semibold">
+              <span key={level} className="px-2 py-0.5 rounded-full bg-action-900/30 text-action-300 text-xs font-semibold">
                 {level}
               </span>
             ))}
@@ -266,11 +260,11 @@ function OrgListCard({ org, orgStats, orgPayment, canEdit, canViewFinancials, de
 
 
       <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
-        {canEdit && <button onClick={onEdit} className={`${btnSm} btn-secondary`}>Edit</button>}
+        {canEdit && <Button size="xs" variant="secondary" onClick={onEdit}>Edit</Button>}
         {isAdmin && (
-          <button onClick={onDelete} disabled={deleting} className={btnDanger}>
+          <Button size="sm" variant="danger" onClick={onDelete} disabled={deleting}>
             {deleting ? '…' : 'Delete'}
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -282,7 +276,7 @@ function OrgCard({ org }) {
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-4 text-gray-200">
       <div className="flex items-center gap-3 mb-3">
         {org.logo_url && <img src={org.logo_url} alt="" className="w-12 h-12 object-contain rounded" />}
-        <h2 className="text-xl font-heading font-bold text-white">{org.name}</h2>
+        <h2 className="text-xl font-display font-bold text-white">{org.name}</h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
         {org.contact_name && <div><span className="font-semibold">Contact:</span> {org.contact_name}</div>}
@@ -355,26 +349,21 @@ function OrgForm({ org, onDone, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Organization' : 'Add Organization'}</h2>
+    <Modal open onClose={onCancel} title={isEditing ? 'Edit Organization' : 'Add Organization'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="org-name" className={labelCls}>Organization Name *</label>
-            <input id="org-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="e.g. Lake City Baseball" className={inputCls} />
-          </div>
+          <Input label="Organization Name *" id="org-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="e.g. Lake City Baseball" />
 
           <div>
-            <label className={labelCls}>Logo</label>
+            <label className="lh-eyebrow block mb-1">Logo</label>
             <div className="flex items-center gap-3">
               {logoPreview && <img src={logoPreview} alt="Logo preview" className="w-16 h-16 object-contain rounded border border-gray-700" />}
               <div className="flex flex-col gap-1">
-                <label className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600 cursor-pointer inline-block w-fit">
+                <label className="btn btn-xs btn-secondary cursor-pointer inline-block w-fit">
                   {logoPreview ? 'Change' : 'Upload'}
                   <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                 </label>
                 {logoPreview && (
-                  <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-signal-900/35 text-signal-300 rounded hover:bg-signal-800/60 w-fit">Remove</button>
+                  <Button type="button" size="xs" variant="danger" onClick={handleRemoveLogo}>Remove</Button>
                 )}
                 <p className="text-xs text-gray-400">Max 500 KB. PNG, JPEG, GIF, WebP, or SVG.</p>
               </div>
@@ -382,43 +371,22 @@ function OrgForm({ org, onDone, onCancel }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label htmlFor="org-contact-name" className={labelCls}>Contact Name</label>
-              <input id="org-contact-name" name="contact_name" type="text" value={form.contact_name} onChange={handleChange} placeholder="John Doe" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="org-contact-email" className={labelCls}>Contact Email</label>
-              <input id="org-contact-email" name="contact_email" type="email" value={form.contact_email} onChange={handleChange} placeholder="contact@example.com" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="org-contact-phone" className={labelCls}>Contact Phone</label>
-              <input id="org-contact-phone" name="contact_phone" type="tel" value={form.contact_phone} onChange={handleChange} placeholder="(555) 123-4567" className={inputCls} />
-            </div>
+            <Input label="Contact Name" id="org-contact-name" name="contact_name" type="text" value={form.contact_name} onChange={handleChange} placeholder="John Doe" />
+            <Input label="Contact Email" id="org-contact-email" name="contact_email" type="email" value={form.contact_email} onChange={handleChange} placeholder="contact@example.com" />
+            <Input label="Contact Phone" id="org-contact-phone" name="contact_phone" type="tel" value={form.contact_phone} onChange={handleChange} placeholder="(555) 123-4567" />
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-[2fr_1fr_80px_100px] gap-3">
-            <div className="col-span-2 sm:col-span-1">
-              <label htmlFor="org-address" className={labelCls}>Address</label>
-              <input id="org-address" name="address" type="text" value={form.address} onChange={handleChange} placeholder="123 Main St" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="org-city" className={labelCls}>City</label>
-              <input id="org-city" name="city" type="text" value={form.city} onChange={handleChange} className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="org-state" className={labelCls}>State</label>
-              <input id="org-state" name="state" type="text" value={form.state} onChange={handleChange} maxLength={2} placeholder="OH" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="org-zip" className={labelCls}>ZIP</label>
-              <input id="org-zip" name="zip" type="text" value={form.zip} onChange={handleChange} maxLength={10} placeholder="44107" className={inputCls} />
-            </div>
+            <Input label="Address" wrapperClassName="col-span-2 sm:col-span-1" id="org-address" name="address" type="text" value={form.address} onChange={handleChange} placeholder="123 Main St" />
+            <Input label="City" id="org-city" name="city" type="text" value={form.city} onChange={handleChange} />
+            <Input label="State" id="org-state" name="state" type="text" value={form.state} onChange={handleChange} maxLength={2} placeholder="OH" />
+            <Input label="ZIP" id="org-zip" name="zip" type="text" value={form.zip} onChange={handleChange} maxLength={10} placeholder="44107" />
           </div>
 
           <div>
-            <label htmlFor="org-notes" className={labelCls}>Notes</label>
+            <label htmlFor="org-notes" className="lh-eyebrow block mb-1">Notes</label>
             <textarea id="org-notes" name="notes" value={form.notes} onChange={handleChange} rows={3} placeholder="Any additional info…"
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500" />
+              className="lh-input" />
           </div>
 
           <label className="flex items-start gap-2 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 cursor-pointer">
@@ -438,14 +406,13 @@ function OrgForm({ org, onDone, onCancel }) {
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
-            <button type="submit" disabled={saving} className={btnPrimary}>
+            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" disabled={saving} loading={saving}>
               {saving ? 'Saving…' : isEditing ? 'Update' : 'Add Organization'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -464,9 +431,9 @@ function OrgDetailView({ org: initialOrg, onBack, onNavigateToTeam, teamPayments
 
   return (
     <div>
-      <button onClick={onBack} className="px-3 py-1.5 text-sm font-semibold bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 mb-4">
+      <Button variant="secondary" size="sm" onClick={onBack} className="mb-4">
         ← Back to Organizations
-      </button>
+      </Button>
       <OrgCard org={org} />
       <OrgTeams org={org} allTeams={allTeams} onChanged={reload} onNavigateToTeam={onNavigateToTeam} teamPayments={teamPayments} />
       <FieldLocations orgId={org.id} orgName={org.name} />
@@ -697,11 +664,11 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <h3 className="text-base font-heading font-bold text-white">Teams ({orgTeams.length})</h3>
+        <h3 className="text-base font-display font-bold text-white">Teams ({orgTeams.length})</h3>
         {canManage && (
-          <button onClick={openCreateModal} className="btn btn-xs btn-primary">
+          <Button size="xs" onClick={openCreateModal}>
             + Add Team
-          </button>
+          </Button>
         )}
       </div>
 
@@ -724,11 +691,11 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                   <tr key={t.id} className="hover:bg-gray-900">
                     <td className="px-3 py-2 font-semibold">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => onNavigateToTeam?.(t.id, t.org_id)} className="text-field-300 hover:text-field-100 hover:underline text-left">
+                        <button onClick={() => onNavigateToTeam?.(t.id, t.org_id)} className="text-action-300 hover:text-action-100 hover:underline text-left">
                           {t.long_name || t.name}
                         </button>
                         {teamPayments[t.id] && !teamPayments[t.id].is_paid && (
-                          <span className="lh-badge lh-badge-danger whitespace-nowrap">Unpaid</span>
+                          <Badge variant="danger" className="whitespace-nowrap">Unpaid</Badge>
                         )}
                       </div>
                     </td>
@@ -738,8 +705,8 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                     {canManage && (
                       <td className="px-3 py-2">
                         <div className="flex gap-1.5">
-                          <button onClick={() => openEditModal(t)} className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">Edit</button>
-                          <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>
+                          <Button size="xs" variant="secondary" onClick={() => openEditModal(t)}>Edit</Button>
+                          <Button size="sm" variant="danger" onClick={() => handleUnassign(t)}>Remove</Button>
                         </div>
                       </td>
                     )}
@@ -754,19 +721,19 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
               <div key={t.id} className="bg-gray-800 rounded-lg border border-gray-700 p-3 flex items-center justify-between text-gray-200">
                 <div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => onNavigateToTeam?.(t.id, t.org_id)} className="font-semibold text-sm text-field-300 hover:text-field-100 hover:underline text-left">
+                    <button onClick={() => onNavigateToTeam?.(t.id, t.org_id)} className="font-semibold text-sm text-action-300 hover:text-action-100 hover:underline text-left">
                       {t.long_name || t.name}
                     </button>
                     {teamPayments[t.id] && !teamPayments[t.id].is_paid && (
-                      <span className="lh-badge lh-badge-danger">Unpaid</span>
+                      <Badge variant="danger">Unpaid</Badge>
                     )}
                   </div>
                   <div className="text-xs text-gray-400">{[t.age_group, t.level, t.divisions?.length ? t.divisions.map(d => d.name).join(', ') : t.division].filter(Boolean).join(' · ') || '—'}</div>
                 </div>
                 {canManage && (
                   <div className="flex gap-1.5">
-                    <button onClick={() => openEditModal(t)} className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">Edit</button>
-                    <button onClick={() => handleUnassign(t)} className={btnDanger}>Remove</button>
+                    <Button size="xs" variant="secondary" onClick={() => openEditModal(t)}>Edit</Button>
+                    <Button size="sm" variant="danger" onClick={() => handleUnassign(t)}>Remove</Button>
                   </div>
                 )}
               </div>
@@ -778,38 +745,27 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
       )}
 
       {showCreate && canManage && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200 border border-gray-700">
-            <h4 className="text-lg font-bold text-gray-100 mb-3">{editingTeam ? 'Edit Team' : 'Add Team to'} {org.name}</h4>
+        <Modal open onClose={() => { setShowCreate(false); setEditingTeam(null); }} title={`${editingTeam ? 'Edit Team' : 'Add Team to'} ${org.name}`} size="lg">
             <form onSubmit={handleCreateTeam} className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label htmlFor="new-team-city" className={labelCls}>Team City *</label>
-                  <input id="new-team-city" name="team_city" value={newTeam.team_city} onChange={handleCreateChange} required className={inputCls} placeholder="e.g. Austin" />
-                </div>
-                <div>
-                  <label htmlFor="new-team-mascot" className={labelCls}>Team Mascot</label>
-                  <input id="new-team-mascot" name="team_mascot" value={newTeam.team_mascot} onChange={handleCreateChange} className={inputCls} placeholder="e.g. Thunder" />
-                </div>
-                <div>
-                  <label htmlFor="new-team-color" className={labelCls}>Team Color</label>
-                  <input id="new-team-color" name="team_color" value={newTeam.team_color} onChange={handleCreateChange} className={inputCls} placeholder="e.g. Red" />
-                </div>
+                <Input label="Team City *" id="new-team-city" name="team_city" value={newTeam.team_city} onChange={handleCreateChange} required placeholder="e.g. Austin" />
+                <Input label="Team Mascot" id="new-team-mascot" name="team_mascot" value={newTeam.team_mascot} onChange={handleCreateChange} placeholder="e.g. Thunder" />
+                <Input label="Team Color" id="new-team-color" name="team_color" value={newTeam.team_color} onChange={handleCreateChange} placeholder="e.g. Red" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="new-team-primary" className={labelCls}>Primary Color</label>
+                  <label htmlFor="new-team-primary" className="lh-eyebrow block mb-1">Primary Color</label>
                   <div className="flex items-center gap-2">
                     <input id="new-team-primary" type="color" value={newTeam.primary_color} onChange={(e) => setNewTeam((prev) => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
-                    <input type="text" value={newTeam.primary_color} onChange={(e) => setNewTeam((prev) => ({ ...prev, primary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+                    <input type="text" value={newTeam.primary_color} onChange={(e) => setNewTeam((prev) => ({ ...prev, primary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="new-team-secondary" className={labelCls}>Secondary Color</label>
+                  <label htmlFor="new-team-secondary" className="lh-eyebrow block mb-1">Secondary Color</label>
                   <div className="flex items-center gap-2">
                     <input id="new-team-secondary" type="color" value={newTeam.secondary_color} onChange={(e) => setNewTeam((prev) => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
-                    <input type="text" value={newTeam.secondary_color} onChange={(e) => setNewTeam((prev) => ({ ...prev, secondary_color: e.target.value }))} className={inputCls + ' flex-1 font-mono text-xs'} maxLength={7} />
+                    <input type="text" value={newTeam.secondary_color} onChange={(e) => setNewTeam((prev) => ({ ...prev, secondary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
                   </div>
                 </div>
               </div>
@@ -827,16 +783,16 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
               )}
 
               <div>
-                <label className={labelCls}>Team Logo</label>
+                <label className="lh-eyebrow block mb-1">Team Logo</label>
                 <div className="flex items-center gap-3">
                   {logoPreview && <img src={logoPreview} alt="Logo preview" className="w-14 h-14 object-contain rounded border border-gray-700" />}
                   <div className="flex flex-col gap-1">
-                    <label className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600 cursor-pointer inline-block w-fit">
+                    <label className="btn btn-xs btn-secondary cursor-pointer inline-block w-fit">
                       {logoPreview ? 'Change' : 'Upload'}
                       <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                     </label>
                     {logoPreview && (
-                      <button type="button" onClick={handleRemoveLogo} className="px-3 py-1.5 text-xs font-semibold bg-signal-900/35 text-signal-300 rounded hover:bg-signal-800/60 w-fit">Remove</button>
+                      <Button type="button" size="xs" variant="danger" onClick={handleRemoveLogo}>Remove</Button>
                     )}
                     <p className="text-xs text-gray-400">Max 500 KB. If none, uses org logo.</p>
                   </div>
@@ -845,34 +801,34 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="new-team-age" className={labelCls}>Age Group</label>
+                  <label htmlFor="new-team-age" className="lh-eyebrow block mb-1">Age Group</label>
                   {ageGroups.length > 0 ? (
-                    <select id="new-team-age" name="age_group" value={newTeam.age_group} onChange={handleCreateChange} className={inputCls}>
+                    <select id="new-team-age" name="age_group" value={newTeam.age_group} onChange={handleCreateChange} className="lh-select">
                       <option value="">— Select —</option>
                       {ageGroups.map((ag) => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
                     </select>
                   ) : (
-                    <input id="new-team-age" name="age_group" value={newTeam.age_group} onChange={handleCreateChange} className={inputCls} placeholder="e.g. 12U" />
+                    <input id="new-team-age" name="age_group" value={newTeam.age_group} onChange={handleCreateChange} className="lh-input" placeholder="e.g. 12U" />
                   )}
                 </div>
                 <div>
-                  <label htmlFor="new-team-level" className={labelCls}>Level</label>
+                  <label htmlFor="new-team-level" className="lh-eyebrow block mb-1">Level</label>
                   {levels.length > 0 ? (
-                    <select id="new-team-level" name="level" value={newTeam.level} onChange={handleCreateChange} className={inputCls}>
+                    <select id="new-team-level" name="level" value={newTeam.level} onChange={handleCreateChange} className="lh-select">
                       <option value="">— Select —</option>
                       {levels.map((lvl) => <option key={lvl.id} value={lvl.name}>{lvl.name}</option>)}
                     </select>
                   ) : (
-                    <input id="new-team-level" name="level" value={newTeam.level} onChange={handleCreateChange} className={inputCls} placeholder="e.g. Competitive" />
+                    <input id="new-team-level" name="level" value={newTeam.level} onChange={handleCreateChange} className="lh-input" placeholder="e.g. Competitive" />
                   )}
                 </div>
               </div>
 
               <div>
-                <label className={labelCls}>Season / Divisions</label>
+                <label className="lh-eyebrow block mb-1">Season / Divisions</label>
                 {seasons.length > 0 ? (
                   <>
-                    <select value={selectedSeasonId || ''} onChange={handleSeasonChange} className={inputCls + ' mb-2'}>
+                    <select value={selectedSeasonId || ''} onChange={handleSeasonChange} className="lh-select mb-2">
                       {seasons.map((s) => (
                         <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
                       ))}
@@ -910,25 +866,23 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
               {createError && <div className="lh-alert lh-alert-error">{createError}</div>}
 
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => { setShowCreate(false); setEditingTeam(null); }} className={btnSecondary}>Cancel</button>
-                <button type="submit" disabled={creating} className={btnPrimary}>{creating ? 'Saving…' : editingTeam ? 'Update Team' : 'Add Team'}</button>
+                <Button variant="secondary" onClick={() => { setShowCreate(false); setEditingTeam(null); }}>Cancel</Button>
+                <Button type="submit" disabled={creating} loading={creating}>{creating ? 'Saving…' : editingTeam ? 'Update Team' : 'Add Team'}</Button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {canManage && unassignedTeams.length > 0 && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
           <select value={selectedTeamId} onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="flex-1 sm:flex-none sm:min-w-[220px] px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800">
+            className="lh-select flex-1 sm:flex-none sm:min-w-[220px]">
             <option value="">— Assign a team —</option>
             {unassignedTeams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
-          <button onClick={handleAssign} disabled={!selectedTeamId || assigning}
-            className="btn btn-sm btn-primary disabled:opacity-50">
+          <Button size="sm" onClick={handleAssign} disabled={!selectedTeamId || assigning}>
             {assigning ? '…' : 'Assign'}
-          </button>
+          </Button>
         </div>
       )}
     </div>

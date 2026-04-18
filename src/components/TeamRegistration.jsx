@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchRegistrationConfig, registerDirector, registerCoach, register, registerAsUmpire, resendConfirmation } from '../api/index.js';
 import { formatDOB } from '../utils/dob.js';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
-const btnPrimary = "btn btn-primary btn-md disabled:opacity-60 disabled:cursor-not-allowed";
-const btnSecondary = "btn btn-secondary btn-md";
-const btnDanger = "btn btn-danger btn-sm";
+import { Button, Input } from './ui/index.js';
 
 const EMPTY_TEAM = {
   team_city: '', team_mascot: '', team_color: '', age_group: '', level: '',
@@ -320,9 +315,9 @@ export default function TeamRegistration({ onDone }) {
 
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
-        <div className="bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md border-t-4 border-blue-600 text-center">
+        <div className="bg-gray-800 rounded-lg shadow-card p-8 w-full max-w-md border-t-4 border-chrome-600 text-center">
           <div className="text-4xl mb-4">📧</div>
-          <h2 className="font-heading text-2xl font-bold text-chrome-300 mb-3">Check Your Email</h2>
+          <h2 className="font-display text-2xl font-bold text-chrome-300 mb-3">Check Your Email</h2>
           {extraInfo[success.role]}
           <p className="text-gray-300 text-sm mb-4">
             We've sent a confirmation link to <strong className="text-gray-100">{userInfo.email}</strong>. Please click the link to activate your account.
@@ -330,7 +325,9 @@ export default function TeamRegistration({ onDone }) {
           <p className="text-gray-500 text-xs mb-6">
             Didn't receive it? Check your spam folder or click below to resend.
           </p>
-          <button
+          <Button
+            variant="secondary"
+            className="w-full mb-3"
             onClick={async () => {
               try {
                 await resendConfirmation(userInfo.email.trim().toLowerCase());
@@ -340,10 +337,9 @@ export default function TeamRegistration({ onDone }) {
                 setError(err.message);
               }
             }}
-            className={btnSecondary + ' w-full mb-3'}
           >
             Resend Confirmation Email
-          </button>
+          </Button>
           <button
             onClick={() => { window.history.replaceState({}, '', window.location.pathname); onDone(); }}
             className="w-full text-center text-sm text-chrome-400 hover:underline"
@@ -373,9 +369,9 @@ export default function TeamRegistration({ onDone }) {
             <h3 className="text-sm font-bold text-gray-200">Team {index + 1}</h3>
             {showActions && (
               <div className="flex gap-1.5">
-                <button type="button" onClick={() => duplicateTeam(index)} className={btnSecondary + ' !px-2 !py-1 !text-xs'}>Copy</button>
+                <Button size="xs" variant="secondary" onClick={() => duplicateTeam(index)}>Copy</Button>
                 {teams.length > 1 && (
-                  <button type="button" onClick={() => removeTeam(index)} className={btnDanger}>Remove</button>
+                  <Button size="sm" variant="danger" onClick={() => removeTeam(index)}>Remove</Button>
                 )}
               </div>
             )}
@@ -383,24 +379,12 @@ export default function TeamRegistration({ onDone }) {
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+          <Input label="City *" value={team.team_city} onChange={e => updateTeam(index, 'team_city', e.target.value)} placeholder="Springfield" />
+          <Input label="Mascot" value={team.team_mascot} onChange={e => updateTeam(index, 'team_mascot', e.target.value)} placeholder="Eagles" />
+          <Input label="Color" value={team.team_color} onChange={e => updateTeam(index, 'team_color', e.target.value)} placeholder="Red" />
           <div>
-            <label className={labelCls}>City *</label>
-            <input type="text" value={team.team_city} onChange={e => updateTeam(index, 'team_city', e.target.value)}
-              placeholder="Springfield" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Mascot</label>
-            <input type="text" value={team.team_mascot} onChange={e => updateTeam(index, 'team_mascot', e.target.value)}
-              placeholder="Eagles" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Color</label>
-            <input type="text" value={team.team_color} onChange={e => updateTeam(index, 'team_color', e.target.value)}
-              placeholder="Red" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Age Group *</label>
-            <select value={team.age_group} onChange={e => updateTeam(index, 'age_group', e.target.value)} className={inputCls}>
+            <label className="lh-eyebrow block mb-1">Age Group *</label>
+            <select value={team.age_group} onChange={e => updateTeam(index, 'age_group', e.target.value)} className="lh-select">
               <option value="">— Select —</option>
               {config?.age_groups?.map(ag => (
                 <option key={ag.id} value={ag.name}>{ag.name}</option>
@@ -408,8 +392,8 @@ export default function TeamRegistration({ onDone }) {
             </select>
           </div>
           <div>
-            <label className={labelCls}>Level</label>
-            <select value={team.level} onChange={e => updateTeam(index, 'level', e.target.value)} className={inputCls}>
+            <label className="lh-eyebrow block mb-1">Level</label>
+            <select value={team.level} onChange={e => updateTeam(index, 'level', e.target.value)} className="lh-select">
               <option value="">— Select —</option>
               {config?.levels?.map(l => (
                 <option key={l.id} value={l.name}>{l.name}</option>
@@ -418,7 +402,7 @@ export default function TeamRegistration({ onDone }) {
           </div>
           <div className="flex gap-2 items-end">
             <div className="flex-1">
-              <label className={labelCls}>Primary</label>
+              <label className="lh-eyebrow block mb-1">Primary</label>
               <div className="flex items-center gap-2">
                 <input type="color" value={team.primary_color} onChange={e => updateTeam(index, 'primary_color', e.target.value)}
                   className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" />
@@ -426,7 +410,7 @@ export default function TeamRegistration({ onDone }) {
               </div>
             </div>
             <div className="flex-1">
-              <label className={labelCls}>Secondary</label>
+              <label className="lh-eyebrow block mb-1">Secondary</label>
               <div className="flex items-center gap-2">
                 <input type="color" value={team.secondary_color} onChange={e => updateTeam(index, 'secondary_color', e.target.value)}
                   className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" />
@@ -440,21 +424,9 @@ export default function TeamRegistration({ onDone }) {
           <div className="border-t border-gray-700 pt-3 mt-2">
             <p className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-2">Coach / Manager Contact</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className={labelCls}>Name</label>
-                <input type="text" value={team.coach_name} onChange={e => updateTeam(index, 'coach_name', e.target.value)}
-                  placeholder="Coach name" className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Email</label>
-                <input type="email" value={team.coach_email} onChange={e => updateTeam(index, 'coach_email', e.target.value)}
-                  placeholder="coach@example.com" className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Phone</label>
-                <input type="tel" value={team.coach_phone} onChange={e => updateTeam(index, 'coach_phone', e.target.value)}
-                  placeholder="(555) 123-4567" className={inputCls} />
-              </div>
+              <Input label="Name" value={team.coach_name} onChange={e => updateTeam(index, 'coach_name', e.target.value)} placeholder="Coach name" />
+              <Input label="Email" type="email" value={team.coach_email} onChange={e => updateTeam(index, 'coach_email', e.target.value)} placeholder="coach@example.com" />
+              <Input label="Phone" type="tel" value={team.coach_phone} onChange={e => updateTeam(index, 'coach_phone', e.target.value)} placeholder="(555) 123-4567" />
             </div>
             <p className="text-[10px] text-gray-500 mt-1">If an email is provided, the coach will receive a login invitation and be assigned as team manager.</p>
           </div>
@@ -466,8 +438,8 @@ export default function TeamRegistration({ onDone }) {
   // ═══════════════ Main Render ═══════════════
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
-      <div className="bg-gray-800 rounded-lg shadow-card p-6 sm:p-8 w-full max-w-2xl border-t-4 border-baseball-600">
-        <h1 className="font-heading text-2xl font-bold mb-1 tracking-wide text-chrome-300">⚾ LeagueHaven Registration</h1>
+      <div className="bg-gray-800 rounded-lg shadow-card p-6 sm:p-8 w-full max-w-2xl border-t-4 border-signal-600">
+        <h1 className="font-display text-2xl font-bold mb-1 tracking-wide text-chrome-300">⚾ LeagueHaven Registration</h1>
         <p className="text-gray-400 mb-6 text-sm">
           {!role ? 'What best describes your role?' : 'Create your account'}
         </p>
@@ -536,41 +508,17 @@ export default function TeamRegistration({ onDone }) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Full Name *</label>
-                <input type="text" value={userInfo.name} onChange={e => setUserInfo(u => ({ ...u, name: e.target.value }))}
-                  placeholder="John Smith" className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Email Address *</label>
-                <input type="email" value={userInfo.email} onChange={e => setUserInfo(u => ({ ...u, email: e.target.value }))}
-                  placeholder="john@example.com" className={inputCls} />
-              </div>
+              <Input label="Full Name *" value={userInfo.name} onChange={e => setUserInfo(u => ({ ...u, name: e.target.value }))} placeholder="John Smith" />
+              <Input label="Email Address *" type="email" value={userInfo.email} onChange={e => setUserInfo(u => ({ ...u, email: e.target.value }))} placeholder="john@example.com" />
             </div>
-            <div>
-              <label className={labelCls}>Phone</label>
-              <input type="tel" value={userInfo.phone} onChange={e => setUserInfo(u => ({ ...u, phone: e.target.value }))}
-                placeholder="(555) 123-4567" className={inputCls} />
-            </div>
+            <Input label="Phone" type="tel" value={userInfo.phone} onChange={e => setUserInfo(u => ({ ...u, phone: e.target.value }))} placeholder="(555) 123-4567" />
             <div className="border-t border-gray-700 pt-4 mt-4">
               <p className="text-xs text-gray-400 mb-3">Create your login credentials</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>Username *</label>
-                  <input type="text" value={userInfo.username} onChange={e => setUserInfo(u => ({ ...u, username: e.target.value }))}
-                    placeholder="jsmith" autoComplete="username" className={inputCls} />
-                </div>
+                <Input label="Username *" value={userInfo.username} onChange={e => setUserInfo(u => ({ ...u, username: e.target.value }))} placeholder="jsmith" autoComplete="username" />
                 <div className="hidden sm:block" />
-                <div>
-                  <label className={labelCls}>Password *</label>
-                  <input type="password" value={userInfo.password} onChange={e => setUserInfo(u => ({ ...u, password: e.target.value }))}
-                    placeholder="At least 8 characters" autoComplete="new-password" className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>Confirm Password *</label>
-                  <input type="password" value={userInfo.confirmPassword} onChange={e => setUserInfo(u => ({ ...u, confirmPassword: e.target.value }))}
-                    placeholder="Repeat password" autoComplete="new-password" className={inputCls} />
-                </div>
+                <Input label="Password *" type="password" value={userInfo.password} onChange={e => setUserInfo(u => ({ ...u, password: e.target.value }))} placeholder="At least 8 characters" autoComplete="new-password" />
+                <Input label="Confirm Password *" type="password" value={userInfo.confirmPassword} onChange={e => setUserInfo(u => ({ ...u, confirmPassword: e.target.value }))} placeholder="Repeat password" autoComplete="new-password" />
               </div>
             </div>
           </div>
@@ -596,8 +544,8 @@ export default function TeamRegistration({ onDone }) {
 
             {orgMode === 'existing' ? (
               <div>
-                <label className={labelCls}>Select Organization *</label>
-                <select value={orgId} onChange={e => setOrgId(e.target.value)} className={inputCls}>
+                <label className="lh-eyebrow block mb-1">Select Organization *</label>
+                <select value={orgId} onChange={e => setOrgId(e.target.value)} className="lh-select">
                   <option value="">— Choose an organization —</option>
                   {config?.organizations?.map(o => (
                     <option key={o.id} value={o.id}>
@@ -608,39 +556,15 @@ export default function TeamRegistration({ onDone }) {
               </div>
             ) : (
               <div className="space-y-4">
-                <div>
-                  <label className={labelCls}>Organization Name *</label>
-                  <input type="text" value={newOrg.name} onChange={e => setNewOrg(o => ({ ...o, name: e.target.value }))}
-                    placeholder="Springfield Baseball Club" className={inputCls} />
-                </div>
+                <Input label="Organization Name *" value={newOrg.name} onChange={e => setNewOrg(o => ({ ...o, name: e.target.value }))} placeholder="Springfield Baseball Club" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelCls}>City</label>
-                    <input type="text" value={newOrg.city} onChange={e => setNewOrg(o => ({ ...o, city: e.target.value }))}
-                      placeholder="Springfield" className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>State</label>
-                    <input type="text" value={newOrg.state} onChange={e => setNewOrg(o => ({ ...o, state: e.target.value }))}
-                      placeholder="IL" maxLength={2} className={inputCls} />
-                  </div>
+                  <Input label="City" value={newOrg.city} onChange={e => setNewOrg(o => ({ ...o, city: e.target.value }))} placeholder="Springfield" />
+                  <Input label="State" value={newOrg.state} onChange={e => setNewOrg(o => ({ ...o, state: e.target.value }))} placeholder="IL" maxLength={2} />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className={labelCls}>Contact Name</label>
-                    <input type="text" value={newOrg.contact_name} onChange={e => setNewOrg(o => ({ ...o, contact_name: e.target.value }))}
-                      placeholder="Director name" className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Contact Email</label>
-                    <input type="email" value={newOrg.contact_email} onChange={e => setNewOrg(o => ({ ...o, contact_email: e.target.value }))}
-                      placeholder="org@example.com" className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Contact Phone</label>
-                    <input type="tel" value={newOrg.contact_phone} onChange={e => setNewOrg(o => ({ ...o, contact_phone: e.target.value }))}
-                      placeholder="(555) 123-4567" className={inputCls} />
-                  </div>
+                  <Input label="Contact Name" value={newOrg.contact_name} onChange={e => setNewOrg(o => ({ ...o, contact_name: e.target.value }))} placeholder="Director name" />
+                  <Input label="Contact Email" type="email" value={newOrg.contact_email} onChange={e => setNewOrg(o => ({ ...o, contact_email: e.target.value }))} placeholder="org@example.com" />
+                  <Input label="Contact Phone" type="tel" value={newOrg.contact_phone} onChange={e => setNewOrg(o => ({ ...o, contact_phone: e.target.value }))} placeholder="(555) 123-4567" />
                 </div>
               </div>
             )}
@@ -680,8 +604,8 @@ export default function TeamRegistration({ onDone }) {
         {currentStepKey === 'coach-team' && (
           <div className="space-y-4">
             <div>
-              <label className={labelCls}>Organization *</label>
-              <select value={coachOrgId} onChange={e => { setCoachOrgId(e.target.value); setCoachTeamId(''); }} className={inputCls}>
+              <label className="lh-eyebrow block mb-1">Organization *</label>
+              <select value={coachOrgId} onChange={e => { setCoachOrgId(e.target.value); setCoachTeamId(''); }} className="lh-select">
                 <option value="">— Select your organization —</option>
                 {config?.organizations?.map(o => (
                   <option key={o.id} value={o.id}>
@@ -709,8 +633,8 @@ export default function TeamRegistration({ onDone }) {
 
             {coachTeamMode === 'existing' ? (
               <div>
-                <label className={labelCls}>Select Team *</label>
-                <select value={coachTeamId} onChange={e => setCoachTeamId(e.target.value)} className={inputCls}>
+                <label className="lh-eyebrow block mb-1">Select Team *</label>
+                <select value={coachTeamId} onChange={e => setCoachTeamId(e.target.value)} className="lh-select">
                   <option value="">— Choose a team —</option>
                   {(config?.teams?.filter(t => t.org_id === Number(coachOrgId)) || []).map(t => (
                     <option key={t.id} value={t.id}>
@@ -732,7 +656,7 @@ export default function TeamRegistration({ onDone }) {
         {currentStepKey === 'umpire-details' && (
           <div className="space-y-4">
             <div>
-              <label className={labelCls}>Organizations *</label>
+              <label className="lh-eyebrow block mb-1">Organizations *</label>
               <p className="text-[10px] text-gray-500 mb-2">Select the organization(s) you want to umpire for.</p>
               <div className="space-y-1 max-h-48 overflow-y-auto bg-gray-900 border border-gray-700 rounded-lg p-2">
                 {config?.organizations?.map(o => (
@@ -753,18 +677,8 @@ export default function TeamRegistration({ onDone }) {
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Date of Birth</label>
-                <input type="date" value={umpire.date_of_birth}
-                  onChange={e => setUmpire(u => ({ ...u, date_of_birth: e.target.value }))}
-                  className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Years of Experience</label>
-                <input type="number" min="0" max="99" value={umpire.years_of_experience}
-                  onChange={e => setUmpire(u => ({ ...u, years_of_experience: e.target.value }))}
-                  placeholder="0" className={inputCls} />
-              </div>
+              <Input label="Date of Birth" type="date" value={umpire.date_of_birth} onChange={e => setUmpire(u => ({ ...u, date_of_birth: e.target.value }))} />
+              <Input label="Years of Experience" type="number" min="0" max="99" value={umpire.years_of_experience} onChange={e => setUmpire(u => ({ ...u, years_of_experience: e.target.value }))} placeholder="0" />
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={umpire.is_certified}
@@ -937,13 +851,13 @@ export default function TeamRegistration({ onDone }) {
         <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-700">
           <div>
             {step > 1 ? (
-              <button type="button" onClick={handleBack} className={btnSecondary}>
+              <Button variant="secondary" onClick={handleBack}>
                 ← Back
-              </button>
+              </Button>
             ) : (
-              <button type="button" onClick={onDone} className={btnSecondary + ' !text-gray-400'}>
+              <Button variant="ghost" onClick={onDone}>
                 ← Back to Login
-              </button>
+              </Button>
             )}
           </div>
           <div>
@@ -951,13 +865,13 @@ export default function TeamRegistration({ onDone }) {
               /* Role step has no "Next" — user clicks a card to proceed */
               null
             ) : currentStepKey === 'review' ? (
-              <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary}>
+              <Button onClick={handleSubmit} disabled={submitting} loading={submitting}>
                 {submitting ? 'Registering…' : 'Submit Registration'}
-              </button>
+              </Button>
             ) : (
-              <button type="button" onClick={handleNext} className={btnPrimary}>
+              <Button onClick={handleNext}>
                 Next →
-              </button>
+              </Button>
             )}
           </div>
         </div>

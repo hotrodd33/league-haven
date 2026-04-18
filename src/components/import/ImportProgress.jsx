@@ -25,7 +25,7 @@ export default function ImportProgress({ progress = 0, status = 'uploading' }) {
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            className="text-field-200"
+            className="text-action-200"
           />
           <path
             d="M50 10 L90 50 L50 90 L10 50 Z"
@@ -34,7 +34,7 @@ export default function ImportProgress({ progress = 0, status = 'uploading' }) {
             strokeWidth="2.5"
             strokeDasharray="240"
             strokeDashoffset={240 - (240 * progress / 100)}
-            className="text-field-600 transition-all duration-500"
+            className="text-action-600 transition-all duration-500"
             strokeLinecap="round"
           />
         </svg>
@@ -59,7 +59,7 @@ export default function ImportProgress({ progress = 0, status = 'uploading' }) {
         {/* Progress bar */}
         <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-field-500 to-field-600 rounded-full transition-all duration-500 ease-out"
+            className="h-full bg-gradient-to-r from-action-500 to-action-600 rounded-full transition-all duration-500 ease-out"
             style={{ width: `${Math.max(progress, 3)}%` }}
           />
         </div>

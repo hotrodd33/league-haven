@@ -4,15 +4,13 @@ import { STALE } from '../lib/queryConfig.js';
 import { fetchStaffByTeam, createStaff, updateStaff, deleteStaff, searchStaff, assignStaffToTeam, unassignStaffFromTeam } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ContactModal from './ContactModal.jsx';
+import { Button, Input, Select, Modal } from './ui';
 
 const ROLE_OPTIONS = [
   { value: 'head_coach', label: 'Head Coach' },
   { value: 'assistant_coach', label: 'Assistant Coach' },
   { value: 'scorekeeper', label: 'Scorekeeper' },
 ];
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
 
 export default function StaffList({ teamId, teamOrgId }) {
   const { canEditTeam: canEdit } = useAuth();
@@ -88,7 +86,7 @@ export default function StaffList({ teamId, teamOrgId }) {
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xl font-heading font-bold text-white">Coaches &amp; Staff ({teamStaff.length})</h2>
+        <h2 className="text-xl font-display font-bold text-white">Coaches &amp; Staff ({teamStaff.length})</h2>
         {editable && (
           <div className="flex gap-2">
             <button onClick={() => setShowAddExisting(!showAddExisting)}
@@ -152,9 +150,9 @@ export default function StaffList({ teamId, teamOrgId }) {
           {editable && (
             <>
               <br />
-              <button onClick={() => { setEditing(null); setShowForm(true); }} className="text-field-300 underline mt-1 inline-block">Add a new staff member</button>
+              <button onClick={() => { setEditing(null); setShowForm(true); }} className="text-action-300 underline mt-1 inline-block">Add a new staff member</button>
               {' or '}
-              <button onClick={() => setShowAddExisting(true)} className="text-field-300 underline mt-1 inline-block">add an existing one</button>
+              <button onClick={() => setShowAddExisting(true)} className="text-action-300 underline mt-1 inline-block">add an existing one</button>
             </>
           )}
         </div>
@@ -259,7 +257,7 @@ export default function StaffList({ teamId, teamOrgId }) {
 
       {orgAdmins.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-heading font-bold text-white mb-2">Org Administrators ({orgAdmins.length})</h3>
+          <h3 className="text-lg font-display font-bold text-white mb-2">Org Administrators ({orgAdmins.length})</h3>
           {/* Desktop table */}
           <div className="hidden md:block">
             <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
@@ -380,31 +378,17 @@ function StaffForm({ teamId, staff, onDone, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Staff' : 'Add Staff'}</h2>
+    <Modal open onClose={onCancel} size="md" title={isEditing ? 'Edit Staff' : 'Add Staff'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="staff-name" className={labelCls}>Name *</label>
-              <input id="staff-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="Full name" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="staff-role" className={labelCls}>Role *</label>
-              <select id="staff-role" name="role" value={form.role} onChange={handleChange} className={inputCls}>
-                {ROLE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            </div>
+            <Input label="Name *" id="staff-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="Full name" />
+            <Select label="Role *" id="staff-role" name="role" value={form.role} onChange={handleChange}>
+              {ROLE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </Select>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="staff-email" className={labelCls}>Email</label>
-              <input id="staff-email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="coach@example.com" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="staff-phone" className={labelCls}>Phone</label>
-              <input id="staff-phone" name="phone" type="tel" value={form.phone} onChange={handleChange} placeholder="(555) 123-4567" className={inputCls} />
-            </div>
+            <Input label="Email" id="staff-email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="coach@example.com" />
+            <Input label="Phone" id="staff-phone" name="phone" type="tel" value={form.phone} onChange={handleChange} placeholder="(555) 123-4567" />
           </div>
 
           {!isEditing && form.email.trim() && (
@@ -425,13 +409,10 @@ function StaffForm({ teamId, staff, onDone, onCancel }) {
           {result && <div className="lh-alert lh-alert-success">{result}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className="btn btn-sm btn-primary disabled:opacity-50">
-              {saving ? 'Saving…' : isEditing ? 'Update' : 'Add Staff'}
-            </button>
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" size="sm" loading={saving}>{isEditing ? 'Update' : 'Add Staff'}</Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

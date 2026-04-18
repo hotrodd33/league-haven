@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchOfficialDetail, fetchOfficialGames, updateOfficialGamePayment, fetchOfficialInterestedGames, assignOfficialToGame, unassignOfficialFromGame } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { Button, Badge, Card, CardBody } from './ui';
 
-const btnSecondary = 'btn btn-secondary btn-md';
 const STATUS_COLORS = {
-  scheduled:   'lh-badge-info',
-  in_progress: 'lh-badge-warn',
-  completed:   'lh-badge-success',
-  cancelled:   'lh-badge-danger',
-  postponed:   'lh-badge-neutral',
+  scheduled:   'info',
+  in_progress: 'warning',
+  completed:   'success',
+  cancelled:   'danger',
+  postponed:   'neutral',
 };
 const STATUS_LABELS = {
   scheduled: 'Scheduled',
@@ -170,22 +170,23 @@ export default function OfficialDetail({ officialId, onBack }) {
     <div>
       {/* Back button */}
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={onBack} className={btnSecondary}>← Back to Officials</button>
+        <Button variant="secondary" onClick={onBack}>← Back to Officials</Button>
       </div>
 
       {/* Profile card */}
-      <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
+      <Card variant="bordered" className="mb-4">
+        <CardBody className="p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-2">
-              <h1 className="text-xl font-heading font-bold text-white">{official.name}</h1>
+              <h1 className="text-xl font-display font-bold text-white">{official.name}</h1>
               {official.org_ids?.length ? official.org_names.map((name, i) => (
-                <span key={official.org_ids[i]} className="lh-badge lh-badge-info">{name}</span>
+                <Badge key={official.org_ids[i]} variant="info">{name}</Badge>
               )) : (
-                <span className="lh-badge lh-badge-info">League</span>
+                <Badge variant="info">League</Badge>
               )}
               {official.is_certified && (
-                <span className="lh-badge lh-badge-success">Certified</span>
+                <Badge variant="success">Certified</Badge>
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-sm text-gray-300">
@@ -213,25 +214,31 @@ export default function OfficialDetail({ officialId, onBack }) {
             </div>
           )}
         </div>
-      </div>
-
+      </CardBody>
+      </Card>
       {/* Financial summary */}
       {canViewFinancials && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
+          <Card variant="bordered">
+            <CardBody className="text-center">
             <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Earnings</div>
             <div className="text-2xl font-bold text-gray-100">{formatMoney(summary.total_earnings)}</div>
             <div className="text-xs text-gray-400 mt-0.5">{summary.completed_games} finalized game{summary.completed_games !== 1 ? 's' : ''}</div>
-          </div>
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
+          </CardBody>
+          </Card>
+          <Card variant="bordered">
+            <CardBody className="text-center">
             <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Payments</div>
             <div className="text-2xl font-bold text-action-400">{formatMoney(summary.total_payments)}</div>
-          </div>
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
+          </CardBody>
+          </Card>
+          <Card variant="bordered">
+            <CardBody className="text-center">
             <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Due</div>
             <div className={`text-2xl font-bold ${summary.total_due > 0 ? 'text-amber-400' : 'text-gray-400'}`}>{formatMoney(summary.total_due)}</div>
             <div className="text-xs text-gray-400 mt-0.5">finalized & unpaid</div>
-          </div>
+          </CardBody>
+          </Card>
         </div>
       )}
 
@@ -243,18 +250,16 @@ export default function OfficialDetail({ officialId, onBack }) {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 text-sm font-heading font-bold uppercase tracking-wide whitespace-nowrap border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-display font-bold uppercase tracking-wide whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? 'border-chrome-500 text-chrome-400'
                   : 'border-transparent text-gray-400 hover:text-gray-200'
               }`}
             >
               {tab.label}
-              <span className={`ml-1.5 lh-badge ${
-                activeTab === tab.key ? 'lh-badge-info' : 'lh-badge-neutral'
-              }`}>
+              <Badge variant={activeTab === tab.key ? 'info' : 'neutral'} className="ml-1.5">
                 {tabCounts[tab.key]}
-              </span>
+              </Badge>
             </button>
           ))}
         </div>
@@ -352,11 +357,11 @@ function GameRow({ game, canEdit, canViewFinancials, updating, onTogglePaid, onT
             <span className="text-sm font-medium text-gray-200">
               {game.home_team_name} vs {game.away_team_name}
             </span>
-            <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-700 text-gray-300'}`}>
+            <Badge variant={STATUS_COLORS[game.status] || 'neutral'}>
               {STATUS_LABELS[game.status] || game.status}
-            </span>
+            </Badge>
             {game.no_show && (
-              <span className="lh-badge lh-badge-danger">No Show</span>
+              <Badge variant="danger">No Show</Badge>
             )}
           </div>
           <div className="text-xs text-gray-400">
@@ -477,17 +482,17 @@ function InterestedGameRow({ game, canEdit, updating, onAssign }) {
             <span className="text-sm font-medium text-gray-200">
               {game.home_team_name} vs {game.away_team_name}
             </span>
-            <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-700 text-gray-300'}`}>
+            <Badge variant={STATUS_COLORS[game.status] || 'neutral'}>
               {STATUS_LABELS[game.status] || game.status}
-            </span>
+            </Badge>
             {game.home_age_group && (
-              <span className="lh-badge lh-badge-info">
+              <Badge variant="info">
                 {game.home_age_group}
-              </span>
+              </Badge>
             )}
-            <span className="lh-badge lh-badge-neutral">
+            <Badge variant="neutral">
               {game.assigned_count} assigned
-            </span>
+            </Badge>
           </div>
           <div className="text-xs text-gray-400">
             {formatDate(game.game_date)}
@@ -499,13 +504,14 @@ function InterestedGameRow({ game, canEdit, updating, onAssign }) {
 
         <div className="shrink-0">
           {canEdit && (
-            <button
+            <Button
+              size="xs"
               onClick={onAssign}
               disabled={updating}
-              className="px-3 py-1.5 bg-green-700 text-green-100 text-xs font-bold rounded-lg hover:bg-action-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              loading={updating}
             >
               {updating ? 'Assigning…' : 'Assign'}
-            </button>
+            </Button>
           )}
         </div>
       </div>

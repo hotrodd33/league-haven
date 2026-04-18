@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchPositions, createPlayer, updatePlayer } from '../api/index.js';
+import { Button, Input, Select, Modal } from './ui';
 
 const BATTING_OPTIONS = ['R', 'L', 'S'];
 const THROWING_OPTIONS = ['R', 'L'];
@@ -8,8 +9,7 @@ const JERSEY_SIZE_OPTIONS = ['YXS', 'YS', 'YM', 'YL', 'YXL', 'AS', 'AM', 'AL', '
 const HAT_SIZE_OPTIONS = ['Youth', 'Adult S/M', 'Adult L/XL', '6 3/8', '6 1/2', '6 5/8', '6 3/4', '6 7/8', '7', '7 1/8', '7 1/4', '7 3/8', '7 1/2', '7 5/8', '7 3/4', '7 7/8', '8'];
 const RELATIONSHIP_OPTIONS = ['parent', 'guardian', 'emergency', 'other'];
 
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
+
 
 const EMPTY_CONTACT = { first_name: '', last_name: '', relationship: 'parent', email: '', phone: '', is_primary: false };
 
@@ -120,30 +120,18 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Player' : 'Add Player'}</h2>
-
+    <Modal open onClose={onCancel} size="md" title={isEditing ? 'Edit Player' : 'Add Player'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name row */}
           <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_80px] gap-3">
-            <div>
-              <label htmlFor="firstName" className={labelCls}>First Name *</label>
-              <input id="firstName" name="firstName" type="text" value={form.firstName} onChange={handleChange} required placeholder="First" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="lastName" className={labelCls}>Last Name *</label>
-              <input id="lastName" name="lastName" type="text" value={form.lastName} onChange={handleChange} required placeholder="Last" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="jerseyNumber" className={labelCls}>Jersey #</label>
-              <input id="jerseyNumber" name="jerseyNumber" type="text" value={form.jerseyNumber} onChange={handleChange} placeholder="00" maxLength={3} className={inputCls} />
-            </div>
+            <Input label="First Name *" id="firstName" name="firstName" type="text" value={form.firstName} onChange={handleChange} required placeholder="First" />
+            <Input label="Last Name *" id="lastName" name="lastName" type="text" value={form.lastName} onChange={handleChange} required placeholder="Last" />
+            <Input label="Jersey #" id="jerseyNumber" name="jerseyNumber" type="text" value={form.jerseyNumber} onChange={handleChange} placeholder="00" maxLength={3} />
           </div>
 
           {/* Positions */}
           <div>
-            <label className={labelCls}>Position(s)</label>
+            <label className="eyebrow block">Position(s)</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {positions.length === 0 ? (
                 <span className="text-xs text-gray-400">No positions available</span>
@@ -158,58 +146,40 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
 
           {/* DOB, Bats, Throws, Grade */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label htmlFor="dateOfBirth" className={labelCls}>Date of Birth</label>
-              <input id="dateOfBirth" name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={handleChange} className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="battingHand" className={labelCls}>Bats</label>
-              <select id="battingHand" name="battingHand" value={form.battingHand} onChange={handleChange} className={inputCls}>
+            <Input label="Date of Birth" id="dateOfBirth" name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={handleChange} />
+            <Select label="Bats" id="battingHand" name="battingHand" value={form.battingHand} onChange={handleChange}>
                 <option value="">—</option>
                 {BATTING_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="throwingHand" className={labelCls}>Throws</label>
-              <select id="throwingHand" name="throwingHand" value={form.throwingHand} onChange={handleChange} className={inputCls}>
+            </Select>
+            <Select label="Throws" id="throwingHand" name="throwingHand" value={form.throwingHand} onChange={handleChange}>
                 <option value="">—</option>
                 {THROWING_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="grade" className={labelCls}>Grade</label>
-              <select id="grade" name="grade" value={form.grade} onChange={handleChange} className={inputCls}>
+            </Select>
+            <Select label="Grade" id="grade" name="grade" value={form.grade} onChange={handleChange}>
                 <option value="">—</option>
                 {GRADE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
+            </Select>
           </div>
 
           {/* Jersey & Hat Sizing */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label htmlFor="jerseySize" className={labelCls}>Jersey Size</label>
-              <select id="jerseySize" name="jerseySize" value={form.jerseySize} onChange={handleChange} className={inputCls}>
+            <Select label="Jersey Size" id="jerseySize" name="jerseySize" value={form.jerseySize} onChange={handleChange}>
                 <option value="">—</option>
                 {JERSEY_SIZE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="hatSize" className={labelCls}>Hat Size</label>
-              <select id="hatSize" name="hatSize" value={form.hatSize} onChange={handleChange} className={inputCls}>
+            </Select>
+            <Select label="Hat Size" id="hatSize" name="hatSize" value={form.hatSize} onChange={handleChange}>
                 <option value="">—</option>
                 {HAT_SIZE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
+            </Select>
             <div className="flex items-end pb-1">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" name="needsNewJersey" checked={form.needsNewJersey} onChange={handleChange} className="accent-blue-500 w-4 h-4" />
+                <input type="checkbox" name="needsNewJersey" checked={form.needsNewJersey} onChange={handleChange} className="accent-action-500 w-4 h-4" />
                 <span className="text-sm text-gray-300">Needs New Jersey</span>
               </label>
             </div>
             <div className="flex items-end pb-1">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" name="needsNewHat" checked={form.needsNewHat} onChange={handleChange} className="accent-blue-500 w-4 h-4" />
+                <input type="checkbox" name="needsNewHat" checked={form.needsNewHat} onChange={handleChange} className="accent-action-500 w-4 h-4" />
                 <span className="text-sm text-gray-300">Needs New Hat</span>
               </label>
             </div>
@@ -219,7 +189,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
           {!isEditing && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className={labelCls + ' mb-0'}>Contacts</label>
+                <label className="eyebrow block">Contacts</label>
                 <button type="button" onClick={addContact} className="text-xs font-semibold text-chrome-400 hover:text-chrome-300 underline">+ Add Contact</button>
               </div>
               <div className="space-y-3">
@@ -229,7 +199,7 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
                       <span className="text-xs font-semibold text-gray-300">Contact {idx + 1}</span>
                       <div className="flex items-center gap-3">
                         <label className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
-                          <input type="checkbox" checked={contact.is_primary} onChange={(e) => handleContactChange(idx, 'is_primary', e.target.checked)} className="accent-blue-500" />
+                          <input type="checkbox" checked={contact.is_primary} onChange={(e) => handleContactChange(idx, 'is_primary', e.target.checked)} className="accent-action-500" />
                           Primary
                         </label>
                         {contacts.length > 1 && (
@@ -238,21 +208,15 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      <div>
-                        <input type="text" value={contact.first_name} onChange={(e) => handleContactChange(idx, 'first_name', e.target.value)} placeholder="First Name *" className={inputCls} />
-                      </div>
-                      <div>
-                        <input type="text" value={contact.last_name} onChange={(e) => handleContactChange(idx, 'last_name', e.target.value)} placeholder="Last Name *" className={inputCls} />
-                      </div>
-                      <div>
-                        <select value={contact.relationship} onChange={(e) => handleContactChange(idx, 'relationship', e.target.value)} className={inputCls}>
+                      <Input type="text" value={contact.first_name} onChange={(e) => handleContactChange(idx, 'first_name', e.target.value)} placeholder="First Name *" />
+                      <Input type="text" value={contact.last_name} onChange={(e) => handleContactChange(idx, 'last_name', e.target.value)} placeholder="Last Name *" />
+                      <Select value={contact.relationship} onChange={(e) => handleContactChange(idx, 'relationship', e.target.value)}>
                           {RELATIONSHIP_OPTIONS.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
-                        </select>
-                      </div>
+                      </Select>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <input type="email" value={contact.email} onChange={(e) => handleContactChange(idx, 'email', e.target.value)} placeholder="Email" className={inputCls} />
-                      <input type="tel" value={contact.phone} onChange={(e) => handleContactChange(idx, 'phone', e.target.value)} placeholder="Phone" className={inputCls} />
+                      <Input type="email" value={contact.email} onChange={(e) => handleContactChange(idx, 'email', e.target.value)} placeholder="Email" />
+                      <Input type="tel" value={contact.phone} onChange={(e) => handleContactChange(idx, 'phone', e.target.value)} placeholder="Phone" />
                     </div>
                   </div>
                 ))}
@@ -263,13 +227,12 @@ export default function PlayerForm({ teamId, player, onSaved, onCancel }) {
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className="btn btn-sm btn-primary disabled:opacity-50">
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" size="sm" loading={saving} disabled={saving}>
               {saving ? 'Saving…' : isEditing ? 'Update Player' : 'Add Player'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

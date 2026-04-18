@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { Button } from './ui';
 
 export default class ErrorBoundary extends Component {
     state = { error: null };
@@ -20,12 +21,12 @@ export default class ErrorBoundary extends Component {
                         <p className="text-2xl">⚠️</p>
                         <p className="text-signal-400 font-semibold text-sm">Something went wrong</p>
                         <p className="text-xs text-gray-400 break-words">{this.state.error.message}</p>
-                        <button
+                        <Button
+                            size="sm"
                             onClick={() => this.setState({ error: null })}
-                            className="btn btn-sm btn-primary"
                         >
                             Try again
-                        </button>
+                        </Button>
                     </div>
                 </div>
             );

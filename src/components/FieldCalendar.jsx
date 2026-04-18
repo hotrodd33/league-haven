@@ -6,14 +6,11 @@ import {
   checkGameConflicts,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
-const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
+import { Button, Input, Select, Modal } from './ui';
 
 const EVENT_COLORS = {
   game_hold: { bg: 'bg-signal-900/40', border: 'border-signal-500', text: 'text-signal-300', dot: 'bg-signal-500' },
-  practice: { bg: 'bg-chrome-900/40', border: 'border-chrome-500', text: 'text-chrome-300', dot: 'bg-blue-500' },
+  practice: { bg: 'bg-chrome-900/40', border: 'border-chrome-500', text: 'text-chrome-300', dot: 'bg-chrome-500' },
   event: { bg: 'bg-purple-900/40', border: 'border-purple-500', text: 'text-purple-300', dot: 'bg-purple-500' },
   maintenance: { bg: 'bg-amber-900/40', border: 'border-amber-500', text: 'text-amber-300', dot: 'bg-amber-500' },
 };
@@ -148,14 +145,14 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0">
           <div>
-            <h2 className="text-xl font-heading font-bold text-white">{field.name}</h2>
+            <h2 className="text-xl font-display font-bold text-white">{field.name}</h2>
             <p className="text-xs text-gray-400">{[field.address, field.city, field.state].filter(Boolean).join(', ')}</p>
           </div>
           <div className="flex items-center gap-2">
             {editable && (
-              <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>
+              <Button onClick={() => { setEditing(null); setShowForm(true); }}>
                 + Schedule
-              </button>
+              </Button>
             )}
             <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -214,7 +211,7 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
                     <button key={dk} type="button"
                       onClick={() => setSelectedDate(isSelected ? null : dk)}
                       className={`min-h-[70px] p-1 text-left rounded transition-colors
-                        ${isToday ? 'ring-1 ring-blue-500' : ''}
+                        ${isToday ? 'ring-1 ring-chrome-500' : ''}
                         ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}
                       `}>
                       <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
@@ -552,16 +549,12 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 my-4 text-gray-200">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">
-          {isEditing ? 'Edit Reservation' : isGame ? 'Schedule Game' : 'Book Field Time'}
-        </h2>
+    <Modal open onClose={onCancel} size="md" title={isEditing ? 'Edit Reservation' : isGame ? 'Schedule Game' : 'Book Field Time'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Event type toggle — only on create */}
           {!isEditing && eventTypeOptions.length > 1 && (
             <div>
-              <label className={labelCls}>Type</label>
+              <label className="lh-eyebrow">Type</label>
               <div className="flex gap-1 p-1 bg-gray-900 rounded-lg">
                 {eventTypeOptions.map(opt => (
                   <button
@@ -587,20 +580,17 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
           {isGame ? (
             <>
               {/* Game fields */}
-              <div>
-                <label htmlFor="fc-season" className={labelCls}>Season</label>
-                <select id="fc-season" name="season_id" value={gameForm.season_id} onChange={handleGameChange} className={inputCls}>
+              <Select label="Season" id="fc-season" name="season_id" value={gameForm.season_id} onChange={handleGameChange}>
                   <option value="">— None —</option>
                   {seasons.map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
                   ))}
-                </select>
-              </div>
+              </Select>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="fc-home" className={labelCls}>Home Team *</label>
-                  <select id="fc-home" name="home_team_id" value={gameForm.home_team_id} onChange={handleGameChange} required className={inputCls}>
+                  <label htmlFor="fc-home" className="lh-eyebrow">Home Team *</label>
+                  <select id="fc-home" name="home_team_id" value={gameForm.home_team_id} onChange={handleGameChange} required className="lh-select">
                     <option value="">— Select —</option>
                     {orgNames.map(orgName => (
                       <optgroup key={orgName} label={orgName}>
@@ -615,8 +605,8 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="fc-away" className={labelCls}>Away Team *</label>
-                  <select id="fc-away" name="away_team_id" value={gameForm.away_team_id} onChange={handleGameChange} required className={inputCls}>
+                  <label htmlFor="fc-away" className="lh-eyebrow">Away Team *</label>
+                  <select id="fc-away" name="away_team_id" value={gameForm.away_team_id} onChange={handleGameChange} required className="lh-select">
                     <option value="">— Select —</option>
                     {orgNames.map(orgName => (
                       <optgroup key={orgName} label={orgName}>
@@ -633,13 +623,10 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                <Input label="Date *" id="fc-date" name="event_date" type="date" value={form.event_date} onChange={handleChange} required />
                 <div>
-                  <label htmlFor="fc-date" className={labelCls}>Date *</label>
-                  <input id="fc-date" name="event_date" type="date" value={form.event_date} onChange={handleChange} required className={inputCls} />
-                </div>
-                <div>
-                  <label htmlFor="fc-time" className={labelCls}>Time</label>
-                  <select id="fc-time" name="game_time" value={gameForm.game_time} onChange={handleGameChange} className={inputCls}>
+                  <label htmlFor="fc-time" className="lh-eyebrow">Time</label>
+                  <select id="fc-time" name="game_time" value={gameForm.game_time} onChange={handleGameChange} className="lh-select">
                     <option value="">— Select —</option>
                     {gameTimeSlots.map(slot => (
                       <option key={slot} value={slot}>{formatTime(slot)}</option>
@@ -655,64 +642,43 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
           ) : (
             <>
               {/* Reservation fields */}
-              <div>
-                <label htmlFor="res-title" className={labelCls}>Title *</label>
-                <input id="res-title" name="title" type="text" value={form.title} onChange={handleChange} required
-                  placeholder="e.g. 10U Practice" className={inputCls} />
-              </div>
+              <Input label="Title *" id="res-title" name="title" type="text" value={form.title} onChange={handleChange} required
+                  placeholder="e.g. 10U Practice" />
 
               {isEditing && (
-                <div>
-                  <label htmlFor="res-type" className={labelCls}>Type</label>
-                  <select id="res-type" name="event_type" value={form.event_type} onChange={handleChange} className={inputCls}>
+                <Select label="Type" id="res-type" name="event_type" value={form.event_type} onChange={handleChange}>
                     <option value="practice">Practice</option>
                     <option value="event">Event</option>
                     <option value="maintenance">Maintenance</option>
-                  </select>
-                </div>
+                </Select>
               )}
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="res-team" className={labelCls}>Team</label>
-                  <select id="res-team" name="team_id" value={form.team_id} onChange={handleChange} className={inputCls}>
+                <Select label="Team" id="res-team" name="team_id" value={form.team_id} onChange={handleChange}>
                     <option value="">— None —</option>
                     {orgTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="res-date" className={labelCls}>Date *</label>
-                  <input id="res-date" name="event_date" type="date" value={form.event_date} onChange={handleChange}
-                    required className={inputCls} />
-                </div>
+                </Select>
+                <Input label="Date *" id="res-date" name="event_date" type="date" value={form.event_date} onChange={handleChange} required />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="res-start" className={labelCls}>Start Time *</label>
-                  <select id="res-start" name="start_time" value={form.start_time} onChange={handleChange}
-                    required className={inputCls}>
+                <Select label="Start Time *" id="res-start" name="start_time" value={form.start_time} onChange={handleChange} required>
                     <option value="">— Select —</option>
                     {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="res-end" className={labelCls}>End Time *</label>
-                  <select id="res-end" name="end_time" value={form.end_time} onChange={handleChange}
-                    required className={inputCls}>
+                </Select>
+                <Select label="End Time *" id="res-end" name="end_time" value={form.end_time} onChange={handleChange} required>
                     <option value="">— Select —</option>
                     {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
+                </Select>
               </div>
             </>
           )}
 
           <div>
-            <label htmlFor="res-notes" className={labelCls}>Notes</label>
+            <label htmlFor="res-notes" className="lh-eyebrow">Notes</label>
             <textarea id="res-notes" name="notes" value={form.notes} onChange={handleChange} rows={2}
               placeholder="Optional notes…"
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500" />
+              className="lh-input mt-1" />
           </div>
 
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
@@ -767,13 +733,10 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className={btnPrimary}>
-              {saving ? 'Saving…' : isEditing ? 'Update' : isGame ? 'Schedule Game' : 'Book'}
-            </button>
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" loading={saving}>{isEditing ? 'Update' : isGame ? 'Schedule Game' : 'Book'}</Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

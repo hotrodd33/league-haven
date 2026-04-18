@@ -27,7 +27,7 @@ export default function ImportSettings({ importType, settings, onChange }) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="font-heading text-lg font-bold text-gray-100">
+        <h3 className="font-display text-lg font-bold text-gray-100">
           Import Settings
         </h3>
         <p className="mt-1 text-sm text-gray-400">
@@ -40,7 +40,7 @@ export default function ImportSettings({ importType, settings, onChange }) {
         <select
           value={settings.teamId || ''}
           onChange={(e) => set('teamId', e.target.value || null)}
-          className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500"
+          className="lh-select"
         >
           <option value="">Auto-detect from file</option>
           {teams.map((t) => (
@@ -57,7 +57,7 @@ export default function ImportSettings({ importType, settings, onChange }) {
           <select
             value={settings.seasonId || ''}
             onChange={(e) => set('seasonId', e.target.value || null)}
-            className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500"
+            className="lh-select"
           >
             <option value="">Current Season</option>
             {seasons.map((s) => (
@@ -110,7 +110,7 @@ export default function ImportSettings({ importType, settings, onChange }) {
 function SettingGroup({ label, children }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-semibold text-gray-300">{label}</label>
+      <label className="lh-eyebrow block">{label}</label>
       {children}
     </div>
   );
@@ -124,13 +124,13 @@ function SettingToggle({ label, description, checked, onChange }) {
       className={cn(
         'w-full flex items-start gap-3 p-4 rounded-xl border text-left transition-all duration-150',
         checked
-          ? 'border-field-700 bg-field-900/20'
+          ? 'border-action-700 bg-action-900/20'
           : 'border-gray-700 bg-gray-800 hover:bg-gray-900',
       )}
     >
       <div className={cn(
         'mt-0.5 w-9 h-5 rounded-full transition-colors duration-200 shrink-0 relative',
-        checked ? 'bg-field-600' : 'bg-gray-300',
+        checked ? 'bg-action-600' : 'bg-gray-300',
       )}>
         <div className={cn(
           'absolute top-0.5 w-4 h-4 rounded-full bg-gray-800 shadow-sm transition-transform duration-200',

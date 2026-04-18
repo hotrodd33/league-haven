@@ -8,6 +8,7 @@ import {
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldCalendar from './FieldCalendar.jsx';
+import { Button, Input, Select, Modal } from './ui';
 
 // Fix default marker icons for bundled builds
 delete L.Icon.Default.prototype._getIconUrl;
@@ -17,11 +18,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
-const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
-const btnSecondary = "btn btn-secondary btn-xs";
-const btnDanger = "btn btn-danger btn-sm";
 const DEFAULT_MAP_CENTER = [44.4497, -92.2663];
 
 function directionsUrl(loc) {
@@ -154,19 +150,19 @@ export default function FieldsPage({ onViewGame }) {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-        <h1 className="text-2xl font-heading font-bold text-white">Fields</h1>
+        <h1 className="text-2xl font-display font-bold text-white">Fields</h1>
         <div className="flex items-center gap-3">
           {ageGroups.length > 0 && (
             <select value={filterAgeGroup} onChange={e => setFilterAgeGroup(e.target.value)}
-              className="px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500">
+              className="lh-select !w-auto">
               <option value="">All Age Groups</option>
               {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
             </select>
           )}
           {canEditAny && (
-            <button onClick={() => { setEditing(null); setFormOrgId(null); setShowForm(true); }} className={btnPrimary}>
+            <Button onClick={() => { setEditing(null); setFormOrgId(null); setShowForm(true); }}>
               + Add Field
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -237,7 +233,7 @@ export default function FieldsPage({ onViewGame }) {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: orgColorMap[group.id] }} />
-                    <h2 className="text-lg font-heading font-bold text-white">{group.name}</h2>
+                    <h2 className="text-lg font-display font-bold text-white">{group.name}</h2>
                     <span className="text-xs text-gray-400">({group.locations.length})</span>
                   </div>
                   {editable && (
@@ -267,7 +263,7 @@ export default function FieldsPage({ onViewGame }) {
                         const isHighlighted = highlightedId === loc.id;
                         return (
                           <tr key={loc.id} onClick={() => handleRowClick(loc)}
-                            className={`${hasPin ? 'cursor-pointer hover:bg-chrome-900/30' : ''} ${isHighlighted ? 'bg-chrome-900/30 shadow-[inset_3px_0_0] shadow-blue-500' : ''} transition-colors`}>
+                            className={`${hasPin ? 'cursor-pointer hover:bg-chrome-900/30' : ''} ${isHighlighted ? 'bg-chrome-900/30 shadow-[inset_3px_0_0] shadow-chrome-500' : ''} transition-colors`}>
                             <td className="px-3 py-2 font-semibold">{loc.name}</td>
                             <td className="px-3 py-2">
                               <div className="flex gap-1 flex-wrap">
@@ -291,10 +287,10 @@ export default function FieldsPage({ onViewGame }) {
                                 )}
                                 {editable && (
                                   <>
-                                    <button onClick={e => { e.stopPropagation(); setEditing(loc); setFormOrgId(loc.org_id); setShowForm(true); }} className={btnSecondary}>Edit</button>
-                                    <button onClick={e => { e.stopPropagation(); handleDelete(loc); }} disabled={deleting === loc.id} className={btnDanger}>
+                                    <Button size="xs" variant="secondary" onClick={e => { e.stopPropagation(); setEditing(loc); setFormOrgId(loc.org_id); setShowForm(true); }}>Edit</Button>
+                                    <Button size="xs" variant="danger" onClick={e => { e.stopPropagation(); handleDelete(loc); }} disabled={deleting === loc.id}>
                                       {deleting === loc.id ? '…' : 'Del'}
-                                    </button>
+                                    </Button>
                                   </>
                                 )}
                               </div>
@@ -336,8 +332,8 @@ export default function FieldsPage({ onViewGame }) {
                           )}
                           {editable && (
                             <>
-                              <button onClick={() => { setEditing(loc); setFormOrgId(loc.org_id); setShowForm(true); }} className={btnSecondary}>Edit</button>
-                              <button onClick={() => handleDelete(loc)} disabled={deleting === loc.id} className={btnDanger}>{deleting === loc.id ? '…' : 'Del'}</button>
+                              <Button size="xs" variant="secondary" onClick={() => { setEditing(loc); setFormOrgId(loc.org_id); setShowForm(true); }}>Edit</Button>
+                              <Button size="xs" variant="danger" onClick={() => handleDelete(loc)} disabled={deleting === loc.id}>{deleting === loc.id ? '…' : 'Del'}</Button>
                             </>
                           )}
                         </div>
@@ -513,41 +509,20 @@ function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, onDone, o
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-xl p-5 sm:p-6 my-4 text-gray-200">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit Field' : 'Add Field'}</h2>
+    <Modal open onClose={onCancel} size="lg" title={isEditing ? 'Edit Field' : 'Add Field'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="field-org" className={labelCls}>Organization *</label>
-            <select id="field-org" name="org_id" value={form.org_id} onChange={handleChange} required
-              className={inputCls} disabled={isEditing}>
+          <Select label="Organization *" id="field-org" name="org_id" value={form.org_id} onChange={handleChange} required disabled={isEditing}>
               <option value="">Select organization…</option>
               {editableOrgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
-          </div>
+          </Select>
 
-          <div>
-            <label htmlFor="field-name" className={labelCls}>Field Name *</label>
-            <input id="field-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="e.g. Community Park Field 1" className={inputCls} />
-          </div>
+          <Input label="Field Name *" id="field-name" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="e.g. Community Park Field 1" />
 
           <div className="grid grid-cols-2 sm:grid-cols-[2fr_1fr_70px_90px] gap-3">
-            <div className="col-span-2 sm:col-span-1">
-              <label htmlFor="field-address" className={labelCls}>Address</label>
-              <input id="field-address" name="address" type="text" value={form.address} onChange={handleChange} placeholder="123 Main St" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="field-city" className={labelCls}>City</label>
-              <input id="field-city" name="city" type="text" value={form.city} onChange={handleChange} className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="field-state" className={labelCls}>State</label>
-              <input id="field-state" name="state" type="text" value={form.state} onChange={handleChange} maxLength={2} placeholder="MN" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="field-zip" className={labelCls}>ZIP</label>
-              <input id="field-zip" name="zip" type="text" value={form.zip} onChange={handleChange} maxLength={10} className={inputCls} />
-            </div>
+            <Input label="Address" id="field-address" name="address" type="text" value={form.address} onChange={handleChange} placeholder="123 Main St" wrapperClassName="col-span-2 sm:col-span-1" />
+            <Input label="City" id="field-city" name="city" type="text" value={form.city} onChange={handleChange} />
+            <Input label="State" id="field-state" name="state" type="text" value={form.state} onChange={handleChange} maxLength={2} placeholder="MN" />
+            <Input label="ZIP" id="field-zip" name="zip" type="text" value={form.zip} onChange={handleChange} maxLength={10} />
           </div>
 
           {reverseGeocoding && <p className="text-xs text-chrome-400">Looking up address from pin…</p>}
@@ -598,19 +573,13 @@ function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, onDone, o
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="field-lat" className={labelCls}>Latitude</label>
-              <input id="field-lat" name="latitude" type="number" step="any" value={form.latitude} onChange={handleChange} placeholder="44.4497" className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="field-lng" className={labelCls}>Longitude</label>
-              <input id="field-lng" name="longitude" type="number" step="any" value={form.longitude} onChange={handleChange} placeholder="-92.2663" className={inputCls} />
-            </div>
+            <Input label="Latitude" id="field-lat" name="latitude" type="number" step="any" value={form.latitude} onChange={handleChange} placeholder="44.4497" />
+            <Input label="Longitude" id="field-lng" name="longitude" type="number" step="any" value={form.longitude} onChange={handleChange} placeholder="-92.2663" />
           </div>
 
           {ageGroups.length > 0 && (
             <div>
-              <label className={labelCls}>Age Groups Allowed</label>
+              <label className="lh-eyebrow">Age Groups Allowed</label>
               <p className="text-xs text-gray-400 mb-2">Select which age groups can play on this field. Leave empty for all.</p>
               <div className="flex flex-wrap gap-2">
                 {ageGroups.map(ag => {
@@ -634,22 +603,19 @@ function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, onDone, o
           )}
 
           <div>
-            <label htmlFor="field-comments" className={labelCls}>Comments</label>
+            <label htmlFor="field-comments" className="lh-eyebrow">Comments</label>
             <textarea id="field-comments" name="comments" value={form.comments} onChange={handleChange} rows={3}
               placeholder="Parking info, field condition notes, etc."
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500" />
+              className="lh-input mt-1" />
           </div>
 
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className={btnPrimary}>
-              {saving ? 'Saving…' : isEditing ? 'Update' : 'Add Field'}
-            </button>
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" loading={saving}>{isEditing ? 'Update' : 'Add Field'}</Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

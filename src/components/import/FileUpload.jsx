@@ -147,7 +147,7 @@ export default function FileUpload({
       )}
 
       {/* Export instructions */}
-      <div className="bg-chrome-900/30 rounded-xl p-4 border border-blue-100">
+      <div className="bg-chrome-900/30 rounded-xl p-4 border border-chrome-100">
         <h4 className="text-sm font-semibold text-chrome-200 mb-2">{info.title}</h4>
         <ol className="space-y-1.5">
           {info.steps.map((step, i) => (
@@ -169,13 +169,11 @@ export default function FileUpload({
             onChange={(e) => onPastedTextChange?.(e.target.value)}
             placeholder="Paste the full box score text here...&#10;&#10;Select everything on the GameChanger box score page (Ctrl+A), copy it (Ctrl+C), then paste here (Ctrl+V)."
             className={cn(
-              'w-full h-48 rounded-xl border bg-gray-800 px-4 py-3 text-sm text-gray-100 resize-y',
+              'lh-input w-full h-48 resize-y',
               'font-mono leading-relaxed',
-              'placeholder:text-gray-400',
-              'focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500',
               pastedText && pastedText.trim().length > 20
-                ? 'border-field-400'
-                : 'border-gray-600',
+                ? 'border-action-400'
+                : '',
             )}
           />
           {pastedText && pastedText.trim().length > 20 && (
@@ -204,8 +202,8 @@ export default function FileUpload({
               className={cn(
                 'relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer',
                 dragActive
-                  ? 'border-field-500 bg-field-900/20 shadow-glow-green'
-                  : 'border-gray-600 bg-gray-800 hover:border-field-400 hover:bg-gray-900',
+                  ? 'border-action-500 bg-action-900/20 shadow-glow-green'
+                  : 'border-gray-600 bg-gray-800 hover:border-action-400 hover:bg-gray-900',
               )}
               onClick={() => inputRef.current?.click()}
               role="button"
@@ -224,7 +222,7 @@ export default function FileUpload({
 
               <div className={cn(
                 'w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center transition-colors',
-                dragActive ? 'bg-field-900/30 text-field-600' : 'bg-gray-800 text-gray-400',
+                dragActive ? 'bg-action-900/30 text-action-600' : 'bg-gray-800 text-gray-400',
               )}>
                 <ArrowUpTrayIcon className="w-7 h-7" />
               </div>
@@ -233,7 +231,7 @@ export default function FileUpload({
                 {dragActive ? 'Drop your file here' : 'Drag & drop your file here'}
               </p>
               <p className="mt-1 text-xs text-gray-400">
-                or <span className="text-field-300 font-medium underline">browse files</span>
+                or <span className="text-action-300 font-medium underline">browse files</span>
               </p>
               <p className="mt-3 text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
                 CSV · ICS · TXT · TSV · PDF
@@ -242,8 +240,8 @@ export default function FileUpload({
           ) : (
             <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-card p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-field-900/20 flex items-center justify-center shrink-0">
-                  <ArrowUpTrayIcon className="w-5 h-5 text-field-600" />
+                <div className="w-10 h-10 rounded-lg bg-action-900/20 flex items-center justify-center shrink-0">
+                  <ArrowUpTrayIcon className="w-5 h-5 text-action-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-100 truncate">{file.name}</p>

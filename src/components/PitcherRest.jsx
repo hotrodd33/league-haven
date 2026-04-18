@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchTeamPitcherStats } from '../api/index.js';
 import { DARK_BADGES } from '../constants/statusClasses.js';
+import { Badge, Card, CardHeader } from './ui';
 
 function formatShortDate(dateStr) {
   if (!dateStr) return '—';
@@ -66,11 +67,11 @@ export default function PitcherRest({ teamId }) {
 
   return (
     <div className="mt-6">
-      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden text-gray-200">
+      <Card variant="bordered" className="text-gray-200">
         {/* Header */}
-        <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-heading font-bold uppercase tracking-wide text-white">
+        <CardHeader>
+          <div className="flex items-center justify-between w-full">
+            <h3 className="text-base font-display font-bold uppercase tracking-wide text-white">
               Pitcher Rest & Stats
             </h3>
             <div className="flex items-center gap-3 text-xs text-gray-400">
@@ -88,13 +89,13 @@ export default function PitcherRest({ teamId }) {
               <span>Max 2 consecutive days</span>
             </div>
           )}
-        </div>
+        </CardHeader>
 
         {/* Pitchers table */}
         {pitchers.length > 0 ? (
           <div>
             {/* Desktop header */}
-            <div className="hidden sm:grid grid-cols-12 gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 sm:px-6 py-2 border-b border-gray-50">
+            <div className="hidden sm:grid grid-cols-12 gap-2 eyebrow px-4 sm:px-6 py-2 border-b border-gray-700">
               <div className="col-span-1">#</div>
               <div className="col-span-3">Pitcher</div>
               <div className="col-span-2 text-center">Status</div>
@@ -113,7 +114,7 @@ export default function PitcherRest({ teamId }) {
                   {/* Summary row */}
                   <button
                     onClick={() => setExpanded(isExpanded ? null : p.player_id)}
-                    className="w-full text-left grid grid-cols-12 gap-2 items-center px-4 sm:px-6 py-2.5 hover:bg-gray-900 transition-colors border-b border-gray-50"
+                    className="w-full text-left grid grid-cols-12 gap-2 items-center px-4 sm:px-6 py-2.5 hover:bg-gray-900 transition-colors border-b border-gray-700"
                   >
                     <div className="col-span-1 text-xs text-gray-400 font-mono">{p.jersey_number || '—'}</div>
                     <div className="col-span-3 text-sm font-medium truncate">{p.first_name} {p.last_name}</div>
@@ -227,7 +228,7 @@ export default function PitcherRest({ teamId }) {
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

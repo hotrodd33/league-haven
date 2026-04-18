@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchTeamPitcherStats } from '../api/index.js';
+import { Card, CardHeader, CardBody } from './ui';
 
 function dayLabel(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -96,18 +97,18 @@ export default function PitchLog({ teamId }) {
 
   return (
     <div className="mt-6">
-      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
-        <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
-          <h3 className="text-base font-heading font-bold uppercase tracking-wide text-white">
+      <Card variant="bordered">
+        <CardHeader>
+          <h3 className="text-base font-display font-bold uppercase tracking-wide text-white">
             Pitch Log
           </h3>
-        </div>
+        </CardHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-gray-200">
             <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left px-4 sm:px-6 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
+              <tr className="border-b border-gray-700 bg-gray-900">
+                <th className="text-left px-4 sm:px-6 py-2 eyebrow whitespace-nowrap">
                   Player
                 </th>
                 {dates.map(d => {
@@ -175,7 +176,7 @@ export default function PitchLog({ teamId }) {
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

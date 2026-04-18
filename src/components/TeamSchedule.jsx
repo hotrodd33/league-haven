@@ -5,6 +5,7 @@ import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { GameForm } from './GameSchedule.jsx';
+import { Button, Input, Select, Modal } from './ui/index.js';
 import { DARK_STATUS_COLORS, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
@@ -35,7 +36,7 @@ function toSortStamp(item) {
 }
 
 const PRACTICE_COLORS = {
-  practice: { bg: 'bg-chrome-900/40', border: 'border-chrome-500', text: 'text-chrome-300', dot: 'bg-blue-500', badge: 'bg-chrome-900/60 text-chrome-300' },
+  practice: { bg: 'bg-chrome-900/40', border: 'border-chrome-500', text: 'text-chrome-300', dot: 'bg-chrome-500', badge: 'bg-chrome-900/60 text-chrome-300' },
   event: { bg: 'bg-purple-900/40', border: 'border-purple-500', text: 'text-purple-300', dot: 'bg-purple-500', badge: 'bg-purple-900/60 text-purple-300' },
   maintenance: { bg: 'bg-amber-900/40', border: 'border-amber-500', text: 'text-amber-300', dot: 'bg-amber-500', badge: 'bg-amber-900/60 text-amber-300' },
 };
@@ -177,7 +178,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide">
+        <h3 className="text-base font-display font-bold text-white uppercase tracking-wide">
           Schedule ({games.length} game{games.length !== 1 ? 's' : ''}{practices.length > 0 ? `, ${practices.length} practice${practices.length !== 1 ? 's' : ''}` : ''})
         </h3>
         <div className="flex items-center gap-2">
@@ -190,22 +191,17 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
               className={`lh-tab ${viewMode === 'calendar' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
               Calendar
             </button>
-            <button onClick={() => setShowSubscribe(true)}
-              className="btn btn-xs btn-secondary" title="Subscribe to calendar feed">
+            <Button size="xs" variant="secondary" onClick={() => setShowSubscribe(true)} title="Subscribe to calendar feed">
               📅
-            </button>
+            </Button>
           </div>
-          <button onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-            className="btn btn-xs btn-secondary" title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
+          <Button size="xs" variant="secondary" onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')} title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
             {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
-          </button>
+          </Button>
           {isAdmin && (
-            <button
-              onClick={() => setShowForm((prev) => !prev)}
-              className="btn btn-xs btn-primary"
-            >
+            <Button size="xs" onClick={() => setShowForm((prev) => !prev)}>
               {showForm ? 'Cancel' : '+ Add Game'}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -232,7 +228,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
           <div className="space-y-4">
             {sortedDateKeys.map(dateKey => (
               <div key={dateKey}>
-                <h4 className="text-xs font-heading font-bold text-gray-400 uppercase tracking-wide mb-1 border-b border-gray-700 pb-1">
+                <h4 className="text-xs font-display font-bold text-gray-400 uppercase tracking-wide mb-1 border-b border-gray-700 pb-1">
                   {formatDate(dateKey)}
                 </h4>
                 <div className="space-y-2">
@@ -312,7 +308,7 @@ function GameCard({ game, teamId, onSelect, onTrack, canScore }) {
 
   return (
     <div onClick={onSelect}
-      className={`${cardTone} border rounded-lg px-3 py-2 flex items-center gap-3 text-sm cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all`}>
+      className={`${cardTone} border rounded-lg px-3 py-2 flex items-center gap-3 text-sm cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all`}>
       <div className="w-16 shrink-0 text-center">
         <div className="text-xs text-gray-400">{formatTime(game.game_time) || 'TBD'}</div>
       </div>
@@ -380,12 +376,10 @@ function PracticeCard({ practice, editable, onEdit, onDelete, deleting }) {
         </span>
         {editable && (
           <>
-            <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
-              className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} disabled={deleting === practice.id}
-              className="btn btn-xs btn-danger">
+            <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); onEdit(); }}>Edit</Button>
+            <Button size="xs" variant="danger" onClick={(e) => { e.stopPropagation(); onDelete(); }} disabled={deleting === practice.id}>
               {deleting === practice.id ? '…' : 'Del'}
-            </button>
+            </Button>
           </>
         )}
       </div>
@@ -430,7 +424,7 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
           <button onClick={onPrevMonth} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <button onClick={onToday} className="px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 rounded">Today</button>
+          <Button size="xs" variant="ghost" onClick={onToday}>Today</Button>
           <span className="text-sm font-semibold text-white min-w-[140px] text-center">{MONTH_NAMES[month]} {year}</span>
           <button onClick={onNextMonth} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
@@ -457,7 +451,7 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
             <button key={dateStr} type="button"
               onClick={() => setSelectedDate(isSelected ? null : dateStr)}
               className={`min-h-[80px] p-1 text-left rounded transition-colors
-                ${isToday ? 'ring-1 ring-blue-500' : ''}
+                ${isToday ? 'ring-1 ring-chrome-500' : ''}
                 ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}
               `}>
               <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
@@ -522,7 +516,7 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
                   const oppScore = isHome ? item.away_score : item.home_score;
                   return (
                     <div key={`g-${item.id}`} onClick={() => onSelectGame(item.id)}
-                      className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                      className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="text-sm font-semibold text-gray-300 w-20 shrink-0 text-center">
@@ -586,13 +580,7 @@ function TeamSubscribeModal({ teamId, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-heading font-bold text-white">Subscribe to Team Calendar</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl leading-none">&times;</button>
-        </div>
-
+    <Modal open onClose={onClose} title="Subscribe to Team Calendar" size="md">
         <p className="text-sm text-gray-400 mb-4">
           Subscribe to this team's schedule in your calendar app. Games and practices will sync automatically.
         </p>
@@ -603,15 +591,14 @@ function TeamSubscribeModal({ teamId, onClose }) {
         </a>
 
         <div className="mb-4">
-          <label className="eyebrow block mb-1">Or copy the feed URL</label>
+          <label className="lh-eyebrow block mb-1">Or copy the feed URL</label>
           <div className="flex gap-2">
             <input type="text" readOnly value={icsUrl}
               className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-gray-300 font-mono select-all focus:outline-none focus:ring-2 focus:ring-action-500/30"
               onClick={e => e.target.select()} />
-            <button onClick={handleCopy}
-              className="px-3 py-2 bg-gray-700 text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-600 transition-colors shrink-0">
+            <Button size="xs" variant="secondary" onClick={handleCopy}>
               {copied ? '✓ Copied' : 'Copy'}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -620,15 +607,13 @@ function TeamSubscribeModal({ teamId, onClose }) {
           <p><strong>Apple Calendar:</strong> Click "Open in Calendar App" above, or File → New Subscription</p>
           <p><strong>Outlook:</strong> Add calendar → Subscribe from web → paste the link</p>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
 /* ── Practice Edit Modal ── */
 
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
+
 
 function PracticeEditModal({ practice, onDone, onCancel }) {
   const [saving, setSaving] = useState(false);
@@ -682,13 +667,11 @@ function PracticeEditModal({ practice, onDone, onCancel }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto" onClick={onCancel}>
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 my-4" onClick={e => e.stopPropagation()}>
-        <h2 className="text-xl font-heading font-bold text-white mb-4">Edit Reservation</h2>
+    <Modal open onClose={onCancel} title="Edit Reservation" size="md">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Event type */}
           <div>
-            <label className={labelCls}>Type</label>
+            <label className="lh-eyebrow block mb-1">Type</label>
             <div className="flex gap-1 p-1 bg-gray-900 rounded-lg">
               {eventTypeOptions.map(opt => (
                 <button key={opt.value} type="button"
@@ -704,55 +687,33 @@ function PracticeEditModal({ practice, onDone, onCancel }) {
             </div>
           </div>
 
-          {/* Title */}
-          <div>
-            <label htmlFor="pe-title" className={labelCls}>Title *</label>
-            <input id="pe-title" name="title" type="text" value={form.title} onChange={handleChange} required className={inputCls} />
-          </div>
+          <Input label="Title *" id="pe-title" name="title" type="text" value={form.title} onChange={handleChange} required />
+          <Input label="Date" id="pe-date" name="event_date" type="date" value={form.event_date} onChange={handleChange} />
 
-          {/* Date */}
-          <div>
-            <label htmlFor="pe-date" className={labelCls}>Date</label>
-            <input id="pe-date" name="event_date" type="date" value={form.event_date} onChange={handleChange} className={inputCls} />
-          </div>
-
-          {/* Start / End Time */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="pe-start" className={labelCls}>Start Time *</label>
-              <input id="pe-start" name="start_time" type="time" value={form.start_time} onChange={handleChange} required className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="pe-end" className={labelCls}>End Time *</label>
-              <input id="pe-end" name="end_time" type="time" value={form.end_time} onChange={handleChange} required className={inputCls} />
-            </div>
+            <Input label="Start Time *" id="pe-start" name="start_time" type="time" value={form.start_time} onChange={handleChange} required />
+            <Input label="End Time *" id="pe-end" name="end_time" type="time" value={form.end_time} onChange={handleChange} required />
           </div>
 
-          {/* Location */}
-          <div>
-            <label htmlFor="pe-location" className={labelCls}>Location</label>
-            <select id="pe-location" name="location_id" value={form.location_id} onChange={handleChange} className={inputCls}>
-              <option value="">—</option>
-              {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
-            </select>
-          </div>
+          <Select label="Location" id="pe-location" name="location_id" value={form.location_id} onChange={handleChange}>
+            <option value="">—</option>
+            {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+          </Select>
 
-          {/* Notes */}
           <div>
-            <label htmlFor="pe-notes" className={labelCls}>Notes</label>
-            <textarea id="pe-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} className={inputCls} />
+            <label htmlFor="pe-notes" className="lh-eyebrow block mb-1">Notes</label>
+            <textarea id="pe-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} className="lh-input" />
           </div>
 
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">Cancel</button>
-            <button type="submit" disabled={saving} className="btn btn-sm btn-primary disabled:opacity-50">
+            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" disabled={saving} loading={saving}>
               {saving ? 'Saving…' : 'Update'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

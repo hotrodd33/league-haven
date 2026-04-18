@@ -10,6 +10,7 @@ import {
 } from '../api/index.js';
 import { ChevronLeftIcon, PlusIcon, TrashIcon, PencilIcon, DocumentIcon, ChatBubbleIcon, UserIcon, ChartBarIcon } from './ui/icons.jsx';
 import { formatDOB, calculateAge } from '../utils/dob.js';
+import { Button, Input, Select } from './ui';
 
 const TABS = [
   { key: 'info', label: 'Info' },
@@ -138,8 +139,6 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
     }));
   }
 
-  const inputCls = 'lh-input';
-
   if (editing) {
     return (
       <div className="space-y-4">
@@ -151,39 +150,21 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
           {error && <p className="text-sm text-signal-400 bg-signal-900/20 px-3 py-2 rounded-lg">{error}</p>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="eyebrow block mb-1">First Name *</label>
-              <input required value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} className={inputCls} />
-            </div>
-            <div>
-              <label className="eyebrow block mb-1">Last Name *</label>
-              <input required value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} className={inputCls} />
-            </div>
-            <div>
-              <label className="eyebrow block mb-1">Date of Birth</label>
-              <input type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} className={inputCls} />
-            </div>
-            <div>
-              <label className="eyebrow block mb-1">Grade</label>
-              <select value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))} className={inputCls}>
-                <option value="">—</option>
-                {GRADE_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="eyebrow block mb-1">Bats</label>
-              <select value={form.batting_hand} onChange={e => setForm(f => ({ ...f, batting_hand: e.target.value }))} className={inputCls}>
-                <option value="">—</option>
-                {BATTING_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="eyebrow block mb-1">Throws</label>
-              <select value={form.throwing_hand} onChange={e => setForm(f => ({ ...f, throwing_hand: e.target.value }))} className={inputCls}>
-                <option value="">—</option>
-                {THROWING_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+            <Input label="First Name *" required value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} />
+            <Input label="Last Name *" required value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} />
+            <Input label="Date of Birth" type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} />
+            <Select label="Grade" value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))}>
+              <option value="">—</option>
+              {GRADE_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
+            </Select>
+            <Select label="Bats" value={form.batting_hand} onChange={e => setForm(f => ({ ...f, batting_hand: e.target.value }))}>
+              <option value="">—</option>
+              {BATTING_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
+            </Select>
+            <Select label="Throws" value={form.throwing_hand} onChange={e => setForm(f => ({ ...f, throwing_hand: e.target.value }))}>
+              <option value="">—</option>
+              {THROWING_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+            </Select>
 
           </div>
 
@@ -210,10 +191,8 @@ function InfoTab({ player, onNavigateToTeam, canEdit, onPlayerUpdated }) {
           )}
 
           <div className="flex gap-2 justify-end pt-2">
-            <button type="button" onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="btn btn-sm btn-primary">
-              {saving ? 'Saving...' : 'Save'}
-            </button>
+            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+            <Button type="submit" size="sm" loading={saving}>Save</Button>
           </div>
         </form>
       </div>
@@ -577,32 +556,28 @@ function ContactForm({ playerId, contact, onSaved, onCancel }) {
     }
   }
 
-  const inputCls = 'lh-input';
-
   return (
     <form onSubmit={handleSubmit} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <input placeholder="First Name *" required value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} className={inputCls} />
-        <input placeholder="Last Name *" required value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} className={inputCls} />
-        <select value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))} className={inputCls}>
+        <input placeholder="First Name *" required value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} className="lh-input" />
+        <input placeholder="Last Name *" required value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} className="lh-input" />
+        <select value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))} className="lh-select">
           <option value="parent">Parent</option>
           <option value="guardian">Guardian</option>
           <option value="emergency">Emergency Contact</option>
           <option value="other">Other</option>
         </select>
-        <input placeholder="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputCls} />
-        <input placeholder="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} />
+        <input placeholder="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="lh-input" />
+        <input placeholder="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="lh-input" />
         <label className="flex items-center gap-2 text-sm text-gray-300">
           <input type="checkbox" checked={form.is_primary} onChange={e => setForm(f => ({ ...f, is_primary: e.target.checked }))} className="rounded border-gray-600 bg-gray-700 text-action-500" />
           Primary Contact
         </label>
       </div>
-      <input placeholder="Notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className={`${inputCls} w-full`} />
+      <input placeholder="Notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="lh-input w-full" />
       <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
-        <button type="submit" disabled={saving} className="btn btn-sm btn-primary">
-          {saving ? 'Saving...' : contact ? 'Update' : 'Add Contact'}
-        </button>
+        <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button type="submit" size="sm" loading={saving}>{contact ? 'Update' : 'Add Contact'}</Button>
       </div>
     </form>
   );

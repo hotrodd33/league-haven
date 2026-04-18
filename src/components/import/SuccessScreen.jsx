@@ -17,16 +17,16 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
     <div className="flex flex-col items-center py-8 space-y-8 animate-fade-in">
       {/* Celebration */}
       <div className="relative">
-        <div className="w-20 h-20 rounded-full bg-field-900/30 flex items-center justify-center animate-scale-in">
+        <div className="w-20 h-20 rounded-full bg-action-900/30 flex items-center justify-center animate-scale-in">
           <span className="text-4xl" aria-hidden="true">🎉</span>
         </div>
         {/* Sparkle accents */}
-        <SparklesIcon className="absolute -top-1 -right-1 w-6 h-6 text-dirt-400 animate-pulse-soft" />
-        <SparklesIcon className="absolute -bottom-1 -left-2 w-4 h-4 text-field-400 animate-pulse-soft" style={{ animationDelay: '0.5s' }} />
+        <SparklesIcon className="absolute -top-1 -right-1 w-6 h-6 text-accent-400 animate-pulse-soft" />
+        <SparklesIcon className="absolute -bottom-1 -left-2 w-4 h-4 text-action-400 animate-pulse-soft" style={{ animationDelay: '0.5s' }} />
       </div>
 
       <div className="text-center space-y-2 max-w-sm">
-        <h3 className="font-heading text-2xl font-bold text-gray-100">
+        <h3 className="font-display text-2xl font-bold text-gray-100">
           Import Complete!
         </h3>
         <p className="text-sm text-gray-400">
@@ -36,7 +36,7 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
 
       {/* Summary stats */}
       {(summary.players > 0 || summary.games > 0 || summary.stats > 0) && (
-        <div className="w-full bg-field-900/20 rounded-xl border border-field-700 p-5">
+        <div className="w-full bg-action-900/20 rounded-xl border border-action-700 p-5">
           <div className="flex flex-wrap justify-center gap-4">
             {summary.players > 0 && (
               <SummaryStat icon="👤" value={summary.players} label="Players" />
@@ -59,7 +59,7 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
           </div>
 
           {summary.message && (
-            <p className="mt-4 text-center text-xs text-field-200 font-medium bg-field-900/60 rounded-lg px-3 py-2">
+            <p className="mt-4 text-center text-xs text-action-200 font-medium bg-action-900/60 rounded-lg px-3 py-2">
                 {summary.message}
             </p>
           )}
@@ -131,7 +131,7 @@ function SummaryStat({ icon, value, label }) {
   return (
     <div className="text-center px-3">
       <span className="text-base" aria-hidden="true">{icon}</span>
-      <p className="text-2xl font-heading font-bold text-gray-100 tabular-nums">{value}</p>
+      <p className="text-2xl font-display font-bold text-gray-100 tabular-nums">{value}</p>
       <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{label}</p>
     </div>
   );
@@ -143,7 +143,7 @@ function NextAction({ icon, label, description, onClick }) {
       onClick={onClick}
       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-700 bg-gray-800 hover:bg-gray-900 hover:border-gray-600 transition-all text-left"
     >
-      <div className="w-8 h-8 rounded-lg bg-field-900/20 flex items-center justify-center text-field-600 shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-action-900/20 flex items-center justify-center text-action-600 shrink-0">
         {icon}
       </div>
       <div className="flex-1 min-w-0">

@@ -1,11 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '../lib/cn.js';
 import { fetchAllAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '../api/index.js';
-import { Button, Modal, Badge } from './ui/index.js';
+import { Button, Modal, Badge, Input, Select, Card } from './ui/index.js';
 import { PlusIcon, MegaphoneIcon, TrashIcon, PencilIcon } from './ui/icons.jsx';
-
-const inputCls = 'lh-input';
-const labelCls = 'eyebrow block mb-1';
 
 const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Low', color: 'text-gray-400' },
@@ -135,7 +132,7 @@ export default function ManageAnnouncements() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <MegaphoneIcon className="w-6 h-6 text-chrome-400" />
-          <h2 className="text-xl font-heading font-bold text-gray-100">Announcements</h2>
+          <h2 className="text-xl font-display font-bold text-gray-100">Announcements</h2>
           <span className="text-xs text-gray-500">({announcements.length})</span>
         </div>
         <Button variant="primary" size="sm" onClick={openCreate}>
@@ -167,9 +164,9 @@ export default function ManageAnnouncements() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-sm font-bold text-gray-100">{a.title}</h4>
-                      <span className={cn('text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full', PRIORITY_BADGE[a.priority])}>
+                      <Badge variant={a.priority === 'urgent' ? 'danger' : a.priority === 'high' ? 'warning' : a.priority === 'normal' ? 'info' : 'neutral'}>
                         {a.priority}
-                      </span>
+                      </Badge>
                       {!a.is_active && (
                         <Badge variant="neutral" size="sm">Inactive</Badge>
                       )}
@@ -224,25 +221,22 @@ export default function ManageAnnouncements() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="text-sm text-signal-400 bg-signal-900/20 border border-signal-800 rounded-lg px-3 py-2">{error}</div>
+            <div className="lh-alert lh-alert-error">{error}</div>
           )}
 
-          <div>
-            <label className={labelCls}>Title</label>
-            <input
-              className={inputCls}
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Announcement title"
-              maxLength={200}
-              required
-            />
-          </div>
+          <Input
+            label="Title"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Announcement title"
+            maxLength={200}
+            required
+          />
 
           <div>
-            <label className={labelCls}>Body</label>
+            <label className="eyebrow block mb-1">Body</label>
             <textarea
-              className={cn(inputCls, 'min-h-[120px] resize-y')}
+              className="lh-input min-h-[120px] resize-y"
               value={body}
               onChange={e => setBody(e.target.value)}
               placeholder="Announcement content…"
@@ -251,28 +245,22 @@ export default function ManageAnnouncements() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Priority</label>
-              <select
-                className={inputCls}
-                value={priority}
-                onChange={e => setPriority(e.target.value)}
-              >
-                {PRIORITY_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label="Priority"
+              value={priority}
+              onChange={e => setPriority(e.target.value)}
+            >
+              {PRIORITY_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </Select>
 
-            <div>
-              <label className={labelCls}>Expires At (optional)</label>
-              <input
-                type="datetime-local"
-                className={inputCls}
-                value={expiresAt}
-                onChange={e => setExpiresAt(e.target.value)}
-              />
-            </div>
+            <Input
+              label="Expires At (optional)"
+              type="datetime-local"
+              value={expiresAt}
+              onChange={e => setExpiresAt(e.target.value)}
+            />
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer">
@@ -280,7 +268,7 @@ export default function ManageAnnouncements() {
               type="checkbox"
               checked={isActive}
               onChange={e => setIsActive(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-600 bg-gray-900 text-blue-500 focus:ring-action-500/30"
+              className="w-4 h-4 rounded border-gray-600 bg-gray-900 text-action-500 focus:ring-action-500/30"
             />
             <span className="text-sm text-gray-300">Active (visible to users)</span>
           </label>

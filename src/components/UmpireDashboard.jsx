@@ -3,13 +3,8 @@ import {
   fetchAssignedGames, fetchAvailableGames, fetchGameInterests,
   expressGameInterest, removeGameInterest, fetchSeasons, fetchUmpireProfile,
 } from '../api/index.js';
-import { DARK_BADGES } from '../constants/statusClasses.js';
 import { calculateAge } from '../utils/dob.js';
-
-const btnPrimary = "btn btn-primary btn-sm disabled:opacity-60";
-const btnDanger = "btn btn-danger btn-sm disabled:opacity-60";
-const badgeGreen = `inline-block px-2 py-0.5 ${DARK_BADGES.success} text-xs rounded-full font-semibold`;
-const badgeYellow = `inline-block px-2 py-0.5 ${DARK_BADGES.warning} text-xs rounded-full font-semibold`;
+import { Button, Badge, Card, CardBody, Select } from './ui';
 
 function formatDate(dateStr) {
   if (!dateStr) return 'TBD';
@@ -132,9 +127,9 @@ export default function UmpireDashboard({ onBack }) {
 
             <div className="flex items-center gap-2 flex-wrap">
               {game.home_division && (
-                <span className={badgeYellow}>{game.home_division}</span>
+                <Badge variant="warning">{game.home_division}</Badge>
               )}
-              <span className={badgeGreen}>{game.status || 'Scheduled'}</span>
+              <Badge variant="success">{game.status || 'Scheduled'}</Badge>
               {game.assigned_count > 0 && (
                 <span className="text-xs text-gray-400">
                   {game.assigned_count} umpire{game.assigned_count > 1 ? 's' : ''} assigned
@@ -144,21 +139,20 @@ export default function UmpireDashboard({ onBack }) {
 
             {infoBadge && (
               <div className="mt-2">
-                <span className="inline-block px-2 py-0.5 bg-chrome-900/40 text-chrome-300 text-xs rounded-full font-semibold">
-                  {infoBadge}
-                </span>
+                <Badge variant="info">{infoBadge}</Badge>
               </div>
             )}
           </div>
 
           {showButton && (
-            <button
+            <Button
+              size="sm"
+              variant={buttonLabel === 'Remove Interest' ? 'danger' : 'primary'}
               onClick={() => onButtonClick(game.id)}
               disabled={isProcessing === game.id}
-              className={buttonLabel === 'Remove Interest' ? btnDanger : btnPrimary}
             >
               {isProcessing === game.id ? '…' : buttonLabel}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -171,14 +165,14 @@ export default function UmpireDashboard({ onBack }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-heading font-bold text-white">Umpire Dashboard</h2>
-        {onBack && <button onClick={onBack} className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">← Back</button>}
+        <h2 className="text-xl font-display font-bold text-white">Umpire Dashboard</h2>
+        {onBack && <Button variant="ghost" onClick={onBack}>← Back</Button>}
       </div>
 
       {/* Profile Card */}
       {profile && (
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-          <h3 className="text-base font-heading font-bold text-white uppercase tracking-wide mb-3">Your Profile</h3>
+        <Card variant="bordered" className="mb-4">
+          <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-3">Your Profile</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Name</p>
@@ -207,49 +201,24 @@ export default function UmpireDashboard({ onBack }) {
               </span>
             </div>
           </div>
-        </div>
+        </Card>
       )}
-
       {/* Tabs */}
       <div className="flex gap-2 mb-4 border-b border-gray-700 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('completed')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'completed'
-              ? 'border-chrome-500 text-chrome-300'
-              : 'border-transparent text-gray-400 hover:text-gray-300'
-          }`}
-        >
+        <button onClick={() => setActiveTab('completed')}
+          className={`lh-tab ${activeTab === 'completed' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
           Completed ({assignedGames.filter(g => g.status === 'completed').length})
         </button>
-        <button
-          onClick={() => setActiveTab('assigned')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'assigned'
-              ? 'border-chrome-500 text-chrome-300'
-              : 'border-transparent text-gray-400 hover:text-gray-300'
-          }`}
-        >
+        <button onClick={() => setActiveTab('assigned')}
+          className={`lh-tab ${activeTab === 'assigned' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
           Assigned ({assignedGames.filter(g => g.status !== 'completed').length})
         </button>
-        <button
-          onClick={() => setActiveTab('interested')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'interested'
-              ? 'border-chrome-500 text-chrome-300'
-              : 'border-transparent text-gray-400 hover:text-gray-300'
-          }`}
-        >
+        <button onClick={() => setActiveTab('interested')}
+          className={`lh-tab ${activeTab === 'interested' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
           Interested ({interestedGames.length})
         </button>
-        <button
-          onClick={() => setActiveTab('available')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'available'
-              ? 'border-chrome-500 text-chrome-300'
-              : 'border-transparent text-gray-400 hover:text-gray-300'
-          }`}
-        >
+        <button onClick={() => setActiveTab('available')}
+          className={`lh-tab ${activeTab === 'available' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
           Available
         </button>
       </div>
@@ -305,10 +274,10 @@ export default function UmpireDashboard({ onBack }) {
       {activeTab === 'available' && (
         <div>
           <div className="mb-4">
-            <select
+            <Select
               value={filterSeason}
               onChange={(e) => setFilterSeason(e.target.value)}
-              className="px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-800 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-chrome-500"
+              className="min-w-[160px]"
             >
               <option value="">All Seasons</option>
               {seasons.map(s => (
@@ -316,7 +285,7 @@ export default function UmpireDashboard({ onBack }) {
                   {s.name} ({s.year}){s.is_active ? ' ★' : ''}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="space-y-3">

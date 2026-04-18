@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchContactRecipients, sendContactEmail } from '../api';
-
-const labelCls = 'eyebrow block mb-1';
-const inputCls = 'lh-input';
+import { Button, Input, Modal } from './ui';
 
 const SCOPE_LABELS = {
   individual: 'Individual',
@@ -50,91 +48,91 @@ export default function ContactModal({ scope, scopeId, scopeLabel, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4">
-
-        <h2 className="text-xl font-heading font-bold text-white mb-1">
-          Send Email
-        </h2>
-        <p className="text-sm text-gray-400 mb-4">
-          To: {scopeLabel || SCOPE_LABELS[scope]}
-        </p>
-
-        {success ? (
-          <div>
-            <div className="lh-alert lh-alert-success mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              {success}
-            </div>
-            <div className="flex justify-end">
-              <button type="button" onClick={onClose}
-                className="btn btn-sm btn-primary">
-                Done
-              </button>
-            </div>
+    <Modal
+      open
+      onClose={onClose}
+      size="md"
+      title="Send Email"
+      footer={
+        success ? (
+          <div className="flex justify-end">
+            <Button size="sm" onClick={onClose}>Done</Button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Recipient preview */}
-            <div>
-              <button type="button"
-                onClick={() => setShowRecipients(!showRecipients)}
-                className="text-sm text-chrome-400 hover:text-chrome-200 font-medium flex items-center gap-1">
-                <svg className={`w-4 h-4 transition-transform ${showRecipients ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                {loading ? 'Loading recipients…' : `${recipients.length} recipient${recipients.length === 1 ? '' : 's'}`}
-              </button>
-              {showRecipients && recipients.length > 0 && (
-                <div className="mt-2 bg-gray-900 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  {recipients.map((r, i) => (
-                    <div key={i} className="text-sm py-0.5 flex items-center justify-between">
-                      <span className="text-gray-200">{r.name}</span>
-                      {r.role && <span className="text-xs text-gray-400 ml-2">{roleLabel(r.role)}</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+            <Button
+              size="sm"
+              loading={sending}
+              disabled={sending || recipients.length === 0}
+              onClick={() => document.getElementById('contact-form').requestSubmit()}
+            >
+              Send Email
+            </Button>
+          </div>
+        )
+      }
+    >
+      <p className="text-sm text-gray-400 mb-4">
+        To: {scopeLabel || SCOPE_LABELS[scope]}
+      </p>
 
-            <div>
-              <label className={labelCls}>Subject</label>
-              <input className={inputCls} value={subject}
-                onChange={e => setSubject(e.target.value)} required placeholder="Email subject" />
-            </div>
-
-            <div>
-              <label className={labelCls}>Message</label>
-              <textarea className={`${inputCls} min-h-[140px] resize-y`} value={body}
-                onChange={e => setBody(e.target.value)} required placeholder="Type your message…" rows={6} />
-            </div>
-
-            {error && (
-              <div className="lh-alert lh-alert-error">{error}</div>
+      {success ? (
+        <div className="lh-alert lh-alert-success flex items-center gap-2">
+          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          {success}
+        </div>
+      ) : (
+        <form id="contact-form" onSubmit={handleSubmit} className="space-y-4">
+          {/* Recipient preview */}
+          <div>
+            <button type="button"
+              onClick={() => setShowRecipients(!showRecipients)}
+              className="text-sm text-chrome-400 hover:text-chrome-200 font-medium flex items-center gap-1">
+              <svg className={`w-4 h-4 transition-transform ${showRecipients ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              {loading ? 'Loading recipients…' : `${recipients.length} recipient${recipients.length === 1 ? '' : 's'}`}
+            </button>
+            {showRecipients && recipients.length > 0 && (
+              <div className="mt-2 bg-gray-900 rounded-lg p-3 max-h-40 overflow-y-auto">
+                {recipients.map((r, i) => (
+                  <div key={i} className="text-sm py-0.5 flex items-center justify-between">
+                    <span className="text-gray-200">{r.name}</span>
+                    {r.role && <span className="text-xs text-gray-400 ml-2">{roleLabel(r.role)}</span>}
+                  </div>
+                ))}
+              </div>
             )}
+          </div>
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={onClose}
-                className="px-4 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">
-                Cancel
-              </button>
-              <button type="submit"
-                disabled={sending || recipients.length === 0}
-                className="btn btn-sm btn-primary disabled:opacity-50 flex items-center gap-2">
-                {sending && (
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                )}
-                Send Email
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+          <Input
+            label="Subject"
+            value={subject}
+            onChange={e => setSubject(e.target.value)}
+            required
+            placeholder="Email subject"
+          />
+
+          <div>
+            <label className="eyebrow block mb-1">Message</label>
+            <textarea
+              className="lh-input min-h-[140px] resize-y"
+              value={body}
+              onChange={e => setBody(e.target.value)}
+              required
+              placeholder="Type your message…"
+              rows={6}
+            />
+          </div>
+
+          {error && (
+            <div className="lh-alert lh-alert-error">{error}</div>
+          )}
+        </form>
+      )}
+    </Modal>
   );
 }

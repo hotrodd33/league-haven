@@ -5,6 +5,7 @@ import { fetchPlayersByTeam, deletePlayer, unassignPlayerFromTeam, searchPlayers
 import { useAuth } from '../context/AuthContext.jsx';
 import ContactModal from './ContactModal.jsx';
 import { formatDOB, calculateAge } from '../utils/dob.js';
+import { Button, Input } from './ui';
 
 export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlayer, onViewPlayer }) {
   const { canEditTeam: canEdit } = useAuth();
@@ -119,20 +120,20 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xl font-heading font-bold text-white">Team Roster ({players.length})</h2>
+        <h2 className="text-xl font-display font-bold text-white">Team Roster ({players.length})</h2>
         {editable && (
           <div className="flex gap-2">
             {players.length > 0 && (
-              <button onClick={() => setContactModal(true)} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors" title="Email all player contacts">
+              <Button variant="secondary" onClick={() => setContactModal(true)} title="Email all player contacts">
                 ✉ Email Team
-              </button>
+              </Button>
             )}
-            <button onClick={() => setShowAddExisting(!showAddExisting)} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+            <Button variant="secondary" onClick={() => setShowAddExisting(!showAddExisting)}>
               + Existing Player
-            </button>
-            <button onClick={onAddPlayer} className="btn btn-sm btn-primary">
+            </Button>
+            <Button size="sm" onClick={onAddPlayer}>
               + New Player
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -144,15 +145,15 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
           <div className="flex gap-2 mb-2">
             <input
               type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name…" className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action-500/30 focus:border-blue-600"
+              placeholder="Search by name…" className="flex-1 lh-input"
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
             />
-            <button onClick={handleSearch} disabled={searching || !searchQuery.trim()} className="btn btn-sm btn-primary disabled:opacity-50">
+            <Button size="sm" onClick={handleSearch} disabled={searching || !searchQuery.trim()}>
               {searching ? '…' : 'Search'}
-            </button>
-            <button onClick={() => { setShowAddExisting(false); setSearchQuery(''); setSearchResults([]); }} className="px-3 py-2 bg-gray-700 text-gray-200 text-sm font-semibold rounded-lg hover:bg-gray-600">
+            </Button>
+            <Button variant="ghost" onClick={() => { setShowAddExisting(false); setSearchQuery(''); setSearchResults([]); }}>
               Close
-            </button>
+            </Button>
           </div>
           {searchResults.length > 0 && (
             <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -182,9 +183,9 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
           {editable && (
             <>
               <br />
-              <button onClick={onAddPlayer} className="text-field-300 underline mt-1 inline-block">Add a new player</button>
+              <button onClick={onAddPlayer} className="text-action-300 underline mt-1 inline-block">Add a new player</button>
               {' or '}
-              <button onClick={() => setShowAddExisting(true)} className="text-field-300 underline mt-1 inline-block">add an existing one</button>
+              <button onClick={() => setShowAddExisting(true)} className="text-action-300 underline mt-1 inline-block">add an existing one</button>
             </>
           )}
         </div>
@@ -212,7 +213,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                   <tr key={player.id} className="hover:bg-gray-900">
                     <td className="px-3 py-2 font-bold text-chrome-300">{player.jersey_number ?? '—'}</td>
                     <td className="px-3 py-2 font-semibold">
-                      <button onClick={() => onViewPlayer?.(player.id)} className="text-left hover:text-chrome-300 transition-colors underline decoration-gray-600 hover:decoration-blue-400">
+                      <button onClick={() => onViewPlayer?.(player.id)} className="text-left hover:text-chrome-300 transition-colors underline decoration-gray-600 hover:decoration-chrome-400">
                         {player.first_name} {player.last_name}
                       </button>
                     </td>
@@ -253,7 +254,7 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <span className="text-chrome-300 font-bold text-lg mr-2">#{player.jersey_number ?? '—'}</span>
-                    <button onClick={() => onViewPlayer?.(player.id)} className="font-semibold text-base hover:text-chrome-300 transition-colors underline decoration-gray-600 hover:decoration-blue-400">
+                    <button onClick={() => onViewPlayer?.(player.id)} className="font-semibold text-base hover:text-chrome-300 transition-colors underline decoration-gray-600 hover:decoration-chrome-400">
                       {player.first_name} {player.last_name}
                     </button>
                   </div>

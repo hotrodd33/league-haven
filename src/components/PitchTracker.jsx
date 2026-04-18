@@ -6,10 +6,7 @@ import {
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
-
-const btnPrimary = 'btn btn-primary btn-md disabled:opacity-60';
-const btnSecondary = 'btn btn-secondary btn-md';
-const inputCls = 'lh-input';
+import { Button, Input, Select, Modal } from './ui';
 
 function teamAbbr(name, fallback = '') {
   if (fallback && String(fallback).trim()) return String(fallback).trim().slice(0, 4).toUpperCase();
@@ -257,7 +254,7 @@ export default function PitchTracker({ gameId, onBack }) {
           <svg className="w-12 h-12 text-action-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <h2 className="text-xl font-heading font-bold text-action-300 mb-2">Game Finalized</h2>
+          <h2 className="text-xl font-display font-bold text-action-300 mb-2">Game Finalized</h2>
           <p className="text-sm text-action-400 mb-1">
             {game.home_team_name} {homeScore} – {awayScore} {game.away_team_name}
           </p>
@@ -408,27 +405,22 @@ export default function PitchTracker({ gameId, onBack }) {
 
       {/* Add pitcher modal */}
       {addingSide && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-gray-800 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6">
-            <h3 className="text-lg font-heading font-bold text-white mb-3">
-              Add {addingSide === 'home' ? 'Home' : 'Away'} Pitcher
-            </h3>
+        <Modal open onClose={() => setAddingSide(null)} size="md" title={`Add ${addingSide === 'home' ? 'Home' : 'Away'} Pitcher`}>
 
             {!addingNewPlayer ? (
               <>
-                <label className="eyebrow block mb-1">Select Player</label>
-                <select className={inputCls} value={selectedPlayerId} onChange={e => setSelectedPlayerId(e.target.value)}>
+                <Select label="Select Player" value={selectedPlayerId} onChange={e => setSelectedPlayerId(e.target.value)}>
                   <option value="">Choose a player…</option>
                   {(addingSide === 'home' ? availableHome : availableAway).map(p => (
                     <option key={p.id} value={p.id}>
                       #{p.jersey_number || '?'} {p.first_name} {p.last_name}
                     </option>
                   ))}
-                </select>
+                </Select>
 
                 <div className="flex gap-3 mt-4">
-                  <button onClick={handleAddPitcher} disabled={!selectedPlayerId} className={btnPrimary}>Add</button>
-                  <button onClick={() => setAddingSide(null)} className={btnSecondary}>Cancel</button>
+                  <Button onClick={handleAddPitcher} disabled={!selectedPlayerId}>Add</Button>
+                  <Button variant="ghost" onClick={() => setAddingSide(null)}>Cancel</Button>
                 </div>
 
                 <div className="border-t border-gray-700 mt-4 pt-3">
@@ -441,31 +433,19 @@ export default function PitchTracker({ gameId, onBack }) {
               <>
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="eyebrow block mb-1">First Name *</label>
-                      <input className={inputCls} value={newFirst} onChange={e => setNewFirst(e.target.value)} placeholder="First" />
-                    </div>
-                    <div>
-                      <label className="eyebrow block mb-1">Last Name *</label>
-                      <input className={inputCls} value={newLast} onChange={e => setNewLast(e.target.value)} placeholder="Last" />
-                    </div>
+                    <Input label="First Name *" value={newFirst} onChange={e => setNewFirst(e.target.value)} placeholder="First" />
+                    <Input label="Last Name *" value={newLast} onChange={e => setNewLast(e.target.value)} placeholder="Last" />
                   </div>
-                  <div>
-                    <label className="eyebrow block mb-1">Jersey #</label>
-                    <input className={inputCls} value={newJersey} onChange={e => setNewJersey(e.target.value)} placeholder="Optional" />
-                  </div>
+                  <Input label="Jersey #" value={newJersey} onChange={e => setNewJersey(e.target.value)} placeholder="Optional" />
                 </div>
 
                 <div className="flex gap-3 mt-4">
-                  <button onClick={handleAddNewPlayer} disabled={!newFirst.trim() || !newLast.trim() || savingPlayer} className={btnPrimary}>
-                    {savingPlayer ? 'Adding…' : 'Add & Track'}
-                  </button>
-                  <button onClick={() => setAddingNewPlayer(false)} className={btnSecondary}>Cancel</button>
+                  <Button onClick={handleAddNewPlayer} disabled={!newFirst.trim() || !newLast.trim()} loading={savingPlayer}>Add & Track</Button>
+                  <Button variant="ghost" onClick={() => setAddingNewPlayer(false)}>Cancel</Button>
                 </div>
               </>
             )}
-          </div>
-        </div>
+        </Modal>
       )}
 
       {error && <div className="lh-alert lh-alert-error mb-4">{error}</div>}
@@ -488,7 +468,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-heading font-bold uppercase tracking-wide" style={{ color: teamColor || '#9ca3af' }}>{label}</h3>
+        <h3 className="text-sm font-display font-bold uppercase tracking-wide" style={{ color: teamColor || '#9ca3af' }}>{label}</h3>
         <button onClick={onAddPitcher} className="text-xs font-semibold text-chrome-400 hover:text-chrome-200">
           + Add Pitcher
         </button>

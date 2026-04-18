@@ -46,7 +46,7 @@ export default function TeamMapper({
     return (
       <div className="space-y-5">
         <div>
-          <h3 className="font-heading text-lg font-bold text-gray-100">
+          <h3 className="font-display text-lg font-bold text-gray-100">
             Team Matching
           </h3>
           <p className="mt-1 text-sm text-gray-400">
@@ -54,14 +54,14 @@ export default function TeamMapper({
           </p>
         </div>
 
-        <div className="bg-field-900/20 rounded-xl border border-field-700 p-4 space-y-3">
+        <div className="bg-action-900/20 rounded-xl border border-action-700 p-4 space-y-3">
           {Object.entries(matchedTeams).map(([name, teamId]) => {
             const team = teams.find(t => t.id === teamId);
             return (
               <div key={name} className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-300">{name}</span>
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-field-300 bg-field-900/30 px-2.5 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-field-900/200" />
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-action-300 bg-action-900/30 px-2.5 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-action-900/200" />
                   {team ? team.name : `Team #${teamId}`}
                 </span>
               </div>
@@ -75,7 +75,7 @@ export default function TeamMapper({
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="font-heading text-lg font-bold text-gray-100">
+        <h3 className="font-display text-lg font-bold text-gray-100">
           Map Team Names
         </h3>
         <p className="mt-1 text-sm text-gray-400">
@@ -92,14 +92,14 @@ export default function TeamMapper({
             className={cn(
               'rounded-xl border p-4 transition-colors',
               mappings[name]
-                ? 'border-field-700 bg-field-900/20'
+                ? 'border-action-700 bg-action-900/20'
                 : 'border-amber-300 bg-amber-50/50'
             )}
           >
             <div className="flex items-start gap-3">
               <div className={cn(
                 'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm',
-                mappings[name] ? 'bg-field-900/30 text-field-600' : 'bg-amber-100 text-amber-600'
+                mappings[name] ? 'bg-action-900/30 text-action-600' : 'bg-amber-100 text-amber-600'
               )}>
                 {mappings[name] ? '✓' : '?'}
               </div>
@@ -118,7 +118,7 @@ export default function TeamMapper({
                   }}
                   className={cn(
                     'mt-2 w-full rounded-lg border bg-gray-800 px-3 py-2 text-sm text-gray-100',
-                    'focus:outline-none focus:ring-2 focus:ring-field-500/40 focus:border-field-500',
+                    'focus:outline-none focus:ring-2 focus:ring-action-500/40 focus:border-action-500',
                     !mappings[name] && 'border-amber-300'
                   )}
                 >
@@ -137,8 +137,8 @@ export default function TeamMapper({
 
       {/* Already matched (informational) */}
       {Object.keys(matchedTeams).length > 0 && (
-        <div className="bg-field-900/20 rounded-xl border border-field-700 p-4">
-          <p className="text-xs font-semibold text-field-300 uppercase tracking-wider mb-2">
+        <div className="bg-action-900/20 rounded-xl border border-action-700 p-4">
+          <p className="text-xs font-semibold text-action-300 uppercase tracking-wider mb-2">
             Already Matched
           </p>
           {Object.entries(matchedTeams).map(([name, teamId]) => {
@@ -146,7 +146,7 @@ export default function TeamMapper({
             return (
               <div key={name} className="flex items-center justify-between py-1">
                 <span className="text-sm text-gray-300">{name}</span>
-                <span className="text-xs font-medium text-field-300">
+                <span className="text-xs font-medium text-action-300">
                   → {team ? team.name : `Team #${teamId}`}
                 </span>
               </div>

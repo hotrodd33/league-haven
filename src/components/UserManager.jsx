@@ -4,13 +4,7 @@ import {
   fetchOrganizations, fetchTeams, inviteUser,
   fetchPendingApprovals, approveUser, rejectUser, resetUserApproval,
 } from '../api/index.js';
-
-const inputCls = "lh-input";
-const labelCls = "eyebrow block mb-1";
-const btnPrimary = "btn btn-primary btn-md disabled:opacity-60";
-const btnSecondary = "btn btn-secondary btn-md";
-const btnDanger = "btn btn-danger btn-sm";
-const btnSm = 'btn btn-xs';
+import { Button, Input, Select, Modal, Badge } from './ui/index.js';
 
 function formatLogin(ts) {
   if (!ts) return null;
@@ -100,12 +94,12 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
               ))}
             </div>
           )}
-          {tab === 'users' && <h2 className="text-xl font-heading font-bold text-white">User Accounts ({users.length})</h2>}
-          {tab === 'approvals' && <h2 className="text-xl font-heading font-bold text-white">Approvals</h2>}
+          {tab === 'users' && <h2 className="text-xl font-display font-bold text-white">User Accounts ({users.length})</h2>}
+          {tab === 'approvals' && <h2 className="text-xl font-display font-bold text-white">Approvals</h2>}
         </div>
         <div className="flex gap-2">
-          {tab === 'users' && <button onClick={() => { setEditing(null); setShowForm(true); }} className={btnPrimary}>+ Add User</button>}
-          {onBack && <button onClick={onBack} className={btnSecondary}>← Back</button>}
+          {tab === 'users' && <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Add User</Button>}
+          {onBack && <Button variant="secondary" onClick={onBack}>← Back</Button>}
         </div>
       </div>
 
@@ -122,7 +116,7 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
         <div className="py-12 text-center text-gray-400">
           No user accounts.
           <br />
-          <button onClick={() => setShowForm(true)} className="text-field-300 underline mt-1 inline-block">Add the first user</button>
+          <button onClick={() => setShowForm(true)} className="text-action-300 underline mt-1 inline-block">Add the first user</button>
         </div>
       ) : (
         <>
@@ -171,19 +165,18 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex gap-1">
-                        <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} btn-secondary`}>Edit</button>
+                        <Button size="xs" variant="secondary" onClick={() => { setEditing(u); setShowForm(true); }}>Edit</Button>
                         {u.role !== 'super_admin' && (
-                          <button onClick={() => setEditingPerms(u)} className={`${btnSm} btn-chrome`}>Perms</button>
+                          <Button size="xs" variant="chrome" onClick={() => setEditingPerms(u)}>Perms</Button>
                         )}
                         {u.email && (
-                          <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
-                            className={`${btnSm} bg-action-900/35 text-action-300 hover:bg-action-800/60`}>
+                          <Button size="xs" variant="ghost" onClick={() => handleInvite(u)} disabled={inviting === u.id}>
                             {inviting === u.id ? '…' : 'Invite'}
-                          </button>
+                          </Button>
                         )}
-                        <button onClick={() => handleDelete(u)} disabled={deleting === u.id} className={btnDanger}>
+                        <Button size="xs" variant="danger" onClick={() => handleDelete(u)} disabled={deleting === u.id}>
                           {deleting === u.id ? '…' : 'Delete'}
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -221,19 +214,18 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
                   </div>
                 )}
                 <div className="flex gap-1.5 pt-2 border-t border-gray-700">
-                  <button onClick={() => { setEditing(u); setShowForm(true); }} className={`${btnSm} btn-secondary`}>Edit</button>
+                  <Button size="xs" variant="secondary" onClick={() => { setEditing(u); setShowForm(true); }}>Edit</Button>
                   {u.role !== 'super_admin' && (
-                    <button onClick={() => setEditingPerms(u)} className={`${btnSm} btn-chrome`}>Perms</button>
+                    <Button size="xs" variant="chrome" onClick={() => setEditingPerms(u)}>Perms</Button>
                   )}
                   {u.email && (
-                    <button onClick={() => handleInvite(u)} disabled={inviting === u.id}
-                      className={`${btnSm} bg-action-900/35 text-action-300 hover:bg-action-800/60`}>
+                    <Button size="xs" variant="ghost" onClick={() => handleInvite(u)} disabled={inviting === u.id}>
                       {inviting === u.id ? '…' : 'Invite'}
-                    </button>
+                    </Button>
                   )}
-                  <button onClick={() => handleDelete(u)} disabled={deleting === u.id} className={btnDanger}>
+                  <Button size="xs" variant="danger" onClick={() => handleDelete(u)} disabled={deleting === u.id}>
                     {deleting === u.id ? '…' : 'Delete'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -296,47 +288,28 @@ function UserForm({ user, onDone, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5 sm:p-6 my-4 text-gray-200">
-        <h2 className="text-xl font-heading font-bold text-white mb-4">{isEditing ? 'Edit User' : 'Add User'}</h2>
+    <Modal open onClose={onCancel} title={isEditing ? 'Edit User' : 'Add User'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="user-username" className={labelCls}>Username *</label>
-              <input id="user-username" name="username" type="text" value={form.username}
+            <Input label="Username *" id="user-username" name="username" type="text" value={form.username}
                 onChange={handleChange} required placeholder="username" disabled={isEditing}
-                className={`${inputCls} ${isEditing ? 'bg-gray-800 cursor-not-allowed' : ''}`} />
-            </div>
-            <div>
-              <label htmlFor="user-name" className={labelCls}>Full Name *</label>
-              <input id="user-name" name="name" type="text" value={form.name}
-                onChange={handleChange} required placeholder="John Doe" className={inputCls} />
-            </div>
+                className={isEditing ? 'bg-gray-800 cursor-not-allowed' : ''} />
+            <Input label="Full Name *" id="user-name" name="name" type="text" value={form.name}
+                onChange={handleChange} required placeholder="John Doe" />
           </div>
-          <div>
-            <label htmlFor="user-email" className={labelCls}>Email</label>
-            <input id="user-email" name="email" type="email" value={form.email}
-              onChange={handleChange} placeholder="user@example.com" className={inputCls} />
-          </div>
+          <Input label="Email" id="user-email" name="email" type="email" value={form.email}
+              onChange={handleChange} placeholder="user@example.com" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="user-role" className={labelCls}>Role *</label>
-              <select id="user-role" name="role" value={form.role} onChange={handleChange} className={inputCls}>
+            <Select label="Role *" id="user-role" name="role" value={form.role} onChange={handleChange}>
                 <option value="score_reporter">Score Reporter</option>
                 <option value="team_manager">Team Manager</option>
                 <option value="org_admin">Org Admin</option>
                 <option value="accountant">Accountant</option>
                 <option value="super_admin">Super Admin</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="user-password" className={labelCls}>
-                {isEditing ? 'New Password (leave blank to keep)' : 'Password *'}
-              </label>
-              <input id="user-password" name="password" type="password" value={form.password}
-                onChange={handleChange} placeholder={isEditing ? '••••••••' : 'Password'}
-                className={inputCls} />
-            </div>
+            </Select>
+            <Input label={isEditing ? 'New Password (leave blank to keep)' : 'Password *'}
+                id="user-password" name="password" type="password" value={form.password}
+                onChange={handleChange} placeholder={isEditing ? '••••••••' : 'Password'} />
           </div>
           <div>
             <label className="flex items-center gap-3 cursor-pointer">
@@ -348,14 +321,13 @@ function UserForm({ user, onDone, onCancel }) {
           </div>
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
-            <button type="submit" disabled={saving} className={btnPrimary}>
+            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" disabled={saving} loading={saving}>
               {saving ? 'Saving…' : isEditing ? 'Update' : 'Add User'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -426,18 +398,18 @@ function PermissionsEditor({ user, onBack }) {
 
   return (
     <div>
-      <button onClick={onBack} className="px-3 py-1.5 text-sm font-semibold bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 mb-4">
+      <Button variant="secondary" size="sm" onClick={onBack} className="mb-4">
         ← Back to Users
-      </button>
+      </Button>
 
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-4 text-gray-200">
-        <h2 className="text-xl font-heading font-bold text-white mb-1">Permissions for {user.name}</h2>
+        <h2 className="text-xl font-display font-bold text-white mb-1">Permissions for {user.name}</h2>
         <p className="text-sm text-gray-400 mb-4">
           Select which organizations and teams this user can edit. Granting org access automatically includes all teams under that org.
         </p>
 
         {/* Organizations */}
-        <h3 className="text-base font-heading font-bold uppercase text-white tracking-wide mb-2">Organizations</h3>
+        <h3 className="text-base font-display font-bold uppercase text-white tracking-wide mb-2">Organizations</h3>
         {orgs.length === 0 ? (
           <p className="text-sm text-gray-400 mb-4">No organizations created yet.</p>
         ) : (
@@ -462,7 +434,7 @@ function PermissionsEditor({ user, onBack }) {
         )}
 
         {/* Individual Teams */}
-        <h3 className="text-base font-heading font-bold uppercase text-white tracking-wide mb-2">Individual Teams</h3>
+        <h3 className="text-base font-display font-bold uppercase text-white tracking-wide mb-2">Individual Teams</h3>
         <p className="text-xs text-gray-400 mb-2">Grant access to specific teams without full org access. Teams under a selected org above are already included.</p>
         {teams.length === 0 ? (
           <p className="text-sm text-gray-400 mb-4">No teams created yet.</p>
@@ -514,10 +486,10 @@ function PermissionsEditor({ user, onBack }) {
         {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-gray-700">
-          <button onClick={onBack} className={btnSecondary}>Cancel</button>
-          <button onClick={handleSave} disabled={saving} className={btnPrimary}>
+          <Button variant="secondary" onClick={onBack}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving} loading={saving}>
             {saving ? 'Saving…' : 'Save Permissions'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -625,21 +597,18 @@ function PendingApprovals() {
         <div className="flex gap-2 pt-2 border-t border-gray-700">
           {isPending && (
             <>
-              <button onClick={() => handleApprove(u)} disabled={acting === u.id}
-                className={`${btnSm} bg-action-900/40 text-action-300 hover:bg-action-800/60`}>
+              <Button size="xs" onClick={() => handleApprove(u)} disabled={acting === u.id}>
                 {acting === u.id ? '…' : 'Approve'}
-              </button>
-              <button onClick={() => { setRejectModal(u); setRejectNotes(''); }} disabled={acting === u.id}
-                className={`${btnSm} btn-danger`}>
+              </Button>
+              <Button size="xs" variant="danger" onClick={() => { setRejectModal(u); setRejectNotes(''); }} disabled={acting === u.id}>
                 Reject
-              </button>
+              </Button>
             </>
           )}
           {!isPending && (
-            <button onClick={() => handleReset(u)} disabled={acting === u.id}
-              className={`${btnSm} btn-warn`}>
+            <Button size="xs" variant="warn" onClick={() => handleReset(u)} disabled={acting === u.id}>
               {acting === u.id ? '…' : 'Reset to Pending'}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -668,24 +637,21 @@ function PendingApprovals() {
 
       {/* Reject modal */}
       {rejectModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-5 text-gray-200">
-            <h3 className="text-lg font-heading font-bold text-white mb-3">Reject {rejectModal.name}?</h3>
+        <Modal open onClose={() => { setRejectModal(null); setRejectNotes(''); }} title={`Reject ${rejectModal.name}?`} size="md">
             <p className="text-sm text-gray-400 mb-3">This user will be blocked from logging in for 30 days.</p>
             <div className="mb-4">
-              <label className={labelCls}>Reason (optional)</label>
+              <label className="lh-eyebrow block mb-1">Reason (optional)</label>
               <textarea value={rejectNotes} onChange={e => setRejectNotes(e.target.value)}
                 placeholder="Reason for rejection…" rows={3}
-                className={inputCls + ' resize-none'} />
+                className="lh-input resize-none" />
             </div>
             <div className="flex justify-end gap-3">
-              <button onClick={() => { setRejectModal(null); setRejectNotes(''); }} className={btnSecondary}>Cancel</button>
-              <button onClick={handleReject} disabled={acting === rejectModal.id} className={btnDanger}>
+              <Button variant="secondary" onClick={() => { setRejectModal(null); setRejectNotes(''); }}>Cancel</Button>
+              <Button variant="danger" onClick={handleReject} disabled={acting === rejectModal.id} loading={acting === rejectModal.id}>
                 {acting === rejectModal.id ? 'Rejecting…' : 'Reject User'}
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
