@@ -1,5 +1,4 @@
 name: Sync to Azure DevOps
-
 on:
   push:
     branches: ['**']
