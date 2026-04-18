@@ -259,7 +259,7 @@ export default function PitchTracker({ gameId, onBack }) {
             {game.home_team_name} {homeScore} – {awayScore} {game.away_team_name}
           </p>
           <p className="text-xs text-action-400 mb-4">{inning} innings · {activePitchers.length} pitchers tracked</p>
-          <button onClick={onBack} className={btnPrimary}>← Back</button>
+          <Button variant="secondary" size="sm" onClick={onBack}>← Back</Button>
         </div>
       </div>
     );
