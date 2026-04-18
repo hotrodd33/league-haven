@@ -273,7 +273,7 @@ export default function PitchTracker({ gameId, onBack }) {
 
   return (
     <div className="max-w-lg mx-auto">
-      <button onClick={onBack} className={`${btnSecondary} mb-4 text-sm`}>← Back</button>
+      <Button variant="secondary" size="sm" onClick={onBack} className="mb-4">← Back</Button>
 
       {/* Mobile-first Scoreboard */}
       <div className="bg-gray-900 text-white rounded-xl p-3 sm:p-4 mb-4">
