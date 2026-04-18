@@ -143,6 +143,12 @@ export default function MyAccount({ onChangePassword }) {
                 </Button>
             </div>
 
+            {push.error && (
+              <div className="lh-alert lh-alert-error text-xs">
+                Failed to enable notifications: {push.error}
+              </div>
+            )}
+
             {push.subscribed && (
               <div className="space-y-2 pt-2 border-t border-gray-700">
                 <PrefToggle

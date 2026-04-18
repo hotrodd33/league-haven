@@ -30,8 +30,8 @@ async function sendToSubscription(sub, payload) {
     );
     return true;
   } catch (err) {
-    // 404 or 410 means subscription is gone — remove it
-    if (err.statusCode === 404 || err.statusCode === 410) {
+    // 404/410 = subscription expired; 401/403 = VAPID key mismatch — all are unrecoverable
+    if ([401, 403, 404, 410].includes(err.statusCode)) {
       await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
     }
     return false;

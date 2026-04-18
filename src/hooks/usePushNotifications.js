@@ -22,6 +22,7 @@ export function usePushNotifications() {
   const [permission, setPermission] = useState('default');
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const ok = 'serviceWorker' in navigator && 'PushManager' in window;
@@ -40,6 +41,7 @@ export function usePushNotifications() {
   const subscribe = useCallback(async () => {
     if (!supported) return false;
     setLoading(true);
+    setError(null);
     try {
       const perm = await Notification.requestPermission();
       setPermission(perm);
@@ -47,12 +49,17 @@ export function usePushNotifications() {
 
       const { publicKey } = await fetchVapidKey();
       const reg = await navigator.serviceWorker.ready;
+
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
 
       const subJson = sub.toJSON();
+      if (!subJson.keys?.p256dh || !subJson.keys?.auth) {
+        throw new Error(`Subscription missing keys (p256dh=${!!subJson.keys?.p256dh}, auth=${!!subJson.keys?.auth})`);
+      }
+
       await pushSubscribe({
         endpoint: subJson.endpoint,
         keys: subJson.keys,
@@ -63,6 +70,7 @@ export function usePushNotifications() {
       return true;
     } catch (err) {
       console.error('Push subscribe failed:', err);
+      setError(err.message || 'Failed to enable notifications');
       setLoading(false);
       return false;
     }
@@ -84,5 +92,5 @@ export function usePushNotifications() {
     setLoading(false);
   }, []);
 
-  return { supported, permission, subscribed, loading, subscribe, unsubscribe };
+  return { supported, permission, subscribed, loading, error, subscribe, unsubscribe };
 }
