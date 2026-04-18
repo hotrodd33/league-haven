@@ -1,0 +1,17 @@
+name: Sync to Azure DevOps
+on:
+  push:
+    branches: ['**']
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push to ADO
+        run: |
+          git remote add ado https://${{ secrets.ADO_PAT }}@dev.azure.com/YOURORG/YOURPROJECT/_git/YOURREPO
+          git push ado --all
+          git push ado --tags
