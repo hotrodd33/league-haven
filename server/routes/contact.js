@@ -93,25 +93,28 @@ router.post('/', authMiddleware, async (req, res) => {
 
       case 'roster': {
         if (!scopeId) return res.status(400).json({ error: 'scopeId (team_id) is required' });
-        // All parent/guardian contacts for players on this team
+        // All guardian contacts for players on this team
         const { rows: contactRows } = await pool.query(
-          `SELECT DISTINCT pc.first_name || ' ' || pc.last_name AS name, pc.email
-           FROM player_contacts pc
-           JOIN team_players tp ON tp.player_id = pc.player_id
-           WHERE tp.team_id = $1 AND pc.email IS NOT NULL AND pc.email != ''`,
+          `SELECT DISTINCT g.first_name || ' ' || g.last_name AS name, g.email
+           FROM guardians g
+           JOIN player_guardians pg ON pg.guardian_id = g.id
+           JOIN team_players tp ON tp.player_id = pg.player_id
+           WHERE tp.team_id = $1 AND g.email IS NOT NULL AND g.email != ''`,
           [scopeId]
         );
         recipients = contactRows.map(r => ({ name: r.name, email: r.email }));
-        // Also include legacy parent_email from players table
-        const { rows: legacyRows } = await pool.query(
-          `SELECT DISTINCT p.first_name || ' ' || p.last_name || ' (Parent)' AS name, p.parent_email AS email
+        // Also include player own email and legacy parent_email
+        const { rows: playerRows } = await pool.query(
+          `SELECT DISTINCT p.first_name || ' ' || p.last_name AS name,
+                  COALESCE(p.email, p.parent_email) AS email
            FROM players p
            JOIN team_players tp ON tp.player_id = p.id
-           WHERE tp.team_id = $1 AND p.parent_email IS NOT NULL AND p.parent_email != ''`,
+           WHERE tp.team_id = $1 AND COALESCE(p.email, p.parent_email) IS NOT NULL
+                 AND COALESCE(p.email, p.parent_email) != ''`,
           [scopeId]
         );
         const seen = new Set(recipients.map(r => r.email.toLowerCase()));
-        for (const r of legacyRows) {
+        for (const r of playerRows) {
           if (!seen.has(r.email.toLowerCase())) {
             recipients.push(r);
             seen.add(r.email.toLowerCase());
@@ -248,24 +251,27 @@ router.get('/recipients', authMiddleware, async (req, res) => {
       case 'roster': {
         if (!scopeId) return res.status(400).json({ error: 'scopeId required' });
         const { rows: contactRows } = await pool.query(
-          `SELECT DISTINCT pc.first_name || ' ' || pc.last_name AS name, pc.email, pc.relationship AS role
-           FROM player_contacts pc
-           JOIN team_players tp ON tp.player_id = pc.player_id
-           WHERE tp.team_id = $1 AND pc.email IS NOT NULL AND pc.email != ''`,
+          `SELECT DISTINCT g.first_name || ' ' || g.last_name AS name, g.email, pg.relationship AS role
+           FROM guardians g
+           JOIN player_guardians pg ON pg.guardian_id = g.id
+           JOIN team_players tp ON tp.player_id = pg.player_id
+           WHERE tp.team_id = $1 AND g.email IS NOT NULL AND g.email != ''`,
           [scopeId]
         );
         recipients = contactRows.map(r => ({ name: r.name, email: r.email, role: r.role }));
-        const { rows: legacyRows } = await pool.query(
-          `SELECT DISTINCT p.first_name || ' ' || p.last_name || ' (Parent)' AS name, p.parent_email AS email
+        const { rows: playerRows } = await pool.query(
+          `SELECT DISTINCT p.first_name || ' ' || p.last_name AS name,
+                  COALESCE(p.email, p.parent_email) AS email
            FROM players p
            JOIN team_players tp ON tp.player_id = p.id
-           WHERE tp.team_id = $1 AND p.parent_email IS NOT NULL AND p.parent_email != ''`,
+           WHERE tp.team_id = $1 AND COALESCE(p.email, p.parent_email) IS NOT NULL
+                 AND COALESCE(p.email, p.parent_email) != ''`,
           [scopeId]
         );
         const seenEmails = new Set(recipients.map(r => r.email.toLowerCase()));
-        for (const r of legacyRows) {
+        for (const r of playerRows) {
           if (!seenEmails.has(r.email.toLowerCase())) {
-            recipients.push({ name: r.name, email: r.email, role: 'parent' });
+            recipients.push({ name: r.name, email: r.email, role: 'player' });
             seenEmails.add(r.email.toLowerCase());
           }
         }

@@ -784,12 +784,13 @@ async function migrate() {
   // ── Migrate player_contacts → guardians + player_guardians (one-time) ──
   await pool.query(`
     INSERT INTO guardians (first_name, last_name, email, phone, created_at)
-    SELECT DISTINCT ON (LOWER(TRIM(first_name)), LOWER(TRIM(last_name)), LOWER(COALESCE(TRIM(email),'')))
-           TRIM(first_name), TRIM(last_name), NULLIF(TRIM(email),''), NULLIF(TRIM(phone),''), MIN(created_at)
+    SELECT TRIM(first_name), TRIM(last_name),
+           MAX(NULLIF(TRIM(email),'')),
+           MAX(NULLIF(TRIM(phone),'')),
+           MIN(created_at)
     FROM player_contacts
     WHERE NOT EXISTS (SELECT 1 FROM guardians LIMIT 1)
     GROUP BY TRIM(first_name), TRIM(last_name), LOWER(COALESCE(TRIM(email),''))
-    ORDER BY LOWER(TRIM(first_name)), LOWER(TRIM(last_name)), LOWER(COALESCE(TRIM(email),'')), MIN(created_at)
   `);
   await pool.query(`
     INSERT INTO player_guardians (player_id, guardian_id, relationship, is_primary, notes, created_at)

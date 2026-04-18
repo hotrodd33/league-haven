@@ -998,18 +998,46 @@ async function importRoster(req, res, opts) {
           );
         }
 
-        // Insert parent/guardian contacts into player_contacts
+        // Insert parent/guardian contacts into guardians + player_guardians
         const p1Email = get(iP1Email);
         const p1Phone = get(iP1Phone);
         const p1First = get(iP1First);
         const p1Last  = get(iP1Last);
-        if (p1Email || p1Phone || p1First || p1Last) {
+        if ((p1First && p1Last) || p1Email) {
+          let gId;
+          if (p1Email) {
+            const { rows: byEmail } = await client.query(
+              'SELECT id FROM guardians WHERE LOWER(email) = LOWER($1) LIMIT 1', [p1Email.trim()]
+            );
+            if (byEmail.length) {
+              gId = byEmail[0].id;
+              await client.query('UPDATE guardians SET phone = COALESCE(phone, $1), first_name = COALESCE(NULLIF(first_name,\'\'), $2), last_name = COALESCE(NULLIF(last_name,\'\'), $3), updated_at = NOW() WHERE id = $4',
+                [p1Phone || null, p1First || null, p1Last || null, gId]);
+            }
+          }
+          if (!gId && p1First && p1Last) {
+            const { rows: byName } = await client.query(
+              'SELECT id FROM guardians WHERE LOWER(first_name) = LOWER($1) AND LOWER(last_name) = LOWER($2) LIMIT 1',
+              [p1First.trim(), p1Last.trim()]
+            );
+            if (byName.length) {
+              gId = byName[0].id;
+              await client.query('UPDATE guardians SET email = COALESCE(email, $1), phone = COALESCE(phone, $2), updated_at = NOW() WHERE id = $3',
+                [p1Email || null, p1Phone || null, gId]);
+            }
+          }
+          if (!gId) {
+            const { rows: created } = await client.query(
+              'INSERT INTO guardians (first_name, last_name, email, phone) VALUES ($1, $2, $3, $4) RETURNING id',
+              [p1First?.trim() || null, p1Last?.trim() || null, p1Email || null, p1Phone || null]
+            );
+            gId = created[0].id;
+          }
           await client.query(
-            `INSERT INTO player_contacts
-               (player_id, relationship, first_name, last_name, email, phone, is_primary)
-             VALUES ($1, 'parent', $2, $3, $4, $5, true)
-             ON CONFLICT DO NOTHING`,
-            [playerId, p1First || null, p1Last || null, p1Email || null, p1Phone || null]
+            `INSERT INTO player_guardians (player_id, guardian_id, relationship, is_primary)
+             VALUES ($1, $2, 'parent', true)
+             ON CONFLICT (player_id, guardian_id) DO UPDATE SET is_primary = true`,
+            [playerId, gId]
           );
           results.contacts++;
         }
@@ -1018,13 +1046,41 @@ async function importRoster(req, res, opts) {
         const p2Phone = get(iP2Phone);
         const p2First = get(iP2First);
         const p2Last  = get(iP2Last);
-        if (p2Email || p2Phone || p2First || p2Last) {
+        if ((p2First && p2Last) || p2Email) {
+          let gId;
+          if (p2Email) {
+            const { rows: byEmail } = await client.query(
+              'SELECT id FROM guardians WHERE LOWER(email) = LOWER($1) LIMIT 1', [p2Email.trim()]
+            );
+            if (byEmail.length) {
+              gId = byEmail[0].id;
+              await client.query('UPDATE guardians SET phone = COALESCE(phone, $1), first_name = COALESCE(NULLIF(first_name,\'\'), $2), last_name = COALESCE(NULLIF(last_name,\'\'), $3), updated_at = NOW() WHERE id = $4',
+                [p2Phone || null, p2First || null, p2Last || null, gId]);
+            }
+          }
+          if (!gId && p2First && p2Last) {
+            const { rows: byName } = await client.query(
+              'SELECT id FROM guardians WHERE LOWER(first_name) = LOWER($1) AND LOWER(last_name) = LOWER($2) LIMIT 1',
+              [p2First.trim(), p2Last.trim()]
+            );
+            if (byName.length) {
+              gId = byName[0].id;
+              await client.query('UPDATE guardians SET email = COALESCE(email, $1), phone = COALESCE(phone, $2), updated_at = NOW() WHERE id = $3',
+                [p2Email || null, p2Phone || null, gId]);
+            }
+          }
+          if (!gId) {
+            const { rows: created } = await client.query(
+              'INSERT INTO guardians (first_name, last_name, email, phone) VALUES ($1, $2, $3, $4) RETURNING id',
+              [p2First?.trim() || null, p2Last?.trim() || null, p2Email || null, p2Phone || null]
+            );
+            gId = created[0].id;
+          }
           await client.query(
-            `INSERT INTO player_contacts
-               (player_id, relationship, first_name, last_name, email, phone, is_primary)
-             VALUES ($1, 'parent', $2, $3, $4, $5, false)
-             ON CONFLICT DO NOTHING`,
-            [playerId, p2First || null, p2Last || null, p2Email || null, p2Phone || null]
+            `INSERT INTO player_guardians (player_id, guardian_id, relationship, is_primary)
+             VALUES ($1, $2, 'parent', false)
+             ON CONFLICT (player_id, guardian_id) DO UPDATE SET is_primary = false`,
+            [playerId, gId]
           );
           results.contacts++;
         }
