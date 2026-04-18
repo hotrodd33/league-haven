@@ -214,19 +214,25 @@ router.get('/export/:entity', async (req, res) => {
       }
       case 'players': {
         const { rows } = await pool.query(
-          `SELECT p.first_name, p.last_name, p.date_of_birth, p.batting_hand, p.throwing_hand,
-                  p.parent_email, p.parent_phone, p.grade,
+          `SELECT p.first_name, p.last_name, p.date_of_birth, p.batting_hand, p.throwing_hand, p.grade,
+                  pc1.first_name AS parent1_first_name, pc1.last_name AS parent1_last_name,
+                  pc1.email AS parent1_email, pc1.phone AS parent1_phone,
+                  pc2.first_name AS parent2_first_name, pc2.last_name AS parent2_last_name,
+                  pc2.email AS parent2_email, pc2.phone AS parent2_phone,
                   COALESCE(string_agg(DISTINCT CASE WHEN o.name IS NOT NULL THEN t.name || ' (' || o.name || ')' ELSE t.name END, '; '), '') AS teams,
                   COALESCE(string_agg(DISTINCT tp.jersey_number::text, '; '), '') AS jersey_numbers
            FROM players p
            LEFT JOIN team_players tp ON tp.player_id = p.id
            LEFT JOIN teams t ON t.id = tp.team_id
            LEFT JOIN organizations o ON o.id = t.org_id
-           GROUP BY p.id ORDER BY p.last_name, p.first_name`
+           LEFT JOIN LATERAL (SELECT first_name, last_name, email, phone FROM player_contacts WHERE player_id = p.id ORDER BY is_primary DESC, created_at LIMIT 1) pc1 ON TRUE
+           LEFT JOIN LATERAL (SELECT first_name, last_name, email, phone FROM player_contacts WHERE player_id = p.id ORDER BY is_primary DESC, created_at LIMIT 1 OFFSET 1) pc2 ON TRUE
+           GROUP BY p.id, pc1.first_name, pc1.last_name, pc1.email, pc1.phone, pc2.first_name, pc2.last_name, pc2.email, pc2.phone
+           ORDER BY p.last_name, p.first_name`
         );
-        csvLines = ['first_name,last_name,date_of_birth,batting_hand,throwing_hand,parent_email,parent_phone,grade,team,jersey_number'];
+        csvLines = ['first_name,last_name,date_of_birth,batting_hand,throwing_hand,grade,team,jersey_number,parent1_first_name,parent1_last_name,parent1_email,parent1_phone,parent2_first_name,parent2_last_name,parent2_email,parent2_phone'];
         for (const r of rows) {
-          csvLines.push([r.first_name, r.last_name, r.date_of_birth, r.batting_hand, r.throwing_hand, r.parent_email, r.parent_phone, r.grade, r.teams, r.jersey_numbers].map(csvEsc).join(','));
+          csvLines.push([r.first_name, r.last_name, r.date_of_birth, r.batting_hand, r.throwing_hand, r.grade, r.teams, r.jersey_numbers, r.parent1_first_name, r.parent1_last_name, r.parent1_email, r.parent1_phone, r.parent2_first_name, r.parent2_last_name, r.parent2_email, r.parent2_phone].map(csvEsc).join(','));
         }
         break;
       }
