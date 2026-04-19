@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: ZVBL Roster API
+ * Plugin Name: LeagueHaven Roster API
  * Description: Exposes SportsPress player meta fields to the REST API and enables CORS for the roster manager app.
  * Version: 1.0.0
- * Author: ZVBL
+ * Author: LeagueHaven
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -153,7 +153,7 @@ add_action( 'init', function () {
 } );
 
 /**
- * Custom REST endpoint for reading/writing ZVBL player meta fields.
+ * Custom REST endpoint for reading/writing player meta fields.
  * The SportsPress v2 controller does not pass through meta writes,
  * so we handle them via our own route: /zvbl/v1/player-meta/<id>
  */

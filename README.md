@@ -1,6 +1,6 @@
-# ZVBL Roster Manager
+# LeagueHaven Roster Manager
 
-A full-featured baseball league management application for the Zumbro Valley Baseball League. Manage organizations, teams, rosters, schedules, field calendars, live scoring, pitch tracking, umpire assignments, standings, weather forecasts, league fees, announcements, and more — all from a responsive dark-themed web interface.
+A full-featured baseball league management application. Manage organizations, teams, rosters, schedules, field calendars, live scoring, pitch tracking, umpire assignments, standings, weather forecasts, league fees, announcements, and more — all from a responsive dark-themed web interface.
 
 ## Features
 
@@ -85,7 +85,7 @@ A full-featured baseball league management application for the Zumbro Valley Bas
 - **Scoped Email** — Send to an individual, team, organization, or entire league
 - **Recipient Preview** — See who will receive the email before sending
 - **BCC Privacy** — Multiple recipients are BCC'd
-- **Branded Templates** — HTML emails with ZVBL header and sender info
+- **Branded Templates** — HTML emails with league branding and sender info
 - **Deduplication** — Recipients are deduplicated by email address
 - **Automated Emails** — Welcome, invite (with temp password), password reset/changed, game schedule change notifications, email confirmation
 
