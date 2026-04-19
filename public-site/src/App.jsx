@@ -6,8 +6,8 @@ import { fetchBranding } from './api/index.js';
 
 const TABS = [
   { key: 'standings', label: 'Standings' },
-  { key: 'scores', label: 'Scores' },
-  { key: 'teams', label: 'Teams' },
+  { key: 'scores',    label: 'Scores'    },
+  { key: 'teams',     label: 'Teams'     },
 ];
 
 export default function App() {
@@ -17,29 +17,36 @@ export default function App() {
 
   useEffect(() => {
     fetchBranding()
-      .then((data) => setBranding({ app_name: data?.app_name || 'LeagueHaven', logo_url: data?.logo_url || null }))
+      .then(data => setBranding({ app_name: data?.app_name || 'LeagueHaven', logo_url: data?.logo_url || null }))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    const cssValue = branding?.logo_url ? `url(\"${branding.logo_url}\")` : 'none';
+    const cssValue = branding?.logo_url ? `url("${branding.logo_url}")` : 'none';
     document.documentElement.style.setProperty('--league-logo-watermark', cssValue);
   }, [branding?.logo_url]);
 
   return (
-    <div className="min-h-screen bg-league-watermark text-gray-900">
+    <div className="min-h-screen bg-league-watermark text-gray-100">
+
       {/* Header */}
-      <header className="bg-blue-800 text-white shadow-lg border-t-4 border-baseball-600">
+      <header className="bg-chrome-900 border-b border-gray-700/60 border-t-4 border-t-signal-600 sticky top-0 z-40">
         <div className="flex items-center justify-between px-4 py-3 max-w-6xl mx-auto">
-          <h1 className="font-heading text-xl font-bold whitespace-nowrap tracking-wide">⚾ {branding.app_name || 'LeagueHaven'}</h1>
+          <h1 className="font-display text-xl font-bold whitespace-nowrap tracking-wide text-white">
+            ⚾ {branding.app_name || 'LeagueHaven'}
+          </h1>
 
           {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-1">
             {TABS.map(tab => (
               <button
                 key={tab.key}
-                className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${page === tab.key ? 'bg-white/20 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                 onClick={() => setPage(tab.key)}
+                className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                  page === tab.key
+                    ? 'bg-action-700/40 text-action-300'
+                    : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-100'
+                }`}
               >
                 {tab.label}
               </button>
@@ -52,19 +59,23 @@ export default function App() {
             onClick={() => setMenuOpen(v => !v)}
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           >
-            <span className={`block h-0.5 w-full bg-white rounded transition-transform duration-300 origin-center ${menuOpen ? 'translate-y-[9px] rotate-45' : ''}`} />
-            <span className={`block h-0.5 w-full bg-white rounded transition-transform duration-300 origin-center ${menuOpen ? '-translate-y-[9px] -rotate-45' : ''}`} />
+            <span className={`block h-0.5 w-full bg-gray-300 rounded transition-transform duration-300 origin-center ${menuOpen ? 'translate-y-[9px] rotate-45' : ''}`} />
+            <span className={`block h-0.5 w-full bg-gray-300 rounded transition-transform duration-300 origin-center ${menuOpen ? '-translate-y-[9px] -rotate-45' : ''}`} />
           </button>
         </div>
 
         {/* Mobile dropdown */}
         {menuOpen && (
-          <nav className="sm:hidden flex flex-col border-t border-white/20 px-4 pb-3 pt-2 gap-1">
+          <nav className="sm:hidden flex flex-col border-t border-gray-700/60 px-4 pb-3 pt-2 gap-1 bg-chrome-900">
             {TABS.map(tab => (
               <button
                 key={tab.key}
-                className={`text-left px-3 py-2 text-sm rounded-md transition-colors ${page === tab.key ? 'bg-white/20 text-white font-semibold' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                 onClick={() => { setPage(tab.key); setMenuOpen(false); }}
+                className={`text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                  page === tab.key
+                    ? 'bg-action-700/40 text-action-300 font-semibold'
+                    : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-100'
+                }`}
               >
                 {tab.label}
               </button>
@@ -76,12 +87,12 @@ export default function App() {
       {/* Content */}
       <main className="p-4 max-w-6xl mx-auto">
         {page === 'standings' && <Standings />}
-        {page === 'scores' && <Scores />}
-        {page === 'teams' && <Teams />}
+        {page === 'scores'    && <Scores />}
+        {page === 'teams'     && <Teams />}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 mt-12 py-6 text-center text-xs text-gray-400">
+      <footer className="border-t border-gray-800 mt-12 py-6 text-center text-xs text-gray-500">
         © {new Date().getFullYear()} Zionsville Valley Baseball League
       </footer>
     </div>

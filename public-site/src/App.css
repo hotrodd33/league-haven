@@ -3,36 +3,24 @@
 @theme {
   /* ═══════════════════════════════════════════════════════
      LeagueHaven DESIGN SYSTEM · Color Tokens
+     (matches admin — cool slate, sport-agnostic naming)
      ═══════════════════════════════════════════════════════ */
 
-  /* === Baseball Navy (headers, dark surfaces) === */
-  --color-blue-50: #ebf0f7;
-  --color-blue-100: #d4e1f0;
-  --color-blue-200: #abc3df;
-  --color-blue-300: #82a3ca;
-  --color-blue-400: #5a83b4;
-  --color-blue-500: #3b6396;
-  --color-blue-600: #2e4d7a;
-  --color-blue-700: #243a60;
-  --color-blue-800: #1b2a4a;
-  --color-blue-900: #0f1b33;
-  --color-blue-950: #080e1c;
+  /* ─── Action (primary · live · success) ─── */
+  --color-action-50:  #f0fdf4;
+  --color-action-100: #dcfce7;
+  --color-action-200: #bbf7d0;
+  --color-action-300: #86efac;
+  --color-action-400: #4ade80;
+  --color-action-500: #22c55e;
+  --color-action-600: #16a34a;
+  --color-action-700: #166534;
+  --color-action-800: #14532d;
+  --color-action-900: #052e16;
+  --color-action-950: #022c22;
 
-  /* === Warm Neutrals (surfaces, text, borders) === */
-  --color-gray-50: #faf8f5;
-  --color-gray-100: #f2efe9;
-  --color-gray-200: #e4dfd7;
-  --color-gray-300: #cfc8bd;
-  --color-gray-400: #a9a198;
-  --color-gray-500: #837b73;
-  --color-gray-600: #615a54;
-  --color-gray-700: #46413c;
-  --color-gray-800: #2d2925;
-  --color-gray-900: #191715;
-  --color-gray-950: #0d0c0b;
-
-  /* === Field Green (primary actions, CTA, success) === */
-  --color-field-50: #f0fdf4;
+  /* Legacy aliases */
+  --color-field-50:  #f0fdf4;
   --color-field-100: #dcfce7;
   --color-field-200: #bbf7d0;
   --color-field-300: #86efac;
@@ -44,8 +32,47 @@
   --color-field-900: #052e16;
   --color-field-950: #022c22;
 
-  /* === Dirt Brown (warm accent, secondary CTA) === */
-  --color-dirt-50: #fffbeb;
+  /* ─── Chrome (surfaces · info · nav) ─── */
+  --color-chrome-50:  #ebf0f7;
+  --color-chrome-100: #d4e1f0;
+  --color-chrome-200: #abc3df;
+  --color-chrome-300: #82a3ca;
+  --color-chrome-400: #5a83b4;
+  --color-chrome-500: #3b6396;
+  --color-chrome-600: #2e4d7a;
+  --color-chrome-700: #243a60;
+  --color-chrome-800: #1b2a4a;
+  --color-chrome-900: #0f1b33;
+  --color-chrome-950: #080e1c;
+
+  /* Legacy aliases */
+  --color-blue-50:  #ebf0f7;
+  --color-blue-100: #d4e1f0;
+  --color-blue-200: #abc3df;
+  --color-blue-300: #82a3ca;
+  --color-blue-400: #5a83b4;
+  --color-blue-500: #3b6396;
+  --color-blue-600: #2e4d7a;
+  --color-blue-700: #243a60;
+  --color-blue-800: #1b2a4a;
+  --color-blue-900: #0f1b33;
+  --color-blue-950: #080e1c;
+
+  /* ─── Accent (secondary · warn · energy) ─── */
+  --color-accent-50:  #fffbeb;
+  --color-accent-100: #fef3c7;
+  --color-accent-200: #fde68a;
+  --color-accent-300: #fcd34d;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+  --color-accent-700: #b45309;
+  --color-accent-800: #854d0e;
+  --color-accent-900: #713f12;
+  --color-accent-950: #422006;
+
+  /* Legacy aliases */
+  --color-dirt-50:  #fffbeb;
   --color-dirt-100: #fef3c7;
   --color-dirt-200: #fde68a;
   --color-dirt-300: #fcd34d;
@@ -57,20 +84,21 @@
   --color-dirt-900: #713f12;
   --color-dirt-950: #422006;
 
-  /* === Cream (warm backgrounds, paper feel) === */
-  --color-cream-50: #fefdfb;
-  --color-cream-100: #fdfbf7;
-  --color-cream-200: #faf6ee;
-  --color-cream-300: #f8f1e3;
-  --color-cream-400: #f0e5cf;
-  --color-cream-500: #e5d5b5;
-  --color-cream-600: #d4bf94;
-  --color-cream-700: #b89e6e;
-  --color-cream-800: #96804f;
-  --color-cream-900: #766439;
+  /* ─── Signal (danger · critical) ─── */
+  --color-signal-50:  #fef2f3;
+  --color-signal-100: #fde3e5;
+  --color-signal-200: #fbc8cc;
+  --color-signal-300: #f89da4;
+  --color-signal-400: #f06570;
+  --color-signal-500: #e63946;
+  --color-signal-600: #c41e3a;
+  --color-signal-700: #a51830;
+  --color-signal-800: #891828;
+  --color-signal-900: #751a28;
+  --color-signal-950: #410910;
 
-  /* === Baseball Red / Strike (danger, alerts) === */
-  --color-baseball-50: #fef2f3;
+  /* Legacy aliases */
+  --color-baseball-50:  #fef2f3;
   --color-baseball-100: #fde3e5;
   --color-baseball-200: #fbc8cc;
   --color-baseball-300: #f89da4;
@@ -82,30 +110,71 @@
   --color-baseball-900: #751a28;
   --color-baseball-950: #410910;
 
+  /* ─── Cool Slate (surfaces · text · borders — dark-first) ─── */
+  --color-gray-50:  #f8fafc;
+  --color-gray-100: #f1f5f9;
+  --color-gray-200: #e2e8f0;
+  --color-gray-300: #cbd5e1;
+  --color-gray-400: #94a3b8;
+  --color-gray-500: #64748b;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1e293b;
+  --color-gray-900: #0f172a;
+  --color-gray-950: #020617;
+
   /* ═══════════════════════════════════════════════════════
      Typography
      ═══════════════════════════════════════════════════════ */
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
   --font-heading: 'Oswald', system-ui, sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --font-display: 'Oswald', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  /* ═══════════════════════════════════════════════════════
+     Border Radius
+     ═══════════════════════════════════════════════════════ */
+  --radius-control:    8px;
+  --radius-control-sm: 6px;
+  --radius-card:       14px;
+  --radius-card-sm:    10px;
 
   /* ═══════════════════════════════════════════════════════
      Shadows
      ═══════════════════════════════════════════════════════ */
-  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
-  --shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
-  --shadow-glow-green: 0 0 20px rgb(22 101 52 / 0.15);
-  --shadow-glow-dirt: 0 0 20px rgb(133 77 14 / 0.15);
-  --shadow-inner-field: inset 0 2px 4px 0 rgb(22 101 52 / 0.06);
+  --shadow-card:     0 2px 8px 0 rgb(0 0 0 / 0.25), 0 1px 3px -1px rgb(0 0 0 / 0.15);
+  --shadow-elevated: 0 12px 28px -5px rgb(0 0 0 / 0.35), 0 8px 16px -8px rgb(0 0 0 / 0.2);
+  --shadow-glow-action: 0 0 24px rgb(22 163 74 / 0.25);
 
   /* ═══════════════════════════════════════════════════════
      Animations
      ═══════════════════════════════════════════════════════ */
-  --animate-fade-in: fade-in 0.2s ease-out;
-  --animate-slide-up: slide-up 0.25s ease-out;
-  --animate-slide-right: slide-right 0.3s ease-out;
-  --animate-scale-in: scale-in 0.2s ease-out;
+  --animate-fade-in:   fade-in 180ms ease-out;
+  --animate-slide-up:  slide-up 240ms ease-out;
+  --animate-scale-in:  scale-in 200ms ease-out;
   --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+  --animate-live-pulse: live-pulse 1.6s ease-out infinite;
+  --animate-shimmer:   shimmer 1.6s linear infinite;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Base
+   ═══════════════════════════════════════════════════════ */
+html, body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-image: radial-gradient(
+    circle at 0.5px 0.5px,
+    rgba(148, 163, 184, 0.07) 0.5px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -113,64 +182,121 @@
    ═══════════════════════════════════════════════════════ */
 @keyframes fade-in {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
-
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes slide-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  to   { opacity: 1; transform: scale(1); }
 }
-
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  50%       { opacity: 0.7; }
+}
+@keyframes live-pulse {
+  0%   { box-shadow: 0 0 0 0 rgb(240 101 112 / 0.7); }
+  70%  { box-shadow: 0 0 0 8px rgb(240 101 112 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(240 101 112 / 0); }
+}
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
 }
 
 /* ═══════════════════════════════════════════════════════
-   Baseball Background Patterns (decorative)
+   Background Patterns
    ═══════════════════════════════════════════════════════ */
 .bg-diamond-pattern {
-  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20Z' fill='none' stroke='%23166534' stroke-width='0.5' opacity='0.07'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20Z' fill='none' stroke='%23166534' stroke-width='0.5' opacity='0.08'/%3E%3C/svg%3E");
 }
-
-.bg-stitch-pattern {
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10 Q15 0 30 10 Q45 20 60 10' fill='none' stroke='%23c41e3a' stroke-width='1' opacity='0.06'/%3E%3C/svg%3E");
-}
-
-.bg-field-lines {
-  background-image:
-    linear-gradient(90deg, rgb(22 101 52 / 0.03) 1px, transparent 1px),
-    linear-gradient(rgb(22 101 52 / 0.03) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
 .bg-league-watermark {
   background-color: #0f172a;
   background-image:
-    linear-gradient(rgba(15, 23, 42, 0.965), rgba(15, 23, 42, 0.965)),
+    linear-gradient(rgba(15,23,42,0.97), rgba(15,23,42,0.97)),
     var(--league-logo-watermark, none),
     url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20Z' fill='none' stroke='%23166534' stroke-width='0.5' opacity='0.08'/%3E%3C/svg%3E");
   background-size: auto, 300px auto, 40px 40px;
   background-repeat: repeat, repeat, repeat;
-  background-position: 0 0, 0 0, 0 0;
   background-attachment: fixed, fixed, fixed;
-  background-blend-mode: normal, normal, normal;
 }
 
 /* ═══════════════════════════════════════════════════════
-   Custom Scrollbar
+   Utility Component Classes
    ═══════════════════════════════════════════════════════ */
+
+/* Eyebrow label — mono, all-caps, tracking */
+.eyebrow {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+/* Tabular numbers */
+.stat {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Form controls */
+.lh-select {
+  appearance: none;
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 0.875rem;
+  padding: 0.375rem 0.75rem;
+  transition: border-color 150ms, box-shadow 150ms;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+.lh-select:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgb(22 163 74 / 0.2);
+}
+.lh-select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Alerts */
+.lh-alert-error {
+  background-color: rgb(137 24 40 / 0.2);
+  border: 1px solid rgb(137 24 40 / 0.4);
+  color: #f89da4;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Live pulse dot */
+.live-ring {
+  width: 8px; height: 8px;
+  border-radius: 9999px;
+  background: #f06570;
+  animation: live-pulse 1.6s ease-out infinite;
+}
+
+/* Skeleton */
+.skel {
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #1e293b, #334155, #1e293b);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Custom scrollbar */
 .scrollbar-thin::-webkit-scrollbar { width: 6px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgb(167 160 152 / 0.4); border-radius: 3px; }
-.scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: rgb(167 160 152 / 0.6); }
+.scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgb(51 65 85 / 0.6); border-radius: 3px; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: rgb(71 85 105 / 0.8); }
