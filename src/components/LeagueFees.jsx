@@ -27,6 +27,11 @@ export default function LeagueFees({ onBack }) {
   const [seasonFilter, setSeasonFilter] = useState('');
   const [ageGroupFilter, setAgeGroupFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
+  const [orgFilter, setOrgFilter] = useState('');
+
+  // Sort
+  const [sortCol, setSortCol] = useState('team');
+  const [sortDir, setSortDir] = useState('asc');
 
   // Forms
   const [showRegister, setShowRegister] = useState(false);
@@ -202,6 +207,45 @@ export default function LeagueFees({ onBack }) {
   const registeredTeamIds = new Set(registrations.map(r => r.team_id));
   const unregisteredTeams = teams.filter(t => !registeredTeamIds.has(t.id));
 
+  // Unique orgs derived from current registrations
+  const orgOptions = [...new Map(
+    registrations.filter(r => r.org_name).map(r => [r.org_name, r.org_name])
+  ).values()].sort();
+
+  // Client-side org filter + sort
+  const displayRegs = (() => {
+    let rows = orgFilter ? registrations.filter(r => r.org_name === orgFilter) : registrations;
+    rows = [...rows].sort((a, b) => {
+      let av, bv;
+      switch (sortCol) {
+        case 'team':   av = a.team_name    || ''; bv = b.team_name    || ''; break;
+        case 'org':    av = a.org_name     || ''; bv = b.org_name     || ''; break;
+        case 'age':    av = a.age_group    || ''; bv = b.age_group    || ''; break;
+        case 'season': av = a.season_year  ?? 0;  bv = b.season_year  ?? 0;  break;
+        case 'fee':    av = a.effective_fee ?? 0; bv = b.effective_fee ?? 0; break;
+        case 'status': av = a.is_paid ? 1  : 0;  bv = b.is_paid ? 1  : 0;  break;
+        default: return 0;
+      }
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ?  1 : -1;
+      return 0;
+    });
+    return rows;
+  })();
+
+  function toggleSort(col) {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  }
+
+  // Summary derived from filtered view (reflects org filter)
+  const filteredSummary = {
+    total_teams:       displayRegs.length,
+    total_fees:        displayRegs.reduce((s, r) => s + (r.effective_fee ?? 0), 0),
+    total_collected:   displayRegs.filter(r => r.is_paid).reduce((s, r) => s + (r.paid_amount ?? r.effective_fee ?? 0), 0),
+    total_outstanding: displayRegs.filter(r => !r.is_paid).reduce((s, r) => s + (r.effective_fee ?? 0), 0),
+  };
+
   const fmt = (n) => n != null ? `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 
   return (
@@ -226,10 +270,10 @@ export default function LeagueFees({ onBack }) {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-        <SummaryCard label="Teams" value={summary.total_teams} />
-        <SummaryCard label="Total Fees" value={fmt(summary.total_fees)} color="text-white" />
-        <SummaryCard label="Collected" value={fmt(summary.total_collected)} color="text-action-400" />
-        <SummaryCard label="Outstanding" value={fmt(summary.total_outstanding)} color={summary.total_outstanding > 0 ? 'text-signal-400' : 'text-action-400'} />
+        <SummaryCard label="Teams" value={filteredSummary.total_teams} />
+        <SummaryCard label="Total Fees" value={fmt(filteredSummary.total_fees)} color="text-white" />
+        <SummaryCard label="Collected" value={fmt(filteredSummary.total_collected)} color="text-action-400" />
+        <SummaryCard label="Outstanding" value={fmt(filteredSummary.total_outstanding)} color={filteredSummary.total_outstanding > 0 ? 'text-signal-400' : 'text-action-400'} />
       </div>
 
       {/* Filters */}
@@ -239,6 +283,13 @@ export default function LeagueFees({ onBack }) {
           <option value="">All Seasons</option>
           {seasons.map(s => (
             <option key={s.id} value={s.id}>{s.name} {s.year}{s.is_active ? ' ●' : ''}</option>
+          ))}
+        </Select>
+        <Select value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)}
+          className="!w-auto min-w-37.5">
+          <option value="">All Orgs</option>
+          {orgOptions.map(org => (
+            <option key={org} value={org}>{org}</option>
           ))}
         </Select>
         <Select value={ageGroupFilter} onChange={(e) => setAgeGroupFilter(e.target.value)}
@@ -254,6 +305,11 @@ export default function LeagueFees({ onBack }) {
           <option value="paid">Paid</option>
           <option value="unpaid">Unpaid</option>
         </Select>
+        {orgFilter && (
+          <button onClick={() => setOrgFilter('')} className="text-xs text-gray-400 hover:text-white px-2">
+            ✕ Clear org
+          </button>
+        )}
       </div>
 
       {/* Register form */}
@@ -295,29 +351,28 @@ export default function LeagueFees({ onBack }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-900 text-gray-400 text-xs uppercase tracking-wide">
-                  <th className="text-left px-4 py-3">Team</th>
-                  <th className="text-left px-3 py-3">Age / Level</th>
-                  <th className="text-left px-3 py-3">Season</th>
-                  <th className="text-right px-3 py-3">Fee</th>
-                  <th className="text-center px-3 py-3">Status</th>
+                  <SortTh col="team"   label="Team"      align="left"   active={sortCol} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
+                  <SortTh col="org"    label="Org"       align="left"   active={sortCol} dir={sortDir} onSort={toggleSort} className="px-3 py-3" />
+                  <SortTh col="age"    label="Age / Lvl" align="left"   active={sortCol} dir={sortDir} onSort={toggleSort} className="px-3 py-3" />
+                  <SortTh col="season" label="Season"    align="left"   active={sortCol} dir={sortDir} onSort={toggleSort} className="px-3 py-3" />
+                  <SortTh col="fee"    label="Fee"       align="right"  active={sortCol} dir={sortDir} onSort={toggleSort} className="px-3 py-3" />
+                  <SortTh col="status" label="Status"    align="center" active={sortCol} dir={sortDir} onSort={toggleSort} className="px-3 py-3" />
                   <th className="text-left px-3 py-3">Payment</th>
                   <th className="text-right px-3 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700/50">
-                {registrations.map(reg => (
+                {displayRegs.map(reg => (
                   <tr key={reg.id} className="hover:bg-gray-800/80 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <TeamLogo src={reg.logo_url} name={reg.team_name} ageGroup={reg.age_group} level={reg.level}
                           primaryColor={reg.primary_color} secondaryColor={reg.secondary_color}
                           cityAbbr={reg.city_abbr} size="w-7 h-7" />
-                        <div>
-                          <div className="font-semibold text-gray-100">{reg.team_name}</div>
-                          {reg.org_name && <div className="text-[11px] text-gray-500">{reg.org_name}</div>}
-                        </div>
+                        <div className="font-semibold text-gray-100">{reg.team_name}</div>
                       </div>
                     </td>
+                    <td className="px-3 py-3 text-xs text-gray-400">{reg.org_name || '—'}</td>
                     <td className="px-3 py-3">
                       {reg.age_group && <Badge variant="info">{reg.age_group}</Badge>}
                       {reg.level && <Badge variant="info" className="ml-1">{reg.level}</Badge>}
@@ -387,7 +442,7 @@ export default function LeagueFees({ onBack }) {
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
-            {registrations.map(reg => (
+            {displayRegs.map(reg => (
               <div key={reg.id} className="bg-gray-800 border border-gray-700 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <TeamLogo src={reg.logo_url} name={reg.team_name} ageGroup={reg.age_group} level={reg.level}
@@ -465,6 +520,18 @@ export default function LeagueFees({ onBack }) {
         </Modal>
       )}
     </div>
+  );
+}
+
+function SortTh({ col, label, align, active, dir, onSort, className = '' }) {
+  const isActive = active === col;
+  const arrow = isActive ? (dir === 'asc' ? ' ↑' : ' ↓') : '';
+  const alignClass = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
+  return (
+    <th className={`${alignClass} ${className} cursor-pointer select-none hover:text-gray-200 transition-colors`}
+      onClick={() => onSort(col)}>
+      {label}<span className="text-action-400">{arrow}</span>
+    </th>
   );
 }
 
