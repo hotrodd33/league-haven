@@ -26,6 +26,7 @@ export function useBranding(isAuthenticated) {
     const branding = {
         app_name: data?.app_name || 'LeagueHaven',
         logo_url: data?.logo_url || null,
+        public_site_url: data?.public_site_url || null,
     };
 
     const features = Object.fromEntries(
