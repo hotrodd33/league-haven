@@ -106,7 +106,10 @@ export default function Standings({ onBack, onNavigateToTeam }) {
       {!seasonId ? (
         <div className="py-12 text-center text-gray-400">Select a season to view standings.</div>
       ) : standings.length === 0 && !loading ? (
-        <div className="py-12 text-center text-gray-400">No completed games yet this season.</div>
+        <div className="py-12 text-center text-gray-400">
+          No teams are assigned to divisions for this season yet.<br />
+          <span className="text-sm">Go to Admin → Divisions to assign teams, then standings will show here at 0–0.</span>
+        </div>
       ) : (
         <div className="space-y-8">
           {divisions.map(div => (
