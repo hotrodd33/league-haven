@@ -50,7 +50,7 @@ async function seed() {
       await pool.query(
         `INSERT INTO league_age_groups (name, sort_order, umpire_rate, ump_required)
          VALUES ($1,$2,$3,$4)`,
-        [ag.name, ag.sort_order, ag.umpire_rate, ag.ump_required]
+        [ag.name, ag.sort_order, ag.umpire_rate ?? 0, ag.ump_required]
       );
     }
     console.log(`Created ${ageGroups.length} age groups.`);
