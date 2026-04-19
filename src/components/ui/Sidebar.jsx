@@ -3,7 +3,7 @@ import {
   UsersIcon, BuildingIcon, CalendarIcon, TrophyIcon,
   ClipboardIcon, CogIcon, UserGroupIcon, DatabaseIcon,
   ChevronLeftIcon, ChevronRightIcon, HomeIcon, CurrencyDollarIcon,
-  MapPinIcon, UserIcon, MegaphoneIcon,
+  MapPinIcon, UserIcon, MegaphoneIcon, GlobeIcon,
 } from './icons.jsx';
 
 const teamNav = [
@@ -35,6 +35,15 @@ export default function Sidebar({
     { key: 'directory', label: 'Directory', icon: ClipboardIcon },
     { key: 'fields',    label: 'Fields',    icon: MapPinIcon },
   ];
+
+  if (branding?.public_site_url) {
+    leagueItems.push({
+      key: 'website',
+      label: 'Website',
+      icon: GlobeIcon,
+      href: `${branding.public_site_url.replace(/\/+$/, '')}/site`,
+    });
+  }
 
   // Build Organization items based on role + feature toggles
   const orgItems = [];
@@ -137,17 +146,34 @@ export default function Sidebar({
 
 function NavItem({ item, active, collapsed, onClick }) {
   const Icon = item.icon;
+  const baseCls = cn(
+    'w-full flex items-center rounded-lg transition-all duration-150 text-sm',
+    collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
+    active
+      ? 'bg-action-700 text-white shadow-glow-action font-semibold'
+      : 'text-white/60 hover:bg-white/8 hover:text-white',
+  );
+
+  if (item.href) {
+    return (
+      <a
+        href={item.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={baseCls}
+        title={collapsed ? item.label : undefined}
+        onClick={onClick}
+      >
+        <Icon className="w-5 h-5 shrink-0" />
+        {!collapsed && <span className="truncate">{item.label}</span>}
+      </a>
+    );
+  }
 
   return (
     <button
       onClick={onClick}
-      className={cn(
-        'w-full flex items-center rounded-lg transition-all duration-150 text-sm',
-        collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
-        active
-          ? 'bg-action-700 text-white shadow-glow-action font-semibold'
-          : 'text-white/60 hover:bg-white/8 hover:text-white',
-      )}
+      className={baseCls}
       title={collapsed ? item.label : undefined}
       aria-current={active ? 'page' : undefined}
     >
@@ -176,7 +202,10 @@ function NavGroup({ label, items, page, collapsed, onNavigate, onCloseMobile }) 
           item={item}
           active={page === item.key}
           collapsed={collapsed}
-          onClick={() => { onNavigate(item.key); onCloseMobile?.(); }}
+          onClick={() => {
+            if (!item.href) onNavigate(item.key);
+            onCloseMobile?.();
+          }}
         />
       ))}
     </>

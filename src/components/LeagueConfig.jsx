@@ -68,9 +68,10 @@ function BrandingConfig() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [savingName, setSavingName] = useState(false);
+  const [savingUrl, setSavingUrl] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [removingLogo, setRemovingLogo] = useState(false);
-  const [form, setForm] = useState({ app_name: 'LeagueHaven', logo_url: null });
+  const [form, setForm] = useState({ app_name: 'LeagueHaven', logo_url: null, public_site_url: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,6 +81,7 @@ function BrandingConfig() {
       setForm({
         app_name: data?.app_name || 'LeagueHaven',
         logo_url: data?.logo_url || null,
+        public_site_url: data?.public_site_url || '',
       });
     } catch (err) {
       setError(err.message);
@@ -102,11 +104,31 @@ function BrandingConfig() {
         ...prev,
         app_name: updated?.app_name || appName,
         logo_url: updated?.logo_url ?? prev.logo_url,
+        public_site_url: updated?.public_site_url ?? prev.public_site_url,
       }));
     } catch (err) {
       setError(err.message);
     } finally {
       setSavingName(false);
+    }
+  }
+
+  async function handleSaveUrl(e) {
+    e.preventDefault();
+    setSavingUrl(true);
+    setError(null);
+    try {
+      const updated = await updateBranding({ public_site_url: (form.public_site_url || '').trim() });
+      setForm((prev) => ({
+        ...prev,
+        app_name: updated?.app_name || prev.app_name,
+        logo_url: updated?.logo_url ?? prev.logo_url,
+        public_site_url: updated?.public_site_url || '',
+      }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingUrl(false);
     }
   }
 
@@ -165,6 +187,25 @@ function BrandingConfig() {
         </div>
         <Button type="submit" disabled={savingName || !(form.app_name || '').trim()}>
           {savingName ? 'Saving…' : 'Save Name'}
+        </Button>
+      </form>
+
+      <form onSubmit={handleSaveUrl} className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
+        <div>
+          <label className="lh-eyebrow block mb-1">Public Website URL</label>
+          <input
+            type="url"
+            value={form.public_site_url}
+            onChange={(e) => setForm((prev) => ({ ...prev, public_site_url: e.target.value }))}
+            className="lh-input"
+            placeholder="https://www.example.org"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Base URL of the public-facing league website. Adds a "Website" link to the League sidebar that opens <code className="text-gray-300">{'{URL}'}/site</code> in a new tab. Leave blank to hide.
+          </p>
+        </div>
+        <Button type="submit" disabled={savingUrl}>
+          {savingUrl ? 'Saving…' : 'Save URL'}
         </Button>
       </form>
 

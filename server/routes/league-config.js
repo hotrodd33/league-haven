@@ -8,7 +8,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512
 
 async function getBranding() {
   const { rows } = await pool.query(
-    `SELECT app_name, logo_url, game_start_time, game_end_time, game_time_increment_minutes,
+    `SELECT app_name, logo_url, public_site_url, game_start_time, game_end_time, game_time_increment_minutes,
             feature_live_scoring, feature_pitch_tracking, feature_officials,
             feature_stats, feature_documents, feature_financials,
             feature_registration, feature_public_site, feature_push_notifications
@@ -41,14 +41,38 @@ router.get('/branding', async (req, res) => {
 
 router.put('/branding', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const appName = String(req.body?.app_name || '').trim();
-    if (!appName) return res.status(400).json({ error: 'App name is required' });
+    const sets = [];
+    const vals = [];
+    let idx = 1;
+
+    if (req.body?.app_name !== undefined) {
+      const appName = String(req.body.app_name || '').trim();
+      if (!appName) return res.status(400).json({ error: 'App name is required' });
+      sets.push(`app_name = $${idx++}`);
+      vals.push(appName.slice(0, 48));
+    }
+
+    if (req.body?.public_site_url !== undefined) {
+      const raw = String(req.body.public_site_url || '').trim();
+      if (raw) {
+        try {
+          const url = new URL(raw);
+          if (!['http:', 'https:'].includes(url.protocol)) {
+            return res.status(400).json({ error: 'Public site URL must use http or https' });
+          }
+        } catch {
+          return res.status(400).json({ error: 'Public site URL must be a valid URL' });
+        }
+      }
+      sets.push(`public_site_url = $${idx++}`);
+      vals.push(raw || null);
+    }
+
+    if (!sets.length) return res.status(400).json({ error: 'No fields to update' });
 
     await pool.query(
-      `UPDATE app_branding
-       SET app_name = $1, updated_at = NOW()
-       WHERE id = 1`,
-      [appName.slice(0, 48)]
+      `UPDATE app_branding SET ${sets.join(', ')}, updated_at = NOW() WHERE id = 1`,
+      vals
     );
 
     res.json(await getBranding());
