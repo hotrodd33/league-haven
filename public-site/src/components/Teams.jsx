@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { fetchTeams, fetchOrganizations } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
 
-export default function Teams() {
+export default function Teams({ onNavigateToTeam }) {
   const [teams, setTeams] = useState([]);
   const [orgs, setOrgs] = useState([]);
   const [filterOrg, setFilterOrg] = useState('');
@@ -52,9 +52,10 @@ export default function Teams() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {group.teams.map(team => (
-              <div
+              <button
                 key={team.id}
-                className="bg-gray-800 border border-gray-700 rounded-card-sm p-4 flex items-center gap-4 hover:border-gray-600 hover:bg-gray-700/60 transition-colors"
+                onClick={() => onNavigateToTeam?.(team.id)}
+                className="bg-gray-800 border border-gray-700 rounded-card-sm p-4 flex items-center gap-4 hover:border-action-600 hover:bg-gray-700/60 transition-colors text-left w-full"
                 style={{ borderLeft: `4px solid ${team.primary_color || '#334155'}` }}
               >
                 <TeamLogo
@@ -68,7 +69,7 @@ export default function Teams() {
                   size="w-12 h-12"
                 />
                 <div className="min-w-0">
-                  <div className="font-semibold text-gray-100 truncate">{team.long_name || team.name}</div>
+                  <div className="font-semibold text-action-300 group-hover:text-action-100 truncate">{team.long_name || team.name}</div>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {[team.age_group, team.level].filter(Boolean).join(' · ')}
                   </div>
@@ -78,7 +79,7 @@ export default function Teams() {
                     </div>
                   )}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

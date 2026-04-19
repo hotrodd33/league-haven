@@ -29,10 +29,10 @@ export function fetchStandings(seasonId) {
 export function fetchGames(params = {}) {
   const qs = new URLSearchParams();
   if (params.season_id) qs.set('season_id', params.season_id);
-  if (params.team_id) qs.set('team_id', params.team_id);
-  if (params.status) qs.set('status', params.status);
-  if (params.from) qs.set('from', params.from);
-  if (params.to) qs.set('to', params.to);
+  if (params.team_id)   qs.set('team_id',   params.team_id);
+  if (params.status)    qs.set('status',     params.status);
+  if (params.from)      qs.set('from',       params.from);
+  if (params.to)        qs.set('to',         params.to);
   const q = qs.toString();
   return apiFetch(`/games${q ? '?' + q : ''}`);
 }
@@ -43,4 +43,12 @@ export function fetchDivisions() {
 
 export function fetchBranding() {
   return apiFetch('/league-config/branding');
+}
+
+export function fetchTeamRoster(teamId) {
+  return apiFetch(`/players?team_id=${teamId}&with_teams=true`);
+}
+
+export function fetchTeamStaff(teamId) {
+  return apiFetch(`/staff?team_id=${teamId}`);
 }

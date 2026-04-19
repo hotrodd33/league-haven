@@ -7,7 +7,7 @@ function winPct(team) {
   return ((team.wins + (team.ties * 0.5)) / team.gp).toFixed(3).replace(/^0(?=\.)/, '');
 }
 
-export default function Standings() {
+export default function Standings({ onNavigateToTeam }) {
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
   const [divisionFilter, setDivisionFilter] = useState('');
@@ -147,7 +147,12 @@ export default function Standings() {
                           <div className="flex items-center gap-2">
                             <TeamLogo src={t.logo} name={t.team_name} ageGroup={t.age_group} level={t.level} cityAbbr={t.city_abbr} primaryColor={t.primary_color} secondaryColor={t.secondary_color} />
                             <div>
-                              <div className="font-semibold text-gray-100">{t.team_name}</div>
+                              <button
+                                onClick={() => onNavigateToTeam?.(t.team_id)}
+                                className="font-semibold text-action-300 hover:text-action-100 hover:underline text-left"
+                              >
+                                {t.team_name}
+                              </button>
                               {t.org_name && <div className="text-xs text-gray-500">{t.org_name}</div>}
                             </div>
                           </div>
@@ -184,7 +189,12 @@ export default function Standings() {
                       <span className="text-xs font-mono text-gray-500 w-5">{idx + 1}</span>
                       <TeamLogo src={t.logo} name={t.team_name} ageGroup={t.age_group} level={t.level} cityAbbr={t.city_abbr} primaryColor={t.primary_color} secondaryColor={t.secondary_color} size="w-8 h-8" />
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm text-gray-100 truncate">{t.team_name}</div>
+                        <button
+                          onClick={() => onNavigateToTeam?.(t.team_id)}
+                          className="font-semibold text-sm text-action-300 hover:text-action-100 hover:underline text-left truncate block max-w-full"
+                        >
+                          {t.team_name}
+                        </button>
                         {t.org_name && <div className="text-xs text-gray-500">{t.org_name}</div>}
                       </div>
                       <div className="text-right shrink-0">
