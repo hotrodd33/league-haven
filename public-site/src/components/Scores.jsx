@@ -31,7 +31,7 @@ const STATUS_LABELS = {
   postponed:   'Postponed',
 };
 
-export default function Scores() {
+export default function Scores({ onNavigateToTeam }) {
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
   const [filter, setFilter] = useState('all');
@@ -150,9 +150,13 @@ export default function Scores() {
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <TeamLogo src={g.away_logo} name={g.away_team_name} ageGroup={g.away_age_group} level={g.away_level} cityAbbr={g.away_city_abbr} primaryColor={g.away_primary_color} secondaryColor={g.away_secondary_color} />
                             <div className="min-w-0">
-                              <div className={`font-semibold text-sm truncate ${awayWin ? 'text-gray-100' : isScored ? 'text-gray-400' : 'text-gray-200'}`}>
+                              <button
+                                onClick={() => g.away_team_id && onNavigateToTeam?.(g.away_team_id)}
+                                disabled={!g.away_team_id}
+                                className={`font-semibold text-sm truncate block text-left hover:underline ${awayWin ? 'text-action-300 hover:text-action-100' : isScored ? 'text-gray-400 hover:text-gray-200' : 'text-gray-200 hover:text-action-300'} disabled:pointer-events-none`}
+                              >
                                 {g.away_team_name}
-                              </div>
+                              </button>
                               <div className="text-xs text-gray-500">Away</div>
                             </div>
                           </div>
@@ -183,9 +187,13 @@ export default function Scores() {
                           {/* Home team */}
                           <div className="flex items-center gap-3 flex-1 min-w-0 justify-end text-right">
                             <div className="min-w-0">
-                              <div className={`font-semibold text-sm truncate ${homeWin ? 'text-gray-100' : isScored ? 'text-gray-400' : 'text-gray-200'}`}>
+                              <button
+                                onClick={() => g.home_team_id && onNavigateToTeam?.(g.home_team_id)}
+                                disabled={!g.home_team_id}
+                                className={`font-semibold text-sm truncate block text-right w-full hover:underline ${homeWin ? 'text-action-300 hover:text-action-100' : isScored ? 'text-gray-400 hover:text-gray-200' : 'text-gray-200 hover:text-action-300'} disabled:pointer-events-none`}
+                              >
                                 {g.home_team_name}
-                              </div>
+                              </button>
                               <div className="text-xs text-gray-500">Home</div>
                             </div>
                             <TeamLogo src={g.home_logo} name={g.home_team_name} ageGroup={g.home_age_group} level={g.home_level} cityAbbr={g.home_city_abbr} primaryColor={g.home_primary_color} secondaryColor={g.home_secondary_color} />
