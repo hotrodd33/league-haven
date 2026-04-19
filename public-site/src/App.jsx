@@ -144,7 +144,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-gray-800 mt-12 py-6 text-center text-xs text-gray-500">
-        © {new Date().getFullYear()} Zionsville Valley Baseball League
+        © {new Date().getFullYear()} {branding.app_name || 'LeagueHaven'}
       </footer>
     </div>
   );

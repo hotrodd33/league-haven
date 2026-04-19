@@ -1,6 +1,6 @@
-# ZVBL Roster Manager — User Guide
+# LeagueHaven Roster Manager — User Guide
 
-A complete guide to managing the Zumbro Valley Baseball League. This guide covers every feature, organized as How-To walkthroughs, a Usage reference, and a Frequently Asked Questions section.
+A complete guide to managing your league. This guide covers every feature, organized as How-To walkthroughs, a Usage reference, and a Frequently Asked Questions section.
 
 ---
 
