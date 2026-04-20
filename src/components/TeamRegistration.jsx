@@ -43,6 +43,7 @@ export default function TeamRegistration({ onDone }) {
   const [userInfo, setUserInfo] = useState({
     name: '', email: '', phone: '', username: '', password: '', confirmPassword: '',
   });
+  const [showRegPassword, setShowRegPassword] = useState(false);
 
   // Director: Organization
   const [orgMode, setOrgMode] = useState('existing');
@@ -517,8 +518,13 @@ export default function TeamRegistration({ onDone }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Username *" value={userInfo.username} onChange={e => setUserInfo(u => ({ ...u, username: e.target.value }))} placeholder="jsmith" autoComplete="username" />
                 <div className="hidden sm:block" />
-                <Input label="Password *" type="password" value={userInfo.password} onChange={e => setUserInfo(u => ({ ...u, password: e.target.value }))} placeholder="At least 8 characters" autoComplete="new-password" />
-                <Input label="Confirm Password *" type="password" value={userInfo.confirmPassword} onChange={e => setUserInfo(u => ({ ...u, confirmPassword: e.target.value }))} placeholder="Repeat password" autoComplete="new-password" />
+                <div className="relative">
+                  <Input label="Password *" type={showRegPassword ? 'text' : 'password'} value={userInfo.password} onChange={e => setUserInfo(u => ({ ...u, password: e.target.value }))} placeholder="At least 8 characters" autoComplete="new-password" />
+                  <button type="button" onClick={() => setShowRegPassword(v => !v)} className="absolute right-3 top-[38px] text-gray-400 hover:text-gray-200 text-sm" tabIndex={-1}>{showRegPassword ? '🙈' : '👁️'}</button>
+                </div>
+                <div className="relative">
+                  <Input label="Confirm Password *" type={showRegPassword ? 'text' : 'password'} value={userInfo.confirmPassword} onChange={e => setUserInfo(u => ({ ...u, confirmPassword: e.target.value }))} placeholder="Repeat password" autoComplete="new-password" />
+                </div>
               </div>
             </div>
           </div>
