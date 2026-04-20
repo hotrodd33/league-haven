@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./context/AuthContext.jsx";
-import { fetchPlayer, fetchPendingApprovals, fetchAnnouncements } from "./api/index.js";
+import { fetchPlayer, fetchPendingApprovals, fetchUnreadAnnouncementCount } from "./api/index.js";
 import { STALE } from "./lib/queryConfig.js";
 import { useAppNavigation } from "./hooks/useAppNavigation.js";
 import { useBranding } from "./hooks/useBranding.js";
@@ -43,9 +43,9 @@ export default function App() {
                     const pending = await fetchPendingApprovals();
                     setPendingApprovalCount(Array.isArray(pending) ? pending.filter(u => u.approval_status === 'pending').length : 0);
                 }
-                if (isAdmin || isOrgAdmin) {
-                    const anns = await fetchAnnouncements();
-                    setUnreadAnnouncementCount(Array.isArray(anns) ? anns.filter(a => !a.read).length : 0);
+                if (isAuthenticated) {
+                    const { count } = await fetchUnreadAnnouncementCount();
+                    setUnreadAnnouncementCount(count || 0);
                 }
             } catch { /* ignore */ }
         };

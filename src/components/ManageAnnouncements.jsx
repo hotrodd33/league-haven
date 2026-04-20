@@ -43,6 +43,7 @@ export default function ManageAnnouncements() {
   const [body, setBody] = useState('');
   const [priority, setPriority] = useState('normal');
   const [isActive, setIsActive] = useState(true);
+  const [persistent, setPersistent] = useState(false);
   const [expiresAt, setExpiresAt] = useState('');
 
   const load = useCallback(async () => {
@@ -61,6 +62,7 @@ export default function ManageAnnouncements() {
     setBody('');
     setPriority('normal');
     setIsActive(true);
+    setPersistent(false);
     setExpiresAt('');
     setError('');
     setShowForm(true);
@@ -72,6 +74,7 @@ export default function ManageAnnouncements() {
     setBody(a.body);
     setPriority(a.priority);
     setIsActive(a.is_active);
+    setPersistent(a.persistent || false);
     setExpiresAt(a.expires_at ? new Date(a.expires_at).toISOString().slice(0, 16) : '');
     setError('');
     setShowForm(true);
@@ -91,6 +94,7 @@ export default function ManageAnnouncements() {
         body: body.trim(),
         priority,
         is_active: isActive,
+        persistent,
         expires_at: expiresAt || null,
       };
       if (editing) {
@@ -179,6 +183,7 @@ export default function ManageAnnouncements() {
                       {a.author_name && `By ${a.author_name} · `}
                       {timeAgo(a.created_at)}
                       {a.expires_at && ` · Expires ${new Date(a.expires_at).toLocaleDateString()}`}
+                      {a.persistent && ' · 📌 Persistent'}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -271,6 +276,15 @@ export default function ManageAnnouncements() {
               className="w-4 h-4 rounded border-gray-600 bg-gray-900 text-action-500 focus:ring-action-500/30"
             />
             <span className="text-sm text-gray-300">Active (visible to users)</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={persistent}
+              onChange={e => setPersistent(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-900 text-action-500 focus:ring-action-500/30"
+            />
+            <span className="text-sm text-gray-300">Persistent (stays visible even after user dismisses)</span>
           </label>
         </form>
       </Modal>

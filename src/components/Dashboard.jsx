@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
 import { cn } from '../lib/cn.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers, fetchDashboardActivity, fetchAnnouncements, fetchWeather, fetchWeatherForecast } from '../api/index.js';
+import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers, fetchDashboardActivity, fetchAnnouncements, markAnnouncementRead, fetchWeather, fetchWeatherForecast } from '../api/index.js';
 import { Card, CardHeader, CardBody, StatCard, Scoreboard, Button } from './ui/index.js';
 import {
   UsersIcon, CalendarIcon, TrophyIcon, BuildingIcon,
@@ -92,6 +92,7 @@ const PRIORITY_BADGES = {
 
 export default function Dashboard({ onNavigate, onViewPlayer }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [gameWeather, setGameWeather] = useState({});
 
   const { data: teams = [],        isPending: teamsPending   } = useQuery({ queryKey: ['teams'],              queryFn: fetchTeams,              staleTime: STALE.THREE_MIN });
@@ -316,10 +317,23 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                     )}
                   </div>
                   <p className="text-sm text-gray-300 mt-1 whitespace-pre-wrap">{a.body}</p>
-                  <p className="text-[10px] text-gray-500 mt-2">
-                    {a.author_name && `Posted by ${a.author_name} · `}
-                    {timeAgo(a.created_at)}
-                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-[10px] text-gray-500">
+                      {a.author_name && `Posted by ${a.author_name} · `}
+                      {timeAgo(a.created_at)}
+                    </p>
+                    {!a.read && (
+                      <button
+                        onClick={async () => {
+                          await markAnnouncementRead(a.id);
+                          queryClient.invalidateQueries({ queryKey: ['announcements'] });
+                        }}
+                        className="text-[10px] text-chrome-400 hover:text-chrome-300 font-semibold transition-colors cursor-pointer"
+                      >
+                        Dismiss ✕
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
