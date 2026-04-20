@@ -849,12 +849,11 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const seasonLookup = {};
         for (const s of allSeasons) seasonLookup[s.name.toLowerCase()] = s.id;
 
-        const VALID_STATUS = ['scheduled', 'in_progress', 'completed', 'cancelled', 'postponed'];
+        const VALID_STATUS = ['unscheduled', 'scheduled', 'in_progress', 'completed', 'cancelled', 'postponed'];
 
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i];
-          const gameDate = r[dateCol];
-          if (!gameDate) { results.skipped++; continue; }
+          const gameDate = r[dateCol] && r[dateCol] !== '0000-00-00' ? r[dateCol] : null;
 
           const homeTeamId = homeCol && r[homeCol] ? (teamLookup[r[homeCol].toLowerCase()] || null) : null;
           const awayTeamId = awayCol && r[awayCol] ? (teamLookup[r[awayCol].toLowerCase()] || null) : null;
@@ -863,7 +862,8 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
 
           const locationId = locCol && r[locCol] ? (locLookup[r[locCol].toLowerCase()] || null) : null;
           const seasonId = seasonCol && r[seasonCol] ? (seasonLookup[r[seasonCol].toLowerCase()] || null) : (season_id || null);
-          const status = statusCol && r[statusCol] && VALID_STATUS.includes(r[statusCol].toLowerCase()) ? r[statusCol].toLowerCase() : 'scheduled';
+          const defaultStatus = gameDate ? 'scheduled' : 'unscheduled';
+          const status = statusCol && r[statusCol] && VALID_STATUS.includes(r[statusCol].toLowerCase()) ? r[statusCol].toLowerCase() : defaultStatus;
           const homeScore = hsCol && r[hsCol] !== '' ? parseInt(r[hsCol]) || null : null;
           const awayScore = asCol && r[asCol] !== '' ? parseInt(r[asCol]) || null : null;
           const innings = innCol && r[innCol] !== '' ? parseInt(r[innCol]) || null : null;

@@ -1242,8 +1242,10 @@ router.post('/schedule/preview', authMiddleware, requireAdmin, async (req, res) 
       const cols = parseCSVLine(lines[i]);
       if (cols.length < Math.max(colDate, colHome, colAway) + 1) continue;
 
-      const date = cols[colDate]?.trim();
-      const time = cols[colTime]?.trim() || null;
+      const rawDate = cols[colDate]?.trim();
+      const date = rawDate && rawDate !== 'null' && rawDate !== 'undefined' && rawDate !== '0000-00-00' ? rawDate : null;
+      const rawTime = cols[colTime]?.trim();
+      const time = rawTime && rawTime !== 'null' && rawTime !== 'undefined' ? rawTime : null;
       const homeName = cols[colHome]?.trim();
       const awayName = cols[colAway]?.trim();
       const venueName = colVenue >= 0 ? (cols[colVenue]?.trim() || null) : null;
@@ -1371,12 +1373,21 @@ router.post('/schedule', authMiddleware, requireAdmin, async (req, res) => {
         }
 
         const gameStatus = g.date ? 'scheduled' : 'unscheduled';
-        await client.query(
-          `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [seasonId, homeId, awayId, locationId, g.date || null, g.time || null, gameStatus, g.notes || null]
-        );
-        created++;
+        const safeDate = g.date && g.date !== '' ? g.date : null;
+        const safeTime = g.time && g.time !== '' ? g.time : null;
+        console.log(`[import] Row ${g.row}: date=${JSON.stringify(g.date)} safeDate=${JSON.stringify(safeDate)} status=${gameStatus}`);
+        try {
+          await client.query(
+            `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [seasonId, homeId, awayId, locationId, safeDate, safeTime, gameStatus, g.notes || null]
+          );
+          created++;
+        } catch (insertErr) {
+          skipped++;
+          errors.push(`Row ${g.row}: ${insertErr.message}`);
+          continue;
+        }
       }
 
       // Save any new team alias mappings for future imports

@@ -375,6 +375,14 @@ async function migrate() {
   // Allow unscheduled games (no date yet) and add 'unscheduled' status
   await pool.query(`ALTER TABLE games ALTER COLUMN game_date DROP NOT NULL;`);
   await pool.query(`
+    DO $$
+    DECLARE c TEXT;
+    BEGIN
+      SELECT con.conname INTO c FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        WHERE rel.relname = 'games' AND con.contype = 'c' AND pg_get_constraintdef(con.oid) LIKE '%status%';
+      IF c IS NOT NULL THEN EXECUTE 'ALTER TABLE games DROP CONSTRAINT ' || c; END IF;
+    END $$;
     ALTER TABLE games DROP CONSTRAINT IF EXISTS games_status_check;
     ALTER TABLE games ADD CONSTRAINT games_status_check
       CHECK(status IN ('unscheduled','scheduled','in_progress','completed','cancelled','postponed'));
