@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware } = require('../auth');
 
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-const FORECAST_CACHE_TTL = 60 * 60 * 1000; // 1 hour for forecasts
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes for current weather
+const FORECAST_CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours for forecasts
 const cache = new Map();
 
 // Playability score for baseball based on weather conditions

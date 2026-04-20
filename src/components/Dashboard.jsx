@@ -120,11 +120,15 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
       if (!seenLocs.has(key)) { seenLocs.add(key); uniqueToday.push(g); }
     }
 
-    const currentPromises = uniqueToday.map(g =>
-      fetchWeather(g.location_lat, g.location_lon)
+    const currentPromises = uniqueToday.map(g => {
+      // Use forecast for game hour if time is set, otherwise current weather
+      const fetcher = g.game_time
+        ? fetchWeatherForecast(g.location_lat, g.location_lon, g.game_date, g.game_time)
+        : fetchWeather(g.location_lat, g.location_lon);
+      return fetcher
         .then(w => ({ key: `${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`, weather: w }))
-        .catch(() => null)
-    );
+        .catch(() => null);
+    });
 
     // Forecast weather for upcoming games (within 16 days, not today)
     const maxDate = new Date();

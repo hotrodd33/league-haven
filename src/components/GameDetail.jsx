@@ -116,7 +116,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
     // Past games or too far future — no weather
     if (game.game_date < todayStr || game.game_date > maxDateStr) return;
 
-    const fetcher = game.game_date === todayStr
+    const fetcher = (game.game_date === todayStr && !game.game_time)
       ? fetchWeather(game.location_lat, game.location_lon)
       : fetchWeatherForecast(game.location_lat, game.location_lon, game.game_date, game.game_time || null);
 

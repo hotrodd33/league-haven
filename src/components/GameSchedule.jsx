@@ -215,7 +215,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     if (!weatherableGames.length) return;
 
     const promises = weatherableGames.map(g => {
-      const fetcher = g.game_date === todayStr_
+      // Always use forecast for games with a specific time (even today)
+      const fetcher = (g.game_date === todayStr_ && !g.game_time)
         ? fetchWeather(g.location_lat, g.location_lon)
         : fetchWeatherForecast(g.location_lat, g.location_lon, g.game_date, g.game_time || null);
       return fetcher
