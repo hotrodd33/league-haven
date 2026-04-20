@@ -43,7 +43,8 @@ const PRACTICE_COLORS = {
 };
 
 export default function TeamSchedule({ teamId, onNavigateToTeam }) {
-  const { isAdmin, canScoreGame } = useAuth();
+  const { isAdmin, canScoreGame, canScheduleGames } = useAuth();
+  const canManageGames = isAdmin || canScheduleGames;
   const [games, setGames] = useState([]);
   const [practices, setPractices] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -79,7 +80,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   useEffect(() => { loadGames(); }, [loadGames]);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canManageGames) return;
     let cancelled = false;
     Promise.all([fetchTeams(), fetchSeasons()])
       .then(([teamsData, seasonsData]) => {
@@ -93,7 +94,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
         setSeasons([]);
       });
     return () => { cancelled = true; };
-  }, [isAdmin]);
+  }, [canManageGames]);
 
   // Merge games + practices into a unified sorted list
   const allItems = useMemo(() => {
@@ -199,7 +200,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
           <Button size="xs" variant="secondary" onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')} title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
             {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
           </Button>
-          {isAdmin && (
+          {canManageGames && (
             <Button size="xs" onClick={() => setShowForm((prev) => !prev)}>
               {showForm ? 'Cancel' : '+ Add Game'}
             </Button>
@@ -207,7 +208,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
         </div>
       </div>
 
-      {showForm && isAdmin && (
+      {showForm && canManageGames && (
         <div className="mb-3 bg-gray-800 border border-gray-700 rounded-lg p-3">
           <GameForm
             game={editingGame}
@@ -241,7 +242,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                           onSchedule={() => { setEditingGame(item); setShowForm(true); }}
                           canScore={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id)} />
                       : <PracticeCard key={`practice-${item.id}`} practice={item}
-                          editable={isAdmin}
+                          editable={canManageGames}
                           onEdit={() => setEditingPractice(item)}
                           onDelete={() => handleDeletePractice(item)}
                           deleting={deletingPractice} />
@@ -573,7 +574,7 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
                   );
                 } else {
                   return <PracticeCard key={`p-${item.id}`} practice={item}
-                    editable={isAdmin}
+                    editable={canManageGames}
                     onEdit={() => setEditingPractice(item)}
                     onDelete={() => handleDeletePractice(item)}
                     deleting={deletingPractice} />;
