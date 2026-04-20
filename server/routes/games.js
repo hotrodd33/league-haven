@@ -515,7 +515,6 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, home_score, away_score, innings_played, notes, official_ids } = req.body;
     let { status } = req.body;
     const hasGameDate = Object.prototype.hasOwnProperty.call(req.body, 'game_date');
-    const shouldClearSchedule = status === 'unscheduled' || (hasGameDate && game_date === null);
 
     // Auto-promote: if date + time + location are all set and status is unscheduled, promote to scheduled
     const effectiveDate = game_date || game.game_date;
@@ -524,6 +523,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if ((!status || status === 'unscheduled') && effectiveDate && effectiveTime && effectiveLocation) {
       status = 'scheduled';
     }
+
+    // Only clear schedule if status is still unscheduled after auto-promote check
+    const shouldClearSchedule = status === 'unscheduled' || (hasGameDate && game_date === null);
     if (home_team_id && away_team_id && Number(home_team_id) === Number(away_team_id)) {
       return res.status(400).json({ error: 'Home and away teams must be different' });
     }
