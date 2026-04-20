@@ -381,7 +381,7 @@ function GameCard({ game, teamId, onSelect, onTrack, onSchedule, canScore }) {
 
 /* ── Practice Card (list view) ── */
 
-function PracticeCard({ practice, editable, onEdit, onDelete, deleting }) {
+export function PracticeCard({ practice, editable, onEdit, onDelete, deleting }) {
   const colors = PRACTICE_COLORS[practice.event_type] || PRACTICE_COLORS.practice;
   const typeLabel = practice.event_type === 'practice' ? 'Practice'
     : practice.event_type === 'event' ? 'Event' : practice.event_type || 'Practice';
@@ -644,7 +644,7 @@ function TeamSubscribeModal({ teamId, onClose }) {
 
 
 
-function PracticeEditModal({ practice, onDone, onCancel }) {
+export function PracticeEditModal({ practice, onDone, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [locations, setLocations] = useState([]);

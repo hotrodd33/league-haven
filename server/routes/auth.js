@@ -41,9 +41,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    // Allow login by username OR email
+    // Allow login by username OR email (case-insensitive)
+    const normalizedInput = username.trim().toLowerCase();
     const { rows } = await pool.query(
-      'SELECT * FROM users WHERE username = $1 OR email = $1', [username]
+      'SELECT * FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1', [normalizedInput]
     );
     const user = rows[0];
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
@@ -95,7 +96,8 @@ router.post('/login', async (req, res) => {
 // POST /api/auth/register — self-registration (scorekeeper — pending approval)
 router.post('/register', async (req, res) => {
   try {
-    const { username, password, name, email, team_ids } = req.body;
+    const { username, password, name, email: rawEmail, team_ids } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
     if (!username || !password || !name || !email) {
       return res.status(400).json({ error: 'Username, password, name, and email are required' });
     }
@@ -103,11 +105,11 @@ router.post('/register', async (req, res) => {
     if (pwErr) return res.status(400).json({ error: pwErr });
 
     // Check username uniqueness
-    const { rows: existingUser } = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    const { rows: existingUser } = await pool.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [username]);
     if (existingUser.length) return res.status(409).json({ error: 'Username already taken' });
 
     // Check email uniqueness
-    const { rows: existingEmail } = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const { rows: existingEmail } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
     if (existingEmail.length) return res.status(409).json({ error: 'Email already registered' });
 
     const hash = await bcrypt.hash(password, 10);
@@ -160,11 +162,11 @@ router.post('/register-umpire', async (req, res) => {
     if (pwErr) return res.status(400).json({ error: pwErr });
 
     // Check username uniqueness
-    const { rows: existingUser } = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    const { rows: existingUser } = await pool.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [username]);
     if (existingUser.length) return res.status(409).json({ error: 'Username already taken' });
 
     // Check email uniqueness
-    const { rows: existingEmail } = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const { rows: existingEmail } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
     if (existingEmail.length) return res.status(409).json({ error: 'Email already registered' });
 
     const hash = await bcrypt.hash(password, 10);
@@ -384,7 +386,7 @@ router.post('/register-coach', async (req, res) => {
     const { rows: orgCheck } = await client.query('SELECT id, name FROM organizations WHERE id = $1', [org_id]);
     if (!orgCheck.length) return res.status(400).json({ error: 'Organization not found' });
 
-    const { rows: existingUser } = await client.query('SELECT id FROM users WHERE username = $1', [username]);
+    const { rows: existingUser } = await client.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [username]);
     if (existingUser.length) return res.status(409).json({ error: 'Username already taken' });
     const { rows: existingEmail } = await client.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existingEmail.length) return res.status(409).json({ error: 'Email already registered' });

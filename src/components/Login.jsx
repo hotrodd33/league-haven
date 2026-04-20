@@ -8,6 +8,7 @@ export default function Login({ onResetPassword }) {
   const [mode, setMode] = useState('login'); // 'login' | 'forgot'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMsg, setForgotMsg] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -66,16 +67,23 @@ export default function Login({ onResetPassword }) {
                 required
                 autoComplete="username"
               />
-              <Input
-                label="Password"
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your password"
-                required
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <Input
+                  label="Password"
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Your password"
+                  required
+                  autoComplete="current-password"
+                />
+                <button type="button" onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-[38px] text-gray-400 hover:text-gray-200 text-sm"
+                  tabIndex={-1}>
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
               {error && (
                 <div className="lh-alert lh-alert-error">
                   {error}
