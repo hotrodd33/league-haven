@@ -493,6 +493,14 @@ export async function deleteAnnouncement(id) {
   return apiFetch(`/announcements/${id}`, { method: 'DELETE' });
 }
 
+export async function markAnnouncementRead(id) {
+  return apiFetch(`/announcements/${id}/read`, { method: 'POST' });
+}
+
+export async function fetchUnreadAnnouncementCount() {
+  return apiFetch('/announcements/unread-count');
+}
+
 // ── Weather ──
 
 export async function fetchWeather(lat, lon) {

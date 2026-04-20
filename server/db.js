@@ -848,9 +848,20 @@ async function migrate() {
       priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('low','normal','high','urgent')),
       created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      persistent BOOLEAN NOT NULL DEFAULT FALSE,
       expires_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS persistent BOOLEAN NOT NULL DEFAULT FALSE;`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS announcement_reads (
+      id SERIAL PRIMARY KEY,
+      announcement_id INTEGER NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      read_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(announcement_id, user_id)
     );
   `);
 
