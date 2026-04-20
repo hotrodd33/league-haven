@@ -1,7 +1,10 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin } = require('../auth');
 const { normalizeDOB } = require('../utils/dob');
+const { sendCoachInviteEmail } = require('../email');
 
 const router = express.Router();
 
@@ -800,8 +803,57 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
               results.created++;
             } else { results.skipped++; continue; }
 
-            // Assign to teams
+            // Create user account if email provided and user doesn't exist
             const staffId = exId || staffLookup[name.toLowerCase()];
+            const email = emailCol ? (r[emailCol] || '').trim().toLowerCase() : '';
+            const role = roleCol && r[roleCol] ? r[roleCol].trim().toLowerCase().replace(/ /g, '_') : 'assistant_coach';
+            const validStaffRole = VALID_ROLES.includes(role) ? role : 'assistant_coach';
+
+            // Map staff role to user role
+            const STAFF_ROLE_TO_USER_ROLE = {
+              head_coach: 'team_manager',
+              assistant_coach: 'team_manager',
+              scorekeeper: 'score_reporter',
+              org_admin: 'org_admin',
+            };
+            const userRole = STAFF_ROLE_TO_USER_ROLE[validStaffRole] || 'score_reporter';
+
+            if (email) {
+              const { rows: existingUser } = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [email]);
+              if (!existingUser.length) {
+                try {
+                  // Generate username from email, or create unique one if taken
+                  const { rows: usernameCheck } = await pool.query('SELECT id FROM users WHERE LOWER(username) = $1', [email]);
+                  const username = usernameCheck.length ? `staff_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` : email;
+
+                  // Generate temporary password
+                  const tempPassword = crypto.randomBytes(6).toString('base64url').slice(0, 10);
+                  const hash = await bcrypt.hash(tempPassword, 10);
+
+                  // Insert user with email as username
+                  const { rows: userRows } = await pool.query(
+                    `INSERT INTO users (username, password_hash, name, email, role, email_confirmed, approval_status)
+                     VALUES ($1, $2, $3, $4, $5, FALSE, 'pending') RETURNING id`,
+                    [username, hash, name, email, userRole]
+                  );
+
+                  const userId = userRows[0].id;
+                  results.accountsCreated = (results.accountsCreated || 0) + 1;
+
+                  // Send invite email
+                  try {
+                    await sendCoachInviteEmail(email, name, tempPassword, 'LeagueHaven');
+                  } catch (err) {
+                    results.emailErrors = (results.emailErrors || 0) + 1;
+                    console.error(`Failed to send invite email to ${email}:`, err);
+                  }
+                } catch (err) {
+                  results.errors.push(`Row ${i + 2}: Failed to create account for ${email}: ${err.message}`);
+                }
+              }
+            }
+
+            // Assign to teams
             if (teamCol && r[teamCol]) {
               const teamNames = r[teamCol].split(/[;|]/).map(s => s.trim()).filter(Boolean);
               const roles = roleCol && r[roleCol] ? r[roleCol].split(/[;|]/).map(s => s.trim()) : [];
