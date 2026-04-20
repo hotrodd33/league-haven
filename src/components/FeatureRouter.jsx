@@ -51,7 +51,7 @@ function PageContent({
 
     switch (page) {
         case 'dashboard':
-            return <Dashboard onNavigate={setPage} onViewPlayer={onViewPlayer} />;
+            return <Dashboard onNavigate={setPage} onViewPlayer={onViewPlayer} onNavigateToGame={navigateToGame} />;
 
         case 'umpire':
             return <UmpireDashboard onBack={() => setPage('dashboard')} />;

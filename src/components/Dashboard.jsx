@@ -90,7 +90,7 @@ const PRIORITY_BADGES = {
    Dashboard
    ═══════════════════════════════════════════════════════ */
 
-export default function Dashboard({ onNavigate, onViewPlayer }) {
+export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [gameWeather, setGameWeather] = useState({});
@@ -120,11 +120,15 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
       if (!seenLocs.has(key)) { seenLocs.add(key); uniqueToday.push(g); }
     }
 
-    const currentPromises = uniqueToday.map(g =>
-      fetchWeather(g.location_lat, g.location_lon)
+    const currentPromises = uniqueToday.map(g => {
+      // Use forecast for game hour if time is set, otherwise current weather
+      const fetcher = g.game_time
+        ? fetchWeatherForecast(g.location_lat, g.location_lon, g.game_date, g.game_time)
+        : fetchWeather(g.location_lat, g.location_lon);
+      return fetcher
         .then(w => ({ key: `${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`, weather: w }))
-        .catch(() => null)
-    );
+        .catch(() => null);
+    });
 
     // Forecast weather for upcoming games (within 16 days, not today)
     const maxDate = new Date();
@@ -182,7 +186,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
   const gamesThisWeek = scopedGames.filter(g => g.game_date >= weekStartStr && g.game_date <= weekEndStr);
   const completedGames = scopedGames.filter(g => g.status === 'final');
   const upcomingGames = scopedGames
-    .filter(g => g.game_date >= todayStr && g.status !== 'final' && g.status !== 'cancelled')
+    .filter(g => g.game_date > todayStr && g.status !== 'final' && g.status !== 'cancelled')
     .sort((a, b) => (a.game_date + (a.game_time || '')) > (b.game_date + (b.game_time || '')) ? 1 : -1)
     .slice(0, 5);
 
@@ -395,8 +399,8 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {todaysGames.map((g) => (
+              <div key={g.id} className="cursor-pointer" onClick={() => onNavigateToGame?.(g.id)}>
               <Scoreboard
-                key={g.id}
                 status={g.status === 'in_progress' ? 'in_progress' : g.status === 'final' ? 'final' : 'scheduled'}
                 gameTime={
                   g.game_time ? formatGameTime(g.game_time) : 'Time TBD'
@@ -424,6 +428,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                 location={g.location_name}
                 weather={getWeatherForGame(g, gameWeather)}
               />
+              </div>
             ))}
           </div>
         </section>
@@ -564,7 +569,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
             <CardBody>
               <div className="divide-y divide-gray-700/50">
                 {unscoredGames.slice(0, 6).map((g) => (
-                  <div key={g.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 gap-3">
+                  <div key={g.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 gap-3 cursor-pointer hover:bg-gray-700/30 rounded px-1 -mx-1" onClick={() => onNavigateToGame?.(g.id)}>
                     <div className="min-w-0 flex-1">
                       <span className="text-sm font-medium text-gray-200 block truncate">
                         {g.away_team_name || 'TBD'} @ {g.home_team_name || 'TBD'}
@@ -622,8 +627,8 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {upcomingGames.map((g) => (
+                <div key={g.id} className="cursor-pointer" onClick={() => onNavigateToGame?.(g.id)}>
                 <Scoreboard
-                  key={g.id}
                   status={g.status === 'in_progress' ? 'in_progress' : 'scheduled'}
                   gameTime={
                     formatGameDate(g.game_date) +
@@ -652,6 +657,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                   location={g.location_name}
                   weather={getWeatherForGame(g, gameWeather)}
                 />
+                </div>
               ))}
             </div>
           )}
