@@ -1200,3 +1200,13 @@ export async function updateGuardianVolunteers(guardianId, roleIds) {
 export async function fetchAllGuardians() {
   return apiFetch('/player-contacts/all-guardians');
 }
+
+// ── Travel Matrix ──
+
+export async function fetchTravelMatrix() {
+  return apiFetch('/travel');
+}
+
+export async function recalculateTravelMatrix() {
+  return apiFetch('/travel/recalculate', { method: 'POST' });
+}

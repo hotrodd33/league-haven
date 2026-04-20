@@ -112,13 +112,13 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { name, contact_name, contact_email, contact_phone, address, city, state, zip, officials_enabled, notes } = req.body;
+    const { name, contact_name, contact_email, contact_phone, address, city, state, zip, officials_enabled, notes, latitude, longitude } = req.body;
     if (!name) return res.status(400).json({ error: 'Organization name is required' });
 
     const { rows } = await pool.query(
-      `INSERT INTO organizations (name, contact_name, contact_email, contact_phone, address, city, state, zip, officials_enabled, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [name, contact_name || null, contact_email || null, contact_phone || null, address || null, city || null, state || null, zip || null, !!officials_enabled, notes || null]
+      `INSERT INTO organizations (name, contact_name, contact_email, contact_phone, address, city, state, zip, officials_enabled, notes, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [name, contact_name || null, contact_email || null, contact_phone || null, address || null, city || null, state || null, zip || null, !!officials_enabled, notes || null, latitude || null, longitude || null]
     );
     cache.del('directory');
     res.status(201).json(await enrich(rows[0]));
@@ -136,17 +136,21 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!existing.length) return res.status(404).json({ error: 'Organization not found' });
     const old = existing[0];
 
-    const { name, contact_name, contact_email, contact_phone, address, city, state, zip, officials_enabled, notes } = req.body;
+    const { name, contact_name, contact_email, contact_phone, address, city, state, zip, officials_enabled, notes, latitude, longitude } = req.body;
 
     const { rows } = await pool.query(
       `UPDATE organizations SET name = $1, contact_name = $2, contact_email = $3, contact_phone = $4,
-       address = $5, city = $6, state = $7, zip = $8, officials_enabled = $9, notes = $10 WHERE id = $11 RETURNING *`,
+       address = $5, city = $6, state = $7, zip = $8, officials_enabled = $9, notes = $10,
+       latitude = $11, longitude = $12 WHERE id = $13 RETURNING *`,
       [
         name ?? old.name, contact_name ?? old.contact_name, contact_email ?? old.contact_email,
         contact_phone ?? old.contact_phone, address ?? old.address, city ?? old.city,
         state ?? old.state, zip ?? old.zip,
         officials_enabled === undefined ? old.officials_enabled : !!officials_enabled,
-        notes ?? old.notes, id
+        notes ?? old.notes,
+        latitude !== undefined ? latitude : old.latitude,
+        longitude !== undefined ? longitude : old.longitude,
+        id
       ]
     );
     cache.del('directory');

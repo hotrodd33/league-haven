@@ -372,6 +372,14 @@ async function migrate() {
       FOREIGN KEY (away_team_id) REFERENCES teams(id) ON DELETE SET NULL;
   `);
 
+  // Allow unscheduled games (no date yet) and add 'unscheduled' status
+  await pool.query(`ALTER TABLE games ALTER COLUMN game_date DROP NOT NULL;`);
+  await pool.query(`
+    ALTER TABLE games DROP CONSTRAINT IF EXISTS games_status_check;
+    ALTER TABLE games ADD CONSTRAINT games_status_check
+      CHECK(status IN ('unscheduled','scheduled','in_progress','completed','cancelled','postponed'));
+  `);
+
   // Pitch counts per game per pitcher
   await pool.query(`
     CREATE TABLE IF NOT EXISTS game_pitch_counts (
@@ -837,6 +845,26 @@ async function migrate() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
+
+  // Organization geolocation for travel distance calculation
+  await pool.query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;`);
+  await pool.query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;`);
+
+  // Cached travel distances between organizations (Haversine or driving API)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS travel_distances (
+      org_a_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      org_b_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      distance_miles NUMERIC NOT NULL,
+      method TEXT NOT NULL DEFAULT 'haversine',
+      calculated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (org_a_id, org_b_id)
+    );
+  `);
+
+  // Driving distance API settings (super admin only)
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS driving_distance_enabled BOOLEAN NOT NULL DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS driving_distance_api_key TEXT;`);
 }
 
 // Lazy migration: retries on each request until it succeeds

@@ -51,6 +51,7 @@ export default function AppShell({
     about: 'Help',
     guide: 'Help',
     fields: 'Fields',
+    travel: 'Travel Matrix',
     account: 'My Account',
   }[page] || 'Dashboard';
 

@@ -3,12 +3,14 @@ import Teams from './components/Teams.jsx';
 import Standings from './components/Standings.jsx';
 import Scores from './components/Scores.jsx';
 import TeamDetail from './components/TeamDetail.jsx';
+import TravelMatrix from './components/TravelMatrix.jsx';
 import { fetchBranding } from './api/index.js';
 
 const TABS = [
   { key: 'standings', label: 'Standings' },
   { key: 'scores',    label: 'Scores'    },
   { key: 'teams',     label: 'Teams'     },
+  { key: 'travel',    label: 'Travel'    },
 ];
 
 function parseHash(hash) {
@@ -138,6 +140,7 @@ export default function App() {
             {nav.tab === 'standings' && <Standings onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'teams'     && <Teams     onNavigateToTeam={navigateToTeam} />}
+            {nav.tab === 'travel'    && <TravelMatrix />}
           </>
         )}
       </main>

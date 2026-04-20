@@ -34,6 +34,7 @@ export default function Sidebar({
     { key: 'standings', label: 'Standings', icon: TrophyIcon },
     { key: 'directory', label: 'Directory', icon: ClipboardIcon },
     { key: 'fields',    label: 'Fields',    icon: MapPinIcon },
+    { key: 'travel',    label: 'Travel',    icon: MapPinIcon },
   ];
 
   if (branding?.public_site_url) {

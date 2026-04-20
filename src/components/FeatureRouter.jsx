@@ -19,6 +19,7 @@ import ManageAnnouncements from './ManageAnnouncements.jsx';
 import TeamSelector from './TeamSelector.jsx';
 import TeamPage from './TeamPage.jsx';
 import GuardiansPage from './GuardiansPage.jsx';
+import TravelMatrix from './TravelMatrix.jsx';
 
 export default function FeatureRouter(props) {
     return (
@@ -117,6 +118,9 @@ function PageContent({
             return (isAdmin || isAccountant) && features.feature_financials !== false
                 ? <LeagueFees onBack={() => setPage('dashboard')} />
                 : null;
+
+        case 'travel':
+            return <TravelMatrix />;
 
         case 'about':
             return <HelpPage initialTab="about" onBack={() => setPage('dashboard')} />;
