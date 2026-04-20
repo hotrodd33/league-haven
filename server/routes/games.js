@@ -466,7 +466,7 @@ router.post('/', authMiddleware, async (req, res) => {
       `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [season_id || null, home_team_id, away_team_id, location_id || null,
-       game_date || null, game_time || null, status || (game_date ? 'scheduled' : 'unscheduled'), notes || null]
+       game_date || null, game_time || null, status || (game_date && game_time && location_id ? 'scheduled' : 'unscheduled'), notes || null]
     );
     const gameId = rows[0].id;
     const officialIds = Array.isArray(official_ids) ? official_ids : [];
@@ -512,9 +512,18 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const allowed = await canScoreGame(req.user, game.home_team_id, game.away_team_id);
     if (!allowed) return res.status(403).json({ error: 'Not authorized to update this game' });
 
-    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, home_score, away_score, innings_played, notes, official_ids } = req.body;
+    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, home_score, away_score, innings_played, notes, official_ids } = req.body;
+    let { status } = req.body;
     const hasGameDate = Object.prototype.hasOwnProperty.call(req.body, 'game_date');
     const shouldClearSchedule = status === 'unscheduled' || (hasGameDate && game_date === null);
+
+    // Auto-promote: if date + time + location are all set and status is unscheduled, promote to scheduled
+    const effectiveDate = game_date || game.game_date;
+    const effectiveTime = game_time || game.game_time;
+    const effectiveLocation = location_id || game.location_id;
+    if ((!status || status === 'unscheduled') && effectiveDate && effectiveTime && effectiveLocation) {
+      status = 'scheduled';
+    }
     if (home_team_id && away_team_id && Number(home_team_id) === Number(away_team_id)) {
       return res.status(400).json({ error: 'Home and away teams must be different' });
     }
