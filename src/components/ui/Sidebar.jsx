@@ -20,6 +20,8 @@ export default function Sidebar({
   isTeamManager = false,
   branding,
   features = {},
+  pendingApprovalCount = 0,
+  unreadAnnouncementCount = 0,
   collapsed = false,
   onToggleCollapse,
   mobileOpen = false,
@@ -56,7 +58,7 @@ export default function Sidebar({
     orgItems.push({ key: 'officials', label: 'Officials', icon: UserGroupIcon });
   }
   if (isAdmin || isOrgAdmin || isTeamManager) {
-    orgItems.push({ key: 'approvals', label: 'Approvals', icon: ClipboardIcon });
+    orgItems.push({ key: 'approvals', label: 'Approvals', icon: ClipboardIcon, badge: pendingApprovalCount });
   }
 
   // Build Administration items based on role + feature toggles
@@ -65,7 +67,7 @@ export default function Sidebar({
     adminItems.push({ key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon });
   }
   if (isAdmin || isOrgAdmin) {
-    adminItems.push({ key: 'announcements', label: 'Announcements', icon: MegaphoneIcon });
+    adminItems.push({ key: 'announcements', label: 'Announcements', icon: MegaphoneIcon, badge: unreadAnnouncementCount });
   }
   if (isAdmin) {
     adminItems.push({ key: 'league', label: 'League Config', icon: CogIcon });
@@ -148,7 +150,7 @@ export default function Sidebar({
 function NavItem({ item, active, collapsed, onClick }) {
   const Icon = item.icon;
   const baseCls = cn(
-    'w-full flex items-center rounded-lg transition-all duration-150 text-sm',
+    'w-full flex items-center rounded-lg transition-all duration-150 text-sm relative',
     collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
     active
       ? 'bg-action-700 text-white shadow-glow-action font-semibold'
@@ -180,6 +182,14 @@ function NavItem({ item, active, collapsed, onClick }) {
     >
       <Icon className="w-5 h-5 shrink-0" />
       {!collapsed && <span className="truncate">{item.label}</span>}
+      {item.badge > 0 && (
+        <span className={cn(
+          'ml-auto shrink-0 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none',
+          collapsed ? 'absolute top-0.5 right-0.5 w-4 h-4' : 'min-w-[18px] h-[18px] px-1',
+        )}>
+          {item.badge > 99 ? '99+' : item.badge}
+        </span>
+      )}
     </button>
   );
 }

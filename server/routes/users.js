@@ -300,7 +300,7 @@ router.get('/pending', authMiddleware, requireRole('super_admin', 'org_admin', '
       `;
       params = [perms.org_ids];
     } else if (user.role === 'team_manager') {
-      // Team manager sees pending scorekeepers for their teams
+      // Team manager sees pending scorekeepers and other coaches for their teams
       const perms = await getUserPermissions(user.id);
       if (!perms.team_ids.length) return res.json([]);
       query = `
@@ -312,7 +312,7 @@ router.get('/pending', authMiddleware, requireRole('super_admin', 'org_admin', '
         LEFT JOIN teams t ON t.id = up.team_id
         LEFT JOIN organizations o ON o.id = up.org_id
         WHERE u.approval_status IN ('pending', 'rejected')
-          AND u.role = 'score_reporter'
+          AND u.role IN ('score_reporter', 'team_manager')
           AND up.team_id = ANY($1)
         GROUP BY u.id
         ORDER BY u.approval_status = 'pending' DESC, u.created_at DESC
@@ -487,8 +487,8 @@ async function canApprove(approver, target) {
     }
   }
 
-  if (approver.role === 'team_manager' && target.role === 'score_reporter') {
-    // Check if the scorekeeper's teams overlap with the manager's teams
+  if (approver.role === 'team_manager' && (target.role === 'score_reporter' || target.role === 'team_manager')) {
+    // Check if the target's teams overlap with the manager's teams
     const { rows } = await pool.query(
       'SELECT team_id FROM user_permissions WHERE user_id = $1 AND team_id = ANY($2)',
       [target.id, perms.team_ids]
