@@ -239,7 +239,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                       ? <GameCard key={`game-${item.id}`} game={item} teamId={teamId}
                           onSelect={() => setSelectedGameId(item.id)}
                           onTrack={() => setTrackingGameId(item.id)}
-                          onSchedule={() => { setEditingGame(item); setShowForm(true); }}
+                          onSchedule={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id) ? () => { setEditingGame(item); setShowForm(true); } : undefined}
                           canScore={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id)} />
                       : <PracticeCard key={`practice-${item.id}`} practice={item}
                           editable={canManageGames}
