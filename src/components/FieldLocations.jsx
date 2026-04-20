@@ -257,7 +257,7 @@ export default function FieldLocations({ orgId, orgName }) {
   );
 }
 
-function LocationForm({ orgId, location, onDone, onCancel }) {
+export function LocationForm({ orgId, location, onDone, onCancel }) {
   const isEditing = !!location;
   const [saving, setSaving] = useState(false);
   const [locatingByAddress, setLocatingByAddress] = useState(false);

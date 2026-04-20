@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { formatPhone } from '../utils/formatPhone.js';
 import { fetchGames, fetchTeams, fetchSeasons, fetchTeamPractices, updateReservation, deleteReservation, fetchLocations } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
@@ -15,7 +16,7 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
 function formatDate(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr || dateStr === 'unscheduled') return 'Unscheduled';
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
@@ -57,6 +58,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [sortOrder, setSortOrder] = useState('asc');
   const [editingPractice, setEditingPractice] = useState(null);
+  const [editingGame, setEditingGame] = useState(null);
   const [deletingPractice, setDeletingPractice] = useState(null);
 
   const loadGames = useCallback(() => {
@@ -117,8 +119,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const itemsByDate = useMemo(() => {
     const map = {};
     for (const item of sortedItems) {
-      const d = item._date;
-      if (!d) continue;
+      const d = item._date || 'unscheduled';
       if (!map[d]) map[d] = [];
       map[d].push(item);
     }
@@ -209,13 +210,13 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
       {showForm && isAdmin && (
         <div className="mb-3 bg-gray-800 border border-gray-700 rounded-lg p-3">
           <GameForm
-            game={null}
+            game={editingGame}
             teams={teams}
             seasons={seasons}
             defaultSeasonId={defaultSeasonId}
-            defaultHomeTeamId={teamId}
-            onDone={() => { setShowForm(false); loadGames(); }}
-            onCancel={() => setShowForm(false)}
+            defaultHomeTeamId={editingGame ? undefined : teamId}
+            onDone={() => { setShowForm(false); setEditingGame(null); loadGames(); }}
+            onCancel={() => { setShowForm(false); setEditingGame(null); }}
           />
         </div>
       )}
@@ -237,6 +238,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                       ? <GameCard key={`game-${item.id}`} game={item} teamId={teamId}
                           onSelect={() => setSelectedGameId(item.id)}
                           onTrack={() => setTrackingGameId(item.id)}
+                          onSchedule={() => { setEditingGame(item); setShowForm(true); }}
                           canScore={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id)} />
                       : <PracticeCard key={`practice-${item.id}`} practice={item}
                           editable={isAdmin}
@@ -283,7 +285,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
 
 /* ── Game Card (list view) ── */
 
-function GameCard({ game, teamId, onSelect, onTrack, canScore }) {
+function GameCard({ game, teamId, onSelect, onTrack, onSchedule, canScore }) {
   const isHome = game.home_team_id === teamId;
   const opponent = isHome ? game.away_team_name : game.home_team_name;
   const opponentLogo = isHome ? game.away_logo : game.home_logo;
@@ -308,16 +310,17 @@ function GameCard({ game, teamId, onSelect, onTrack, canScore }) {
 
   return (
     <div onClick={onSelect}
-      className={`${cardTone} border rounded-lg px-3 py-2 flex items-center gap-3 text-sm cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all`}>
-      <div className="w-16 shrink-0 text-center">
-        <div className="text-xs text-gray-400">{formatTime(game.game_time) || 'TBD'}</div>
-      </div>
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <span className="text-xs text-gray-400 font-semibold w-5 shrink-0">{prefix}</span>
-        <TeamLogo src={opponentLogo} name={opponent} ageGroup={oppAgeGroup} level={oppLevel} cityAbbr={oppCityAbbr} primaryColor={oppPrimary} secondaryColor={oppSecondary} size="w-6 h-6" />
-        <span className="font-semibold text-gray-200 truncate">{opponent}</span>
-      </div>
-      <div className="shrink-0 text-right flex items-center gap-2">
+      className={`${cardTone} border rounded-lg px-3 py-2 text-sm cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all`}>
+      <div className="flex items-center gap-3">
+        <div className="w-16 shrink-0 text-center">
+          <div className="text-xs text-gray-400">{formatTime(game.game_time) || 'TBD'}</div>
+        </div>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="text-xs text-gray-400 font-semibold w-5 shrink-0">{prefix}</span>
+          <TeamLogo src={opponentLogo} name={opponent} ageGroup={oppAgeGroup} level={oppLevel} cityAbbr={oppCityAbbr} primaryColor={oppPrimary} secondaryColor={oppSecondary} size="w-6 h-6" />
+          <span className="font-semibold text-gray-200 truncate">{opponent}</span>
+        </div>
+        <div className="shrink-0 text-right flex items-center gap-2">
         {game.is_gamechanger_imported && (
           <span className={GC_BADGE_CLASS} title="Imported from GameChanger">GC</span>
         )}
@@ -328,11 +331,17 @@ function GameCard({ game, teamId, onSelect, onTrack, canScore }) {
           </div>
         ) : (
           <>
-            {canScore && (
+            {game.status === 'unscheduled' && onSchedule && (
+              <button onClick={(e) => { e.stopPropagation(); onSchedule(); }}
+                className="text-xs font-semibold px-2 py-1 rounded bg-red-600 hover:bg-red-500 text-white transition-colors">
+                Schedule It!
+              </button>
+            )}
+            {(game.status === 'scheduled' || game.status === 'in_progress') && canScore && (
               <button onClick={(e) => { e.stopPropagation(); onTrack(); }}
                 className={`text-xs font-semibold px-2 py-1 rounded transition-colors ${DARK_TRACK_BUTTON_TONE}`}
                 title="Live pitch tracker">
-                ⚾ Track
+                {game.status === 'in_progress' ? '⚾ Live' : '⚾ Track'}
               </button>
             )}
             <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
@@ -344,6 +353,25 @@ function GameCard({ game, teamId, onSelect, onTrack, canScore }) {
       {!!game.official_names?.length && (
         <div className="hidden lg:block text-xs text-gray-400 truncate max-w-[220px]">
           👤 {game.official_names.join(', ')}
+        </div>
+      )}
+      </div>
+      {game.status === 'unscheduled' && canScore && (game.home_coach_name || game.away_coach_name) && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 ml-[76px] text-xs text-gray-400">
+          {game.home_coach_name && (
+            <span className="flex items-center gap-1">
+              <span className="text-gray-500">Home:</span> {game.home_coach_name}
+              {game.home_coach_email && <a href={`mailto:${game.home_coach_email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={game.home_coach_email}>✉️</a>}
+              {game.home_coach_phone && <a href={`tel:${game.home_coach_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer">📞 {formatPhone(game.home_coach_phone)}</a>}
+            </span>
+          )}
+          {game.away_coach_name && (
+            <span className="flex items-center gap-1">
+              <span className="text-gray-500">Away:</span> {game.away_coach_name}
+              {game.away_coach_email && <a href={`mailto:${game.away_coach_email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={game.away_coach_email}>✉️</a>}
+              {game.away_coach_phone && <a href={`tel:${game.away_coach_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer">📞 {formatPhone(game.away_coach_phone)}</a>}
+            </span>
+          )}
         </div>
       )}
     </div>
