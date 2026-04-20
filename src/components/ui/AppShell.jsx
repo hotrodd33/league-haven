@@ -24,6 +24,8 @@ export default function AppShell({
   user,
   branding,
   features,
+  pendingApprovalCount = 0,
+  unreadAnnouncementCount = 0,
   onChangePassword,
   onLogout,
   onNavigateToTeam,
@@ -67,6 +69,8 @@ export default function AppShell({
         isTeamManager={isTeamManager}
         branding={branding}
         features={features}
+        pendingApprovalCount={pendingApprovalCount}
+        unreadAnnouncementCount={unreadAnnouncementCount}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         mobileOpen={mobileMenuOpen}

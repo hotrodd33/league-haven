@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./context/AuthContext.jsx";
-import { fetchPlayer } from "./api/index.js";
+import { fetchPlayer, fetchPendingApprovals, fetchAnnouncements } from "./api/index.js";
 import { STALE } from "./lib/queryConfig.js";
 import { useAppNavigation } from "./hooks/useAppNavigation.js";
 import { useBranding } from "./hooks/useBranding.js";
@@ -31,6 +31,28 @@ export default function App() {
     const [importWizardGameId, setImportWizardGameId] = useState(null);
     const [selectedPlayerId, setSelectedPlayerId] = useState(null);
     const [selectedPlayerData, setSelectedPlayerData] = useState(null);
+    const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+    const [unreadAnnouncementCount, setUnreadAnnouncementCount] = useState(0);
+
+    // Fetch pending counts for nav badges
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        const loadCounts = async () => {
+            try {
+                if (isAdmin || isOrgAdmin || isTeamManager) {
+                    const pending = await fetchPendingApprovals();
+                    setPendingApprovalCount(Array.isArray(pending) ? pending.filter(u => u.approval_status === 'pending').length : 0);
+                }
+                if (isAdmin || isOrgAdmin) {
+                    const anns = await fetchAnnouncements();
+                    setUnreadAnnouncementCount(Array.isArray(anns) ? anns.filter(a => !a.read).length : 0);
+                }
+            } catch { /* ignore */ }
+        };
+        loadCounts();
+        const interval = setInterval(loadCounts, 60000);
+        return () => clearInterval(interval);
+    }, [isAuthenticated, isAdmin, isOrgAdmin, isTeamManager]);
 
     // Clear transient page state when navigating away
     useEffect(() => {
@@ -97,6 +119,8 @@ export default function App() {
                 user={user}
                 branding={branding}
                 features={features}
+                pendingApprovalCount={pendingApprovalCount}
+                unreadAnnouncementCount={unreadAnnouncementCount}
                 onChangePassword={() => setShowChangePassword(true)}
                 onLogout={logout}
                 onNavigateToTeam={nav.navigateToTeam}
