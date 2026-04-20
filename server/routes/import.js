@@ -11,6 +11,7 @@ const { parseBoxScorePDF, parseBoxScoreText } = require('../parsers/boxscore-pdf
 const { normalizeDOB } = require('../utils/dob');
 
 const router = express.Router();
+const importDebugLoggingEnabled = process.env.IMPORT_DEBUG === 'true';
 
 // Accept files up to 5 MB (PDFs can be a few MB)
 const upload = multer({
@@ -1375,7 +1376,9 @@ router.post('/schedule', authMiddleware, requireAdmin, async (req, res) => {
         const gameStatus = g.date ? 'scheduled' : 'unscheduled';
         const safeDate = g.date && g.date !== '' ? g.date : null;
         const safeTime = g.time && g.time !== '' ? g.time : null;
-        console.log(`[import] Row ${g.row}: date=${JSON.stringify(g.date)} safeDate=${JSON.stringify(safeDate)} status=${gameStatus}`);
+        if (importDebugLoggingEnabled) {
+          console.log(`[import] Row ${g.row}: date=${JSON.stringify(g.date)} safeDate=${JSON.stringify(safeDate)} status=${gameStatus}`);
+        }
         try {
           await client.query(
             `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes)

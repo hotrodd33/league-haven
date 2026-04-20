@@ -331,7 +331,7 @@ function GameCard({ game, teamId, onSelect, onTrack, onSchedule, canScore }) {
           </div>
         ) : (
           <>
-            {game.status === 'unscheduled' && onSchedule && (
+            {game.status === 'unscheduled' && isAdmin && onSchedule && (
               <button onClick={(e) => { e.stopPropagation(); onSchedule(); }}
                 className="text-xs font-semibold px-2 py-1 rounded bg-red-600 hover:bg-red-500 text-white transition-colors">
                 Schedule It!

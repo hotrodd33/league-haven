@@ -118,7 +118,7 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
     const { rows } = await pool.query(
       `INSERT INTO organizations (name, contact_name, contact_email, contact_phone, address, city, state, zip, officials_enabled, notes, latitude, longitude)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-      [name, contact_name || null, contact_email || null, contact_phone || null, address || null, city || null, state || null, zip || null, !!officials_enabled, notes || null, latitude || null, longitude || null]
+      [name, contact_name || null, contact_email || null, contact_phone || null, address || null, city || null, state || null, zip || null, !!officials_enabled, notes || null, latitude ?? null, longitude ?? null]
     );
     cache.del('directory');
     res.status(201).json(await enrich(rows[0]));

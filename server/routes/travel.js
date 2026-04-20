@@ -22,7 +22,9 @@ router.get('/', async (req, res) => {
     const { rows: orgs } = await pool.query(
       `SELECT id, name FROM organizations ORDER BY name`
     );
-    if (orgs.length === 0) return res.json({ orgs: [], distances: [] });
+    if (orgs.length === 0) {
+      return res.json({ orgs: [], matrix: [], method: 'haversine' });
+    }
 
     const orgIds = orgs.map((o) => o.id);
     const { rows: distRows } = await pool.query(
@@ -45,7 +47,7 @@ router.get('/', async (req, res) => {
     // Build NxN matrix in org order
     const n = orgs.length;
     const matrix = Array.from({ length: n }, () => Array(n).fill(null));
-    let method = 'haversine';
+    let hasDrivingMethod = false;
     for (let i = 0; i < n; i++) {
       matrix[i][i] = 0;
       for (let j = i + 1; j < n; j++) {
@@ -56,10 +58,14 @@ router.get('/', async (req, res) => {
         if (entry) {
           matrix[i][j] = Math.round(entry.distance);
           matrix[j][i] = Math.round(entry.distance);
-          method = entry.method;
+          if (entry.method === 'driving') {
+            hasDrivingMethod = true;
+          }
         }
       }
     }
+
+    const method = hasDrivingMethod ? 'driving' : 'haversine';
 
     res.json({ orgs, matrix, method });
   } catch (err) {
@@ -103,21 +109,41 @@ router.post('/recalculate', authMiddleware, requireAdmin, async (req, res) => {
       }
     }
 
-    // Upsert all pairs
-    for (const p of pairs) {
-      await pool.query(
+    // Upsert all pairs atomically in a single bulk query
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const orgAIds = pairs.map((p) => p.org_a_id);
+      const orgBIds = pairs.map((p) => p.org_b_id);
+      const distances = pairs.map((p) => p.distance);
+      const methods = pairs.map((p) => p.method);
+
+      await client.query(
         `INSERT INTO travel_distances (org_a_id, org_b_id, distance_miles, method, calculated_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT (org_a_id, org_b_id) DO UPDATE SET distance_miles = $3, method = $4, calculated_at = NOW()`,
-        [p.org_a_id, p.org_b_id, p.distance, p.method]
+         SELECT org_a_id, org_b_id, distance_miles, method, NOW()
+         FROM UNNEST($1::int[], $2::int[], $3::numeric[], $4::text[])
+           AS t(org_a_id, org_b_id, distance_miles, method)
+         ON CONFLICT (org_a_id, org_b_id) DO UPDATE
+         SET distance_miles = EXCLUDED.distance_miles,
+             method = EXCLUDED.method,
+             calculated_at = NOW()`,
+        [orgAIds, orgBIds, distances, methods]
       );
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
 
     res.json({
       success: true,
       pairs_calculated: pairs.length,
       orgs_included: orgs.length,
-      method: useDriving ? 'driving' : 'haversine',
+      method: 'haversine',
       note: 'Distances are approximate straight-line (Haversine) calculations. Actual driving distance may be ~20% higher.',
     });
   } catch (err) {

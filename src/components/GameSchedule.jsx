@@ -30,8 +30,9 @@ const STATUS_COLORS = DARK_STATUS_COLORS;
 const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-black px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-[#00f092]';
 
 function formatDate(dateStr) {
-  if (!dateStr) return 'TBD';
-  const d = new Date(dateStr + 'T00:00:00');
+  if (!dateStr || dateStr === '__unknown__') return 'TBD';
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return 'TBD';
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
@@ -962,20 +963,31 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     game_end_time: '20:00',
     game_time_increment_minutes: 30,
   });
+  const initialStatus = game?.status || 'unscheduled';
+  const initialGameDate = game?.game_date || (initialStatus === 'unscheduled' ? '' : new Date().toISOString().slice(0, 10));
   const [form, setForm] = useState({
     season_id: game?.season_id || defaultSeasonId || '',
     home_team_id: game?.home_team_id || defaultHomeTeamId || '',
     away_team_id: game?.away_team_id || '',
     location_id: game?.location_id || '',
-    game_date: game?.game_date || new Date().toISOString().slice(0, 10),
+    game_date: initialGameDate,
     game_time: game?.game_time?.slice(0, 5) || '',
-    status: game?.status || 'unscheduled',
+    status: initialStatus,
     home_score: game?.home_score ?? '',
     away_score: game?.away_score ?? '',
     innings_played: game?.innings_played ?? '',
     official_ids: game?.official_ids || [],
     notes: game?.notes || '',
   });
+
+  useEffect(() => {
+    if (form.status !== 'unscheduled' || !form.game_date) return;
+    setForm((prev) => (
+      prev.status === 'unscheduled' && prev.game_date
+        ? { ...prev, game_date: '' }
+        : prev
+    ));
+  }, [form.status, form.game_date]);
 
   // Reservation-specific fields (for practice/event/maintenance)
   const [resForm, setResForm] = useState({

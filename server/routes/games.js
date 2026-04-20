@@ -513,6 +513,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!allowed) return res.status(403).json({ error: 'Not authorized to update this game' });
 
     const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, home_score, away_score, innings_played, notes, official_ids } = req.body;
+    const hasGameDate = Object.prototype.hasOwnProperty.call(req.body, 'game_date');
+    const shouldClearSchedule = status === 'unscheduled' || (hasGameDate && game_date === null);
     if (home_team_id && away_team_id && Number(home_team_id) === Number(away_team_id)) {
       return res.status(400).json({ error: 'Home and away teams must be different' });
     }
@@ -525,6 +527,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const oldTime = game.game_time || null;
 
     await client.query('BEGIN');
+    if (shouldClearSchedule) {
+      await client.query(
+        'UPDATE games SET game_date = NULL, game_time = NULL WHERE id = $1',
+        [id]
+      );
+    }
     await client.query(
       `UPDATE games SET
         season_id = COALESCE($1, season_id),

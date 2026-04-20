@@ -330,9 +330,7 @@ function OrgForm({ org, onDone, onCancel }) {
     if (!q.trim()) return setError('Enter an address, city, or zip first.');
     setGeocoding(true); setError(null);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
-        headers: { 'User-Agent': 'LeagueHaven/1.0' },
-      });
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`);
       const data = await res.json();
       if (!data.length) return setError('No coordinates found for that address. Try a simpler query (city + state).');
       setForm(prev => ({ ...prev, latitude: parseFloat(data[0].lat).toFixed(6), longitude: parseFloat(data[0].lon).toFixed(6) }));
