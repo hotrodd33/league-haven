@@ -965,7 +965,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     game_time_increment_minutes: 30,
   });
   const initialStatus = game?.status || 'unscheduled';
-  const initialGameDate = game?.game_date || (initialStatus === 'unscheduled' ? '' : new Date().toISOString().slice(0, 10));
+  const initialGameDate = game?.game_date || new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     season_id: game?.season_id || defaultSeasonId || '',
     home_team_id: game?.home_team_id || defaultHomeTeamId || '',
@@ -980,15 +980,6 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     official_ids: game?.official_ids || [],
     notes: game?.notes || '',
   });
-
-  useEffect(() => {
-    if (form.status !== 'unscheduled' || !form.game_date) return;
-    setForm((prev) => (
-      prev.status === 'unscheduled' && prev.game_date
-        ? { ...prev, game_date: '' }
-        : prev
-    ));
-  }, [form.status, form.game_date]);
 
   // Reservation-specific fields (for practice/event/maintenance)
   const [resForm, setResForm] = useState({
