@@ -7,12 +7,13 @@ import {
   fetchGameInterests, expressGameInterest, removeGameInterest,
   checkGameConflicts, createTeam, fetchAgeGroups, fetchLevels,
   fetchWeather, fetchWeatherForecast,
-  createReservation,
+  createReservation, fetchAllPractices, updateReservation, deleteReservation,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
+import { PracticeCard, PracticeEditModal } from './TeamSchedule.jsx';
 import { FieldForm } from './FieldsPage.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 import { Button, Input, Modal } from './ui/index.js';
@@ -154,7 +155,13 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [filterSeason, setFilterSeason] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
+  const [filterEventType, setFilterEventType] = useState('games');
   const [sortOrder, setSortOrder] = useState('asc');
+
+  // Practices/events
+  const [practices, setPractices] = useState([]);
+  const [editingPractice, setEditingPractice] = useState(null);
+  const [deletingPractice, setDeletingPractice] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true); setError(null);
@@ -175,7 +182,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
       if (filterTeam) filters.team_id = filterTeam;
       if (filterSeason) filters.season_id = filterSeason;
       if (filterStatus) filters.status = filterStatus;
-      setGames(await fetchGames(filters));
+      const [gamesData, practicesData] = await Promise.all([
+        fetchGames(filters),
+        fetchAllPractices(filterTeam ? { team_id: filterTeam } : {}),
+      ]);
+      setGames(gamesData);
+      setPractices(practicesData || []);
     } catch (err) { setError(err.message); }
   }, [filterTeam, filterSeason, filterStatus, filterDivision]);
 
@@ -273,19 +285,34 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const sortedDivisions = Array.from(divisions).sort();
 
   // Filter games by division if selected
-  const filteredGames = filterDivision 
+  const filteredGames = filterDivision
     ? games.filter(g => {
         const divLabel = g.division_name || ([g.home_age_group, g.home_level].filter(Boolean).join(' ')) || null;
         return divLabel === filterDivision;
       })
     : games;
 
-  // Group games by date only (newest first)
+  // Build merged items list based on event type filter
+  const mergedItems = useMemo(() => {
+    const items = [];
+    if (filterEventType === 'games' || filterEventType === 'all') {
+      items.push(...filteredGames.map(g => ({ ...g, _type: 'game' })));
+    }
+    if (filterEventType !== 'games') {
+      const filteredPractices = filterEventType === 'all'
+        ? practices
+        : practices.filter(p => p.event_type === filterEventType);
+      items.push(...filteredPractices.map(p => ({ ...p, _type: 'practice' })));
+    }
+    return items;
+  }, [filteredGames, practices, filterEventType]);
+
+  // Group items by date
   const gamesByDate = {};
-  for (const g of filteredGames) {
-    const dateKey = g.game_date || '__unknown__';
+  for (const item of mergedItems) {
+    const dateKey = item._type === 'game' ? (item.game_date || '__unknown__') : (item.event_date || '__unknown__');
     if (!gamesByDate[dateKey]) gamesByDate[dateKey] = [];
-    gamesByDate[dateKey].push(g);
+    gamesByDate[dateKey].push(item);
   }
   const sortedDateKeys = Object.keys(gamesByDate).sort((a, b) => sortOrder === 'asc' ? a.localeCompare(b) : b.localeCompare(a));
 
@@ -349,7 +376,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     <div>
       <div className="sticky top-16 z-20 -mx-4 lg:-mx-6 px-4 lg:px-6 pt-2 pb-3 mb-4 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-          <h2 className="text-xl font-display font-bold text-white">Game Schedule ({filteredGames.length})</h2>
+          <h2 className="text-xl font-display font-bold text-white">Schedule ({mergedItems.length})</h2>
           <div className="flex gap-2">
             <div className="flex items-center gap-1 mr-2">
               <button onClick={() => setViewMode('list')}
@@ -411,14 +438,22 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
               <option key={div} value={div}>{div}</option>
             ))}
           </select>
+          <select value={filterEventType} onChange={(e) => setFilterEventType(e.target.value)}
+            className="lh-select min-w-[140px]">
+            <option value="all">All Events</option>
+            <option value="games">Games Only</option>
+            <option value="practice">Practices</option>
+            <option value="event">Events</option>
+            <option value="maintenance">Maintenance</option>
+          </select>
         </div>
       </div>
 
       {viewMode === 'list' ? (
         <>
-          {filteredGames.length === 0 ? (
+          {mergedItems.length === 0 ? (
             <div className="py-12 text-center text-gray-400">
-              No games found.
+              No events found.
               {canScheduleGames && (
                 <>
                   <br />
@@ -437,7 +472,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
               {/* Desktop */}
               <div className="hidden md:block">
                 <div className="space-y-2">
-                  {gamesByDate[dateKey].map(game => {
+                  {gamesByDate[dateKey].map(item => {
+                    if (item._type === 'practice') {
+                      return <PracticeCard key={`p-${item.id}`} practice={item} editable={canScheduleGames}
+                        onEdit={() => setEditingPractice(item)}
+                        onDelete={async () => { setDeletingPractice(item.id); await deleteReservation(item.id); loadGames(); setDeletingPractice(null); }}
+                        deleting={deletingPractice === item.id} />;
+                    }
+                    const game = item;
                     const divisionLabel = gameDivisionLevelLabel(game);
                     const isInterested = interestGameIds.includes(Number(game.id));
                     const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
@@ -557,7 +599,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
 
               {/* Mobile cards */}
               <div className="md:hidden space-y-2">
-                {gamesByDate[dateKey].map(game => {
+                {gamesByDate[dateKey].map(item => {
+                  if (item._type === 'practice') {
+                    return <PracticeCard key={`p-${item.id}`} practice={item} editable={canScheduleGames}
+                      onEdit={() => setEditingPractice(item)}
+                      onDelete={async () => { setDeletingPractice(item.id); await deleteReservation(item.id); loadGames(); setDeletingPractice(null); }}
+                      deleting={deletingPractice === item.id} />;
+                  }
+                  const game = item;
                   const divisionLabel = gameDivisionLevelLabel(game);
                   const isInterested = interestGameIds.includes(Number(game.id));
                   const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
@@ -673,7 +722,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
         </>
       ) : (
         <ScheduleCalendar
-          games={filteredGames}
+          games={mergedItems.filter(i => i._type === 'game')}
           year={calYear}
           month={calMonth}
           onPrevMonth={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); } else setCalMonth(m => m - 1); }}
@@ -702,6 +751,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
           filterTeam={filterTeam}
           filterSeason={filterSeason}
           onClose={() => setShowSubscribe(false)}
+        />
+      )}
+
+      {editingPractice && (
+        <PracticeEditModal
+          practice={editingPractice}
+          onDone={() => { setEditingPractice(null); loadGames(); }}
+          onCancel={() => setEditingPractice(null)}
         />
       )}
     </div>

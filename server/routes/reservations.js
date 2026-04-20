@@ -346,6 +346,30 @@ router.get('/check-game-conflicts', async (req, res) => {
   }
 });
 
+// ── GET /reservations/all ──
+// Returns all practices/events across the league (no game_holds)
+router.get('/all', async (req, res) => {
+  try {
+    const { team_id, event_type } = req.query;
+    let sql = `SELECT r.*, fl.name AS location_name, fl.address AS location_address,
+                fl.city AS location_city, fl.state AS location_state,
+                t.name AS team_name
+         FROM field_reservations r
+         LEFT JOIN field_locations fl ON fl.id = r.location_id
+         LEFT JOIN teams t ON t.id = r.team_id
+         WHERE r.event_type != 'game_hold'`;
+    const params = [];
+    if (team_id) { params.push(team_id); sql += ` AND r.team_id = $${params.length}`; }
+    if (event_type) { params.push(event_type); sql += ` AND r.event_type = $${params.length}`; }
+    sql += ' ORDER BY r.event_date, r.start_time';
+    const { rows } = await pool.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('Fetch all reservations error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ── GET /reservations/team/:teamId ──
 // Returns practices/events for a specific team (no auth required, public data)
 router.get('/team/:teamId', async (req, res) => {
