@@ -1,4 +1,5 @@
 export const DARK_STATUS_COLORS = {
+  unscheduled: 'lh-badge-warn',
   scheduled: 'lh-badge-info',
   in_progress: 'lh-badge-warn',
   completed: 'lh-badge-success',
