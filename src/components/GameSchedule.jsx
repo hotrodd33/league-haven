@@ -1265,13 +1265,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     handleSubmit(fakeEvent);
   }
 
-  // Build team optgroups — org_admins only see their org's teams when creating
-  const visibleTeams = (() => {
-    if (isEditing || isSuperAdmin) return teams;
-    if (isOrgAdmin) return teams.filter(t => t.org_id && permissions.org_ids.includes(t.org_id));
-    if (role === 'team_manager') return teams.filter(t => permissions.team_ids.includes(t.id));
-    return teams;
-  })();
+  // Build team optgroups — all teams visible for scheduling (coaches need to pick opponents)
+  const visibleTeams = teams;
   const teamsByOrg = {};
   const ungroupedTeams = [];
   for (const t of visibleTeams) {
