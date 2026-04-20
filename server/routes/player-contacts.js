@@ -28,7 +28,7 @@ router.get('/all-guardians', async (req, res) => {
                  DISTINCT jsonb_build_object(
                    'player_id', p.id, 'player_name', p.first_name || ' ' || p.last_name,
                    'relationship', pg.relationship, 'team_names',
-                   (SELECT string_agg(DISTINCT t.team_name, ', ')
+                   (SELECT string_agg(DISTINCT t.name, ', ')
                     FROM team_players tp JOIN teams t ON t.id = tp.team_id
                     WHERE tp.player_id = p.id)
                  )

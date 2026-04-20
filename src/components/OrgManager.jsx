@@ -295,12 +295,14 @@ function OrgForm({ org, onDone, onCancel }) {
   const [error, setError] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(org?.logo_url || null);
+  const [geocoding, setGeocoding] = useState(false);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [form, setForm] = useState({
     name: org?.name || '', contact_name: org?.contact_name || '',
     contact_email: org?.contact_email || '', contact_phone: org?.contact_phone || '',
     address: org?.address || '', city: org?.city || '',
     state: org?.state || '', zip: org?.zip || '', notes: org?.notes || '',
+    latitude: org?.latitude ?? '', longitude: org?.longitude ?? '',
     officials_enabled: !!org?.officials_enabled,
   });
 
@@ -323,11 +325,28 @@ function OrgForm({ org, onDone, onCancel }) {
     setLogoPreview(null);
   }
 
+  async function handleGeocode() {
+    const q = [form.address, form.city, form.state, form.zip].filter(Boolean).join(', ');
+    if (!q.trim()) return setError('Enter an address, city, or zip first.');
+    setGeocoding(true); setError(null);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`);
+      const data = await res.json();
+      if (!data.length) return setError('No coordinates found for that address. Try a simpler query (city + state).');
+      setForm(prev => ({ ...prev, latitude: parseFloat(data[0].lat).toFixed(6), longitude: parseFloat(data[0].lon).toFixed(6) }));
+    } catch {
+      setError('Geocoding request failed. Check your internet connection.');
+    } finally {
+      setGeocoding(false);
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true); setError(null);
     const data = {};
     for (const [key, value] of Object.entries(form)) {
       if (typeof value === 'boolean') data[key] = value;
+      else if (key === 'latitude' || key === 'longitude') data[key] = value === '' ? null : parseFloat(value);
       else data[key] = value.trim() || null;
     }
     try {
@@ -381,6 +400,15 @@ function OrgForm({ org, onDone, onCancel }) {
             <Input label="City" id="org-city" name="city" type="text" value={form.city} onChange={handleChange} />
             <Input label="State" id="org-state" name="state" type="text" value={form.state} onChange={handleChange} maxLength={2} placeholder="OH" />
             <Input label="ZIP" id="org-zip" name="zip" type="text" value={form.zip} onChange={handleChange} maxLength={10} placeholder="44107" />
+          </div>
+
+          <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
+            <Input label="Latitude" id="org-latitude" name="latitude" type="number" step="any" value={form.latitude} onChange={handleChange} placeholder="44.0160" />
+            <Input label="Longitude" id="org-longitude" name="longitude" type="number" step="any" value={form.longitude} onChange={handleChange} placeholder="-92.4802" />
+            <button type="button" onClick={handleGeocode} disabled={geocoding}
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
+              {geocoding ? 'Looking up…' : 'Lookup from Address'}
+            </button>
           </div>
 
           <div>

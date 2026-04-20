@@ -52,3 +52,7 @@ export function fetchTeamRoster(teamId) {
 export function fetchTeamStaff(teamId) {
   return apiFetch(`/staff?team_id=${teamId}`);
 }
+
+export function fetchTravelMatrix() {
+  return apiFetch('/travel');
+}

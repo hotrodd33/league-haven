@@ -11,6 +11,7 @@ const { parseBoxScorePDF, parseBoxScoreText } = require('../parsers/boxscore-pdf
 const { normalizeDOB } = require('../utils/dob');
 
 const router = express.Router();
+const importDebugLoggingEnabled = process.env.IMPORT_DEBUG === 'true';
 
 // Accept files up to 5 MB (PDFs can be a few MB)
 const upload = multer({
@@ -34,7 +35,10 @@ async function buildTeamLookup() {
     const key = t.name.toLowerCase();
     if (!byName[key]) byName[key] = [];
     byName[key].push(t.id);
-    if (t.org_name) lookup[`${t.name} (${t.org_name})`.toLowerCase()] = t.id;
+    if (t.org_name) {
+      lookup[`${t.name} (${t.org_name})`.toLowerCase()] = t.id;
+      lookup[`${t.name}(${t.org_name})`.toLowerCase()] = t.id;
+    }
     if (t.abbreviation) lookup[t.abbreviation.toLowerCase()] = t.id;
   }
   for (const [name, ids] of Object.entries(byName)) {
@@ -1239,15 +1243,17 @@ router.post('/schedule/preview', authMiddleware, requireAdmin, async (req, res) 
       const cols = parseCSVLine(lines[i]);
       if (cols.length < Math.max(colDate, colHome, colAway) + 1) continue;
 
-      const date = cols[colDate]?.trim();
-      const time = cols[colTime]?.trim() || null;
+      const rawDate = cols[colDate]?.trim();
+      const date = rawDate && rawDate !== 'null' && rawDate !== 'undefined' && rawDate !== '0000-00-00' ? rawDate : null;
+      const rawTime = cols[colTime]?.trim();
+      const time = rawTime && rawTime !== 'null' && rawTime !== 'undefined' ? rawTime : null;
       const homeName = cols[colHome]?.trim();
       const awayName = cols[colAway]?.trim();
       const venueName = colVenue >= 0 ? (cols[colVenue]?.trim() || null) : null;
       const notes = colNotes >= 0 ? (cols[colNotes]?.trim() || null) : null;
       const seasonYear = colSeason >= 0 ? (cols[colSeason]?.trim() || null) : null;
 
-      if (!date || !homeName || !awayName) continue;
+      if (!homeName || !awayName) continue;
 
       const homeId = teamLookup[homeName.toLowerCase()] || null;
       const awayId = teamLookup[awayName.toLowerCase()] || null;
@@ -1353,24 +1359,38 @@ router.post('/schedule', authMiddleware, requireAdmin, async (req, res) => {
           continue;
         }
 
-        // Check for duplicate (same date + same teams)
-        const { rows: dupes } = await client.query(
-          `SELECT id FROM games
-           WHERE game_date = $1 AND home_team_id = $2 AND away_team_id = $3 AND season_id = $4`,
-          [g.date, homeId, awayId, seasonId]
-        );
-        if (dupes.length) {
-          skipped++;
-          errors.push(`Row ${g.row}: Duplicate game (already exists)`);
-          continue;
+        // Check for duplicate (same date + same teams) — skip for unscheduled games
+        if (g.date) {
+          const { rows: dupes } = await client.query(
+            `SELECT id FROM games
+             WHERE game_date = $1 AND home_team_id = $2 AND away_team_id = $3 AND season_id = $4`,
+            [g.date, homeId, awayId, seasonId]
+          );
+          if (dupes.length) {
+            skipped++;
+            errors.push(`Row ${g.row}: Duplicate game (already exists)`);
+            continue;
+          }
         }
 
-        await client.query(
-          `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes)
-           VALUES ($1, $2, $3, $4, $5, $6, 'scheduled', $7)`,
-          [seasonId, homeId, awayId, locationId, g.date, g.time || null, g.notes || null]
-        );
-        created++;
+        const gameStatus = g.date ? 'scheduled' : 'unscheduled';
+        const safeDate = g.date && g.date !== '' ? g.date : null;
+        const safeTime = g.time && g.time !== '' ? g.time : null;
+        if (importDebugLoggingEnabled) {
+          console.log(`[import] Row ${g.row}: date=${JSON.stringify(g.date)} safeDate=${JSON.stringify(safeDate)} status=${gameStatus}`);
+        }
+        try {
+          await client.query(
+            `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [seasonId, homeId, awayId, locationId, safeDate, safeTime, gameStatus, g.notes || null]
+          );
+          created++;
+        } catch (insertErr) {
+          skipped++;
+          errors.push(`Row ${g.row}: ${insertErr.message}`);
+          continue;
+        }
       }
 
       // Save any new team alias mappings for future imports

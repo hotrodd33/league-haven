@@ -9,7 +9,7 @@ const STANDINGS_TTL = 60_000; // 60s
 
 const router = express.Router();
 
-const VALID_STATUSES = ['scheduled', 'in_progress', 'completed', 'cancelled', 'postponed'];
+const VALID_STATUSES = ['unscheduled', 'scheduled', 'in_progress', 'completed', 'cancelled', 'postponed'];
 const STATUS_LABELS = {
   scheduled: 'Scheduled',
   in_progress: 'In Progress',
@@ -39,7 +39,9 @@ const BASE_SELECT = `
     gd.division_id, gd.division_name, gd.division_sort,
     gil.is_gamechanger_imported,
     goa.official_ids, goa.official_names, goa.officials,
-    gua.interested_official_ids, gua.interested_umpire_names, gua.interested_umpires
+    gua.interested_official_ids, gua.interested_umpire_names, gua.interested_umpires,
+    hc.name AS home_coach_name, hc.email AS home_coach_email, hc.phone AS home_coach_phone,
+    ac_coach.name AS away_coach_name, ac_coach.email AS away_coach_email, ac_coach.phone AS away_coach_phone
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
@@ -109,6 +111,20 @@ const BASE_SELECT = `
       WHERE ugi.game_id = g.id
     ) i
   ) gua ON true
+  LEFT JOIN LATERAL (
+    SELECT sm.name, sm.email, sm.phone
+    FROM team_staff_assignments tsa
+    JOIN staff_members sm ON sm.id = tsa.staff_id
+    WHERE tsa.team_id = g.home_team_id AND tsa.role = 'head_coach'
+    LIMIT 1
+  ) hc ON true
+  LEFT JOIN LATERAL (
+    SELECT sm.name, sm.email, sm.phone
+    FROM team_staff_assignments tsa
+    JOIN staff_members sm ON sm.id = tsa.staff_id
+    WHERE tsa.team_id = g.away_team_id AND tsa.role = 'head_coach'
+    LIMIT 1
+  ) ac_coach ON true
 `;
 
 function enrichGame(row) {
@@ -412,8 +428,8 @@ router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
     const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes, official_ids } = req.body;
-    if (!home_team_id || !away_team_id || !game_date) {
-      return res.status(400).json({ error: 'home_team_id, away_team_id, and game_date are required' });
+    if (!home_team_id || !away_team_id) {
+      return res.status(400).json({ error: 'home_team_id and away_team_id are required' });
     }
     if (Number(home_team_id) === Number(away_team_id)) {
       return res.status(400).json({ error: 'Home and away teams must be different' });
@@ -450,7 +466,7 @@ router.post('/', authMiddleware, async (req, res) => {
       `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [season_id || null, home_team_id, away_team_id, location_id || null,
-       game_date, game_time || null, status || 'scheduled', notes || null]
+       game_date || null, game_time || null, status || (game_date ? 'scheduled' : 'unscheduled'), notes || null]
     );
     const gameId = rows[0].id;
     const officialIds = Array.isArray(official_ids) ? official_ids : [];
@@ -488,7 +504,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows: existing } = await client.query(
-      'SELECT id, home_team_id, away_team_id, game_date, game_time FROM games WHERE id = $1', [id]
+      'SELECT id, home_team_id, away_team_id, game_date, game_time, status FROM games WHERE id = $1', [id]
     );
     if (!existing.length) return res.status(404).json({ error: 'Game not found' });
 
@@ -497,6 +513,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!allowed) return res.status(403).json({ error: 'Not authorized to update this game' });
 
     const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, home_score, away_score, innings_played, notes, official_ids } = req.body;
+    const hasGameDate = Object.prototype.hasOwnProperty.call(req.body, 'game_date');
+    const shouldClearSchedule = status === 'unscheduled' || (hasGameDate && game_date === null);
     if (home_team_id && away_team_id && Number(home_team_id) === Number(away_team_id)) {
       return res.status(400).json({ error: 'Home and away teams must be different' });
     }
@@ -509,6 +527,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const oldTime = game.game_time || null;
 
     await client.query('BEGIN');
+    if (shouldClearSchedule) {
+      await client.query(
+        'UPDATE games SET game_date = NULL, game_time = NULL WHERE id = $1',
+        [id]
+      );
+    }
     await client.query(
       `UPDATE games SET
         season_id = COALESCE($1, season_id),

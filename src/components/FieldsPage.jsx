@@ -383,7 +383,7 @@ async function reverseGeocode(lat, lng) {
   } catch { return null; }
 }
 
-function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, onDone, onCancel }) {
+export function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, onDone, onCancel }) {
   const isEditing = !!location;
   const [saving, setSaving] = useState(false);
   const [locatingByAddress, setLocatingByAddress] = useState(false);

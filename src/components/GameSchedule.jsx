@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { formatPhone } from '../utils/formatPhone.js';
 import {
   fetchGames, createGame, updateGame, deleteGame,
   fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
@@ -12,10 +13,12 @@ import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
+import { FieldForm } from './FieldsPage.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 import { Button, Input, Modal } from './ui/index.js';
 
 const STATUS_OPTIONS = [
+  { value: 'unscheduled', label: 'Unscheduled' },
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Final' },
@@ -27,8 +30,9 @@ const STATUS_COLORS = DARK_STATUS_COLORS;
 const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-black px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-[#00f092]';
 
 function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr + 'T00:00:00');
+  if (!dateStr || dateStr === '__unknown__') return 'TBD';
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return 'TBD';
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
@@ -43,6 +47,36 @@ function formatTime(timeStr) {
 function toMinutes(hhmm) {
   const [h, m] = String(hhmm).split(':').map(Number);
   return (h * 60) + m;
+}
+
+function CoachContact({ name, email, phone, label }) {
+  if (!name && !email && !phone) return null;
+  return (
+    <div className="flex items-center gap-2 text-xs text-gray-400">
+      {label && <span className="text-gray-500">{label}:</span>}
+      <span className="text-gray-300">{name || '—'}</span>
+      {email && <a href={`mailto:${email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={email}>✉️</a>}
+      {phone && <a href={`tel:${phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={formatPhone(phone)}>📞 {formatPhone(phone)}</a>}
+    </div>
+  );
+}
+
+function AddFieldModal({ homeOrgId, onDone, onCancel }) {
+  const [orgs, setOrgs] = useState([]);
+  const [ageGroups, setAgeGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    Promise.all([fetchOrganizations(), fetchAgeGroups()])
+      .then(([o, ag]) => { setOrgs(o); setAgeGroups(ag); })
+      .finally(() => setLoading(false));
+  }, []);
+  if (loading) return <Modal open onClose={onCancel} title="Add Field Location" size="lg"><div className="p-6 text-center text-gray-400">Loading...</div></Modal>;
+  const editableOrgIds = new Set(orgs.map(o => o.id));
+  return (
+    <Modal open onClose={onCancel} title="Add Field Location" size="lg">
+      <FieldForm orgId={homeOrgId} editableOrgIds={editableOrgIds} orgs={orgs} ageGroups={ageGroups} onDone={onDone} onCancel={onCancel} />
+    </Modal>
+  );
 }
 
 function toHHMM(totalMinutes) {
@@ -218,6 +252,11 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
       setGames(prev => prev.filter(g => g.id !== game.id));
     } catch (err) { alert(`Failed to delete: ${err.message}`); }
     finally { setDeleting(null); }
+  }
+
+  function handleScheduleIt(game) {
+    setEditing(game);
+    setShowForm(true);
   }
 
   function handleFormDone() {
@@ -413,7 +452,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                         {/* Matchup */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{game.home_team_name}</button>
+                            <div className="text-right min-w-0">
+                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.home_team_name}</button>
+                              {game.status === 'unscheduled' && canEditThisGame && game.home_coach_name && (
+                                <CoachContact name={game.home_coach_name} email={game.home_coach_email} phone={game.home_coach_phone} />
+                              )}
+                            </div>
                             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                           </div>
                           <div className="px-2 shrink-0">
@@ -425,7 +469,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           </div>
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{game.away_team_name}</button>
+                            <div className="min-w-0">
+                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.away_team_name}</button>
+                              {game.status === 'unscheduled' && canEditThisGame && game.away_coach_name && (
+                                <CoachContact name={game.away_coach_name} email={game.away_coach_email} phone={game.away_coach_phone} />
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -470,12 +519,17 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                               GC
                             </span>
                           )}
-                          {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                            <Button size="xs" variant="warn" onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}>⚾ Track</Button>
+                          {(game.status === 'scheduled' || game.status === 'in_progress') && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
+                            <Button size="xs" variant={game.status === 'in_progress' ? 'primary' : 'warn'} onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}>{game.status === 'in_progress' ? '⚾ Live' : '⚾ Track'}</Button>
                           )}
                           {canEditThisGame && (
                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                              <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
+                              {game.status === 'unscheduled' && (
+                                <Button size="xs" variant="danger" onClick={() => handleScheduleIt(game)}>Schedule It!</Button>
+                              )}
+                              {game.status !== 'unscheduled' && (
+                                <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
+                              )}
                               {canDeleteGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                                 <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Del'}</Button>
                               )}
@@ -523,15 +577,25 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
-                        <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.home_team_name}</button>
-                        {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.home_score ?? '—'}</span>}
+                      <div className="mb-1">
+                        <div className="flex items-center gap-2">
+                          <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
+                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.home_team_name}</button>
+                          {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.home_score ?? '—'}</span>}
+                        </div>
+                        {game.status === 'unscheduled' && canEditThisGame && game.home_coach_name && (
+                          <div className="ml-8"><CoachContact name={game.home_coach_name} email={game.home_coach_email} phone={game.home_coach_phone} /></div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
-                        <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.away_team_name}</button>
-                        {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.away_score ?? '—'}</span>}
+                      <div className="mb-2">
+                        <div className="flex items-center gap-2">
+                          <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
+                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.away_team_name}</button>
+                          {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.away_score ?? '—'}</span>}
+                        </div>
+                        {game.status === 'unscheduled' && canEditThisGame && game.away_coach_name && (
+                          <div className="ml-8"><CoachContact name={game.away_coach_name} email={game.away_coach_email} phone={game.away_coach_phone} /></div>
+                        )}
                       </div>
                       {game.location_name && (
                         <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
@@ -570,12 +634,17 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       )}
                       {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
                       <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
-                        {game.status !== 'completed' && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                          <Button size="xs" variant="warn" onClick={() => setTrackingGameId(game.id)}>⚾ Track</Button>
+                        {(game.status === 'scheduled' || game.status === 'in_progress') && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
+                          <Button size="xs" variant={game.status === 'in_progress' ? 'primary' : 'warn'} onClick={() => setTrackingGameId(game.id)}>{game.status === 'in_progress' ? '⚾ Live' : '⚾ Track'}</Button>
                         )}
                         {canEditThisGame && (
                           <>
-                            <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
+                            {game.status === 'unscheduled' && (
+                              <Button size="xs" variant="danger" onClick={() => handleScheduleIt(game)}>Schedule It!</Button>
+                            )}
+                            {game.status !== 'unscheduled' && (
+                              <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
+                            )}
                             {canDeleteGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
                               <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Delete'}</Button>
                             )}
@@ -894,20 +963,31 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     game_end_time: '20:00',
     game_time_increment_minutes: 30,
   });
+  const initialStatus = game?.status || 'unscheduled';
+  const initialGameDate = game?.game_date || (initialStatus === 'unscheduled' ? '' : new Date().toISOString().slice(0, 10));
   const [form, setForm] = useState({
     season_id: game?.season_id || defaultSeasonId || '',
     home_team_id: game?.home_team_id || defaultHomeTeamId || '',
     away_team_id: game?.away_team_id || '',
     location_id: game?.location_id || '',
-    game_date: game?.game_date || '',
+    game_date: initialGameDate,
     game_time: game?.game_time?.slice(0, 5) || '',
-    status: game?.status || 'scheduled',
+    status: initialStatus,
     home_score: game?.home_score ?? '',
     away_score: game?.away_score ?? '',
     innings_played: game?.innings_played ?? '',
     official_ids: game?.official_ids || [],
     notes: game?.notes || '',
   });
+
+  useEffect(() => {
+    if (form.status !== 'unscheduled' || !form.game_date) return;
+    setForm((prev) => (
+      prev.status === 'unscheduled' && prev.game_date
+        ? { ...prev, game_date: '' }
+        : prev
+    ));
+  }, [form.status, form.game_date]);
 
   // Reservation-specific fields (for practice/event/maintenance)
   const [resForm, setResForm] = useState({
@@ -1145,7 +1225,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       home_team_id: Number(form.home_team_id),
       away_team_id: Number(form.away_team_id),
       location_id: form.location_id ? Number(form.location_id) : null,
-      game_date: form.game_date,
+      game_date: form.game_date || null,
       game_time: form.game_time || null,
       status: form.status,
       home_score: form.home_score !== '' ? Number(form.home_score) : null,
@@ -1289,18 +1369,28 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                 <div>
                   <label htmlFor="game-home" className="lh-eyebrow block mb-1">Home Team *</label>
                   <TeamSelect id="game-home" name="home_team_id" value={form.home_team_id} />
+                  {game?.home_coach_name && (
+                    <div className="mt-1">
+                      <CoachContact label="Coach" name={game.home_coach_name} email={game.home_coach_email} phone={game.home_coach_phone} />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="game-away" className="lh-eyebrow block mb-1">Away Team *</label>
                   <TeamSelect id="game-away" name="away_team_id" value={form.away_team_id} />
+                  {game?.away_coach_name && (
+                    <div className="mt-1">
+                      <CoachContact label="Coach" name={game.away_coach_name} email={game.away_coach_email} phone={game.away_coach_phone} />
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Date/Time */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="game-date" className="lh-eyebrow block mb-1">Date *</label>
-                  <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} required className="lh-input" />
+                  <label htmlFor="game-date" className="lh-eyebrow block mb-1">Date</label>
+                  <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} className="lh-input" />
                 </div>
                 <div>
                   <label htmlFor="game-time" className="lh-eyebrow block mb-1">Time</label>
@@ -1516,32 +1606,19 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
         </form>
 
         {showAddLocationForm && (
-          <Modal open onClose={() => setShowAddLocationForm(false)} title="Add Field Location" size="lg">
-              <p className="text-xs text-gray-400 mb-4">This will be added to {selectedHomeTeam?.org_name || 'the selected home team organization'}.</p>
-              <form onSubmit={handleAddLocation} className="space-y-3">
-                <Input label="Field Name *" id="new-loc-name" name="name" value={newLocation.name} onChange={handleNewLocationChange} required placeholder="e.g. Hok-Si-La Park Field 1" />
-
-                <div className="grid grid-cols-2 sm:grid-cols-[2fr_1fr_70px_90px] gap-3">
-                  <Input label="Address" wrapperClassName="col-span-2 sm:col-span-1" id="new-loc-address" name="address" value={newLocation.address} onChange={handleNewLocationChange} placeholder="123 Main St" />
-                  <Input label="City" id="new-loc-city" name="city" value={newLocation.city} onChange={handleNewLocationChange} />
-                  <Input label="State" id="new-loc-state" name="state" value={newLocation.state} onChange={handleNewLocationChange} maxLength={2} placeholder="MN" />
-                  <Input label="ZIP" id="new-loc-zip" name="zip" value={newLocation.zip} onChange={handleNewLocationChange} maxLength={10} />
-                </div>
-
-                <div>
-                  <label htmlFor="new-loc-comments" className="lh-eyebrow block mb-1">Comments</label>
-                  <textarea id="new-loc-comments" name="comments" value={newLocation.comments} onChange={handleNewLocationChange} rows={2}
-                    className="lh-input"
-                    placeholder="Optional notes"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button variant="secondary" onClick={() => setShowAddLocationForm(false)}>Cancel</Button>
-                  <Button type="submit" disabled={addingLocation} loading={addingLocation}>{addingLocation ? 'Adding…' : 'Add Field'}</Button>
-                </div>
-              </form>
-          </Modal>
+          <AddFieldModal
+            homeOrgId={homeOrgId}
+            onDone={async () => {
+              const updated = await fetchLocations(homeOrgId);
+              setLocations(updated);
+              if (updated.length) {
+                const newest = updated.reduce((a, b) => (a.id > b.id ? a : b));
+                setForm(prev => ({ ...prev, location_id: String(newest.id) }));
+              }
+              setShowAddLocationForm(false);
+            }}
+            onCancel={() => setShowAddLocationForm(false)}
+          />
         )}
 
         {showCreateTeam && (
