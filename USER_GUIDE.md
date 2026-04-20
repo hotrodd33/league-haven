@@ -31,17 +31,19 @@ A complete guide to managing your league. This guide covers every feature, organ
 22. [Install as a Mobile App (PWA)](#22-install-as-a-mobile-app-pwa)
 23. [Use the Public Site](#23-use-the-public-site)
 24. [Manage Your Account](#24-manage-your-account)
+25. [Schedule Games Without Dates (Unscheduled Games)](#25-schedule-games-without-dates-unscheduled-games)
+26. [Use the Travel Distance Matrix](#26-use-the-travel-distance-matrix)
 
 ### Usage Reference
-25. [Dashboard](#25-dashboard)
-26. [Weather Integration](#26-weather-integration)
-27. [Player Directory](#27-player-directory)
-28. [Team Directory & Contact](#28-team-directory--contact)
-29. [Player Stats](#29-player-stats)
-30. [Player Documents](#30-player-documents)
+27. [Dashboard](#27-dashboard)
+28. [Weather Integration](#28-weather-integration)
+29. [Player Directory](#29-player-directory)
+30. [Team Directory & Contact](#30-team-directory--contact)
+31. [Player Stats](#31-player-stats)
+32. [Player Documents](#32-player-documents)
 
 ### FAQ
-31. [Frequently Asked Questions](#31-frequently-asked-questions)
+33. [Frequently Asked Questions](#33-frequently-asked-questions)
 
 ---
 
@@ -227,7 +229,8 @@ Staff members can be assigned to multiple teams independently. Staff receive ema
 3. Enter the field name, address, city, state, and zip
 4. Add GPS coordinates:
    - Enter latitude/longitude manually, **or**
-   - Click on the interactive map to set the pin
+   - Click on the interactive map to set the pin, **or**
+   - Click **Lookup Coordinates** to auto-geocode from the address (uses OpenStreetMap Nominatim — free, no API key required)
 5. Select which age groups can use this field
 6. Click **Save**
 
@@ -251,10 +254,12 @@ Staff members can be assigned to multiple teams independently. Staff receive ema
 4. Fill in:
    - **Season** (auto-selects current active season)
    - **Home Team** and **Away Team**
-   - **Date** and **Game Time** (time slots are generated from league scheduling settings)
-   - **Location** (field)
+   - **Date** and **Game Time** (optional — leave blank to create an unscheduled game)
+   - **Location** (field) — if the field doesn't exist, click **+ Add Field** to create one inline with the full field form (org, address, age groups, GPS)
    - **Notes** (optional)
 5. Click **Schedule Game**
+
+> **Tip:** Games created without a date, time, or location are saved as **Unscheduled**. See [Schedule Games Without Dates](#25-schedule-games-without-dates-unscheduled-games) for details.
 
 ### How to Schedule a Practice, Event, or Maintenance
 
@@ -276,7 +281,7 @@ This creates a field reservation that appears on the Field Calendar.
 Use the filter bar to narrow games by:
 - **Team** — show only one team's games
 - **Season** — switch between seasons
-- **Status** — Scheduled, In Progress, Completed, Cancelled, Postponed
+- **Status** — Unscheduled, Scheduled, In Progress, Completed, Cancelled, Postponed
 - **Date Range** — filter to a specific time window
 
 Toggle between **List** view and **Calendar** view using the view buttons.
@@ -716,9 +721,12 @@ The public site is a standalone website at `/site` that requires **no login**. S
 
 - **Standings** — current season standings with division filtering, win %, and team logos
 - **Scores** — game results and upcoming schedule with season/status filters
-- **Teams** — all teams grouped by organization with org filter
+- **Teams** — all teams grouped by organization with org filter; click a team for a detail page showing schedule, roster, and staff
+- **Travel Matrix** — interactive distance grid showing proximity between all league organizations; color-coded by distance (green ≤20mi, yellow ≤35mi, orange ≤55mi, red 56+mi); click any org to see a sorted trip planner with average away distance
 
 The public site pulls live data from the same database and uses the league's branding and logos.
+
+> **Note:** The Travel Matrix uses straight-line (Haversine) distances, which may be approximately 20% less than actual driving distances. This is intended for proximity reference, not exact travel planning.
 
 ---
 
@@ -744,11 +752,70 @@ Click your avatar/name in the top-right corner to access My Account:
 
 ---
 
+## 25. Schedule Games Without Dates (Unscheduled Games)
+
+Sometimes you need to lock in matchups before dates are finalized — for example, when building a full-season schedule via CSV import.
+
+### How to Create Unscheduled Games
+
+**Manually:**
+1. Go to **Schedule** → **+ Schedule**
+2. Select home and away teams
+3. Leave date, time, and location blank
+4. Click **Schedule Game** — the game is saved as **Unscheduled**
+
+**Via CSV Import:**
+1. Go to **Data Manager** → **Import** → **Games/Schedule**
+2. Upload a CSV with home and away team columns but leave the `game_date` and `game_time` columns empty
+3. Games are imported as **Unscheduled**
+
+### How to Recognize Unscheduled Games
+
+- Unscheduled games show a **warning badge** ("Unscheduled") on game cards
+- The date displays as **TBD**
+- A red **Schedule It!** button appears instead of the Edit button
+- **Head coach contact info** (name, email, phone) appears on the card for easy coordination
+
+### How to Schedule an Unscheduled Game
+
+1. Click the **Schedule It!** button on the game card (or in the team schedule)
+2. The edit modal opens — fill in the date, time, and location
+3. Change the status to **Scheduled**
+4. Click **Save**
+
+The Track/Live button only appears once a game is in **Scheduled** or **In Progress** status.
+
+---
+
+## 26. Use the Travel Distance Matrix
+
+The Travel Matrix helps schedulers understand travel distances between league organizations.
+
+### How It Works
+
+1. Organizations need **GPS coordinates** (latitude/longitude) set in their profile
+2. Go to **Organizations** → edit an org → use the **Lookup Coordinates** button to auto-geocode from the address
+3. An admin can calculate distances from the Travel Matrix page (or via the API)
+4. Distances are calculated using the Haversine formula (straight-line) and cached in the database
+
+### How to View the Matrix
+
+The Travel Matrix is available on the **public site** under the Travel tab:
+
+- **Color-coded grid** — green (0–20 mi), yellow (21–35 mi), orange (36–55 mi), red (56+ mi)
+- **Click any organization** to see a sorted trip planner listing all other orgs by distance
+- **Average away distance** is calculated for the selected org
+- **Filter buttons** let you show only orgs within a mileage threshold
+
+> **Note:** Straight-line distances are typically ~20% shorter than actual driving distances. The matrix is designed for proximity planning, not exact travel estimates.
+
+---
+
 # Usage Reference
 
 ---
 
-## 25. Dashboard
+## 27. Dashboard
 
 The Dashboard is your home screen, showing a time-of-day greeting and the current season name.
 
@@ -769,7 +836,7 @@ The Dashboard is your home screen, showing a time-of-day greeting and the curren
 
 ---
 
-## 26. Weather Integration
+## 28. Weather Integration
 
 Weather data is fetched automatically from **Open-Meteo** for games within a 16-day forecast window.
 
@@ -795,7 +862,7 @@ Weather is shown on game cards, scoreboards, and the dashboard. Games with poor/
 
 ---
 
-## 27. Player Directory
+## 29. Player Directory
 
 The **Players** page provides a league-wide searchable player directory.
 
@@ -807,7 +874,7 @@ The **Players** page provides a league-wide searchable player directory.
 
 ---
 
-## 28. Team Directory & Contact
+## 30. Team Directory & Contact
 
 ### Team Directory
 
@@ -830,7 +897,7 @@ The **Players** page provides a league-wide searchable player directory.
 
 ---
 
-## 29. Player Stats
+## 31. Player Stats
 
 ### Stat Definitions
 
@@ -845,7 +912,7 @@ Player stats are viewable on the **Stats** tab of the Player Detail page, showin
 
 ---
 
-## 30. Player Documents
+## 32. Player Documents
 
 ### Supported Files
 
@@ -868,7 +935,7 @@ Documents are stored as base64 and can be downloaded or viewed at any time.
 
 ---
 
-## 31. Frequently Asked Questions
+## 33. Frequently Asked Questions
 
 ### General
 
@@ -915,6 +982,17 @@ A: The Dashboard shows **Roster Alerts** listing players who are missing a date 
 
 **Q: Where can I upload a player's birth certificate or waiver?**
 A: Go to the player's detail page → **Documents** tab. Supported formats: PNG, JPEG, GIF, WebP, PDF (max 2MB). This feature must be enabled in League Config → Feature Toggles.
+
+---
+
+**Q: Can I import games without dates?**
+A: Yes. Leave the `game_date` and `game_time` columns empty in your CSV. Games will be imported as **Unscheduled**. You can add dates later using the "Schedule It!" button on each game card. See [Schedule Games Without Dates](#25-schedule-games-without-dates-unscheduled-games).
+
+**Q: What does the "Schedule It!" button do?**
+A: It opens the game edit modal so you can add a date, time, and location to an unscheduled game. Once all fields are set, change the status to "Scheduled" and save.
+
+**Q: How do I see the coach's contact info for a game?**
+A: On unscheduled game cards, the head coach's name, email, and phone are displayed below each team name. This makes it easy to coordinate scheduling. Coach info also appears in the game edit modal.
 
 ---
 
@@ -1009,6 +1087,19 @@ A: Check that: (1) You've enabled notifications in My Account, (2) Your browser 
 
 **Q: Do push notifications work when the app is closed?**
 A: Yes. The service worker handles push events in the background, so notifications display even when the app isn't open.
+
+---
+
+### Travel Matrix
+
+**Q: How are travel distances calculated?**
+A: Distances use the Haversine formula (straight-line distance between GPS coordinates). These are typically ~20% shorter than actual driving distances but useful for understanding relative proximity.
+
+**Q: Why don't I see distances for some organizations?**
+A: Organizations need GPS coordinates (latitude/longitude) set in their profile. Edit the org and click **Lookup Coordinates** to auto-geocode from the address, or set coordinates manually.
+
+**Q: Where can I view the travel matrix?**
+A: The Travel Matrix is available on the public site under the Travel tab. It shows an interactive color-coded grid of distances between all organizations with GPS coordinates.
 
 ---
 

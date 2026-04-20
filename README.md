@@ -7,7 +7,7 @@ A full-featured baseball league management application. Manage organizations, te
 ### Organizations & Teams
 - **Organizations** — Create and manage league orgs with logos (base64, 512KB limit), contact info, addresses, notes, and per-org officials toggle
 - **Teams** — Structured naming (City + Color + Mascot) with auto-generated long names, abbreviations, and city abbreviations; primary/secondary UI colors; logo uploads; age group, level, and division classification
-- **Field Locations** — Full-page field management with interactive Leaflet map, org-colored markers, age group filtering, GPS coordinate picker via map click, Google Maps directions, and inline field calendar access
+- **Field Locations** — Full-page field management with interactive Leaflet map, org-colored markers, age group filtering, GPS coordinate picker via map click, address geocoding via "Lookup Coordinates" button (OpenStreetMap Nominatim), Google Maps directions, and inline field calendar access
 - **Field Calendar** — Per-field monthly calendar/list view with color-coded event types (game holds, practices, events, maintenance); create/edit/delete reservations; auto-generated game hold blocks
 - **Team Directory** — Collapsible org-grouped view of all teams and staff with contact actions and a printable HTML view
 
@@ -23,7 +23,9 @@ A full-featured baseball league management application. Manage organizations, te
 - **Game Schedule** — Create games with home/away teams, location, date/time, season, and notes; list and monthly calendar views; filter by team, season, status, date range
 - **Field Conflict Detection** — Automatic checking for overlapping field reservations (including 3-hour prep windows) when scheduling games, with contact links to reservation owners
 - **iCal Subscription** — Subscribe to game/practice schedules via webcal:// URL from any calendar app (Google, Apple, Outlook); filterable by team, season, location, org
-- **Status Workflow** — `scheduled` → `in_progress` → `completed` / `cancelled` / `postponed`
+- **Status Workflow** — `unscheduled` → `scheduled` → `in_progress` → `completed` / `cancelled` / `postponed`; games can be created without dates and promoted via "Schedule It!" button
+- **Unscheduled Games** — Import or create games without dates/times; they appear with a warning badge and "Schedule It!" CTA; once date, time, and location are set, promote to scheduled
+- **Coach Contact on Game Cards** — Unscheduled game cards display head coach name, email, and phone for easy coordination
 - **Live Scoring** — In-game score entry with pitch count tracking per pitcher per inning
 - **Game Change Notifications** — Automatic email and push notifications to staff when game date/time changes or games are cancelled/postponed
 - **Standings** — Auto-calculated W/L/T standings with points system (W=3, T=2, L=1), win %, runs for/against; grouped by hierarchical division paths via recursive CTE
@@ -143,8 +145,10 @@ A full-featured baseball league management application. Manage organizations, te
 - Standalone public-facing pages (separate Vite/React app at `/site`, no login required):
   - **Standings** — Season standings with division filtering, win %, team logos
   - **Scores** — Game results and upcoming schedule with season/status filters
-  - **Teams** — All teams grouped by organization with org filter
+  - **Teams** — All teams grouped by organization with org filter; team detail pages with schedule, roster, and staff
+  - **Travel Matrix** — Dynamic org-to-org distance matrix calculated from GPS coordinates (Haversine); color-coded proximity grid, sortable trip planner, and average distance stats; note: straight-line distances may be ~20% less than actual driving distance
 - Dynamic branding integration and responsive mobile layout
+- Configurable public website link in sidebar for easy navigation
 
 ### In-App Help
 - **Help Page** — Renders README and User Guide as styled markdown with tabbed navigation ("About" and "User Guide" tabs)
@@ -315,7 +319,7 @@ Tables are auto-created/migrated on first request via `server/db.js`. No manual 
 | `users` | User accounts with roles, umpire flag, email confirmation |
 | `user_permissions` | Org-level and team-level permission grants |
 | `password_reset_tokens` | Secure password reset flow (SHA-256, 1hr expiry) |
-| `organizations` | League member organizations with officials toggle |
+| `organizations` | League member organizations with officials toggle, GPS coordinates |
 | `teams` | Teams with name components, colors, logos |
 | `players` | Player profiles (DOB, grade, handedness, jersey/hat sizing) |
 | `team_players` | Player ↔ team junction with jersey number |
@@ -331,7 +335,7 @@ Tables are auto-created/migrated on first request via `server/db.js`. No manual 
 | `field_locations` | Playing fields with GPS coordinates |
 | `field_reservations` | Field reservations (practices, events, maintenance) |
 | `field_age_groups` | Field ↔ age group filtering |
-| `games` | Game schedule with scores and status |
+| `games` | Game schedule with scores, status (incl. unscheduled), and coach contact |
 | `game_pitch_counts` | Per-player pitch counts per game |
 | `game_import_log` | GameChanger import source tracking |
 | `game_official_assignments` | Official ↔ game junction with fee/paid/no-show tracking |
@@ -339,6 +343,7 @@ Tables are auto-created/migrated on first request via `server/db.js`. No manual 
 | `official_age_groups` | Official ↔ age group eligibility junction |
 | `official_organizations` | Official ↔ org scoping |
 | `umpire_game_interests` | Umpire expression of interest in games |
+| `travel_distances` | Cached org-to-org distances (Haversine) |
 | `league_age_groups` | Age group config (umpire rate, league fee, ump_required) |
 | `league_levels` | Level config (Rec, Competitive, etc.) |
 | `league_seasons` | Season config with is_active flag |
