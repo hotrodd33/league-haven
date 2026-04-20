@@ -9,8 +9,10 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
-import { Button, Input, Select } from './ui/index.js';
+import { Button, Input, Select, Modal } from './ui/index.js';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
+import { GameForm } from './GameSchedule.jsx';
+import { fetchTeams, fetchSeasons } from '../api/index.js';
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
 const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-black px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-[#00f092]';
@@ -42,6 +44,9 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
 
   // Pitch tracker mode
   const [showTracker, setShowTracker] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editTeams, setEditTeams] = useState([]);
+  const [editSeasons, setEditSeasons] = useState([]);
 
   // Score form
   const [scoreForm, setScoreForm] = useState({ home_score: '', away_score: '', innings_played: '' });
@@ -240,12 +245,33 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
             Import from GC
           </Button>
         )}
+        {userCanEdit && (
+          <Button variant="secondary" onClick={async () => {
+            const [t, s] = await Promise.all([fetchTeams(), fetchSeasons()]);
+            setEditTeams(t || []); setEditSeasons(s || []);
+            setShowEditForm(true);
+          }}>
+            ✏️ Edit Game
+          </Button>
+        )}
         {userCanScore && game.status !== 'completed' && (
           <Button variant="warn" onClick={() => setShowTracker(true)}>
             ⚾ Pitch Tracker
           </Button>
         )}
       </div>
+
+      {showEditForm && (
+        <Modal open onClose={() => setShowEditForm(false)} title="Edit Game" size="lg">
+          <GameForm
+            game={game}
+            teams={editTeams}
+            seasons={editSeasons}
+            onDone={() => { setShowEditForm(false); loadAll(); }}
+            onCancel={() => setShowEditForm(false)}
+          />
+        </Modal>
+      )}
 
       {/* Game header */}
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">

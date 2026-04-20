@@ -90,7 +90,7 @@ const PRIORITY_BADGES = {
    Dashboard
    ═══════════════════════════════════════════════════════ */
 
-export default function Dashboard({ onNavigate, onViewPlayer }) {
+export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [gameWeather, setGameWeather] = useState({});
@@ -186,7 +186,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
   const gamesThisWeek = scopedGames.filter(g => g.game_date >= weekStartStr && g.game_date <= weekEndStr);
   const completedGames = scopedGames.filter(g => g.status === 'final');
   const upcomingGames = scopedGames
-    .filter(g => g.game_date >= todayStr && g.status !== 'final' && g.status !== 'cancelled')
+    .filter(g => g.game_date > todayStr && g.status !== 'final' && g.status !== 'cancelled')
     .sort((a, b) => (a.game_date + (a.game_time || '')) > (b.game_date + (b.game_time || '')) ? 1 : -1)
     .slice(0, 5);
 
@@ -399,8 +399,8 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {todaysGames.map((g) => (
+              <div key={g.id} className="cursor-pointer" onClick={() => onNavigateToGame?.(g.id)}>
               <Scoreboard
-                key={g.id}
                 status={g.status === 'in_progress' ? 'in_progress' : g.status === 'final' ? 'final' : 'scheduled'}
                 gameTime={
                   g.game_time ? formatGameTime(g.game_time) : 'Time TBD'
@@ -428,6 +428,7 @@ export default function Dashboard({ onNavigate, onViewPlayer }) {
                 location={g.location_name}
                 weather={getWeatherForGame(g, gameWeather)}
               />
+              </div>
             ))}
           </div>
         </section>
