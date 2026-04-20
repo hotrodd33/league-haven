@@ -144,7 +144,7 @@ export default function TravelMatrix() {
               <table className="text-xs border-collapse min-w-max">
                 <thead>
                   <tr>
-                    <th className="sticky left-0 z-10 bg-gray-850 border-b border-r border-gray-700 px-3 py-2 text-left text-gray-400 font-medium min-w-[130px]">
+                    <th className="sticky left-0 z-10 bg-gray-900 border-b border-r border-gray-700 px-3 py-2 text-left text-gray-400 font-medium min-w-[130px]">
                       Home ↓ / Away →
                     </th>
                     {shorts.map((s, j) => (
