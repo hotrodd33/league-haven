@@ -500,7 +500,6 @@ export async function markAnnouncementRead(id) {
 export async function fetchUnreadAnnouncementCount() {
   return apiFetch('/announcements/unread-count');
 }
-}
 
 // ── Weather ──
 
