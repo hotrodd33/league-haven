@@ -126,7 +126,7 @@ function buildTimeSlots(startTime, endTime, increment) {
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport }) {
-  const { isAdmin, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire } = useAuth();
+  const { isAdmin, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
   const [games, setGames] = useState([]);
   const [teams, setTeams] = useState([]);
   const [seasons, setSeasons] = useState([]);
@@ -158,6 +158,18 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [filterEventType, setFilterEventType] = useState('games');
   const [sortOrder, setSortOrder] = useState('asc');
 
+  // My teams (for coaches/org admins)
+  const myTeamIds = useMemo(() => {
+    const ids = new Set(permissions?.team_ids || []);
+    // Also include teams belonging to user's orgs
+    if (permissions?.org_ids?.length) {
+      for (const t of teams) {
+        if (permissions.org_ids.includes(Number(t.org_id))) ids.add(Number(t.id));
+      }
+    }
+    return Array.from(ids);
+  }, [permissions, teams]);
+
   // Practices/events
   const [practices, setPractices] = useState([]);
   const [editingPractice, setEditingPractice] = useState(null);
@@ -179,15 +191,22 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const loadGames = useCallback(async () => {
     try {
       const filters = {};
-      if (filterTeam) filters.team_id = filterTeam;
+      const isMyTeams = filterTeam === '__my_teams__';
+      if (filterTeam && !isMyTeams) filters.team_id = filterTeam;
       if (filterSeason) filters.season_id = filterSeason;
       if (filterStatus) filters.status = filterStatus;
       const [gamesData, practicesData] = await Promise.all([
         fetchGames(filters),
-        fetchAllPractices(filterTeam ? { team_id: filterTeam } : {}),
+        fetchAllPractices(filterTeam && !isMyTeams ? { team_id: filterTeam } : {}),
       ]);
-      setGames(gamesData);
-      setPractices(practicesData || []);
+      if (isMyTeams) {
+        const mySet = new Set(myTeamIds.map(Number));
+        setGames(gamesData.filter(g => mySet.has(Number(g.home_team_id)) || mySet.has(Number(g.away_team_id))));
+        setPractices((practicesData || []).filter(p => mySet.has(Number(p.team_id))));
+      } else {
+        setGames(gamesData);
+        setPractices(practicesData || []);
+      }
     } catch (err) { setError(err.message); }
   }, [filterTeam, filterSeason, filterStatus, filterDivision]);
 
@@ -415,6 +434,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
           <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)}
             className="lh-select min-w-[180px]">
             <option value="">All Teams</option>
+            {myTeamIds.length > 0 && <option value="__my_teams__">⭐ My Teams</option>}
             {orgNames.map(orgName => (
               <optgroup key={orgName} label={orgName}>
                 {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
