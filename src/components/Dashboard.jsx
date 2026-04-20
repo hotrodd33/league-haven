@@ -569,7 +569,7 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
             <CardBody>
               <div className="divide-y divide-gray-700/50">
                 {unscoredGames.slice(0, 6).map((g) => (
-                  <div key={g.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 gap-3">
+                  <div key={g.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 gap-3 cursor-pointer hover:bg-gray-700/30 rounded px-1 -mx-1" onClick={() => onNavigateToGame?.(g.id)}>
                     <div className="min-w-0 flex-1">
                       <span className="text-sm font-medium text-gray-200 block truncate">
                         {g.away_team_name || 'TBD'} @ {g.home_team_name || 'TBD'}
@@ -627,8 +627,8 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {upcomingGames.map((g) => (
+                <div key={g.id} className="cursor-pointer" onClick={() => onNavigateToGame?.(g.id)}>
                 <Scoreboard
-                  key={g.id}
                   status={g.status === 'in_progress' ? 'in_progress' : 'scheduled'}
                   gameTime={
                     formatGameDate(g.game_date) +
@@ -657,6 +657,7 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
                   location={g.location_name}
                   weather={getWeatherForGame(g, gameWeather)}
                 />
+                </div>
               ))}
             </div>
           )}
