@@ -5,7 +5,7 @@ const router = express.Router();
 
 // POST /api/bug-report
 router.post('/', authMiddleware, async (req, res) => {
-  const webhookUrl = process.env.DISCORD_BUG_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL || process.env.DISCORD_BUG_WEBHOOK_URL;
   if (!webhookUrl) {
     return res.status(503).json({ error: 'Bug reporting is not configured on this server.' });
   }
