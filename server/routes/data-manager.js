@@ -73,6 +73,15 @@ async function buildTeamLookup() {
   return lookup;
 }
 
+async function buildOrgLookup() {
+  const { rows } = await pool.query('SELECT id, name FROM organizations');
+  const lookup = {};
+  for (const o of rows) {
+    lookup[o.name.toLowerCase()] = o.id;
+  }
+  return lookup;
+}
+
 // ── CLEAR DATA ──
 
 // POST /data-manager/clear
@@ -776,6 +785,7 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
 
         const VALID_ROLES = ['head_coach', 'assistant_coach', 'scorekeeper', 'org_admin'];
         const teamLookup = await buildTeamLookup();
+        const orgLookup = await buildOrgLookup();
 
         const { rows: existing } = await pool.query('SELECT id, name FROM staff_members');
         const staffLookup = {};
@@ -853,21 +863,67 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
               }
             }
 
-            // Assign to teams
+            // Assign to teams and/or orgs
             if (teamCol && r[teamCol]) {
-              const teamNames = r[teamCol].split(/[;|]/).map(s => s.trim()).filter(Boolean);
+              const teamEntries = r[teamCol].split(/[;|]/).map(s => s.trim()).filter(Boolean);
               const roles = roleCol && r[roleCol] ? r[roleCol].split(/[;|]/).map(s => s.trim()) : [];
-              for (let j = 0; j < teamNames.length; j++) {
-                const tid = teamLookup[teamNames[j].toLowerCase()];
+
+              for (let j = 0; j < teamEntries.length; j++) {
+                const entry = teamEntries[j];
                 const role = (roles[j] || 'assistant_coach').toLowerCase().replace(/ /g, '_');
                 const validRole = VALID_ROLES.includes(role) ? role : 'assistant_coach';
-                if (tid) {
-                  await pool.query(
-                    'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3) ON CONFLICT (team_id, staff_id) DO UPDATE SET role = $3',
-                    [tid, staffId, validRole]
-                  );
+
+                // Parse org syntax: (OrgName) or OrgName* or (OrgName)*
+                const orgMatch = entry.match(/^\(?([^)]+)\)?\*?$/);
+                const isOrgSyntax = entry.includes('(') || entry.endsWith('*');
+                const assignAllTeamsInOrg = entry.endsWith('*');
+                const orgName = orgMatch ? orgMatch[1].trim() : entry.replace('*', '').trim();
+
+                if (isOrgSyntax || validRole === 'org_admin') {
+                  // Try org assignment
+                  const orgId = orgLookup[orgName.toLowerCase()];
+                  if (orgId) {
+                    // For org_admin, assign org permissions via user_permissions
+                  if (validRole === 'org_admin' && userId) {
+                    const { rows: existingPerms } = await pool.query(
+                      'SELECT id FROM user_permissions WHERE user_id = $1 AND org_id = $2',
+                      [userId, orgId]
+                    );
+                    if (!existingPerms.length) {
+                      await pool.query(
+                        'INSERT INTO user_permissions (user_id, org_id, role) VALUES ($1, $2, $3)',
+                        [userId, orgId, validRole]
+                      );
+                    }
+                  }
+
+                    // If assignAllTeamsInOrg, assign all teams in org
+                    if (assignAllTeamsInOrg) {
+                      const { rows: orgTeams } = await pool.query(
+                        'SELECT id FROM teams WHERE org_id = $1',
+                        [orgId]
+                      );
+                      for (const t of orgTeams) {
+                        await pool.query(
+                          'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3) ON CONFLICT (team_id, staff_id) DO UPDATE SET role = $3',
+                          [t.id, staffId, validRole]
+                        );
+                      }
+                    }
+                  } else if (isOrgSyntax) {
+                    results.errors.push(`Row ${i + 2}: org "${orgName}" not found`);
+                  }
                 } else {
-                  results.errors.push(`Row ${i + 2}: team "${teamNames[j]}" not found`);
+                  // Regular team assignment
+                  const tid = teamLookup[entry.toLowerCase()];
+                  if (tid) {
+                    await pool.query(
+                      'INSERT INTO team_staff_assignments (team_id, staff_id, role) VALUES ($1, $2, $3) ON CONFLICT (team_id, staff_id) DO UPDATE SET role = $3',
+                      [tid, staffId, validRole]
+                    );
+                  } else {
+                    results.errors.push(`Row ${i + 2}: team "${entry}" not found`);
+                  }
                 }
               }
             }
