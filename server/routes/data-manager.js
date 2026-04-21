@@ -830,10 +830,10 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
                   const tempPassword = crypto.randomBytes(6).toString('base64url').slice(0, 10);
                   const hash = await bcrypt.hash(tempPassword, 10);
 
-                  // Insert user with email as username
+                  // Insert user with email as username, auto-approved for CSV imports
                   const { rows: userRows } = await pool.query(
                     `INSERT INTO users (username, password_hash, name, email, role, email_confirmed, approval_status)
-                     VALUES ($1, $2, $3, $4, $5, FALSE, 'pending') RETURNING id`,
+                     VALUES ($1, $2, $3, $4, $5, FALSE, 'approved') RETURNING id`,
                     [username, hash, name, email, userRole]
                   );
 
