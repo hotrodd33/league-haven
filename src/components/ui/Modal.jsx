@@ -62,7 +62,7 @@ export default function Modal({
             </button>
           </div>
         )}
-        <div className="px-5 py-4 max-h-[calc(100vh-12rem)] overflow-y-auto scrollbar-thin">
+        <div className="px-5 py-4 max-h-[calc(100vh-12rem)] overflow-y-auto overflow-x-visible scrollbar-thin">
           {children}
         </div>
         {footer && (

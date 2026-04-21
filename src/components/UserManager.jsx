@@ -1,10 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   fetchUsers, createUser, updateUser, deleteUser, updateUserPermissions,
   fetchOrganizations, fetchTeams, inviteUser,
   fetchPendingApprovals, approveUser, rejectUser, resetUserApproval,
 } from '../api/index.js';
 import { Button, Input, Select, Modal, Badge } from './ui/index.js';
+
+function SortIcon({ active, dir }) {
+  if (!active) return <span className="ml-1 text-gray-600">↕</span>;
+  return <span className="ml-1 text-action-400">{dir === 'asc' ? '↑' : '↓'}</span>;
+}
 
 function formatLogin(ts) {
   if (!ts) return null;
@@ -41,6 +46,14 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
   const [editingPerms, setEditingPerms] = useState(null);
   const [deleting, setDeleting] = useState(null);
 
+  // Sort state
+  const [sortKey, setSortKey] = useState('name');
+  const [sortDir, setSortDir] = useState('asc');
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const loadUsers = useCallback(async () => {
     setLoading(true); setError(null);
     try { setUsers(await fetchUsers()); }
@@ -56,6 +69,7 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
     try {
       await deleteUser(user.id);
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(user.id); return next; });
     } catch (err) { alert(`Failed to delete: ${err.message}`); }
     finally { setDeleting(null); }
   }
@@ -69,6 +83,56 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
       alert(result.message || `Invite sent to ${user.email}`);
     } catch (err) { alert(`Failed to send invite: ${err.message}`); }
     finally { setInviting(null); }
+  }
+
+  function handleSort(key) {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  }
+
+  const sortedUsers = useMemo(() => {
+    const getValue = (u) => {
+      if (sortKey === 'name') return (u.name || '').toLowerCase();
+      if (sortKey === 'username') return (u.username || '').toLowerCase();
+      if (sortKey === 'email') return (u.email || '').toLowerCase();
+      if (sortKey === 'role') return u.role || '';
+      if (sortKey === 'last_login') return u.last_login_at || '';
+      if (sortKey === 'permissions') return (u.permissions?.org_ids?.length || 0) + (u.permissions?.team_ids?.length || 0);
+      return '';
+    };
+    return [...users].sort((a, b) => {
+      const av = getValue(a), bv = getValue(b);
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [users, sortKey, sortDir]);
+
+  const selectableIds = useMemo(() => sortedUsers.filter(u => u.role !== 'super_admin').map(u => u.id), [sortedUsers]);
+  const allSelected = selectableIds.length > 0 && selectableIds.every(id => selectedIds.has(id));
+
+  function toggleSelectAll() {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(selectableIds));
+  }
+
+  function toggleSelect(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    const count = selectedIds.size;
+    if (!window.confirm(`Delete ${count} selected user${count !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    setBulkDeleting(true);
+    try {
+      await Promise.all([...selectedIds].map(id => deleteUser(id)));
+      setUsers(prev => prev.filter(u => !selectedIds.has(u.id)));
+      setSelectedIds(new Set());
+    } catch (err) { alert(`Bulk delete failed: ${err.message}`); }
+    finally { setBulkDeleting(false); }
   }
 
   if (editingPerms) {
@@ -98,6 +162,11 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
           {tab === 'approvals' && <h2 className="text-xl font-display font-bold text-white">Approvals</h2>}
         </div>
         <div className="flex gap-2">
+          {tab === 'users' && selectedIds.size > 0 && (
+            <Button variant="danger" onClick={handleBulkDelete} disabled={bulkDeleting} loading={bulkDeleting}>
+              {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.size} selected`}
+            </Button>
+          )}
           {tab === 'users' && <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Add User</Button>}
           {onBack && <Button variant="secondary" onClick={onBack}>← Back</Button>}
         </div>
@@ -125,18 +194,35 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
             <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
               <thead>
                 <tr className="bg-gray-800 border-b-2 border-gray-700">
-                  <th className="px-3 py-2 text-left eyebrow">Username</th>
-                  <th className="px-3 py-2 text-left eyebrow">Name</th>
-                  <th className="px-3 py-2 text-left eyebrow">Email</th>
-                  <th className="px-3 py-2 text-left eyebrow">Role</th>
-                  <th className="px-3 py-2 text-left eyebrow">Last Login</th>
-                  <th className="px-3 py-2 text-left eyebrow">Permissions</th>
+                  <th className="px-3 py-2 w-8">
+                    <input type="checkbox" checked={allSelected} onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded bg-gray-700 border-gray-500 accent-teal-500 cursor-pointer" />
+                  </th>
+                  {[
+                    { key: 'username', label: 'Username' },
+                    { key: 'name', label: 'Name' },
+                    { key: 'email', label: 'Email' },
+                    { key: 'role', label: 'Role' },
+                    { key: 'last_login', label: 'Last Login' },
+                    { key: 'permissions', label: 'Permissions' },
+                  ].map(col => (
+                    <th key={col.key} className="px-3 py-2 text-left eyebrow cursor-pointer select-none hover:text-gray-100"
+                      onClick={() => handleSort(col.key)}>
+                      {col.label}<SortIcon active={sortKey === col.key} dir={sortDir} />
+                    </th>
+                  ))}
                   <th className="px-3 py-2 text-left eyebrow">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-gray-900">
+                {sortedUsers.map((u) => (
+                  <tr key={u.id} className={`hover:bg-gray-900 ${selectedIds.has(u.id) ? 'bg-gray-900/60' : ''}`}>
+                    <td className="px-3 py-2">
+                      {u.role !== 'super_admin' && (
+                        <input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelect(u.id)}
+                          className="w-4 h-4 rounded bg-gray-700 border-gray-500 accent-teal-500 cursor-pointer" />
+                      )}
+                    </td>
                     <td className="px-3 py-2 font-mono text-sm">{u.username}</td>
                     <td className="px-3 py-2 font-semibold">{u.name}</td>
                     <td className="px-3 py-2 text-sm text-gray-400">{u.email || <span className="text-gray-300">—</span>}</td>
@@ -187,15 +273,21 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
-            {users.map((u) => (
-              <div key={u.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4 text-gray-200">
+            {sortedUsers.map((u) => (
+              <div key={u.id} className={`bg-gray-800 rounded-lg shadow-sm border p-4 text-gray-200 ${selectedIds.has(u.id) ? 'border-teal-600' : 'border-gray-700'}`}>
                 <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <div className="font-semibold">{u.name}</div>
-                    <div className="text-sm text-gray-400 font-mono">{u.username}</div>
-                    {u.email && <div className="text-xs text-gray-400">{u.email}</div>}
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      {formatLogin(u.last_login_at) ? `Last login: ${formatLogin(u.last_login_at)}` : 'Never logged in'}
+                  <div className="flex items-start gap-3">
+                    {u.role !== 'super_admin' && (
+                      <input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelect(u.id)}
+                        className="w-4 h-4 mt-0.5 rounded bg-gray-700 border-gray-500 accent-teal-500 cursor-pointer shrink-0" />
+                    )}
+                    <div>
+                      <div className="font-semibold">{u.name}</div>
+                      <div className="text-sm text-gray-400 font-mono">{u.username}</div>
+                      {u.email && <div className="text-xs text-gray-400">{u.email}</div>}
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {formatLogin(u.last_login_at) ? `Last login: ${formatLogin(u.last_login_at)}` : 'Never logged in'}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-1 flex-wrap justify-end">
