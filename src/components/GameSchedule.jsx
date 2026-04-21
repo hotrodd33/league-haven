@@ -1454,7 +1454,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="game-date" className="lh-eyebrow block mb-1">Date</label>
-                  <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} className="lh-input" />
+                  <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} onTouchEnd={(e) => e.stopPropagation()} className="lh-input" />
                 </div>
                 <div>
                   <label htmlFor="game-time" className="lh-eyebrow block mb-1">Time</label>
@@ -1576,7 +1576,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                 </div>
                 <div>
                   <label htmlFor="res-date" className="lh-eyebrow block mb-1">Date *</label>
-                  <input id="res-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} required className="lh-input" />
+                  <input id="res-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} onTouchEnd={(e) => e.stopPropagation()} required className="lh-input" />
                 </div>
               </div>
 
