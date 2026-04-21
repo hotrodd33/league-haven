@@ -312,3 +312,11 @@ export function GlobeIcon({ className = 'w-5 h-5' }) {
     </svg>
   );
 }
+
+export function BugAntIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" {...s}>
+      <path d="M12 12c0-2.21 1.79-4 4-4m-4 4c0-2.21-1.79-4-4-4m4 4v6m0-6a2 2 0 100-4 2 2 0 000 4zm-6 0H4m2 3.5H3.5M6 18H4m12-6h2m-2 3.5h2.5M18 18h2m-8 0a4 4 0 01-4-4m4 4a4 4 0 004-4" />
+    </svg>
+  );
+}

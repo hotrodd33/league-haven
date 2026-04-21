@@ -1226,3 +1226,10 @@ export async function fetchTravelMatrix() {
 export async function recalculateTravelMatrix() {
   return apiFetch('/travel/recalculate', { method: 'POST' });
 }
+
+export async function reportBug(data) {
+  return apiFetch('/bug-report', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}

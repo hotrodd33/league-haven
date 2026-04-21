@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '../../lib/cn.js';
-import { Bars3Icon, LockIcon, ArrowRightStartOnRectangleIcon, InformationCircleIcon, BookOpenIcon, UserIcon } from './icons.jsx';
+import { Bars3Icon, LockIcon, ArrowRightStartOnRectangleIcon, InformationCircleIcon, BookOpenIcon, UserIcon, BugAntIcon } from './icons.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { fetchTeams } from '../../api/index.js';
 import TeamLogo from '../TeamLogo.jsx';
@@ -16,6 +16,7 @@ export default function TopBar({
   onShowAbout,
   onShowGuide,
   onMyAccount,
+  onReportBug,
   children,
 }) {
   const { isSuperAdmin, permissions } = useAuth();
@@ -154,6 +155,13 @@ export default function TopBar({
             >
               <LockIcon className="w-4 h-4 text-gray-400" />
               Change Password
+            </button>
+            <button
+              onClick={() => { setUserMenuOpen(false); onReportBug?.(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-900 transition-colors"
+            >
+              <BugAntIcon className="w-4 h-4 text-gray-400" />
+              Report a Bug
             </button>
             <button
               onClick={() => { setUserMenuOpen(false); onLogout?.(); }}

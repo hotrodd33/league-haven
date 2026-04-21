@@ -173,15 +173,17 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function sendCoachInviteEmail(to, name, tempPassword, teamName, { replyTo } = {}) {
+function sendCoachInviteEmail(to, name, tempPassword, assignment, { replyTo } = {}) {
+  const roleLabel = assignment?.role || 'Coach';
+  const teamsSummary = assignment?.teams || (typeof assignment === 'string' ? assignment : null);
   return sendEmail({
     to,
     replyTo,
-    subject: `LeagueHaven — You've been added as coach for ${teamName}`,
+    subject: `LeagueHaven — You've been added as ${roleLabel}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
         <h2 style="color:#1e3a5f;">Welcome to LeagueHaven, ${esc(name)}!</h2>
-        <p>You've been registered as the coach for <strong>${esc(teamName)}</strong>.</p>
+        <p>You've been added as <strong>${esc(roleLabel)}</strong>${teamsSummary ? ` for <strong>${esc(teamsSummary)}</strong>` : ''}.</p>
         <p>An account has been created for you. Sign in with these credentials:</p>
         <div style="background:#f3f4f6;padding:12px 16px;border-radius:8px;margin:12px 0;">
           <p style="margin:4px 0;"><strong>Username:</strong> ${esc(to)}</p>
