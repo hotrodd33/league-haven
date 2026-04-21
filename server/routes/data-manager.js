@@ -788,6 +788,12 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const roleCol = findCol(headers, 'role', 'roles', 'position');
 
         const VALID_ROLES = ['head_coach', 'assistant_coach', 'scorekeeper', 'org_admin'];
+        const ROLE_LABELS = {
+          head_coach: 'Head Coach',
+          assistant_coach: 'Assistant Coach',
+          scorekeeper: 'Scorekeeper',
+          org_admin: 'Org Admin',
+        };
         const teamLookup = await buildTeamLookup();
         const orgLookup = await buildOrgLookup();
 
@@ -833,6 +839,8 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
             const userRole = STAFF_ROLE_TO_USER_ROLE[validStaffRole] || 'score_reporter';
 
             let userId = null;
+            let pendingInviteEmail = null;
+            const assignedLabels = [];
             if (email) {
               const { rows: existingUser } = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [email]);
               if (existingUser.length) {
@@ -855,15 +863,8 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
                   );
 
                   userId = userRows[0].id;
+                  pendingInviteEmail = { email, name, tempPassword };
                   results.accountsCreated = (results.accountsCreated || 0) + 1;
-
-                  // Send invite email
-                  try {
-                    await sendCoachInviteEmail(email, name, tempPassword, 'LeagueHaven');
-                  } catch (err) {
-                    results.emailErrors = (results.emailErrors || 0) + 1;
-                    console.error(`Failed to send invite email to ${email}:`, err);
-                  }
                 } catch (err) {
                   results.errors.push(`Row ${i + 2}: Failed to create account for ${email}: ${err.message}`);
                 }
@@ -924,7 +925,7 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
                     if (assignAllTeamsInOrg) {
                       try {
                         const { rows: orgTeams } = await pool.query(
-                          'SELECT id FROM teams WHERE org_id = $1', [orgId]
+                          'SELECT id, name FROM teams WHERE org_id = $1', [orgId]
                         );
                         for (const t of orgTeams) {
                           await pool.query(
@@ -942,9 +943,12 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
                             }
                           }
                         }
+                        if (orgTeams.length) assignedLabels.push(`all teams in ${orgName}`);
                       } catch (teamErr) {
                         results.errors.push(`Row ${i + 2}: Failed to assign teams in org: ${teamErr.message}`);
                       }
+                    } else {
+                      assignedLabels.push(orgName);
                     }
                   } else if (isOrgSyntax) {
                     results.errors.push(`Row ${i + 2}: org "${orgName}" not found`);
@@ -968,6 +972,7 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
                           );
                         }
                       }
+                      assignedLabels.push(entry);
                     } catch (teamErr) {
                       results.errors.push(`Row ${i + 2}: Failed to assign team: ${teamErr.message}`);
                     }
@@ -975,6 +980,22 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
                     results.errors.push(`Row ${i + 2}: team "${entry}" not found`);
                   }
                 }
+              }
+            }
+
+            // Send invite email after all assignments are known
+            if (pendingInviteEmail) {
+              try {
+                const roleLabel = ROLE_LABELS[validStaffRole] || validStaffRole;
+                await sendCoachInviteEmail(
+                  pendingInviteEmail.email,
+                  pendingInviteEmail.name,
+                  pendingInviteEmail.tempPassword,
+                  { role: roleLabel, teams: assignedLabels.join(', ') || null }
+                );
+              } catch (err) {
+                results.emailErrors = (results.emailErrors || 0) + 1;
+                console.error(`Failed to send invite email to ${pendingInviteEmail.email}:`, err);
               }
             }
           } catch (err) { results.errors.push(`Row ${i + 2}: ${err.message}`); }
