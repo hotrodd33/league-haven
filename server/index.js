@@ -36,6 +36,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const announcementsRoutes = require('./routes/announcements');
 const weatherRoutes = require('./routes/weather');
 const travelRoutes = require('./routes/travel');
+const bugReportRoutes = require('./routes/bug-report');
 
 const helmet = require('helmet');
 
@@ -85,6 +86,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/announcements', announcementsRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/travel', travelRoutes);
+app.use('/api/bug-report', bugReportRoutes);
 
 // ── Serve React build in local dev only (Vercel serves static files itself) ──
 if (!process.env.VERCEL) {

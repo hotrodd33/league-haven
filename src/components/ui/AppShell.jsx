@@ -3,6 +3,7 @@ import { cn } from '../../lib/cn.js';
 import Sidebar from './Sidebar.jsx';
 import TopBar from './TopBar.jsx';
 import LiveScoreTicker from '../ticker/LiveScoreTicker.jsx';
+import BugReportModal from '../BugReportModal.jsx';
 
 /**
  * AppShell — Premium SaaS layout with collapsible sidebar + sticky top bar.
@@ -34,6 +35,7 @@ export default function AppShell({
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showBugReport, setShowBugReport] = useState(false);
 
   const pageTitle = {
     dashboard: 'Dashboard',
@@ -96,6 +98,7 @@ export default function AppShell({
           onMyAccount={onMyAccount}
           onShowAbout={() => onNavigate('about')}
           onShowGuide={() => onNavigate('guide')}
+          onReportBug={() => setShowBugReport(true)}
         />
 
         {/* Live score ticker — hidden when no in-progress games or dismissed */}
@@ -106,6 +109,8 @@ export default function AppShell({
           {children}
         </main>
       </div>
+
+      {showBugReport && <BugReportModal onClose={() => setShowBugReport(false)} />}
     </div>
   );
 }
