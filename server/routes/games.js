@@ -5,7 +5,7 @@ const { sendGameChangeEmail } = require('../email');
 const { notifyTeamUsers } = require('../push');
 const cache = require('../cache');
 
-const STANDINGS_TTL = 60_000; // 60s
+const STANDINGS_TTL = 5 * 60_000; // 5 min — public site reads frequently
 const GAMES_TTL = 45_000;    // 45s — short enough admins see changes quickly
 
 const router = express.Router();
