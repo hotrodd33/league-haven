@@ -6,6 +6,7 @@ const { notifyTeamUsers } = require('../push');
 const cache = require('../cache');
 
 const STANDINGS_TTL = 60_000; // 60s
+const GAMES_TTL = 45_000;    // 45s — short enough admins see changes quickly
 
 const router = express.Router();
 
@@ -207,6 +208,11 @@ async function canAssignOfficialsForTeam(client, teamId) {
 router.get('/', async (req, res) => {
   try {
     const { team_id, season_id, status, from, to } = req.query;
+
+    const cacheKey = `games:${team_id||''}:${season_id||''}:${status||''}:${from||''}:${to||''}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
     const conditions = [];
     const params = [];
     let idx = 1;
@@ -240,7 +246,9 @@ router.get('/', async (req, res) => {
     const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
     const sql = BASE_SELECT + where + ' ORDER BY gd.division_sort NULLS LAST, gd.division_name NULLS LAST, g.game_date, g.game_time NULLS LAST';
     const { rows } = await pool.query(sql, params);
-    res.json(rows.map(enrichGame));
+    const result = rows.map(enrichGame);
+    cache.set(cacheKey, result, GAMES_TTL);
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -487,6 +495,8 @@ router.post('/', authMiddleware, async (req, res) => {
     await replaceGameOfficials(client, gameId, officialIds);
     await client.query('COMMIT');
 
+    cache.invalidatePrefix('games:');
+    cache.invalidatePrefix('standings:');
     const { rows: gameRows } = await pool.query(BASE_SELECT + ' WHERE g.id = $1', [gameId]);
     res.status(201).json(enrichGame(gameRows[0]));
   } catch (err) {
@@ -608,6 +618,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }, 'cancellations').catch(() => {});
     }
 
+    cache.invalidatePrefix('games:');
     cache.invalidatePrefix('standings:');
     res.json(updated);
   } catch (err) {
@@ -715,6 +726,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 
     await pool.query('DELETE FROM games WHERE id = $1', [id]);
+    cache.invalidatePrefix('games:');
     cache.invalidatePrefix('standings:');
     res.json({ success: true });
   } catch (err) {
