@@ -352,7 +352,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     if (!gamesByDate[dateKey]) gamesByDate[dateKey] = [];
     gamesByDate[dateKey].push(item);
   }
-  const sortedDateKeys = Object.keys(gamesByDate).sort((a, b) => sortOrder === 'asc' ? a.localeCompare(b) : b.localeCompare(a));
+  const sortedDateKeys = Object.keys(gamesByDate).sort((a, b) => {
+    // Always put TBD (no date) at the bottom regardless of sort direction
+    if (a === '__unknown__') return 1;
+    if (b === '__unknown__') return -1;
+    return sortOrder === 'asc' ? a.localeCompare(b) : b.localeCompare(a);
+  });
 
   const anchorDateKey = useMemo(() => {
     if (!sortedDateKeys.length) return null;
