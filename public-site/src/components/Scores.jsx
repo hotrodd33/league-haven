@@ -68,7 +68,7 @@ export default function Scores({ onNavigateToTeam }) {
   for (const g of games) {
     const divKey  = g.division_id ? String(g.division_id) : '__none__';
     const divName = g.division_name || 'Unassigned';
-    if (!byDivision[divKey]) byDivision[divKey] = { name: divName, sort: g.division_sort || 'zzz', dates: {} };
+    if (!byDivision[divKey]) byDivision[divKey] = { name: divName, sort: String(g.division_sort ?? 'zzz'), dates: {} };
     const dateKey = g.game_date || 'TBD';
     if (!byDivision[divKey].dates[dateKey]) byDivision[divKey].dates[dateKey] = [];
     byDivision[divKey].dates[dateKey].push(g);

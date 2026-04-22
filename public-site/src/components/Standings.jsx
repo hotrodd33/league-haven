@@ -46,7 +46,7 @@ export default function Standings({ onNavigateToTeam }) {
       if (!row.division_id) return acc;
       const key = String(row.division_id);
       if (!acc[key]) {
-        acc[key] = { id: key, name: row.division_name || 'Other', sort: row.division_sort || 'zzz' };
+        acc[key] = { id: key, name: row.division_name || 'Other', sort: String(row.division_sort ?? 'zzz') };
       }
       return acc;
     }, {})
