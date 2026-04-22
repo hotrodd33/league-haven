@@ -350,7 +350,7 @@ router.get('/check-game-conflicts', async (req, res) => {
 // Returns all practices/events across the league (no game_holds)
 router.get('/all', async (req, res) => {
   try {
-    const { team_id, event_type } = req.query;
+    const { team_id, event_type, from, to } = req.query;
     let sql = `SELECT r.*, fl.name AS location_name, fl.address AS location_address,
                 fl.city AS location_city, fl.state AS location_state,
                 t.name AS team_name
@@ -361,7 +361,9 @@ router.get('/all', async (req, res) => {
     const params = [];
     if (team_id) { params.push(team_id); sql += ` AND r.team_id = $${params.length}`; }
     if (event_type) { params.push(event_type); sql += ` AND r.event_type = $${params.length}`; }
-    sql += ' ORDER BY r.event_date, r.start_time';
+    if (from) { params.push(from); sql += ` AND r.event_date >= $${params.length}`; }
+    if (to) { params.push(to); sql += ` AND r.event_date <= $${params.length}`; }
+    sql += ' ORDER BY r.event_date, r.start_time LIMIT 500';
     const { rows } = await pool.query(sql, params);
     res.json(rows);
   } catch (err) {

@@ -1,5 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
+const cache = require('../cache');
 
 const router = express.Router();
 
@@ -50,7 +51,18 @@ function practiceUid(reservationId) {
 
 router.get('/games.ics', async (req, res) => {
   try {
-    const { team_id, season_id, location_id, org_id } = req.query;
+    const { team_id, season_id, location_id, org_id, from, to } = req.query;
+
+    const cacheKey = `ics:${team_id||''}:${season_id||''}:${location_id||''}:${org_id||''}:${from||''}:${to||''}`;
+    const cachedICS = cache.get(cacheKey);
+    if (cachedICS) {
+      res.set({
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': 'inline; filename="leaguehaven-games.ics"',
+        'Cache-Control': 'public, max-age=1800',
+      });
+      return res.send(cachedICS);
+    }
 
     const conditions = [];
     const params = [];
@@ -74,6 +86,16 @@ router.get('/games.ics', async (req, res) => {
     if (org_id) {
       conditions.push(`(ht.org_id = $${idx} OR at.org_id = $${idx})`);
       params.push(org_id);
+      idx++;
+    }
+    if (from) {
+      conditions.push(`g.game_date >= $${idx}`);
+      params.push(from);
+      idx++;
+    }
+    if (to) {
+      conditions.push(`g.game_date <= $${idx}`);
+      params.push(to);
       idx++;
     }
 
@@ -271,10 +293,11 @@ router.get('/games.ics', async (req, res) => {
 
     const ical = lines.join('\r\n') + '\r\n';
 
+    cache.set(cacheKey, ical, 30 * 60 * 1000);
     res.set({
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': 'inline; filename="leaguehaven-games.ics"',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Cache-Control': 'public, max-age=1800',
     });
     res.send(ical);
   } catch (err) {

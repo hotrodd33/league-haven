@@ -128,6 +128,45 @@ const BASE_SELECT = `
   ) ac_coach ON true
 `;
 
+// Lightweight SELECT for list views — omits officials, interested umpires, coach contacts,
+// and gamechanger import log. GameDetail uses BASE_SELECT; GameSchedule/Dashboard use SLIM_SELECT.
+const SLIM_SELECT = `
+  SELECT g.*,
+    ht.name AS home_team_name, ht.logo_url AS home_team_logo,
+    ht.org_id AS home_org_id,
+    ht.team_city AS home_team_city, ht.team_mascot AS home_team_mascot,
+    ht.team_color AS home_team_color, ht.age_group AS home_age_group, ht.level AS home_level,
+    ht.primary_color AS home_primary_color, ht.secondary_color AS home_secondary_color,
+    ho.logo_url AS home_org_logo,
+    at.name AS away_team_name, at.logo_url AS away_team_logo,
+    at.org_id AS away_org_id,
+    at.team_city AS away_team_city, at.team_mascot AS away_team_mascot,
+    at.team_color AS away_team_color, at.age_group AS away_age_group, at.level AS away_level,
+    at.primary_color AS away_primary_color, at.secondary_color AS away_secondary_color,
+    ao.logo_url AS away_org_logo,
+    fl.name AS location_name, fl.address AS location_address,
+    fl.city AS location_city, fl.state AS location_state,
+    fl.latitude AS location_lat, fl.longitude AS location_lon,
+    ls.name AS season_name, ls.year AS season_year,
+    gd.division_id, gd.division_name, gd.division_sort
+  FROM games g
+  LEFT JOIN teams ht ON ht.id = g.home_team_id
+  LEFT JOIN organizations ho ON ho.id = ht.org_id
+  LEFT JOIN teams at ON at.id = g.away_team_id
+  LEFT JOIN organizations ao ON ao.id = at.org_id
+  LEFT JOIN field_locations fl ON fl.id = g.location_id
+  LEFT JOIN league_seasons ls ON ls.id = g.season_id
+  LEFT JOIN LATERAL (
+    SELECT ld.id AS division_id, ld.name AS division_name, ld.sort_order AS division_sort
+    FROM team_divisions htd
+    JOIN team_divisions atd ON htd.division_id = atd.division_id
+    JOIN league_divisions ld ON ld.id = htd.division_id
+    WHERE htd.team_id = g.home_team_id AND atd.team_id = g.away_team_id
+    ORDER BY ld.sort_order
+    LIMIT 1
+  ) gd ON true
+`;
+
 function enrichGame(row) {
   // Postgres DATE comes as JS Date object; normalize to YYYY-MM-DD string
   let gameDate = row.game_date;
@@ -184,12 +223,10 @@ async function replaceGameOfficials(client, gameId, officialIds = []) {
   const validIds = uniqueIds.filter((id) => validSet.has(id));
   if (!validIds.length) return;
 
-  for (const officialId of validIds) {
-    await client.query(
-      'INSERT INTO game_official_assignments (game_id, official_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [gameId, officialId]
-    );
-  }
+  await client.query(
+    'INSERT INTO game_official_assignments (game_id, official_id) SELECT $1, unnest($2::int[]) ON CONFLICT DO NOTHING',
+    [gameId, validIds]
+  );
 }
 
 async function canAssignOfficialsForTeam(client, teamId) {
@@ -204,12 +241,13 @@ async function canAssignOfficialsForTeam(client, teamId) {
   return !!rows[0]?.officials_enabled;
 }
 
-// GET games — supports filters: ?team_id=, ?season_id=, ?status=, ?from=, ?to=
+// GET games — supports filters: ?team_id=, ?season_id=, ?status=, ?from=, ?to=, ?slim=true
 router.get('/', async (req, res) => {
   try {
-    const { team_id, season_id, status, from, to } = req.query;
+    const { team_id, season_id, status, from, to, slim } = req.query;
+    const isSlim = slim === 'true';
 
-    const cacheKey = `games:${team_id||''}:${season_id||''}:${status||''}:${from||''}:${to||''}`;
+    const cacheKey = `games:${isSlim ? 'slim' : 'full'}:${team_id||''}:${season_id||''}:${status||''}:${from||''}:${to||''}`;
     const cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 
@@ -244,7 +282,8 @@ router.get('/', async (req, res) => {
     }
 
     const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
-    const sql = BASE_SELECT + where + ' ORDER BY gd.division_sort NULLS LAST, gd.division_name NULLS LAST, g.game_date, g.game_time NULLS LAST';
+    const selectBase = isSlim ? SLIM_SELECT : BASE_SELECT;
+    const sql = selectBase + where + ' ORDER BY gd.division_sort NULLS LAST, gd.division_name NULLS LAST, g.game_date, g.game_time NULLS LAST';
     const { rows } = await pool.query(sql, params);
     const result = rows.map(enrichGame);
     cache.set(cacheKey, result, GAMES_TTL);
@@ -497,6 +536,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     cache.invalidatePrefix('games:');
     cache.invalidatePrefix('standings:');
+    cache.invalidatePrefix('umpires:');
     const { rows: gameRows } = await pool.query(BASE_SELECT + ' WHERE g.id = $1', [gameId]);
     res.status(201).json(enrichGame(gameRows[0]));
   } catch (err) {
@@ -620,6 +660,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     cache.invalidatePrefix('games:');
     cache.invalidatePrefix('standings:');
+    cache.invalidatePrefix('umpires:');
     res.json(updated);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -728,6 +769,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     await pool.query('DELETE FROM games WHERE id = $1', [id]);
     cache.invalidatePrefix('games:');
     cache.invalidatePrefix('standings:');
+    cache.invalidatePrefix('umpires:');
     res.json({ success: true });
   } catch (err) {
     console.error(err);

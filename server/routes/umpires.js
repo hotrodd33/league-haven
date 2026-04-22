@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware } = require('../auth');
+const cache = require('../cache');
 
 const router = express.Router();
 
@@ -37,6 +38,10 @@ router.get('/assigned-games', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'Only umpires can access this endpoint' });
     }
 
+    const assignedCacheKey = `umpires:assigned:${req.user.id}`;
+    const assignedCached = cache.get(assignedCacheKey);
+    if (assignedCached) return res.json(assignedCached);
+
     const { rows } = await pool.query(
       `SELECT 
          g.id, g.game_date, g.game_time, g.status, 
@@ -60,6 +65,7 @@ router.get('/assigned-games', authMiddleware, async (req, res) => {
       [req.user.id]
     );
 
+    cache.set(assignedCacheKey, rows, 60_000);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -75,6 +81,10 @@ router.get('/available-games', authMiddleware, async (req, res) => {
     }
 
     const { season_id } = req.query;
+    const avCacheKey = `umpires:available:${req.user.id}:${season_id||''}`;
+    const avCached = cache.get(avCacheKey);
+    if (avCached) return res.json(avCached);
+
     // Get umpire's official profile to determine org scope and eligible age groups
     const { rows: profileRows } = await pool.query(
       `SELECT o.id, o.org_id, ARRAY_AGG(oag.age_group_id) FILTER (WHERE oag.age_group_id IS NOT NULL) AS eligible_age_group_ids
@@ -135,6 +145,7 @@ router.get('/available-games', authMiddleware, async (req, res) => {
       params
     );
 
+    cache.set(avCacheKey, rows, 60_000);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -148,6 +159,10 @@ router.get('/game-interests', authMiddleware, async (req, res) => {
     if (req.user.role !== 'umpire' && !req.user.is_umpire) {
       return res.status(403).json({ error: 'Only umpires can access this endpoint' });
     }
+
+    const intCacheKey = `umpires:interests:${req.user.id}`;
+    const intCached = cache.get(intCacheKey);
+    if (intCached) return res.json(intCached);
 
     const { rows } = await pool.query(
       `SELECT
@@ -173,6 +188,7 @@ router.get('/game-interests', authMiddleware, async (req, res) => {
       [req.user.id]
     );
 
+    cache.set(intCacheKey, rows, 60_000);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -220,6 +236,7 @@ router.post('/interest', authMiddleware, async (req, res) => {
       [req.user.id, game_id]
     );
 
+    cache.invalidatePrefix('umpires:');
     res.status(201).json({ message: 'Interest recorded', interest: rows[0] });
   } catch (err) {
     console.error(err);
@@ -244,6 +261,7 @@ router.delete('/interest/:gameId', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Interest record not found' });
     }
 
+    cache.invalidatePrefix('umpires:');
     res.json({ message: 'Interest removed' });
   } catch (err) {
     console.error(err);

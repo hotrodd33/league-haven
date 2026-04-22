@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { STALE } from '../lib/queryConfig.js';
 import { formatPhone } from '../utils/formatPhone.js';
 import {
   fetchGames, createGame, updateGame, deleteGame,
@@ -127,17 +129,25 @@ function buildTimeSlots(startTime, endTime, increment) {
 
 export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport }) {
   const { isAdmin, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
-  const [games, setGames] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [seasons, setSeasons] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
+
+  const { data: teams = [] } = useQuery({
+    queryKey: ['teams'],
+    queryFn: fetchTeams,
+    staleTime: STALE.THREE_MIN,
+  });
+
+  const { data: seasons = [], isLoading: seasonsLoading } = useQuery({
+    queryKey: ['seasons'],
+    queryFn: fetchSeasons,
+    staleTime: STALE.HOUR,
+  });
+
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [selectedGameId, setSelectedGameId] = useState(initialGameId || null);
   const [trackingGameId, setTrackingGameId] = useState(null);
-  const [interestGameIds, setInterestGameIds] = useState([]);
   const [managingInterest, setManagingInterest] = useState(null);
   const dateSectionRefs = useRef({});
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
@@ -170,84 +180,89 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     return Array.from(ids);
   }, [permissions, teams]);
 
-  // Practices/events
-  const [practices, setPractices] = useState([]);
+  // Practices/events — edit state only (data comes from React Query below)
   const [editingPractice, setEditingPractice] = useState(null);
   const [deletingPractice, setDeletingPractice] = useState(null);
 
-  const loadData = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const [teamsData, seasonsData] = await Promise.all([fetchTeams(), fetchSeasons()]);
-      setTeams(teamsData);
-      setSeasons(seasonsData);
-      // Default to active season
-      const active = seasonsData.find(s => s.is_active);
-      if (active && !filterSeason) setFilterSeason(String(active.id));
-    } catch (err) { setError(err.message); }
-    finally { setLoading(false); }
-  }, []);
-
-  const loadGames = useCallback(async () => {
-    try {
-      const filters = {};
-      const isMyTeams = filterTeam === '__my_teams__';
-      if (filterTeam && !isMyTeams) filters.team_id = filterTeam;
-      if (filterSeason) filters.season_id = filterSeason;
-      if (filterStatus) filters.status = filterStatus;
-      const [gamesData, practicesData] = await Promise.all([
-        fetchGames(filters),
-        fetchAllPractices(filterTeam && !isMyTeams ? { team_id: filterTeam } : {}),
-      ]);
-      if (isMyTeams) {
-        const mySet = new Set(myTeamIds.map(Number));
-        setGames(gamesData.filter(g => mySet.has(Number(g.home_team_id)) || mySet.has(Number(g.away_team_id))));
-        setPractices((practicesData || []).filter(p => mySet.has(Number(p.team_id))));
-      } else {
-        setGames(gamesData);
-        setPractices(practicesData || []);
-      }
-    } catch (err) { setError(err.message); }
-  }, [filterTeam, filterSeason, filterStatus, filterDivision]);
-
-  const loadInterests = useCallback(async () => {
-    if (!isUmpire) {
-      setInterestGameIds([]);
-      return;
+  // Auto-select active season when seasons load
+  useEffect(() => {
+    if (seasons.length && !filterSeason) {
+      const active = seasons.find(s => s.is_active);
+      if (active) setFilterSeason(String(active.id));
     }
-    try {
-      const rows = await fetchGameInterests();
-      setInterestGameIds((rows || []).map((g) => Number(g.id)).filter(Number.isFinite));
-    } catch {
-      setInterestGameIds([]);
-    }
-  }, [isUmpire]);
+  }, [seasons, filterSeason]);
 
-  useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { if (!loading) loadGames(); }, [loadGames, loading]);
-  useEffect(() => { loadInterests(); }, [loadInterests]);
+  // ── React Query: filter-driven data ────────────────────────────────────────
+  const isMyTeams = filterTeam === '__my_teams__';
+  const gamesFilters = {
+    ...(filterTeam && !isMyTeams ? { team_id: filterTeam } : {}),
+    ...(filterSeason ? { season_id: filterSeason } : {}),
+    ...(filterStatus ? { status: filterStatus } : {}),
+    slim: 'true',
+  };
 
-  // Weather state + fetching for games within 16-day forecast window
+  const { data: rawGames = [], isLoading: gamesLoading, error: gamesError } = useQuery({
+    queryKey: ['games', gamesFilters],
+    queryFn: () => fetchGames(gamesFilters),
+    staleTime: STALE.ONE_MIN,
+    placeholderData: keepPreviousData,
+  });
+
+  const practicesFilters = filterTeam && !isMyTeams ? { team_id: filterTeam } : {};
+  const { data: rawPractices = [] } = useQuery({
+    queryKey: ['practices', practicesFilters],
+    queryFn: () => fetchAllPractices(practicesFilters),
+    staleTime: STALE.FIVE_MIN,
+    placeholderData: keepPreviousData,
+  });
+
+  const { data: interestRows = [] } = useQuery({
+    queryKey: ['game-interests'],
+    queryFn: fetchGameInterests,
+    enabled: isUmpire,
+    staleTime: STALE.ONE_MIN,
+  });
+  const interestGameIds = (interestRows || []).map((g) => Number(g.id)).filter(Number.isFinite);
+
+  const mySet = useMemo(() => isMyTeams ? new Set(myTeamIds.map(Number)) : null, [isMyTeams, myTeamIds]);
+
+  const games = useMemo(() => {
+    if (!isMyTeams || !mySet) return rawGames;
+    return rawGames.filter(g => mySet.has(Number(g.home_team_id)) || mySet.has(Number(g.away_team_id)));
+  }, [rawGames, isMyTeams, mySet]);
+
+  const practices = useMemo(() => {
+    if (!isMyTeams || !mySet) return rawPractices;
+    return rawPractices.filter(p => mySet.has(Number(p.team_id)));
+  }, [rawPractices, isMyTeams, mySet]);
+
+  const loading = seasonsLoading || gamesLoading;
+  const error = gamesError?.message || null;
+
+  // ── Weather: fetch only new game IDs, never re-fetch on filter/sort ─────────
   const [gameWeather, setGameWeather] = useState({});
+  const weatherFetchedRef = useRef(new Set());
 
   useEffect(() => {
     if (!games.length) return;
-    const todayStr_ = new Date().toISOString().slice(0, 10);
+    const todayStr = new Date().toISOString().slice(0, 10);
     const maxDate = new Date();
     maxDate.setDate(maxDate.getDate() + 16);
     const maxDateStr = maxDate.toISOString().slice(0, 10);
 
     const weatherableGames = games.filter(g =>
       g.location_lat && g.location_lon &&
-      g.game_date >= todayStr_ && g.game_date <= maxDateStr &&
-      g.status !== 'cancelled'
-    ).slice(0, 20); // Limit API calls
+      g.game_date >= todayStr && g.game_date <= maxDateStr &&
+      g.status !== 'cancelled' &&
+      !weatherFetchedRef.current.has(String(g.id))
+    ).slice(0, 20);
 
     if (!weatherableGames.length) return;
 
+    for (const g of weatherableGames) weatherFetchedRef.current.add(String(g.id));
+
     const promises = weatherableGames.map(g => {
-      // Always use forecast for games with a specific time (even today)
-      const fetcher = (g.game_date === todayStr_ && !g.game_time)
+      const fetcher = (g.game_date === todayStr && !g.game_time)
         ? fetchWeather(g.location_lat, g.location_lon)
         : fetchWeatherForecast(g.location_lat, g.location_lon, g.game_date, g.game_time || null);
       return fetcher
@@ -258,7 +273,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     Promise.all(promises).then(results => {
       const map = {};
       for (const r of results) if (r) map[r.key] = r.weather;
-      setGameWeather(map);
+      setGameWeather(prev => ({ ...prev, ...map }));
     });
   }, [games]);
 
@@ -267,7 +282,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     try {
       if (currentlyInterested) await removeGameInterest(gameId);
       else await expressGameInterest(gameId);
-      await Promise.all([loadGames(), loadInterests()]);
+      queryClient.invalidateQueries({ queryKey: ['game-interests'] });
+      queryClient.invalidateQueries({ queryKey: ['games'] });
     } catch (err) {
       alert(`Failed to update interest: ${err.message}`);
     } finally {
@@ -281,7 +297,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     setDeleting(game.id);
     try {
       await deleteGame(game.id);
-      setGames(prev => prev.filter(g => g.id !== game.id));
+      queryClient.invalidateQueries({ queryKey: ['games'] });
     } catch (err) { alert(`Failed to delete: ${err.message}`); }
     finally { setDeleting(null); }
   }
@@ -292,7 +308,10 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   }
 
   function handleFormDone() {
-    setShowForm(false); setEditing(null); loadGames();
+    setShowForm(false);
+    setEditing(null);
+    queryClient.invalidateQueries({ queryKey: ['games'] });
+    queryClient.invalidateQueries({ queryKey: ['practices'] });
   }
 
   // Extract unique divisions from games
@@ -384,11 +403,11 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   if (error) return <div className="lh-alert lh-alert-error">Error: {error}</div>;
 
   if (trackingGameId) {
-    return <PitchTracker gameId={trackingGameId} onBack={() => { setTrackingGameId(null); loadGames(); }} />;
+    return <PitchTracker gameId={trackingGameId} onBack={() => { setTrackingGameId(null); queryClient.invalidateQueries({ queryKey: ['games'] }); }} />;
   }
 
   if (selectedGameId) {
-    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} onNavigateToTeam={onNavigateToTeam} onOpenImport={onOpenImport} />;
+    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); queryClient.invalidateQueries({ queryKey: ['games'] }); }} onNavigateToTeam={onNavigateToTeam} onOpenImport={onOpenImport} />;
   }
 
   return (
@@ -496,7 +515,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                     if (item._type === 'practice') {
                       return <PracticeCard key={`p-${item.id}`} practice={item} editable={canScheduleGames}
                         onEdit={() => setEditingPractice(item)}
-                        onDelete={async () => { setDeletingPractice(item.id); await deleteReservation(item.id); loadGames(); setDeletingPractice(null); }}
+                        onDelete={async () => { setDeletingPractice(item.id); await deleteReservation(item.id); queryClient.invalidateQueries({ queryKey: ['practices'] }); setDeletingPractice(null); }}
                         deleting={deletingPractice === item.id} />;
                     }
                     const game = item;
@@ -623,7 +642,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                   if (item._type === 'practice') {
                     return <PracticeCard key={`p-${item.id}`} practice={item} editable={canScheduleGames}
                       onEdit={() => setEditingPractice(item)}
-                      onDelete={async () => { setDeletingPractice(item.id); await deleteReservation(item.id); loadGames(); setDeletingPractice(null); }}
+                      onDelete={async () => { setDeletingPractice(item.id); await deleteReservation(item.id); queryClient.invalidateQueries({ queryKey: ['practices'] }); setDeletingPractice(null); }}
                       deleting={deletingPractice === item.id} />;
                   }
                   const game = item;
@@ -762,7 +781,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
           defaultSeasonId={filterSeason}
           onDone={handleFormDone}
           onCancel={() => { setShowForm(false); setEditing(null); }}
-          onTeamsChanged={() => fetchTeams().then(setTeams).catch(() => {})}
+          onTeamsChanged={() => queryClient.invalidateQueries({ queryKey: ['teams'] })}
         />
       )}
 
@@ -777,7 +796,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
       {editingPractice && (
         <PracticeEditModal
           practice={editingPractice}
-          onDone={() => { setEditingPractice(null); loadGames(); }}
+          onDone={() => { setEditingPractice(null); queryClient.invalidateQueries({ queryKey: ['practices'] }); }}
           onCancel={() => setEditingPractice(null)}
         />
       )}

@@ -17,9 +17,12 @@ async function withPositions(player) {
 }
 
 // GET players, optionally filtered by team_id (via team_players junction)
+// Unfiltered requests support ?page= and ?limit= (default 200, max 500)
 router.get('/', async (req, res) => {
   try {
     const { team_id, org_id, search, with_teams } = req.query;
+    const page = Math.max(0, parseInt(req.query.page || '0', 10));
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit || '200', 10)));
     let result;
     if (team_id) {
       result = await pool.query(
@@ -46,7 +49,10 @@ router.get('/', async (req, res) => {
          ORDER BY last_name, first_name LIMIT 50`, [q]
       );
     } else {
-      result = await pool.query('SELECT * FROM players ORDER BY last_name, first_name');
+      result = await pool.query(
+        'SELECT * FROM players ORDER BY last_name, first_name LIMIT $1 OFFSET $2',
+        [limit, page * limit]
+      );
     }
     let players = await Promise.all(result.rows.map(withPositions));
 

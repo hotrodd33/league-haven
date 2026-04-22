@@ -128,7 +128,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
     fetcher.then(w => {
       if (w && !w.unavailable) setWeather(w);
     }).catch(() => {});
-  }, [game]);
+  }, [game?.location_lat, game?.location_lon, game?.game_date, game?.game_time, game?.status]);
 
   async function handleSaveScore(e) {
     e.preventDefault();

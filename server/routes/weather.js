@@ -4,7 +4,7 @@ const { authMiddleware } = require('../auth');
 
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes for current weather
 const FORECAST_CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours for forecasts
-const cache = new Map();
+const cache = require('../cache');
 
 // Playability score for baseball based on weather conditions
 function computePlayability(weather) {
@@ -66,9 +66,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const cacheKey = `current:${parseFloat(lat).toFixed(2)},${parseFloat(lon).toFixed(2)}`;
     const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.time < CACHE_TTL) {
-      return res.json(cached.data);
-    }
+    if (cached) return res.json(cached);
 
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,relative_humidity_2m&hourly=precipitation_probability&forecast_days=1&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto`;
 
@@ -102,8 +100,7 @@ router.get('/', authMiddleware, async (req, res) => {
     };
     result.playability = computePlayability(result);
 
-    cache.set(cacheKey, { data: result, time: Date.now() });
-    cleanCache();
+    cache.set(cacheKey, result, CACHE_TTL);
 
     res.json(result);
   } catch (err) {
@@ -132,9 +129,7 @@ router.get('/forecast', authMiddleware, async (req, res) => {
 
     const cacheKey = `forecast:${parseFloat(lat).toFixed(2)},${parseFloat(lon).toFixed(2)}:${date}:${time || ''}`;
     const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.time < FORECAST_CACHE_TTL) {
-      return res.json(cached.data);
-    }
+    if (cached) return res.json(cached);
 
     // Request hourly data for the target date
     const params = new URLSearchParams({
@@ -206,8 +201,7 @@ router.get('/forecast', authMiddleware, async (req, res) => {
 
     result.playability = computePlayability(result);
 
-    cache.set(cacheKey, { data: result, time: Date.now() });
-    cleanCache();
+    cache.set(cacheKey, result, FORECAST_CACHE_TTL);
 
     res.json(result);
   } catch (err) {
@@ -215,16 +209,6 @@ router.get('/forecast', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch forecast' });
   }
 });
-
-function cleanCache() {
-  if (cache.size > 200) {
-    const now = Date.now();
-    for (const [key, val] of cache) {
-      const ttl = key.startsWith('forecast:') ? FORECAST_CACHE_TTL : CACHE_TTL;
-      if (now - val.time > ttl) cache.delete(key);
-    }
-  }
-}
 
 // WMO Weather interpretation codes → description
 function weatherCodeToDescription(code) {
