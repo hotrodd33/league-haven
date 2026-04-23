@@ -208,7 +208,25 @@ export async function fetchAllPlayers(filters = {}) {
   if (filters.team_id) params.set('team_id', filters.team_id);
   if (filters.search) params.set('search', filters.search);
   params.set('with_teams', 'true');
-  return apiFetch(`/players?${params}`);
+
+  // When fetching by team/org/search the server returns all matches in one shot.
+  // The unfiltered path is paginated (default 200/page) — fetch all pages.
+  if (filters.org_id || filters.team_id || filters.search) {
+    return apiFetch(`/players?${params}`);
+  }
+
+  const PAGE_SIZE = 500;
+  params.set('limit', String(PAGE_SIZE));
+  let all = [];
+  let page = 0;
+  while (true) {
+    params.set('page', String(page));
+    const batch = await apiFetch(`/players?${params}`);
+    all = all.concat(batch);
+    if (batch.length < PAGE_SIZE) break;
+    page++;
+  }
+  return all;
 }
 
 // ── Player Guardians ──
