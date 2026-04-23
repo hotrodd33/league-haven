@@ -128,24 +128,7 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
-// GET /organizations/:id/admin-users — users with org-level access (for scheduling contact picker)
-router.get('/:id/admin-users', authMiddleware, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rows } = await pool.query(
-      `SELECT DISTINCT u.id, u.name, u.email, u.role
-       FROM users u
-       LEFT JOIN user_permissions up ON up.user_id = u.id AND up.org_id = $1
-       WHERE up.id IS NOT NULL OR u.role IN ('org_admin', 'super_admin')
-       ORDER BY u.name`,
-      [id]
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// GET /organizations/:id/admin-users endpoint removed — no longer needed
 
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
@@ -155,12 +138,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!existing.length) return res.status(404).json({ error: 'Organization not found' });
     const old = existing[0];
 
-    const { name, contact_name, contact_email, contact_phone, address, city, state, zip, officials_enabled, notes, latitude, longitude, scheduling_contact_user_id } = req.body;
+    const { name, contact_name, contact_email, contact_phone, address, city, state, zip, officials_enabled, notes, latitude, longitude, scheduling_contact_is_org_contact } = req.body;
 
     const { rows } = await pool.query(
       `UPDATE organizations SET name = $1, contact_name = $2, contact_email = $3, contact_phone = $4,
        address = $5, city = $6, state = $7, zip = $8, officials_enabled = $9, notes = $10,
-       latitude = $11, longitude = $12, scheduling_contact_user_id = $13 WHERE id = $14 RETURNING *`,
+       latitude = $11, longitude = $12, scheduling_contact_is_org_contact = $13 WHERE id = $14 RETURNING *`,
       [
         name ?? old.name, contact_name ?? old.contact_name, contact_email ?? old.contact_email,
         contact_phone ?? old.contact_phone, address ?? old.address, city ?? old.city,
@@ -169,9 +152,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         notes ?? old.notes,
         latitude !== undefined ? latitude : old.latitude,
         longitude !== undefined ? longitude : old.longitude,
-        scheduling_contact_user_id !== undefined
-          ? (scheduling_contact_user_id ? Number(scheduling_contact_user_id) : null)
-          : old.scheduling_contact_user_id,
+        scheduling_contact_is_org_contact === undefined ? old.scheduling_contact_is_org_contact : !!scheduling_contact_is_org_contact,
         id
       ]
     );

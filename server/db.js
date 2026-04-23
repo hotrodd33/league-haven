@@ -271,9 +271,9 @@ async function migrate() {
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS officials_enabled BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
-  // Org-level scheduling contact user
+  // Org-level scheduling contact flag (uses org contact_name/email/phone as fallback scheduler)
   await pool.query(`
-    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS scheduling_contact_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS scheduling_contact_is_org_contact BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
   // Ensure app branding defaults exist

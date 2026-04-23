@@ -3,7 +3,7 @@ import {
   fetchOrganizations, createOrganization, updateOrganization, deleteOrganization,
   fetchTeams, fetchGames, createTeam, updateTeam, uploadOrgLogo, removeOrgLogo,
   fetchAgeGroups, fetchLevels, fetchSeasons, fetchDivisions, uploadTeamLogo, removeTeamLogo,
-  fetchRegistrations, fetchOrgAdminUsers,
+  fetchRegistrations,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import FieldLocations from './FieldLocations.jsx';
@@ -297,7 +297,6 @@ function OrgForm({ org, onDone, onCancel }) {
   const [logoPreview, setLogoPreview] = useState(org?.logo_url || null);
   const [geocoding, setGeocoding] = useState(false);
   const [removeLogo, setRemoveLogo] = useState(false);
-  const [orgUsers, setOrgUsers] = useState([]);
   const [form, setForm] = useState({
     name: org?.name || '', contact_name: org?.contact_name || '',
     contact_email: org?.contact_email || '', contact_phone: org?.contact_phone || '',
@@ -305,13 +304,8 @@ function OrgForm({ org, onDone, onCancel }) {
     state: org?.state || '', zip: org?.zip || '', notes: org?.notes || '',
     latitude: org?.latitude ?? '', longitude: org?.longitude ?? '',
     officials_enabled: !!org?.officials_enabled,
-    scheduling_contact_user_id: org?.scheduling_contact_user_id ?? '',
+    scheduling_contact_is_org_contact: !!org?.scheduling_contact_is_org_contact,
   });
-
-  useEffect(() => {
-    if (!isEditing) return;
-    fetchOrgAdminUsers(org.id).then(setOrgUsers).catch(() => setOrgUsers([]));
-  }, [isEditing, org?.id]);
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
@@ -354,7 +348,6 @@ function OrgForm({ org, onDone, onCancel }) {
     for (const [key, value] of Object.entries(form)) {
       if (typeof value === 'boolean') data[key] = value;
       else if (key === 'latitude' || key === 'longitude') data[key] = value === '' ? null : parseFloat(value);
-      else if (key === 'scheduling_contact_user_id') data[key] = value === '' ? null : Number(value);
       else data[key] = value.trim() || null;
     }
     try {
@@ -439,24 +432,19 @@ function OrgForm({ org, onDone, onCancel }) {
             </div>
           </label>
 
-          {isEditing && (
+          <label className="flex items-start gap-2 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="scheduling_contact_is_org_contact"
+              checked={!!form.scheduling_contact_is_org_contact}
+              onChange={handleChange}
+              className="mt-0.5"
+            />
             <div>
-              <label htmlFor="org-sched-contact" className="lh-eyebrow block mb-1">Scheduling Contact</label>
-              <select
-                id="org-sched-contact"
-                name="scheduling_contact_user_id"
-                value={form.scheduling_contact_user_id}
-                onChange={handleChange}
-                className="lh-input"
-              >
-                <option value="">— None (use team-level contact) —</option>
-                {orgUsers.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}{u.email ? ` (${u.email})` : ''}</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-400 mt-1">If set, this user appears as the org-level scheduling contact when a team has no designated scheduler or head coach.</p>
+              <p className="text-sm font-semibold text-gray-200">Org Contact is Scheduling Contact</p>
+              <p className="text-xs text-gray-400">When enabled, the org contact info above appears as the scheduling contact on game cards when no team-level scheduler is set.</p>
             </div>
-          )}
+          </label>
 
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
 

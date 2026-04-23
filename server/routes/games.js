@@ -183,10 +183,9 @@ const SLIM_SELECT = `
     WHERE tsa.team_id = g.home_team_id
       AND (tsa.is_scheduling_contact = true OR tsa.role IN ('head_coach', 'org_admin'))
     UNION ALL
-    SELECT u.name, u.email, NULL AS phone, 'org_scheduler' AS role, 1 AS prio
+    SELECT o.contact_name, o.contact_email, o.contact_phone, 'org_scheduler' AS role, 1 AS prio
     FROM organizations o
-    JOIN users u ON u.id = o.scheduling_contact_user_id
-    WHERE o.id = ht.org_id AND o.scheduling_contact_user_id IS NOT NULL
+    WHERE o.id = ht.org_id AND o.scheduling_contact_is_org_contact = true
     ORDER BY prio
     LIMIT 1
   ) hsc ON true
@@ -202,10 +201,9 @@ const SLIM_SELECT = `
     WHERE tsa.team_id = g.away_team_id
       AND (tsa.is_scheduling_contact = true OR tsa.role IN ('head_coach', 'org_admin'))
     UNION ALL
-    SELECT u.name, u.email, NULL AS phone, 'org_scheduler' AS role, 1 AS prio
+    SELECT o.contact_name, o.contact_email, o.contact_phone, 'org_scheduler' AS role, 1 AS prio
     FROM organizations ao2
-    JOIN users u ON u.id = ao2.scheduling_contact_user_id
-    WHERE ao2.id = at.org_id AND ao2.scheduling_contact_user_id IS NOT NULL
+    WHERE ao2.id = at.org_id AND ao2.scheduling_contact_is_org_contact = true
     ORDER BY prio
     LIMIT 1
   ) asched ON true
