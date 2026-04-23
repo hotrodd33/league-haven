@@ -43,6 +43,7 @@ function getRestDays(pitchCount, rules) {
 
 function datePlusDays(dateStr, days) {
   const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) throw new RangeError(`Invalid date: ${dateStr}`);
   d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
 }
@@ -52,6 +53,9 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
   const { team_id, game_date, game_id } = req.query;
   if (!team_id || !game_date) {
     return res.status(400).json({ error: 'team_id and game_date are required' });
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(game_date) || isNaN(new Date(game_date + 'T00:00:00').getTime())) {
+    return res.status(400).json({ error: 'game_date must be a valid YYYY-MM-DD date' });
   }
 
   try {
