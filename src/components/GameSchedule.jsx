@@ -64,7 +64,7 @@ function CoachContact({ name, email, phone, label }) {
   );
 }
 
-const SCHED_ROLE_LABELS = { scheduling_contact: 'Scheduler', head_coach: 'Head Coach', org_admin: 'Org Admin' };
+const SCHED_ROLE_LABELS = { scheduling_contact: 'Scheduler', org_scheduler: 'Org Scheduler', head_coach: 'Head Coach', org_admin: 'Org Admin' };
 
 function AddFieldModal({ homeOrgId, onDone, onCancel }) {
   const [orgs, setOrgs] = useState([]);
