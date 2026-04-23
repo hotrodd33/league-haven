@@ -29,6 +29,7 @@ export function AuthProvider({ children }) {
         token: data.token,
         user: data.user,
         permissions: data.permissions || { org_ids: [], team_ids: [] },
+        must_change_password: data.user?.must_change_password || false,
       };
       setAuth(saved);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
@@ -85,6 +86,16 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  // Called after a forced password change succeeds so the gate is lifted
+  const clearMustChangePassword = useCallback(() => {
+    setAuth(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, must_change_password: false, user: { ...prev.user, must_change_password: false } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const role = auth?.user?.role;
   const isSuperAdmin = role === 'super_admin';
   const isOrgAdmin = role === 'org_admin';
@@ -139,6 +150,7 @@ export function AuthProvider({ children }) {
     token: auth?.token,
     user: auth?.user,
     isAuthenticated: !!auth?.token,
+    mustChangePassword: auth?.must_change_password || false,
     isAdmin,
     isSuperAdmin,
     isOrgAdmin,
@@ -157,6 +169,7 @@ export function AuthProvider({ children }) {
     register,
     registerUmpire,
     logout,
+    clearMustChangePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

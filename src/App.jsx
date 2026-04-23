@@ -16,7 +16,7 @@ import GameChangerImportWizard from "./components/import/GameChangerImportWizard
 import FeatureRouter from "./components/FeatureRouter.jsx";
 
 export default function App() {
-    const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, user, role, logout, canEditTeam, isSuperAdmin } = useAuth();
+    const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, user, role, logout, canEditTeam, isSuperAdmin, mustChangePassword, clearMustChangePassword } = useAuth();
     const isTeamManager = role === 'team_manager';
 
     const queryClient = useQueryClient();
@@ -80,6 +80,11 @@ export default function App() {
     }
 
     if (!isAuthenticated) return <Login />;
+
+    // Force password change before allowing access for admin-created accounts
+    if (mustChangePassword) {
+        return <ChangePassword forced onPasswordChanged={clearMustChangePassword} onClose={() => {}} />;
+    }
 
     function openImportWizard(gameId = null) {
         setImportWizardGameId(gameId || null);

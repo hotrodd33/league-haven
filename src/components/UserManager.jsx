@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext.jsx';
 import {
   fetchUsers, createUser, updateUser, deleteUser, updateUserPermissions,
-  fetchOrganizations, fetchTeams, inviteUser,
+  fetchOrganizations, fetchTeams, inviteUser, resendPendingInvites,
   fetchPendingApprovals, approveUser, rejectUser, resetUserApproval,
 } from '../api/index.js';
 import { Button, Input, Select, Modal, Badge } from './ui/index.js';
@@ -75,6 +76,24 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
   }
 
   const [inviting, setInviting] = useState(null);
+  const [resending, setResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
+
+  async function handleResendPending() {
+    setResending(true);
+    setResendMsg('');
+    try {
+      const result = await resendPendingInvites();
+      setResendMsg(result.message || 'Done.');
+      setTimeout(() => setResendMsg(''), 6000);
+    } catch (err) {
+      setResendMsg('Error: ' + err.message);
+      setTimeout(() => setResendMsg(''), 6000);
+    } finally {
+      setResending(false);
+    }
+  }
+
   async function handleInvite(user) {
     if (!user.email) { alert('User has no email address. Edit the user to add one first.'); return; }
     setInviting(user.id);
@@ -167,10 +186,19 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
               {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.size} selected`}
             </Button>
           )}
+          {tab === 'users' && (
+            <Button variant="secondary" onClick={handleResendPending} disabled={resending} loading={resending}>
+              {resending ? 'Sending…' : 'Resend Pending (48h)'}
+            </Button>
+          )}
           {tab === 'users' && <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Add User</Button>}
           {onBack && <Button variant="secondary" onClick={onBack}>← Back</Button>}
         </div>
       </div>
+
+      {resendMsg && (
+        <div className={`lh-alert ${resendMsg.startsWith('Error') ? 'lh-alert-error' : 'lh-alert-success'} mt-2`}>{resendMsg}</div>
+      )}
 
       {/* Approvals tab */}
       {tab === 'approvals' && <PendingApprovals />}
@@ -340,6 +368,7 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
 
 function UserForm({ user, onDone, onCancel }) {
   const isEditing = !!user;
+  const { isSuperAdmin, permissions: myPerms } = useAuth();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [form, setForm] = useState({
@@ -350,6 +379,45 @@ function UserForm({ user, onDone, onCancel }) {
     is_umpire: user?.is_umpire || user?.role === 'umpire' || false,
     password: '',
   });
+
+  // Permissions for new users
+  const [orgs, setOrgs] = useState([]);
+  const [allTeams, setAllTeams] = useState([]);
+  const [selectedOrgs, setSelectedOrgs] = useState(new Set());
+  const [selectedTeams, setSelectedTeams] = useState(new Set());
+  const [permsLoading, setPermsLoading] = useState(false);
+
+  useEffect(() => {
+    if (isEditing) return;
+    setPermsLoading(true);
+    Promise.all([fetchOrganizations(), fetchTeams()])
+      .then(([orgData, teamData]) => {
+        // Super admins see everything; other admins see only their own orgs/teams
+        if (isSuperAdmin) {
+          setOrgs(orgData);
+          setAllTeams(teamData);
+        } else {
+          const allowedOrgIds = new Set((myPerms.org_ids || []).map(Number));
+          const allowedTeamIds = new Set((myPerms.team_ids || []).map(Number));
+          const filteredOrgs = orgData.filter(o => allowedOrgIds.has(o.id));
+          // Teams under allowed orgs OR explicitly permitted teams
+          const filteredTeams = teamData.filter(t =>
+            allowedTeamIds.has(t.id) || allowedOrgIds.has(t.org_id)
+          );
+          setOrgs(filteredOrgs);
+          setAllTeams(filteredTeams);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setPermsLoading(false));
+  }, [isEditing, isSuperAdmin, myPerms]);
+
+  function toggleOrg(orgId) {
+    setSelectedOrgs(prev => { const n = new Set(prev); n.has(orgId) ? n.delete(orgId) : n.add(orgId); return n; });
+  }
+  function toggleTeam(teamId) {
+    setSelectedTeams(prev => { const n = new Set(prev); n.has(teamId) ? n.delete(teamId) : n.add(teamId); return n; });
+  }
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
@@ -372,11 +440,21 @@ function UserForm({ user, onDone, onCancel }) {
           role: form.role,
           is_umpire: form.is_umpire,
           password: form.password.trim(),
+          org_ids: [...selectedOrgs],
+          team_ids: [...selectedTeams],
         });
       }
       onDone();
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
+  }
+
+  // Group teams by org for the permissions section
+  const teamsByOrg = {};
+  const unassignedTeams = [];
+  for (const t of allTeams) {
+    if (t.org_id) { if (!teamsByOrg[t.org_id]) teamsByOrg[t.org_id] = []; teamsByOrg[t.org_id].push(t); }
+    else unassignedTeams.push(t);
   }
 
   return (
@@ -411,6 +489,79 @@ function UserForm({ user, onDone, onCancel }) {
               <span className="text-xs text-gray-400">Grants umpire dashboard access alongside their primary role</span>
             </label>
           </div>
+          {/* Org / Team assignment — new users only */}
+          {!isEditing && (
+            <div className="border-t border-gray-700 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wide">Assign Permissions</h3>
+                <span className="text-xs text-gray-400">Optional — you can also set these later via the Perms button</span>
+              </div>
+              {permsLoading ? (
+                <div className="text-sm text-gray-400">Loading organizations and teams…</div>
+              ) : (
+                <div className="space-y-4">
+                  {orgs.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Organizations</div>
+                      <div className="space-y-1">
+                        {orgs.map(org => (
+                          <label key={org.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-900 cursor-pointer">
+                            <input type="checkbox" checked={selectedOrgs.has(org.id)} onChange={() => toggleOrg(org.id)}
+                              className="w-4 h-4 text-action-600 rounded border-gray-600" />
+                            <span className="text-sm font-semibold text-gray-200">{org.name}</span>
+                            {org.team_count > 0 && (
+                              <span className="text-xs text-gray-400">({org.team_count} team{org.team_count !== 1 ? 's' : ''})</span>
+                            )}
+                            {selectedOrgs.has(org.id) && <span className="text-xs text-chrome-400">→ includes all teams</span>}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {allTeams.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Individual Teams</div>
+                      <p className="text-xs text-gray-500 mb-2">Teams under a selected org above are already included.</p>
+                      <div className="space-y-3 max-h-48 overflow-y-auto">
+                        {orgs.map(org => {
+                          const orgTeams = teamsByOrg[org.id] || [];
+                          if (!orgTeams.length) return null;
+                          const orgSelected = selectedOrgs.has(org.id);
+                          return (
+                            <div key={org.id} className="ml-1">
+                              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">{org.name}</div>
+                              <div className="space-y-1 ml-2">
+                                {orgTeams.map(t => (
+                                  <label key={t.id} className={`flex items-center gap-3 p-1 rounded cursor-pointer ${orgSelected ? 'opacity-40' : 'hover:bg-gray-900'}`}>
+                                    <input type="checkbox"
+                                      checked={orgSelected || selectedTeams.has(t.id)}
+                                      disabled={orgSelected}
+                                      onChange={() => toggleTeam(t.id)}
+                                      className="w-4 h-4 text-action-600 rounded border-gray-600" />
+                                    <span className="text-sm text-gray-200">{t.name}</span>
+                                    {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {unassignedTeams.map(t => (
+                          <label key={t.id} className="flex items-center gap-3 p-1 ml-1 rounded hover:bg-gray-900 cursor-pointer">
+                            <input type="checkbox" checked={selectedTeams.has(t.id)} onChange={() => toggleTeam(t.id)}
+                              className="w-4 h-4 text-action-600 rounded border-gray-600" />
+                            <span className="text-sm text-gray-200">{t.name}</span>
+                            {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={onCancel}>Cancel</Button>

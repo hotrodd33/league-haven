@@ -36,7 +36,7 @@ router.get('/', adminOnly, async (req, res) => {
 // POST /api/users — create a new user (admin-created)
 router.post('/', adminOnly, async (req, res) => {
   try {
-    const { username, password, name, email, role, is_umpire } = req.body;
+    const { username, password, name, email, role, is_umpire, org_ids = [], team_ids = [] } = req.body;
     if (!username || !password || !name) {
       return res.status(400).json({ error: 'Username, password, and name are required' });
     }
@@ -53,11 +53,40 @@ router.post('/', adminOnly, async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
-    const { rows } = await pool.query(
-      'INSERT INTO users (username, password_hash, name, email, role, is_umpire) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, name, email, role, is_umpire, created_at',
-      [username, hash, name, email || null, userRole, is_umpire === true]
-    );
-    res.status(201).json({ ...rows[0], permissions: { org_ids: [], team_ids: [] } });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `INSERT INTO users (username, password_hash, name, email, role, is_umpire, must_change_password, email_confirmed, approval_status)
+         VALUES ($1, $2, $3, $4, $5, $6, TRUE, TRUE, 'approved')
+         RETURNING id, username, name, email, role, is_umpire, created_at`,
+        [username, hash, name, email || null, userRole, is_umpire === true]
+      );
+      const userId = rows[0].id;
+
+      const validOrgIds = Array.isArray(org_ids) ? org_ids.map(Number).filter(Number.isFinite) : [];
+      const validTeamIds = Array.isArray(team_ids) ? team_ids.map(Number).filter(Number.isFinite) : [];
+      for (const orgId of validOrgIds) {
+        await client.query(
+          'INSERT INTO user_permissions (user_id, org_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [userId, orgId]
+        );
+      }
+      for (const teamId of validTeamIds) {
+        await client.query(
+          'INSERT INTO user_permissions (user_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [userId, teamId]
+        );
+      }
+      await client.query('COMMIT');
+
+      res.status(201).json({ ...rows[0], permissions: { org_ids: validOrgIds, team_ids: validTeamIds } });
+    } catch (innerErr) {
+      await client.query('ROLLBACK');
+      throw innerErr;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     console.error('Create user error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -74,10 +103,13 @@ router.post('/:id/invite', adminOnly, async (req, res) => {
     const user = rows[0];
     if (!user.email) return res.status(400).json({ error: 'User has no email address. Add one first.' });
 
-    // Generate a temp password and reset it
+    // Generate a temp password, reset it, and flag forced password change
     const tempPassword = crypto.randomBytes(4).toString('hex'); // 8-char random
     const hash = await bcrypt.hash(tempPassword, 10);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, id]);
+    await pool.query(
+      'UPDATE users SET password_hash = $1, must_change_password = TRUE, email_confirmed = TRUE, approval_status = \'approved\' WHERE id = $2',
+      [hash, id]
+    );
 
     // Look up sender's email for Reply-To
     let replyTo;
@@ -88,6 +120,46 @@ router.post('/:id/invite', adminOnly, async (req, res) => {
     res.json({ message: `Invite sent to ${user.email}` });
   } catch (err) {
     console.error('Invite error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/users/resend-pending-invites
+// Re-invite any users who have never logged in and were created 48+ hours ago.
+router.post('/resend-pending-invites', adminOnly, async (req, res) => {
+  try {
+    const { rows: pending } = await pool.query(
+      `SELECT id, name, email FROM users
+       WHERE last_login_at IS NULL
+         AND email IS NOT NULL
+         AND created_at <= NOW() - INTERVAL '48 hours'
+       ORDER BY created_at`
+    );
+
+    if (!pending.length) {
+      return res.json({ sent: 0, message: 'No users pending — everyone has logged in or was created less than 48 hours ago.' });
+    }
+
+    let replyTo;
+    const { rows: senderRows } = await pool.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+    if (senderRows[0]?.email) replyTo = { email: senderRows[0].email, name: req.user.name };
+
+    const results = await Promise.allSettled(pending.map(async (user) => {
+      const tempPassword = crypto.randomBytes(4).toString('hex');
+      const hash = await bcrypt.hash(tempPassword, 10);
+      await pool.query(
+        'UPDATE users SET password_hash = $1, must_change_password = TRUE WHERE id = $2',
+        [hash, user.id]
+      );
+      await sendInviteEmail(user.email, user.name, tempPassword, { replyTo });
+      return user.email;
+    }));
+
+    const sent = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').map((r, i) => pending[i]?.email);
+    res.json({ sent, failed, message: `Reminder sent to ${sent} user${sent !== 1 ? 's' : ''}.` });
+  } catch (err) {
+    console.error('Resend pending invites error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -26,12 +26,14 @@ const BASE_SELECT = `
     ht.team_city AS home_team_city, ht.team_mascot AS home_team_mascot,
     ht.team_color AS home_team_color, ht.age_group AS home_age_group, ht.level AS home_level,
     ht.primary_color AS home_primary_color, ht.secondary_color AS home_secondary_color,
+    ht.abbreviation AS home_team_abbr,
     ho.logo_url AS home_org_logo,
     at.name AS away_team_name, at.logo_url AS away_team_logo,
     at.org_id AS away_org_id,
     at.team_city AS away_team_city, at.team_mascot AS away_team_mascot,
     at.team_color AS away_team_color, at.age_group AS away_age_group, at.level AS away_level,
     at.primary_color AS away_primary_color, at.secondary_color AS away_secondary_color,
+    at.abbreviation AS away_team_abbr,
     ao.logo_url AS away_org_logo,
     fl.name AS location_name, fl.address AS location_address,
     fl.city AS location_city, fl.state AS location_state,
@@ -137,12 +139,14 @@ const SLIM_SELECT = `
     ht.team_city AS home_team_city, ht.team_mascot AS home_team_mascot,
     ht.team_color AS home_team_color, ht.age_group AS home_age_group, ht.level AS home_level,
     ht.primary_color AS home_primary_color, ht.secondary_color AS home_secondary_color,
+    ht.abbreviation AS home_team_abbr,
     ho.logo_url AS home_org_logo,
     at.name AS away_team_name, at.logo_url AS away_team_logo,
     at.org_id AS away_org_id,
     at.team_city AS away_team_city, at.team_mascot AS away_team_mascot,
     at.team_color AS away_team_color, at.age_group AS away_age_group, at.level AS away_level,
     at.primary_color AS away_primary_color, at.secondary_color AS away_secondary_color,
+    at.abbreviation AS away_team_abbr,
     ao.logo_url AS away_org_logo,
     fl.name AS location_name, fl.address AS location_address,
     fl.city AS location_city, fl.state AS location_state,
@@ -202,6 +206,8 @@ function enrichGame(row) {
     away_primary_color: row.away_primary_color || null,
     away_secondary_color: row.away_secondary_color || null,
     away_city_abbr: cityAbbr(row.away_team_city),
+    home_team_abbr: row.home_team_abbr || null,
+    away_team_abbr: row.away_team_abbr || null,
     official_ids: row.official_ids || [],
     official_names: row.official_names || [],
     officials: (row.officials || []).map(({ rate_per_game, ...rest }) => rest),
@@ -585,7 +591,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Capture old values for change detection
     const oldDate = normalizeDate(game.game_date);
-    const oldTime = game.game_time || null;
+    const oldTime = normalizeTime(game.game_time);
 
     await client.query('BEGIN');
     if (shouldClearSchedule) {
@@ -641,7 +647,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Detect date/time changes and notify staff
     const newDate = normalizeDate(game_date || game.game_date);
-    const newTime = game_time !== undefined ? (game_time || null) : oldTime;
+    const newTime = normalizeTime(game_time !== undefined ? game_time : game.game_time);
     if (oldDate !== newDate || oldTime !== newTime) {
       notifyGameChange(updated, oldDate, newDate, oldTime, newTime, req.user);
     }
@@ -675,6 +681,12 @@ function normalizeDate(d) {
   if (!d) return null;
   if (d instanceof Date) return d.toISOString().slice(0, 10);
   return String(d).slice(0, 10);
+}
+
+// Normalize time to HH:MM so DB values (HH:MM:SS) compare equal to request values (HH:MM)
+function normalizeTime(t) {
+  if (!t) return null;
+  return String(t).slice(0, 5);
 }
 
 async function notifyGameChange(game, oldDate, newDate, oldTime, newTime, user) {

@@ -105,6 +105,10 @@ export async function inviteUser(userId) {
   return apiFetch(`/users/${userId}/invite`, { method: 'POST' });
 }
 
+export async function resendPendingInvites() {
+  return apiFetch('/users/resend-pending-invites', { method: 'POST' });
+}
+
 // ── Teams ──
 
 export async function fetchTeams() {

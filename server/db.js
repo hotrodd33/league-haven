@@ -884,6 +884,9 @@ async function migrate() {
   // Driving distance API settings (super admin only)
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS driving_distance_enabled BOOLEAN NOT NULL DEFAULT FALSE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS driving_distance_api_key TEXT;`);
+
+  // ── Force-password-change flag (set for admin-created / invited accounts) ──
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;`);
 }
 
 // Lazy migration: retries on each request until it succeeds

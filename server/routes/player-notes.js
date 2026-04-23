@@ -14,7 +14,7 @@ async function canEditPlayer(user, playerId) {
 }
 
 // GET /player-notes/:playerId
-router.get('/:playerId', async (req, res) => {
+router.get('/:playerId', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT pn.*, u.name AS author_name

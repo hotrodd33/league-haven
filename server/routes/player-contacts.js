@@ -19,7 +19,7 @@ async function canEditPlayer(user, playerId) {
 // MUST be defined before /:playerId to avoid route conflict
 
 // GET /player-contacts/all-guardians — list all guardians with players + volunteer roles
-router.get('/all-guardians', async (req, res) => {
+router.get('/all-guardians', authMiddleware, async (req, res) => {
   try {
     const { rows: guardians } = await pool.query(`
       SELECT g.id, g.first_name, g.last_name, g.email, g.phone,
@@ -55,7 +55,7 @@ router.get('/all-guardians', async (req, res) => {
 // ── Guardian Volunteer Interests ──
 
 // GET /player-contacts/guardian/:guardianId/volunteers — volunteer role IDs for a guardian
-router.get('/guardian/:guardianId/volunteers', async (req, res) => {
+router.get('/guardian/:guardianId/volunteers', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT role_id FROM guardian_volunteers WHERE guardian_id = $1',

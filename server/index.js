@@ -43,8 +43,20 @@ const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Build allowed origins list from env var (comma-separated) or fall back to localhost for dev
+const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
+  : ['http://localhost:5173', 'http://localhost:3001', 'http://localhost:4173'];
+
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow same-origin requests (no Origin header) and explicitly listed origins
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // Wait for DB migration before handling requests

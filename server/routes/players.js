@@ -18,7 +18,7 @@ async function withPositions(player) {
 
 // GET players, optionally filtered by team_id (via team_players junction)
 // Unfiltered requests support ?page= and ?limit= (default 200, max 500)
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
     const { team_id, org_id, search, with_teams } = req.query;
     const page = Math.max(0, parseInt(req.query.page || '0', 10));
@@ -128,7 +128,7 @@ router.put('/jersey', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM players WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Player not found' });
