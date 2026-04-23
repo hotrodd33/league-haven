@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, fetchSeasons, createTeam, updateTeam, deleteTeam, uploadTeamLogo, removeTeamLogo } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo, { HomePlate, plateLabel } from './TeamLogo.jsx';
 import { cn } from '../lib/cn.js';
 import { Button, Input, Select, Modal } from './ui/index.js';
 
-export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChanged }) {
+export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChanged, onRegisterEditTrigger }) {
   const { isAdmin, permissions } = useAuth();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +32,18 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
   useEffect(() => { loadTeams(); }, [loadTeams]);
 
   const selected = selectedTeam ? teams.find(t => t.id === selectedTeam) : null;
+
+  // Register the edit trigger with the parent so TeamHeader can fire it
+  const editTriggerRef = useRef(null);
+  useEffect(() => {
+    if (!onRegisterEditTrigger) return;
+    if (selected && isAdmin) {
+      editTriggerRef.current = () => { setEditing(true); setShowForm(true); };
+    } else {
+      editTriggerRef.current = null;
+    }
+    onRegisterEditTrigger(editTriggerRef.current);
+  }, [selected, isAdmin, onRegisterEditTrigger]);
 
   async function handleDelete() {
     if (!selected) return;
@@ -128,6 +140,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 <img src={org.logo} alt="" className="w-4 h-4 object-contain rounded shrink-0" />
               )}
               <span className="flex-1 truncate">{orgName}</span>
+              <span className="text-[10px] font-bold tabular-nums text-gray-500 shrink-0">{org.teams.length}</span>
               <svg className={cn('w-3.5 h-3.5 shrink-0 transition-transform', isCollapsed ? '-rotate-90' : '')} viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
               </svg>
@@ -235,10 +248,6 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
               </div>
               <div className="flex gap-1.5 shrink-0">
                 <Button
-                  size="xs" variant="secondary"
-                  onClick={() => { setEditing(true); setShowForm(true); }}
-                >Edit</Button>
-                <Button
                   size="xs" variant="danger"
                   onClick={handleDelete}
                   disabled={deleting}
@@ -275,10 +284,6 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 <p className="text-sm font-semibold text-gray-200 truncate">{selected.name}</p>
               </div>
               <div className="flex gap-1.5 shrink-0">
-                <Button
-                  size="xs" variant="secondary"
-                  onClick={() => { setEditing(true); setShowForm(true); }}
-                >Edit</Button>
                 <Button
                   size="xs" variant="danger"
                   onClick={handleDelete}
