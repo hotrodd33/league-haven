@@ -489,6 +489,10 @@ export async function fetchAllPitchRest() {
 
 // ── Dashboard ──
 
+export async function fetchDashboardSummary() {
+  return apiFetch('/dashboard/summary');
+}
+
 export async function fetchDashboardActivity(limit = 15) {
   return apiFetch(`/dashboard/activity?limit=${limit}`);
 }
