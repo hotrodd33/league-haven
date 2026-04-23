@@ -357,20 +357,20 @@ function GameCard({ game, teamId, onSelect, onTrack, onSchedule, canScore }) {
         </div>
       )}
       </div>
-      {game.status === 'unscheduled' && canScore && (game.home_coach_name || game.away_coach_name) && (
+      {game.status === 'unscheduled' && canScore && (game.home_sched_name || game.away_sched_name) && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 ml-[76px] text-xs text-gray-400">
-          {game.home_coach_name && (
+          {game.home_sched_name && (
             <span className="flex items-center gap-1">
-              <span className="text-gray-500">Home:</span> {game.home_coach_name}
-              {game.home_coach_email && <a href={`mailto:${game.home_coach_email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={game.home_coach_email}>✉️</a>}
-              {game.home_coach_phone && <a href={`tel:${game.home_coach_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer">📞 {formatPhone(game.home_coach_phone)}</a>}
+              <span className="text-gray-500">Home:</span> {game.home_sched_name}
+              {game.home_sched_email && <a href={`mailto:${game.home_sched_email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={game.home_sched_email}>✉️</a>}
+              {game.home_sched_phone && <a href={`tel:${game.home_sched_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer">📞 {formatPhone(game.home_sched_phone)}</a>}
             </span>
           )}
-          {game.away_coach_name && (
+          {game.away_sched_name && (
             <span className="flex items-center gap-1">
-              <span className="text-gray-500">Away:</span> {game.away_coach_name}
-              {game.away_coach_email && <a href={`mailto:${game.away_coach_email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={game.away_coach_email}>✉️</a>}
-              {game.away_coach_phone && <a href={`tel:${game.away_coach_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer">📞 {formatPhone(game.away_coach_phone)}</a>}
+              <span className="text-gray-500">Away:</span> {game.away_sched_name}
+              {game.away_sched_email && <a href={`mailto:${game.away_sched_email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={game.away_sched_email}>✉️</a>}
+              {game.away_sched_phone && <a href={`tel:${game.away_sched_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer">📞 {formatPhone(game.away_sched_phone)}</a>}
             </span>
           )}
         </div>
