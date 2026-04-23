@@ -74,6 +74,8 @@ A complete guide to managing your league. This guide covers every feature, organ
 2. Click **Sign In**
 3. You'll be taken to the Dashboard
 
+> **First-time login:** If your account was set up by a league admin with a temporary password, you'll be prompted to set a new personal password immediately before accessing the app.
+
 ### How to Reset Your Password
 
 1. Click **Forgot Password** on the login page
@@ -136,12 +138,12 @@ Follow these steps to set up a new league from scratch:
 Each team page has tabs:
 
 | Tab | What it shows |
-|-----|--------------|
-| **Overview** | Team info, recent games, staff contacts |
+|-----|---------------|
+| **Overview** | Team info, recent games, and a staff contacts card; Roster and Schedule tabs show player/game count badges |
 | **Schedule** | Team-specific game schedule with calendar view |
 | **Pitching** | Pitcher rest status and 10-day pitch log |
 | **Roster** | Player list with add/edit/remove |
-| **Coaches** | Staff assignments |
+| **Coaches** | Staff assignments with scheduling contact checkbox |
 
 ---
 
@@ -195,7 +197,8 @@ Players can belong to multiple teams. Each team assignment has its own jersey nu
 ### How to View a Player's Full Profile
 
 1. Click a player's name on any roster
-2. The **Player Detail Page** has tabs:
+2. The **Player Detail Page** displays the player's jersey number in the header — click the number to edit it inline (or the edit icon that appears on hover)
+3. The page has tabs:
    - **Info** — inline-editable profile fields and team assignments
    - **Contacts** — full CRUD for contacts (parent, guardian, emergency, other) with primary flag
    - **Stats** — per-game batting and pitching stats
@@ -217,6 +220,17 @@ Players can belong to multiple teams. Each team assignment has its own jersey nu
 4. Click **Save**
 
 Staff members can be assigned to multiple teams independently. Staff receive email notifications for game schedule changes.
+
+### How to Set a Scheduling Contact
+
+Any staff member can be designated as the **Scheduling Contact** for their team. Their contact info appears on unscheduled game cards in place of the head coach, making it easy for opposing teams to coordinate scheduling.
+
+1. Navigate to a team's **Coaches** tab
+2. Find the staff member you want to designate
+3. In the **Sched.** column (desktop) or next to the staff card (mobile), check the checkbox
+4. Uncheck the box to remove the designation
+
+Priority order on unscheduled game cards: **Scheduling Contact** → Head Coach → Org Admin.
 
 ---
 
@@ -543,7 +557,10 @@ Any user can also have the **Is Umpire** flag enabled, giving them umpire dashbo
 2. Click **+ New User**
 3. Fill in username, full name, email, password, and role
 4. Optionally check **Is Umpire** for umpire dashboard access
-5. Click **Save**
+5. Optionally assign **Organization** or **Team** permissions — the user will have access immediately after creation (limited to orgs/teams you have permission to manage)
+6. Click **Save**
+
+The new user will receive an email with their credentials. They will be prompted to set a new password on their first login.
 
 ### How to Assign Permissions
 
@@ -774,7 +791,7 @@ Sometimes you need to lock in matchups before dates are finalized — for exampl
 - Unscheduled games show a **warning badge** ("Unscheduled") on game cards
 - The date displays as **TBD**
 - A red **Schedule It!** button appears instead of the Edit button
-- **Head coach contact info** (name, email, phone) appears on the card for easy coordination
+- **Scheduling contact info** (name, email, phone) appears on the card for easy coordination — shows the team's designated Scheduling Contact, or falls back to Head Coach, then Org Admin
 
 ### How to Schedule an Unscheduled Game
 
@@ -958,6 +975,9 @@ A: Contact your league administrator. The in-app **Help** page (accessible from 
 **Q: I can't log in — what should I do?**
 A: Make sure you've confirmed your email (check your inbox for a verification link). If you've forgotten your password, click "Forgot Password" on the login page. If problems persist, contact your league admin to check your account status.
 
+**Q: I was given a temporary password but can't get to the dashboard — what's happening?**
+A: When you log in for the first time with an admin-assigned temporary password, you'll be required to set a new personal password before the app opens. This is a one-time step. If you don't complete it right away, the system will send a reminder email after 48 hours.
+
 **Q: Why can't I see certain teams or features?**
 A: Your access is controlled by your role and assigned permissions. Ask your league admin to grant you access to the teams/organizations you need.
 
@@ -991,8 +1011,8 @@ A: Yes. Leave the `game_date` and `game_time` columns empty in your CSV. Games w
 **Q: What does the "Schedule It!" button do?**
 A: It opens the game edit modal so you can add a date, time, and location to an unscheduled game. Once all fields are set, change the status to "Scheduled" and save.
 
-**Q: How do I see the coach's contact info for a game?**
-A: On unscheduled game cards, the head coach's name, email, and phone are displayed below each team name. This makes it easy to coordinate scheduling. Coach info also appears in the game edit modal.
+**Q: How do I see the scheduling contact for a game?**
+A: On unscheduled game cards, a priority contact is shown for each team: the staff member flagged as the team's **Scheduling Contact** (if set), otherwise the Head Coach, otherwise the Org Admin. You can designate any staff member as the scheduling contact from the team's Coaches tab using the "Sched." checkbox. Contact info also appears in the game edit modal.
 
 ---
 

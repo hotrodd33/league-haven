@@ -136,6 +136,7 @@ async function migrate() {
       team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
       staff_id INTEGER NOT NULL REFERENCES staff_members(id) ON DELETE CASCADE,
       role TEXT NOT NULL CHECK(role IN ('head_coach','assistant_coach','scorekeeper','org_admin')),
+      is_scheduling_contact BOOLEAN NOT NULL DEFAULT FALSE,
       added_at TIMESTAMPTZ DEFAULT NOW(),
       PRIMARY KEY (team_id, staff_id)
     );

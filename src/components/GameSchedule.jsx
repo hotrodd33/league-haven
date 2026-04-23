@@ -64,6 +64,8 @@ function CoachContact({ name, email, phone, label }) {
   );
 }
 
+const SCHED_ROLE_LABELS = { scheduling_contact: 'Scheduler', head_coach: 'Head Coach', org_admin: 'Org Admin' };
+
 function AddFieldModal({ homeOrgId, onDone, onCancel }) {
   const [orgs, setOrgs] = useState([]);
   const [ageGroups, setAgeGroups] = useState([]);
@@ -541,8 +543,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                             <div className="text-right min-w-0">
                               <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.home_team_name}</button>
-                              {game.status === 'unscheduled' && canEditThisGame && game.home_coach_name && (
-                                <CoachContact name={game.home_coach_name} email={game.home_coach_email} phone={game.home_coach_phone} />
+                              {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
+                                <CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} />
                               )}
                             </div>
                             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
@@ -558,8 +560,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                             <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
                             <div className="min-w-0">
                               <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.away_team_name}</button>
-                              {game.status === 'unscheduled' && canEditThisGame && game.away_coach_name && (
-                                <CoachContact name={game.away_coach_name} email={game.away_coach_email} phone={game.away_coach_phone} />
+                              {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
+                                <CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} />
                               )}
                             </div>
                           </div>
@@ -677,8 +679,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.home_team_name}</button>
                           {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.home_score ?? '—'}</span>}
                         </div>
-                        {game.status === 'unscheduled' && canEditThisGame && game.home_coach_name && (
-                          <div className="ml-8"><CoachContact name={game.home_coach_name} email={game.home_coach_email} phone={game.home_coach_phone} /></div>
+                        {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
+                          <div className="ml-8"><CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} /></div>
                         )}
                       </div>
                       <div className="mb-2">
@@ -687,8 +689,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.away_team_name}</button>
                           {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.away_score ?? '—'}</span>}
                         </div>
-                        {game.status === 'unscheduled' && canEditThisGame && game.away_coach_name && (
-                          <div className="ml-8"><CoachContact name={game.away_coach_name} email={game.away_coach_email} phone={game.away_coach_phone} /></div>
+                        {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
+                          <div className="ml-8"><CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} /></div>
                         )}
                       </div>
                       {game.location_name && (
@@ -1457,18 +1459,18 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                 <div>
                   <label htmlFor="game-home" className="lh-eyebrow block mb-1">Home Team *</label>
                   <TeamSelect id="game-home" name="home_team_id" value={form.home_team_id} />
-                  {game?.home_coach_name && (
+                  {game?.home_sched_name && (
                     <div className="mt-1">
-                      <CoachContact label="Coach" name={game.home_coach_name} email={game.home_coach_email} phone={game.home_coach_phone} />
+                      <CoachContact label={SCHED_ROLE_LABELS[game.home_sched_role] || 'Contact'} name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} />
                     </div>
                   )}
                 </div>
                 <div>
                   <label htmlFor="game-away" className="lh-eyebrow block mb-1">Away Team *</label>
                   <TeamSelect id="game-away" name="away_team_id" value={form.away_team_id} />
-                  {game?.away_coach_name && (
+                  {game?.away_sched_name && (
                     <div className="mt-1">
-                      <CoachContact label="Coach" name={game.away_coach_name} email={game.away_coach_email} phone={game.away_coach_phone} />
+                      <CoachContact label={SCHED_ROLE_LABELS[game.away_sched_role] || 'Contact'} name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} />
                     </div>
                   )}
                 </div>

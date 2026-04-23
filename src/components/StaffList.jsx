@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
-import { fetchStaffByTeam, createStaff, updateStaff, deleteStaff, searchStaff, assignStaffToTeam, unassignStaffFromTeam } from '../api/index.js';
+import { fetchStaffByTeam, createStaff, updateStaff, deleteStaff, searchStaff, assignStaffToTeam, unassignStaffFromTeam, toggleSchedContact } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ContactModal from './ContactModal.jsx';
 import { Button, Input, Select, Modal } from './ui';
@@ -74,6 +74,21 @@ export default function StaffList({ teamId, teamOrgId }) {
       queryClient.invalidateQueries({ queryKey: ['staff', teamId] });
     } catch (err) { alert(`Failed to add: ${err.message}`); }
     finally { setAssigning(null); }
+  }
+
+  async function handleToggleSched(member) {
+    const next = !member.is_scheduling_contact;
+    queryClient.setQueryData(['staff', teamId], (prev) =>
+      (prev || []).map(s => s.id === member.id ? { ...s, is_scheduling_contact: next } : s)
+    );
+    try {
+      await toggleSchedContact(teamId, member.id, next);
+    } catch (err) {
+      queryClient.setQueryData(['staff', teamId], (prev) =>
+        (prev || []).map(s => s.id === member.id ? { ...s, is_scheduling_contact: !next } : s)
+      );
+      alert(`Failed to update: ${err.message}`);
+    }
   }
 
   if (!teamId) return null;
@@ -167,6 +182,7 @@ export default function StaffList({ teamId, teamOrgId }) {
                   <th className="px-3 py-2 text-left eyebrow">Name</th>
                   <th className="px-3 py-2 text-left eyebrow">Email</th>
                   <th className="px-3 py-2 text-left eyebrow">Phone</th>
+                  {editable && <th className="px-3 py-2 text-center eyebrow" title="Scheduling Contact">Sched.</th>}
                   {editable && <th className="px-3 py-2 text-left eyebrow">Actions</th>}
                 </tr>
               </thead>
@@ -189,6 +205,14 @@ export default function StaffList({ teamId, teamOrgId }) {
                       </div>
                     </td>
                     <td className="px-3 py-2">{m.phone || '—'}</td>
+                    {editable && (
+                      <td className="px-3 py-2 text-center">
+                        <input type="checkbox" checked={!!m.is_scheduling_contact}
+                          onChange={() => handleToggleSched(m)}
+                          title="Mark as scheduling contact"
+                          className="w-4 h-4 text-accent-600 rounded border-gray-600 focus:ring-accent-500 cursor-pointer" />
+                      </td>
+                    )}
                     {editable && (
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex gap-1">
@@ -222,7 +246,13 @@ export default function StaffList({ teamId, teamOrgId }) {
                     <div className="text-sm text-gray-400">{m.role_label}</div>
                   </div>
                   {editable && (
-                    <div className="flex gap-1.5 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <label className="flex items-center gap-1.5 cursor-pointer" title="Scheduling contact">
+                        <input type="checkbox" checked={!!m.is_scheduling_contact}
+                          onChange={() => handleToggleSched(m)}
+                          className="w-4 h-4 text-accent-600 rounded border-gray-600 focus:ring-accent-500" />
+                        <span className="text-xs text-gray-400">Sched.</span>
+                      </label>
                       <button onClick={() => { setEditing(m); setShowForm(true); }} className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
                       <button onClick={() => handleRemoveFromTeam(m)} disabled={deleting === m.id}
                         className="px-2.5 py-1 text-xs font-semibold bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-60">

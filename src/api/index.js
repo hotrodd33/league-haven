@@ -400,6 +400,13 @@ export async function unassignStaffFromTeam(teamId, staffId) {
   });
 }
 
+export async function toggleSchedContact(teamId, staffId, enabled) {
+  return apiFetch('/staff/toggle-sched', {
+    method: 'PATCH',
+    body: JSON.stringify({ team_id: teamId, staff_id: staffId, enabled }),
+  });
+}
+
 // ── Games / Schedule ──
 
 export async function fetchGames(filters = {}) {

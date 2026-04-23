@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
     let result;
     if (team_id) {
       result = await pool.query(
-        `SELECT sm.*, tsa.role
+        `SELECT sm.*, tsa.role, tsa.is_scheduling_contact
          FROM staff_members sm
          JOIN team_staff_assignments tsa ON tsa.staff_id = sm.id
          WHERE tsa.team_id = $1
@@ -41,6 +41,25 @@ router.get('/', async (req, res) => {
       result = await pool.query('SELECT * FROM staff_members ORDER BY name');
     }
     res.json(result.rows.map(addLabel));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /toggle-sched — toggle is_scheduling_contact flag for a staff member on a team
+// Body: { team_id, staff_id, enabled }
+router.patch('/toggle-sched', authMiddleware, async (req, res) => {
+  try {
+    const { team_id, staff_id, enabled } = req.body;
+    if (!team_id || !staff_id) return res.status(400).json({ error: 'team_id and staff_id required' });
+    if (!(await canEditTeam(req.user, team_id))) return res.status(403).json({ error: 'No permission for this team' });
+    await pool.query(
+      'UPDATE team_staff_assignments SET is_scheduling_contact = $1 WHERE team_id = $2 AND staff_id = $3',
+      [!!enabled, team_id, staff_id]
+    );
+    cache.del('directory');
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
