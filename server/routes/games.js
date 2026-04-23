@@ -201,7 +201,7 @@ const SLIM_SELECT = `
     WHERE tsa.team_id = g.away_team_id
       AND (tsa.is_scheduling_contact = true OR tsa.role IN ('head_coach', 'org_admin'))
     UNION ALL
-    SELECT o.contact_name, o.contact_email, o.contact_phone, 'org_scheduler' AS role, 1 AS prio
+    SELECT ao2.contact_name, ao2.contact_email, ao2.contact_phone, 'org_scheduler' AS role, 1 AS prio
     FROM organizations ao2
     WHERE ao2.id = at.org_id AND ao2.scheduling_contact_is_org_contact = true
     ORDER BY prio
