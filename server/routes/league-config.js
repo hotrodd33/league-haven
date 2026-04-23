@@ -2,11 +2,21 @@ const express = require('express');
 const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, requireAdmin } = require('../auth');
+const cache = require('../cache');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
 
+const CONFIG_TTL = 5 * 60_000; // 5 minutes — lookup tables rarely change
+const BRANDING_KEY = 'league-config:branding';
+const AGE_GROUPS_KEY = 'league-config:age-groups';
+const LEVELS_KEY = 'league-config:levels';
+const SEASONS_KEY = 'league-config:seasons';
+const divisionsKey = (seasonId) => `league-config:divisions:${seasonId || 'all'}`;
+
 async function getBranding() {
+  const cached = cache.get(BRANDING_KEY);
+  if (cached) return cached;
   const { rows } = await pool.query(
     `SELECT app_name, logo_url, public_site_url, game_start_time, game_end_time, game_time_increment_minutes,
             feature_live_scoring, feature_pitch_tracking, feature_officials,
@@ -14,7 +24,9 @@ async function getBranding() {
             feature_registration, feature_public_site, feature_push_notifications
      FROM app_branding WHERE id = 1`
   );
-  return rows[0] || { app_name: 'LeagueHaven', logo_url: null };
+  const result = rows[0] || { app_name: 'LeagueHaven', logo_url: null };
+  cache.set(BRANDING_KEY, result, CONFIG_TTL);
+  return result;
 }
 
 function toMinutes(hhmm) {
@@ -74,7 +86,7 @@ router.put('/branding', authMiddleware, requireAdmin, async (req, res) => {
       `UPDATE app_branding SET ${sets.join(', ')}, updated_at = NOW() WHERE id = 1`,
       vals
     );
-
+    cache.del(BRANDING_KEY);
     res.json(await getBranding());
   } catch (err) {
     console.error(err);
@@ -96,6 +108,7 @@ router.post('/branding/logo', authMiddleware, requireAdmin, upload.single('logo'
       'UPDATE app_branding SET logo_url = $1, updated_at = NOW() WHERE id = 1',
       [dataUrl]
     );
+    cache.del(BRANDING_KEY);
     res.json({ logo_url: dataUrl });
   } catch (err) {
     console.error(err);
@@ -106,6 +119,7 @@ router.post('/branding/logo', authMiddleware, requireAdmin, upload.single('logo'
 router.delete('/branding/logo', authMiddleware, requireAdmin, async (req, res) => {
   try {
     await pool.query('UPDATE app_branding SET logo_url = NULL, updated_at = NOW() WHERE id = 1');
+    cache.del(BRANDING_KEY);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -157,7 +171,7 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
        WHERE id = 1`,
       [start, end, increment]
     );
-
+    cache.del(BRANDING_KEY);
     const branding = await getBranding();
     res.json({
       game_start_time: formatTime(branding.game_start_time),
@@ -204,6 +218,7 @@ router.put('/features', authMiddleware, requireAdmin, async (req, res) => {
     if (!sets.length) return res.status(400).json({ error: 'No valid feature toggles provided' });
     vals.push(1);
     await pool.query(`UPDATE app_branding SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, vals);
+    cache.del(BRANDING_KEY);
     const branding = await getBranding();
     const features = {};
     for (const key of FEATURE_KEYS) features[key] = branding[key] !== false;
@@ -218,7 +233,11 @@ router.put('/features', authMiddleware, requireAdmin, async (req, res) => {
 
 router.get('/age-groups', authMiddleware, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM league_age_groups ORDER BY sort_order, name');
+    let rows = cache.get(AGE_GROUPS_KEY);
+    if (!rows) {
+      ({ rows } = await pool.query('SELECT * FROM league_age_groups ORDER BY sort_order, name'));
+      cache.set(AGE_GROUPS_KEY, rows, CONFIG_TTL);
+    }
     const canSeeFinancials = ['super_admin', 'accountant', 'org_admin'].includes(req.user.role);
     res.json(rows.map(r => {
       const result = { ...r, umpire_rate: r.umpire_rate != null ? Number(r.umpire_rate) : 50, league_fee: r.league_fee != null ? Number(r.league_fee) : null };
@@ -247,6 +266,7 @@ router.post('/age-groups', authMiddleware, requireAdmin, async (req, res) => {
       [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null]
     );
     const r = rows[0];
+    cache.del(AGE_GROUPS_KEY);
     res.status(201).json({ ...r, umpire_rate: Number(r.umpire_rate), league_fee: r.league_fee != null ? Number(r.league_fee) : null });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Age group already exists' });
@@ -269,6 +289,7 @@ router.put('/age-groups/:id', authMiddleware, requireAdmin, async (req, res) => 
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     const r = rows[0];
+    cache.del(AGE_GROUPS_KEY);
     res.json({ ...r, umpire_rate: Number(r.umpire_rate), league_fee: r.league_fee != null ? Number(r.league_fee) : null });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Age group already exists' });
@@ -281,6 +302,7 @@ router.delete('/age-groups/:id', authMiddleware, requireAdmin, async (req, res) 
   try {
     const { rows } = await pool.query('DELETE FROM league_age_groups WHERE id = $1 RETURNING id', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    cache.del(AGE_GROUPS_KEY);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -292,7 +314,10 @@ router.delete('/age-groups/:id', authMiddleware, requireAdmin, async (req, res) 
 
 router.get('/levels', async (req, res) => {
   try {
+    const cached = cache.get(LEVELS_KEY);
+    if (cached) return res.json(cached);
     const { rows } = await pool.query('SELECT * FROM league_levels ORDER BY sort_order, name');
+    cache.set(LEVELS_KEY, rows, CONFIG_TTL);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -308,6 +333,7 @@ router.post('/levels', authMiddleware, requireAdmin, async (req, res) => {
       'INSERT INTO league_levels (name, sort_order) VALUES ($1, $2) RETURNING *',
       [name.trim(), sort_order ?? 0]
     );
+    cache.del(LEVELS_KEY);
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Level already exists' });
@@ -325,6 +351,7 @@ router.put('/levels/:id', authMiddleware, requireAdmin, async (req, res) => {
       [name.trim(), sort_order ?? 0, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    cache.del(LEVELS_KEY);
     res.json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Level already exists' });
@@ -337,6 +364,7 @@ router.delete('/levels/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query('DELETE FROM league_levels WHERE id = $1 RETURNING id', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    cache.del(LEVELS_KEY);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -348,7 +376,10 @@ router.delete('/levels/:id', authMiddleware, requireAdmin, async (req, res) => {
 
 router.get('/seasons', async (req, res) => {
   try {
+    const cached = cache.get(SEASONS_KEY);
+    if (cached) return res.json(cached);
     const { rows } = await pool.query('SELECT * FROM league_seasons ORDER BY sort_order, year DESC, name');
+    cache.set(SEASONS_KEY, rows, CONFIG_TTL);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -369,6 +400,7 @@ router.post('/seasons', authMiddleware, requireAdmin, async (req, res) => {
       'INSERT INTO league_seasons (year, name, is_active, sort_order) VALUES ($1, $2, $3, $4) RETURNING *',
       [year, name.trim(), !!is_active, sort_order ?? 0]
     );
+    cache.del(SEASONS_KEY);
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -390,6 +422,7 @@ router.put('/seasons/:id', authMiddleware, requireAdmin, async (req, res) => {
       [year, name.trim(), !!is_active, sort_order ?? 0, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    cache.del(SEASONS_KEY);
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -402,6 +435,7 @@ router.delete('/seasons/:id', authMiddleware, requireAdmin, async (req, res) => 
     // CASCADE will delete linked divisions
     const { rows } = await pool.query('DELETE FROM league_seasons WHERE id = $1 RETURNING id', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    cache.del(SEASONS_KEY);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -431,7 +465,11 @@ async function getDivisionsWithPaths(seasonId) {
 router.get('/divisions', async (req, res) => {
   try {
     const seasonId = req.query.season_id || null;
+    const cacheKey = divisionsKey(seasonId);
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
     const rows = await getDivisionsWithPaths(seasonId);
+    cache.set(cacheKey, rows, CONFIG_TTL);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -447,6 +485,7 @@ router.post('/divisions', authMiddleware, requireAdmin, async (req, res) => {
       'INSERT INTO league_divisions (name, sort_order, parent_id, season_id) VALUES ($1, $2, $3, $4) RETURNING *',
       [name.trim(), sort_order ?? 0, parent_id || null, season_id || null]
     );
+    cache.invalidatePrefix('league-config:divisions:');
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -467,6 +506,7 @@ router.put('/divisions/:id', authMiddleware, requireAdmin, async (req, res) => {
       [name.trim(), sort_order ?? 0, parent_id || null, season_id || null, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    cache.invalidatePrefix('league-config:divisions:');
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -479,6 +519,7 @@ router.delete('/divisions/:id', authMiddleware, requireAdmin, async (req, res) =
     // CASCADE will delete children too
     const { rows } = await pool.query('DELETE FROM league_divisions WHERE id = $1 RETURNING id', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    cache.invalidatePrefix('league-config:divisions:');
     res.json({ success: true });
   } catch (err) {
     console.error(err);

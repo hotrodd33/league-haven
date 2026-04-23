@@ -16,6 +16,24 @@ async function withPositions(player) {
   return { ...player, positions };
 }
 
+// Bulk version: single query for all players instead of N queries
+async function withPositionsBulk(players) {
+  if (!players.length) return players;
+  const ids = players.map(p => p.id);
+  const { rows } = await pool.query(
+    `SELECT pp.player_id, p.id, p.name, p.abbreviation
+     FROM player_positions pp
+     JOIN positions p ON p.id = pp.position_id
+     WHERE pp.player_id = ANY($1)`, [ids]
+  );
+  const map = {};
+  for (const r of rows) {
+    if (!map[r.player_id]) map[r.player_id] = [];
+    map[r.player_id].push({ id: r.id, name: r.name, abbreviation: r.abbreviation });
+  }
+  return players.map(p => ({ ...p, positions: map[p.id] || [] }));
+}
+
 // GET players, optionally filtered by team_id (via team_players junction)
 // Unfiltered requests support ?page= and ?limit= (default 200, max 500)
 router.get('/', authMiddleware, async (req, res) => {
@@ -54,7 +72,7 @@ router.get('/', authMiddleware, async (req, res) => {
         [limit, page * limit]
       );
     }
-    let players = await Promise.all(result.rows.map(withPositions));
+    let players = await withPositionsBulk(result.rows);
 
     // Enrich with primary guardian contact info
     const allPlayerIds = players.map(p => p.id);

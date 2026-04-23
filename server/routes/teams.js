@@ -4,6 +4,17 @@ const { pool } = require('../db');
 const { authMiddleware, requireAdmin, canEditOrg, canEditTeam } = require('../auth');
 const cache = require('../cache');
 
+const TEAMS_TTL = 60_000; // 60s
+const ORGS_CACHE_KEY = 'orgs:all';
+function teamsAllKey() { return 'teams:all'; }
+function teamsOrgKey(orgId) { return `teams:org:${orgId}`; }
+function bustTeamsCache(orgId) {
+  cache.del(teamsAllKey());
+  if (orgId) cache.del(teamsOrgKey(orgId));
+  cache.del(ORGS_CACHE_KEY);
+  cache.del('directory');
+}
+
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 } });
 
@@ -77,6 +88,10 @@ async function syncDivisions(teamId, divisionIds, client) {
 router.get('/', async (req, res) => {
   try {
     const { org_id } = req.query;
+    const cacheKey = org_id ? teamsOrgKey(org_id) : teamsAllKey();
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
     let result;
     if (org_id) {
       result = await pool.query(
@@ -103,7 +118,9 @@ router.get('/', async (req, res) => {
       );
     }
     const teams = await attachDivisions(result.rows);
-    res.json(teams.map(addComputedNames));
+    const result_data = teams.map(addComputedNames);
+    cache.set(cacheKey, result_data, TEAMS_TTL);
+    res.json(result_data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -141,7 +158,7 @@ router.post('/', authMiddleware, async (req, res) => {
        LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [teamId]
     );
     const teams = await attachDivisions(result.rows);
-    cache.del('directory');
+    bustTeamsCache(org_id);
     res.status(201).json(addComputedNames(teams[0]));
   } catch (err) {
     console.error(err);
@@ -176,7 +193,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
        LEFT JOIN organizations o ON o.id = t.org_id WHERE t.id = $1`, [id]
     );
     const teams = await attachDivisions(result.rows);
-    cache.del('directory');
+    bustTeamsCache(org_id ?? null);
     res.json(addComputedNames(teams[0]));
   } catch (err) {
     console.error(err);
@@ -191,7 +208,7 @@ router.delete('/:id', authMiddleware, requireAdmin, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Team not found' });
 
     await pool.query('DELETE FROM teams WHERE id = $1', [id]);
-    cache.del('directory');
+    bustTeamsCache(null);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -216,7 +233,7 @@ router.post('/:id/logo', authMiddleware, upload.single('logo'), async (req, res)
     }
     const dataUrl = `data:${mime};base64,${req.file.buffer.toString('base64')}`;
     await pool.query('UPDATE teams SET logo_url = $1 WHERE id = $2', [dataUrl, id]);
-    cache.del('directory');
+    bustTeamsCache(null);
     res.json({ logo_url: dataUrl });
   } catch (err) {
     console.error(err);
