@@ -590,6 +590,10 @@ export async function removeOrgLogo(orgId) {
   return apiFetch(`/organizations/${orgId}/logo`, { method: 'DELETE' });
 }
 
+export async function fetchOrgAdminUsers(orgId) {
+  return apiFetch(`/organizations/${orgId}/admin-users`);
+}
+
 // ── Officials ──
 
 export async function fetchOfficials(filters = {}) {

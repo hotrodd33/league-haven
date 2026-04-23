@@ -271,6 +271,11 @@ async function migrate() {
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS officials_enabled BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
+  // Org-level scheduling contact user
+  await pool.query(`
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS scheduling_contact_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+  `);
+
   // Ensure app branding defaults exist
   await pool.query(`
     INSERT INTO app_branding (id, app_name)

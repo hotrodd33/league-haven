@@ -173,30 +173,40 @@ const SLIM_SELECT = `
   ) gd ON true
   LEFT JOIN LATERAL (
     SELECT sm.name, sm.email, sm.phone,
-      CASE WHEN tsa.is_scheduling_contact THEN 'scheduling_contact' ELSE tsa.role END AS role
+      CASE WHEN tsa.is_scheduling_contact THEN 'scheduling_contact' ELSE tsa.role END AS role,
+      CASE WHEN tsa.is_scheduling_contact THEN 0
+           WHEN tsa.role = 'head_coach' THEN 2
+           WHEN tsa.role = 'org_admin' THEN 3
+           ELSE 4 END AS prio
     FROM team_staff_assignments tsa
     JOIN staff_members sm ON sm.id = tsa.staff_id
     WHERE tsa.team_id = g.home_team_id
       AND (tsa.is_scheduling_contact = true OR tsa.role IN ('head_coach', 'org_admin'))
-    ORDER BY tsa.is_scheduling_contact DESC, CASE tsa.role
-      WHEN 'head_coach' THEN 1
-      WHEN 'org_admin' THEN 2
-      ELSE 3
-    END
+    UNION ALL
+    SELECT u.name, u.email, NULL AS phone, 'org_scheduler' AS role, 1 AS prio
+    FROM organizations o
+    JOIN users u ON u.id = o.scheduling_contact_user_id
+    WHERE o.id = ht.org_id AND o.scheduling_contact_user_id IS NOT NULL
+    ORDER BY prio
     LIMIT 1
   ) hsc ON true
   LEFT JOIN LATERAL (
     SELECT sm.name, sm.email, sm.phone,
-      CASE WHEN tsa.is_scheduling_contact THEN 'scheduling_contact' ELSE tsa.role END AS role
+      CASE WHEN tsa.is_scheduling_contact THEN 'scheduling_contact' ELSE tsa.role END AS role,
+      CASE WHEN tsa.is_scheduling_contact THEN 0
+           WHEN tsa.role = 'head_coach' THEN 2
+           WHEN tsa.role = 'org_admin' THEN 3
+           ELSE 4 END AS prio
     FROM team_staff_assignments tsa
     JOIN staff_members sm ON sm.id = tsa.staff_id
     WHERE tsa.team_id = g.away_team_id
       AND (tsa.is_scheduling_contact = true OR tsa.role IN ('head_coach', 'org_admin'))
-    ORDER BY tsa.is_scheduling_contact DESC, CASE tsa.role
-      WHEN 'head_coach' THEN 1
-      WHEN 'org_admin' THEN 2
-      ELSE 3
-    END
+    UNION ALL
+    SELECT u.name, u.email, NULL AS phone, 'org_scheduler' AS role, 1 AS prio
+    FROM organizations ao2
+    JOIN users u ON u.id = ao2.scheduling_contact_user_id
+    WHERE ao2.id = at.org_id AND ao2.scheduling_contact_user_id IS NOT NULL
+    ORDER BY prio
     LIMIT 1
   ) asched ON true
 `;
