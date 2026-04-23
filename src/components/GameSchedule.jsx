@@ -164,7 +164,16 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
 
   // Filters
   const [filterTeam, setFilterTeam] = useState('');
-  const [filterSeason, setFilterSeason] = useState('');
+  const [filterSeason, setFilterSeason] = useState(() => {
+    // Pre-populate from React Query cache so repeat navigation never fires the
+    // "all seasons" games query — the season filter is ready on the first render.
+    const cached = queryClient.getQueryData(['seasons']);
+    if (Array.isArray(cached) && cached.length) {
+      const active = cached.find(s => s.is_active);
+      return active ? String(active.id) : '';
+    }
+    return '';
+  });
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
   const [filterEventType, setFilterEventType] = useState('games');
@@ -208,6 +217,10 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     queryFn: () => fetchGames(gamesFilters),
     staleTime: STALE.ONE_MIN,
     placeholderData: keepPreviousData,
+    // Don't fetch until we know which season to filter on.  The lazy initializer
+    // above covers repeat visits; the useEffect below covers first visit.
+    // Exception: if seasons are loaded but none is active, allow the all-seasons fetch.
+    enabled: !!filterSeason || (!seasonsLoading && !seasons.some(s => s.is_active)),
   });
 
   const practicesFilters = filterTeam && !isMyTeams ? { team_id: filterTeam } : {};
