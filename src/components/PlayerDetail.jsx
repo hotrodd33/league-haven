@@ -42,9 +42,10 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit
         <div>
           <div className="flex items-baseline gap-2">
             <h2 className="text-xl font-bold text-white">{currentPlayer.first_name} {currentPlayer.last_name}</h2>
-            {currentPlayer.jersey_number != null && (
-              <span className="text-sm font-semibold text-chrome-300">#{currentPlayer.jersey_number}</span>
-            )}
+            {(() => {
+              const nums = [...new Set((currentPlayer.teams || []).map(t => t.jersey_number).filter(n => n != null && n !== ''))];
+              return nums.length > 0 ? <span className="text-sm font-semibold text-chrome-300">#{nums.join(' / #')}</span> : null;
+            })()}
           </div>
           <p className="text-sm text-gray-400">
             {currentPlayer.teams?.length ? currentPlayer.teams.map(t => t.name || t.team_name).join(', ') : 'No team'}
