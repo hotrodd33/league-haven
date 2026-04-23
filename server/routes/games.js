@@ -152,7 +152,9 @@ const SLIM_SELECT = `
     fl.city AS location_city, fl.state AS location_state,
     fl.latitude AS location_lat, fl.longitude AS location_lon,
     ls.name AS season_name, ls.year AS season_year,
-    gd.division_id, gd.division_name, gd.division_sort
+    gd.division_id, gd.division_name, gd.division_sort,
+    hsc.name AS home_sched_name, hsc.email AS home_sched_email, hsc.phone AS home_sched_phone, hsc.role AS home_sched_role,
+    asched.name AS away_sched_name, asched.email AS away_sched_email, asched.phone AS away_sched_phone, asched.role AS away_sched_role
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
@@ -169,6 +171,32 @@ const SLIM_SELECT = `
     ORDER BY ld.sort_order
     LIMIT 1
   ) gd ON true
+  LEFT JOIN LATERAL (
+    SELECT sm.name, sm.email, sm.phone, tsa.role
+    FROM team_staff_assignments tsa
+    JOIN staff_members sm ON sm.id = tsa.staff_id
+    WHERE tsa.team_id = g.home_team_id
+      AND tsa.role IN ('scheduling_contact', 'head_coach', 'org_admin')
+    ORDER BY CASE tsa.role
+      WHEN 'scheduling_contact' THEN 1
+      WHEN 'head_coach' THEN 2
+      WHEN 'org_admin' THEN 3
+    END
+    LIMIT 1
+  ) hsc ON true
+  LEFT JOIN LATERAL (
+    SELECT sm.name, sm.email, sm.phone, tsa.role
+    FROM team_staff_assignments tsa
+    JOIN staff_members sm ON sm.id = tsa.staff_id
+    WHERE tsa.team_id = g.away_team_id
+      AND tsa.role IN ('scheduling_contact', 'head_coach', 'org_admin')
+    ORDER BY CASE tsa.role
+      WHEN 'scheduling_contact' THEN 1
+      WHEN 'head_coach' THEN 2
+      WHEN 'org_admin' THEN 3
+    END
+    LIMIT 1
+  ) asched ON true
 `;
 
 function enrichGame(row) {

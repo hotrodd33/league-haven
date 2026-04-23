@@ -400,6 +400,17 @@ export async function unassignStaffFromTeam(teamId, staffId) {
   });
 }
 
+export async function fetchUserSchedContactTeams(userId) {
+  return apiFetch(`/staff/sched-contact/${userId}`);
+}
+
+export async function setSchedContact(userId, teamId, enabled) {
+  return apiFetch('/staff/sched-contact', {
+    method: 'PUT',
+    body: JSON.stringify({ user_id: userId, team_id: teamId, enabled }),
+  });
+}
+
 // ── Games / Schedule ──
 
 export async function fetchGames(filters = {}) {

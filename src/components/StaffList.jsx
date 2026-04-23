@@ -10,6 +10,7 @@ const ROLE_OPTIONS = [
   { value: 'head_coach', label: 'Head Coach' },
   { value: 'assistant_coach', label: 'Assistant Coach' },
   { value: 'scorekeeper', label: 'Scorekeeper' },
+  { value: 'scheduling_contact', label: 'Scheduling Contact' },
 ];
 
 export default function StaffList({ teamId, teamOrgId }) {

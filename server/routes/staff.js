@@ -8,12 +8,13 @@ const { sendCoachInviteEmail } = require('../email');
 
 const router = express.Router();
 
-const VALID_ROLES = ['head_coach', 'assistant_coach', 'scorekeeper', 'org_admin'];
+const VALID_ROLES = ['head_coach', 'assistant_coach', 'scorekeeper', 'org_admin', 'scheduling_contact'];
 const ROLE_LABELS = {
   head_coach: 'Head Coach',
   assistant_coach: 'Assistant Coach',
   scorekeeper: 'Scorekeeper',
   org_admin: 'Org Administrator',
+  scheduling_contact: 'Scheduling Contact',
 };
 
 function addLabel(s) { return { ...s, role_label: ROLE_LABELS[s.role] || s.role }; }
@@ -41,6 +42,79 @@ router.get('/', async (req, res) => {
       result = await pool.query('SELECT * FROM staff_members ORDER BY name');
     }
     res.json(result.rows.map(addLabel));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /sched-contact/:userId — get team_ids where this user is scheduling_contact
+router.get('/sched-contact/:userId', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT tsa.team_id
+       FROM team_staff_assignments tsa
+       JOIN staff_members sm ON sm.id = tsa.staff_id
+       JOIN users u ON u.email = sm.email
+       WHERE u.id = $1 AND tsa.role = 'scheduling_contact'`,
+      [req.params.userId]
+    );
+    res.json({ team_ids: rows.map(r => r.team_id) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /sched-contact — assign or remove scheduling_contact role for a user on a team
+// Body: { user_id, team_id, enabled }
+router.put('/sched-contact', authMiddleware, async (req, res) => {
+  try {
+    const { user_id, team_id, enabled } = req.body;
+    if (!user_id || !team_id || enabled === undefined) {
+      return res.status(400).json({ error: 'user_id, team_id, and enabled are required' });
+    }
+    if (!(await canEditTeam(req.user, team_id))) {
+      return res.status(403).json({ error: 'No permission for this team' });
+    }
+
+    // Look up the user to get their email
+    const userRes = await pool.query('SELECT email, name FROM users WHERE id = $1', [user_id]);
+    if (!userRes.rows.length) return res.status(404).json({ error: 'User not found' });
+    const { email, name } = userRes.rows[0];
+
+    if (!email) return res.status(400).json({ error: 'User has no email address' });
+
+    // Find or create a matching staff_member by email
+    let staffRes = await pool.query('SELECT id FROM staff_members WHERE email = $1', [email]);
+    let staffId;
+    if (staffRes.rows.length) {
+      staffId = staffRes.rows[0].id;
+    } else {
+      const created = await pool.query(
+        'INSERT INTO staff_members (name, email) VALUES ($1, $2) RETURNING id',
+        [name, email]
+      );
+      staffId = created.rows[0].id;
+    }
+
+    if (enabled) {
+      await pool.query(
+        `INSERT INTO team_staff_assignments (team_id, staff_id, role)
+         VALUES ($1, $2, 'scheduling_contact')
+         ON CONFLICT (team_id, staff_id) DO UPDATE SET role = 'scheduling_contact'`,
+        [team_id, staffId]
+      );
+    } else {
+      await pool.query(
+        `DELETE FROM team_staff_assignments
+         WHERE team_id = $1 AND staff_id = $2 AND role = 'scheduling_contact'`,
+        [team_id, staffId]
+      );
+    }
+
+    cache.del('directory');
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
