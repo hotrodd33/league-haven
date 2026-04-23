@@ -1,4 +1,5 @@
 import ErrorBoundary from './ErrorBoundary.jsx';
+import { useRef } from 'react';
 import Dashboard from './Dashboard.jsx';
 import OrgManager from './OrgManager.jsx';
 import UserManager from './UserManager.jsx';
@@ -129,7 +130,8 @@ function PageContent({
             return <HelpPage initialTab="guide" onBack={() => setPage('dashboard')} />;
 
         case 'rosters':
-        default:
+        default: {
+            const editTeamTriggerRef = useRef(null);
             return (
                 <div className="flex flex-col lg:flex-row gap-4 -m-4 lg:-m-6">
                     <aside className="w-full lg:w-64 bg-gray-800 border border-gray-700 rounded-xl shadow-card p-4 shrink-0 lg:m-6 lg:mr-0 lg:self-start lg:sticky lg:top-20">
@@ -137,6 +139,7 @@ function PageContent({
                             selectedTeam={selectedTeam}
                             onSelectTeam={(id, orgId) => { setSelectedTeam(id); setSelectedTeamOrgId(orgId); }}
                             onTeamsChanged={onTeamsChanged}
+                            onRegisterEditTrigger={fn => { editTeamTriggerRef.current = fn; }}
                         />
                     </aside>
                     <div className="flex-1 p-4 lg:p-6 overflow-x-auto">
@@ -149,9 +152,11 @@ function PageContent({
                             refreshKey={refreshKey}
                             onNavigateToTeam={navigateToTeam}
                             onWatermarkLogoChange={onTeamWatermarkChange}
+                            onEditTeam={isAdmin ? () => editTeamTriggerRef.current?.() : null}
                         />
                     </div>
                 </div>
             );
+        }
     }
 }

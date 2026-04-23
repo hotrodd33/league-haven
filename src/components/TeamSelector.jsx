@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchTeams, fetchOrganizations, fetchAgeGroups, fetchLevels, fetchDivisions, fetchSeasons, createTeam, updateTeam, deleteTeam, uploadTeamLogo, removeTeamLogo } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo, { HomePlate, plateLabel } from './TeamLogo.jsx';
 import { cn } from '../lib/cn.js';
 import { Button, Input, Select, Modal } from './ui/index.js';
 
-export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChanged }) {
+export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChanged, onRegisterEditTrigger }) {
   const { isAdmin, permissions } = useAuth();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +33,18 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
 
   const selected = selectedTeam ? teams.find(t => t.id === selectedTeam) : null;
 
-  async function handleDelete() {
+  // Register the edit trigger with the parent so TeamHeader can fire it
+  const editTriggerRef = useRef(null);
+  useEffect(() => {
+    if (!onRegisterEditTrigger) return;
+    if (selected && isAdmin) {
+      editTriggerRef.current = () => { setEditing(true); setShowForm(true); };
+    } else {
+      editTriggerRef.current = null;
+    }
+    onRegisterEditTrigger(editTriggerRef.current);
+  }, [selected, isAdmin, onRegisterEditTrigger]);
+
     if (!selected) return;
     if (!window.confirm(`Delete "${selected.name}"? This will remove all players and staff on this team.`)) return;
     setDeleting(true);
@@ -235,10 +246,6 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
               </div>
               <div className="flex gap-1.5 shrink-0">
                 <Button
-                  size="xs" variant="secondary"
-                  onClick={() => { setEditing(true); setShowForm(true); }}
-                >Edit</Button>
-                <Button
                   size="xs" variant="danger"
                   onClick={handleDelete}
                   disabled={deleting}
@@ -247,7 +254,6 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
             </div>
           </div>
         )}
-        {mobileOpen && (
           <div className="mt-2 max-h-80 overflow-y-auto">
             {teamList}
           </div>
@@ -275,10 +281,6 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 <p className="text-sm font-semibold text-gray-200 truncate">{selected.name}</p>
               </div>
               <div className="flex gap-1.5 shrink-0">
-                <Button
-                  size="xs" variant="secondary"
-                  onClick={() => { setEditing(true); setShowForm(true); }}
-                >Edit</Button>
                 <Button
                   size="xs" variant="danger"
                   onClick={handleDelete}
