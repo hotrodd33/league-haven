@@ -36,7 +36,7 @@ router.get('/', adminOnly, async (req, res) => {
 // POST /api/users — create a new user (admin-created)
 router.post('/', adminOnly, async (req, res) => {
   try {
-    const { username, password, name, email, role, is_umpire } = req.body;
+    const { username, password, name, email, role, is_umpire, org_ids = [], team_ids = [] } = req.body;
     if (!username || !password || !name) {
       return res.status(400).json({ error: 'Username, password, and name are required' });
     }
@@ -53,13 +53,40 @@ router.post('/', adminOnly, async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
-    const { rows } = await pool.query(
-      `INSERT INTO users (username, password_hash, name, email, role, is_umpire, must_change_password, email_confirmed, approval_status)
-       VALUES ($1, $2, $3, $4, $5, $6, TRUE, TRUE, 'approved')
-       RETURNING id, username, name, email, role, is_umpire, created_at`,
-      [username, hash, name, email || null, userRole, is_umpire === true]
-    );
-    res.status(201).json({ ...rows[0], permissions: { org_ids: [], team_ids: [] } });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `INSERT INTO users (username, password_hash, name, email, role, is_umpire, must_change_password, email_confirmed, approval_status)
+         VALUES ($1, $2, $3, $4, $5, $6, TRUE, TRUE, 'approved')
+         RETURNING id, username, name, email, role, is_umpire, created_at`,
+        [username, hash, name, email || null, userRole, is_umpire === true]
+      );
+      const userId = rows[0].id;
+
+      const validOrgIds = Array.isArray(org_ids) ? org_ids.map(Number).filter(Number.isFinite) : [];
+      const validTeamIds = Array.isArray(team_ids) ? team_ids.map(Number).filter(Number.isFinite) : [];
+      for (const orgId of validOrgIds) {
+        await client.query(
+          'INSERT INTO user_permissions (user_id, org_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [userId, orgId]
+        );
+      }
+      for (const teamId of validTeamIds) {
+        await client.query(
+          'INSERT INTO user_permissions (user_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [userId, teamId]
+        );
+      }
+      await client.query('COMMIT');
+
+      res.status(201).json({ ...rows[0], permissions: { org_ids: validOrgIds, team_ids: validTeamIds } });
+    } catch (innerErr) {
+      await client.query('ROLLBACK');
+      throw innerErr;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     console.error('Create user error:', err);
     res.status(500).json({ error: 'Internal server error' });
