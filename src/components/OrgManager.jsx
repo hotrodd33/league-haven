@@ -44,7 +44,7 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   const loadOrgs = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [orgData, games, regData] = await Promise.all([fetchOrganizations(), fetchGames(), fetchRegistrations().catch(() => ({ registrations: [] }))]);
+      const [orgData, games, regData] = await Promise.all([fetchOrganizations(), fetchGames({ slim: true }), fetchRegistrations().catch(() => ({ registrations: [] }))]);    
       setOrgs(orgData);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
