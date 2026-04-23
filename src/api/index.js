@@ -400,14 +400,10 @@ export async function unassignStaffFromTeam(teamId, staffId) {
   });
 }
 
-export async function fetchUserSchedContactTeams(userId) {
-  return apiFetch(`/staff/sched-contact/${userId}`);
-}
-
-export async function setSchedContact(userId, teamId, enabled) {
-  return apiFetch('/staff/sched-contact', {
-    method: 'PUT',
-    body: JSON.stringify({ user_id: userId, team_id: teamId, enabled }),
+export async function toggleSchedContact(teamId, staffId, enabled) {
+  return apiFetch('/staff/toggle-sched', {
+    method: 'PATCH',
+    body: JSON.stringify({ team_id: teamId, staff_id: staffId, enabled }),
   });
 }
 

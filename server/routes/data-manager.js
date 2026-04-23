@@ -790,13 +790,12 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const teamCol = findCol(headers, 'team', 'team_name', 'teams');
         const roleCol = findCol(headers, 'role', 'roles', 'position');
 
-        const VALID_ROLES = ['head_coach', 'assistant_coach', 'scorekeeper', 'org_admin', 'scheduling_contact'];
+        const VALID_ROLES = ['head_coach', 'assistant_coach', 'scorekeeper', 'org_admin'];
         const ROLE_LABELS = {
           head_coach: 'Head Coach',
           assistant_coach: 'Assistant Coach',
           scorekeeper: 'Scorekeeper',
           org_admin: 'Org Admin',
-          scheduling_contact: 'Scheduling Contact',
         };
         const teamLookup = await buildTeamLookup();
         const orgLookup = await buildOrgLookup();

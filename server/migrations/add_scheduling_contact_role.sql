@@ -1,9 +1,5 @@
--- Migration: add 'scheduling_contact' to team_staff_assignments role CHECK constraint
+-- Migration: add is_scheduling_contact flag to team_staff_assignments
 -- Run once against the Neon production database before deploying the scheduling contact feature.
 
 ALTER TABLE team_staff_assignments
-  DROP CONSTRAINT IF EXISTS team_staff_assignments_role_check;
-
-ALTER TABLE team_staff_assignments
-  ADD CONSTRAINT team_staff_assignments_role_check
-    CHECK (role IN ('head_coach', 'assistant_coach', 'scorekeeper', 'org_admin', 'scheduling_contact'));
+  ADD COLUMN IF NOT EXISTS is_scheduling_contact BOOLEAN NOT NULL DEFAULT FALSE;

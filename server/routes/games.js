@@ -172,28 +172,30 @@ const SLIM_SELECT = `
     LIMIT 1
   ) gd ON true
   LEFT JOIN LATERAL (
-    SELECT sm.name, sm.email, sm.phone, tsa.role
+    SELECT sm.name, sm.email, sm.phone,
+      CASE WHEN tsa.is_scheduling_contact THEN 'scheduling_contact' ELSE tsa.role END AS role
     FROM team_staff_assignments tsa
     JOIN staff_members sm ON sm.id = tsa.staff_id
     WHERE tsa.team_id = g.home_team_id
-      AND tsa.role IN ('scheduling_contact', 'head_coach', 'org_admin')
-    ORDER BY CASE tsa.role
-      WHEN 'scheduling_contact' THEN 1
-      WHEN 'head_coach' THEN 2
-      WHEN 'org_admin' THEN 3
+      AND (tsa.is_scheduling_contact = true OR tsa.role IN ('head_coach', 'org_admin'))
+    ORDER BY tsa.is_scheduling_contact DESC, CASE tsa.role
+      WHEN 'head_coach' THEN 1
+      WHEN 'org_admin' THEN 2
+      ELSE 3
     END
     LIMIT 1
   ) hsc ON true
   LEFT JOIN LATERAL (
-    SELECT sm.name, sm.email, sm.phone, tsa.role
+    SELECT sm.name, sm.email, sm.phone,
+      CASE WHEN tsa.is_scheduling_contact THEN 'scheduling_contact' ELSE tsa.role END AS role
     FROM team_staff_assignments tsa
     JOIN staff_members sm ON sm.id = tsa.staff_id
     WHERE tsa.team_id = g.away_team_id
-      AND tsa.role IN ('scheduling_contact', 'head_coach', 'org_admin')
-    ORDER BY CASE tsa.role
-      WHEN 'scheduling_contact' THEN 1
-      WHEN 'head_coach' THEN 2
-      WHEN 'org_admin' THEN 3
+      AND (tsa.is_scheduling_contact = true OR tsa.role IN ('head_coach', 'org_admin'))
+    ORDER BY tsa.is_scheduling_contact DESC, CASE tsa.role
+      WHEN 'head_coach' THEN 1
+      WHEN 'org_admin' THEN 2
+      ELSE 3
     END
     LIMIT 1
   ) asched ON true

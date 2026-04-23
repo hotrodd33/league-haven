@@ -4,7 +4,6 @@ import {
   fetchUsers, createUser, updateUser, deleteUser, updateUserPermissions,
   fetchOrganizations, fetchTeams, inviteUser, resendPendingInvites,
   fetchPendingApprovals, approveUser, rejectUser, resetUserApproval,
-  fetchUserSchedContactTeams, setSchedContact,
 } from '../api/index.js';
 import { Button, Input, Select, Modal, Badge } from './ui/index.js';
 
@@ -583,27 +582,18 @@ function PermissionsEditor({ user, onBack }) {
   const [error, setError] = useState(null);
   const [selectedOrgs, setSelectedOrgs] = useState(new Set(user.permissions?.org_ids || []));
   const [selectedTeams, setSelectedTeams] = useState(new Set(user.permissions?.team_ids || []));
-  const [schedTeams, setSchedTeams] = useState(new Set());
-  const [origSchedTeams, setOrigSchedTeams] = useState(new Set());
 
   useEffect(() => {
     async function load() {
       try {
-        const [orgData, teamData, schedData] = await Promise.all([
-          fetchOrganizations(),
-          fetchTeams(),
-          fetchUserSchedContactTeams(user.id),
-        ]);
+        const [orgData, teamData] = await Promise.all([fetchOrganizations(), fetchTeams()]);
         setOrgs(orgData);
         setTeams(teamData);
-        const ids = new Set(schedData.team_ids || []);
-        setSchedTeams(ids);
-        setOrigSchedTeams(new Set(ids));
       } catch (err) { setError(err.message); }
       finally { setLoading(false); }
     }
     load();
-  }, [user.id]);
+  }, []);
 
   function toggleOrg(orgId) {
     setSelectedOrgs((prev) => {
@@ -623,15 +613,6 @@ function PermissionsEditor({ user, onBack }) {
     });
   }
 
-  function toggleSched(teamId) {
-    setSchedTeams((prev) => {
-      const next = new Set(prev);
-      if (next.has(teamId)) next.delete(teamId);
-      else next.add(teamId);
-      return next;
-    });
-  }
-
   async function handleSave() {
     setSaving(true); setError(null);
     try {
@@ -639,13 +620,6 @@ function PermissionsEditor({ user, onBack }) {
         org_ids: [...selectedOrgs],
         team_ids: [...selectedTeams],
       });
-      // Diff scheduling contact assignments
-      const added = [...schedTeams].filter(id => !origSchedTeams.has(id));
-      const removed = [...origSchedTeams].filter(id => !schedTeams.has(id));
-      await Promise.all([
-        ...added.map(id => setSchedContact(user.id, id, true)),
-        ...removed.map(id => setSchedContact(user.id, id, false)),
-      ]);
       onBack();
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -753,56 +727,6 @@ function PermissionsEditor({ user, onBack }) {
         )}
 
         {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
-
-        {/* Scheduling Contact */}
-        <h3 className="text-base font-display font-bold uppercase text-white tracking-wide mb-2 mt-4">Scheduling Contact</h3>
-        <p className="text-xs text-gray-400 mb-2">
-          Mark this user as the scheduling contact for specific teams. They will be shown as the first point of contact on unscheduled game tiles, taking priority over the head coach.
-        </p>
-        {teams.length === 0 ? (
-          <p className="text-sm text-gray-400 mb-4">No teams created yet.</p>
-        ) : (
-          <div className="space-y-2 mb-4">
-            {orgs.map((org) => {
-              const orgTeams = (teamsByOrg[org.id] || []);
-              if (orgTeams.length === 0) return null;
-              return (
-                <div key={org.id} className="ml-2">
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{org.name}</div>
-                  <div className="space-y-1 ml-2">
-                    {orgTeams.map((t) => (
-                      <label key={t.id} className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-900 cursor-pointer">
-                        <input type="checkbox"
-                          checked={schedTeams.has(t.id)}
-                          onChange={() => toggleSched(t.id)}
-                          className="w-4 h-4 text-accent-600 rounded border-gray-600 focus:ring-accent-500" />
-                        <span className="text-sm">{t.name}</span>
-                        {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-            {unassignedTeams.length > 0 && (
-              <div className="ml-2">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Unassigned</div>
-                <div className="space-y-1 ml-2">
-                  {unassignedTeams.map((t) => (
-                    <label key={t.id} className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-900 cursor-pointer">
-                      <input type="checkbox"
-                        checked={schedTeams.has(t.id)}
-                        onChange={() => toggleSched(t.id)}
-                        className="w-4 h-4 text-accent-600 rounded border-gray-600 focus:ring-accent-500" />
-                      <span className="text-sm">{t.name}</span>
-                      {t.age_group && <span className="text-xs text-gray-400">{t.age_group}</span>}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-gray-700">
           <Button variant="secondary" onClick={onBack}>Cancel</Button>
