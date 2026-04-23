@@ -18,7 +18,7 @@ async function canEditPlayer(user, playerId) {
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf'];
 
 // GET /player-documents/:playerId
-router.get('/:playerId', async (req, res) => {
+router.get('/:playerId', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, player_id, doc_type, file_name, mime_type, uploaded_by, created_at

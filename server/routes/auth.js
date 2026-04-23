@@ -95,6 +95,7 @@ router.post('/login', async (req, res) => {
 
 // POST /api/auth/register — self-registration (scorekeeper — pending approval)
 router.post('/register', async (req, res) => {
+  if (rateLimit(req, res, { key: 'register', max: 5, windowMs: 300_000 })) return;
   try {
     const { username, password, name, email: rawEmail, team_ids } = req.body;
     const email = rawEmail?.trim().toLowerCase();
@@ -153,6 +154,7 @@ router.post('/register', async (req, res) => {
 
 // POST /api/auth/register-umpire — umpire self-registration with profile creation (pending approval)
 router.post('/register-umpire', async (req, res) => {
+  if (rateLimit(req, res, { key: 'register-umpire', max: 5, windowMs: 300_000 })) return;
   try {
     const { username, password, name, email, phone, org_ids, date_of_birth, is_certified, years_of_experience } = req.body;
     if (!username || !password || !name || !email) {
