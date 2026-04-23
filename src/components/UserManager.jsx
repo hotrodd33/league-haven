@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext.jsx';
 import {
   fetchUsers, createUser, updateUser, deleteUser, updateUserPermissions,
   fetchOrganizations, fetchTeams, inviteUser, resendPendingInvites,
@@ -367,6 +368,7 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
 
 function UserForm({ user, onDone, onCancel }) {
   const isEditing = !!user;
+  const { isSuperAdmin, permissions: myPerms } = useAuth();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [form, setForm] = useState({
@@ -389,10 +391,26 @@ function UserForm({ user, onDone, onCancel }) {
     if (isEditing) return;
     setPermsLoading(true);
     Promise.all([fetchOrganizations(), fetchTeams()])
-      .then(([orgData, teamData]) => { setOrgs(orgData); setAllTeams(teamData); })
+      .then(([orgData, teamData]) => {
+        // Super admins see everything; other admins see only their own orgs/teams
+        if (isSuperAdmin) {
+          setOrgs(orgData);
+          setAllTeams(teamData);
+        } else {
+          const allowedOrgIds = new Set((myPerms.org_ids || []).map(Number));
+          const allowedTeamIds = new Set((myPerms.team_ids || []).map(Number));
+          const filteredOrgs = orgData.filter(o => allowedOrgIds.has(o.id));
+          // Teams under allowed orgs OR explicitly permitted teams
+          const filteredTeams = teamData.filter(t =>
+            allowedTeamIds.has(t.id) || allowedOrgIds.has(t.org_id)
+          );
+          setOrgs(filteredOrgs);
+          setAllTeams(filteredTeams);
+        }
+      })
       .catch(() => {})
       .finally(() => setPermsLoading(false));
-  }, [isEditing]);
+  }, [isEditing, isSuperAdmin, myPerms]);
 
   function toggleOrg(orgId) {
     setSelectedOrgs(prev => { const n = new Set(prev); n.has(orgId) ? n.delete(orgId) : n.add(orgId); return n; });
