@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
 import { cn } from '../lib/cn.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { fetchTeams, fetchGames, fetchSeasons, fetchOrganizations, fetchAllPitchRest, fetchAllPlayers, fetchDashboardActivity, fetchAnnouncements, markAnnouncementRead, fetchWeather, fetchWeatherForecast } from '../api/index.js';
+import { fetchDashboardSummary, fetchAllPitchRest, fetchDashboardActivity, fetchAnnouncements, markAnnouncementRead, fetchWeather, fetchWeatherForecast } from '../api/index.js';
 import { Card, CardHeader, CardBody, StatCard, Scoreboard, Button } from './ui/index.js';
 import {
   UsersIcon, CalendarIcon, TrophyIcon, BuildingIcon,
@@ -95,27 +95,24 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
   const queryClient = useQueryClient();
   const [gameWeather, setGameWeather] = useState({});
 
-  const { data: teams = [],        isPending: teamsPending   } = useQuery({ queryKey: ['teams'],              queryFn: fetchTeams,              staleTime: STALE.THREE_MIN });
-  const { data: games = [],        isPending: gamesPending   } = useQuery({ queryKey: ['games'],              queryFn: fetchGames,              staleTime: STALE.ONE_MIN });
-  const { data: seasons = [],      isPending: seasonsPending } = useQuery({ queryKey: ['seasons'],            queryFn: fetchSeasons,            staleTime: STALE.HOUR });
-  const { data: orgs = [],         isPending: orgsPending    } = useQuery({ queryKey: ['organizations'],      queryFn: fetchOrganizations,      staleTime: STALE.HOUR });
+  const { data: summary = null,  isPending: summaryPending  } = useQuery({ queryKey: ['dashboard-summary'],   queryFn: fetchDashboardSummary,  staleTime: STALE.ONE_MIN });
   const { data: pitchRest = {}                               } = useQuery({ queryKey: ['pitch-rest', 'all'], queryFn: fetchAllPitchRest,       staleTime: STALE.THIRTY_SEC });
-  const { data: players = []                                 } = useQuery({ queryKey: ['players', 'all'],    queryFn: fetchAllPlayers,         staleTime: STALE.TWO_MIN });
   const { data: activity = []                                } = useQuery({ queryKey: ['dashboard-activity'],queryFn: fetchDashboardActivity,  staleTime: STALE.THIRTY_SEC });
   const { data: announcements = []                           } = useQuery({ queryKey: ['announcements'],     queryFn: fetchAnnouncements,      staleTime: STALE.TWO_MIN });
 
-  const loading = teamsPending || gamesPending || seasonsPending || orgsPending;
+  const loading = summaryPending;
 
   // Fetch weather for today's games (current) and upcoming games (forecast)
   const weatherFetchedRef = useRef(new Set());
 
   useEffect(() => {
-    if (!games.length) return;
-    const todayStr_ = new Date().toISOString().slice(0, 10);
+    const allTodaysGames = summary?.todaysGames || [];
+    const allUpcomingGames = summary?.upcomingGames || [];
+    if (!allTodaysGames.length && !allUpcomingGames.length) return;
 
     // Current weather for today's games (deduplicated by location, skip already-fetched)
-    const todaysWithLoc = games.filter(g =>
-      g.game_date === todayStr_ && g.location_lat && g.location_lon &&
+    const todaysWithLoc = allTodaysGames.filter(g =>
+      g.location_lat && g.location_lon &&
       !weatherFetchedRef.current.has(`loc:${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`)
     );
     const seenLocs = new Set();
@@ -125,16 +122,14 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
       if (!seenLocs.has(key)) { seenLocs.add(key); uniqueToday.push(g); }
     }
 
-    // Forecast weather for upcoming games (within 16 days, not today, skip already-fetched)
+    // Forecast weather for upcoming games (within 16 days, skip already-fetched)
     const maxDate = new Date();
     maxDate.setDate(maxDate.getDate() + 16);
-    const maxDateStr = maxDate.toISOString().slice(0, 10);
-    const upcomingWithLoc = games.filter(g =>
-      g.game_date > todayStr_ && g.game_date <= maxDateStr &&
-      g.location_lat && g.location_lon &&
-      g.status !== 'final' && g.status !== 'cancelled' &&
+    const maxDateStr = maxDate.toISOString().split('T')[0];
+    const upcomingWithLoc = allUpcomingGames.filter(g =>
+      g.game_date <= maxDateStr && g.location_lat && g.location_lon &&
       !weatherFetchedRef.current.has(String(g.id))
-    ).slice(0, 10);
+    );
 
     if (!uniqueToday.length && !upcomingWithLoc.length) return;
 
@@ -166,81 +161,29 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
       }
       setGameWeather(prev => ({ ...prev, ...map }));
     });
-  }, [games]);
+  }, [summary]);
 
-  /* Derived stats */
-  const currentSeason = seasons.find(s => s.is_current) || seasons[0];
+  /* Derived data from summary */
+  const todaysGames = summary?.todaysGames || [];
+  const upcomingGames = summary?.upcomingGames || [];
+  const recentResults = summary?.recentResults || [];
+  const unscoredGames = summary?.unscoredGames || [];
+  const counts = summary?.counts || { gamesThisWeek: 0, completedGames: 0, totalGames: 0, teams: 0, orgs: 0 };
+  const currentSeason = summary?.currentSeason || null;
+  const rosterAlerts = summary?.rosterAlerts || [];
+
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
 
-  /* Role-based scoping */
+  /* Role-based UI decisions (scoping is done server-side) */
   const role = user?.role;
   const isAdmin = role === 'super_admin' || role === 'org_admin';
-  const myTeamIds = user?.permissions?.team_ids || [];
-  const myOrgIds = user?.permissions?.org_ids || [];
 
-  const scopedGames = isAdmin ? games : games.filter(g =>
-    myTeamIds.includes(g.home_team_id) || myTeamIds.includes(g.away_team_id)
-  );
-  const scopedTeams = isAdmin ? teams : teams.filter(t =>
-    myTeamIds.includes(t.id) || myOrgIds.includes(t.org_id)
-  );
-  const scopedPlayers = isAdmin ? players : players.filter(p =>
-    p.teams?.some(t => myTeamIds.includes(t.team_id) || myOrgIds.includes(t.org_id))
-  );
-
-  const weekStart = new Date(now);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
-  const weekStartStr = weekStart.toISOString().slice(0, 10);
-  const weekEndStr = weekEnd.toISOString().slice(0, 10);
-
-  const gamesThisWeek = scopedGames.filter(g => g.game_date >= weekStartStr && g.game_date <= weekEndStr);
-  const completedGames = scopedGames.filter(g => g.status === 'final');
-  const upcomingGames = scopedGames
-    .filter(g => g.game_date > todayStr && g.status !== 'final' && g.status !== 'cancelled')
-    .sort((a, b) => (a.game_date + (a.game_time || '')) > (b.game_date + (b.game_time || '')) ? 1 : -1)
-    .slice(0, 5);
-
-  const todaysGames = scopedGames
-    .filter(g => g.game_date === todayStr && g.status !== 'cancelled')
-    .sort((a, b) => (a.game_time || '').localeCompare(b.game_time || ''));
-
-  /* Players currently on rest (not eligible today) */
+  /* Players currently on rest — name and teams come from extended pitch-rest endpoint */
   const playersOnRest = Object.entries(pitchRest)
-    .filter(([, r]) => !r.eligible_today)
-    .map(([pid, r]) => {
-      const player = scopedPlayers.find(p => String(p.id) === String(pid));
-      return player ? { ...r, id: pid, name: `${player.first_name} ${player.last_name}`, teams: player.teams } : null;
-    })
-    .filter(Boolean)
+    .filter(([, r]) => !r.eligible_today && r.name)
+    .map(([pid, r]) => ({ ...r, id: pid }))
     .sort((a, b) => (a.available_date || '').localeCompare(b.available_date || ''));
-
-  /* Games that have passed but still have no score entered */
-  const unscoredGames = scopedGames
-    .filter(g => g.game_date < todayStr && g.status === 'scheduled')
-    .sort((a, b) => b.game_date > a.game_date ? 1 : -1);
-
-  /* Roster alerts — players missing key info */
-  const rosterAlerts = scopedPlayers
-    .filter(p => {
-      if (!p.date_of_birth) return true;
-      if (p.teams?.some(t => !t.jersey_number)) return true;
-      return false;
-    })
-    .map(p => {
-      const issues = [];
-      if (!p.date_of_birth) issues.push('Missing DOB');
-      const teamsNoJersey = (p.teams || []).filter(t => !t.jersey_number);
-      if (teamsNoJersey.length > 0) issues.push(`No jersey # on ${teamsNoJersey.map(t => t.team_name).join(', ')}`);
-      return { id: p.id, name: `${p.first_name} ${p.last_name}`, issues, teams: p.teams };
-    });
-
-  const recentResults = scopedGames
-    .filter(g => g.status === 'final')
-    .sort((a, b) => b.game_date > a.game_date ? 1 : -1)
-    .slice(0, 5);
 
   const displayName = user?.name || user?.username || 'Coach';
   const firstName = displayName.split(' ')[0];
@@ -363,29 +306,29 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label={isAdmin ? "Total Teams" : "My Teams"}
-            value={scopedTeams.length}
+            value={counts.teams}
             icon={<UsersIcon className="w-5 h-5" />}
             accentColor="field"
-            trendLabel={isAdmin && teams.length > 0 ? `${orgs.length} org${orgs.length !== 1 ? 's' : ''}` : undefined}
+            trendLabel={isAdmin && counts.orgs > 0 ? `${counts.orgs} org${counts.orgs !== 1 ? 's' : ''}` : undefined}
             trend={1}
           />
           <StatCard
             label="Games This Week"
-            value={gamesThisWeek.length}
+            value={counts.gamesThisWeek}
             icon={<CalendarIcon className="w-5 h-5" />}
             accentColor="blue"
           />
           <StatCard
             label="Games Played"
-            value={completedGames.length}
+            value={counts.completedGames}
             icon={<TrophyIcon className="w-5 h-5" />}
             accentColor="dirt"
-            trendLabel={scopedGames.length > 0 ? `of ${scopedGames.length} total` : undefined}
+            trendLabel={counts.totalGames > 0 ? `of ${counts.totalGames} total` : undefined}
             trend={1}
           />
           <StatCard
             label="Organizations"
-            value={orgs.length}
+            value={counts.orgs}
             icon={<BuildingIcon className="w-5 h-5" />}
             accentColor="baseball"
           />
@@ -738,23 +681,23 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
                   <h4 className="text-sm font-bold text-gray-100">Season Overview</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <MiniStat label="Total games" value={scopedGames.length} />
-                  <MiniStat label="Completed" value={completedGames.length} />
-                  <MiniStat label="Teams" value={scopedTeams.length} />
-                  <MiniStat label="This week" value={gamesThisWeek.length} />
+                  <MiniStat label="Total games" value={counts.totalGames} />
+                  <MiniStat label="Completed" value={counts.completedGames} />
+                  <MiniStat label="Teams" value={counts.teams} />
+                  <MiniStat label="This week" value={counts.gamesThisWeek} />
                 </div>
-                {scopedGames.length > 0 && (
+                {counts.totalGames > 0 && (
                   <div className="pt-2 border-t border-gray-700">
                     <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
                       <span>Season progress</span>
                       <span className="font-semibold text-gray-300">
-                        {scopedGames.length > 0 ? Math.round((completedGames.length / scopedGames.length) * 100) : 0}%
+                        {Math.round((counts.completedGames / counts.totalGames) * 100)}%
                       </span>
                     </div>
                     <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-action-500 to-action-600 rounded-full transition-all duration-500"
-                        style={{ width: `${scopedGames.length > 0 ? (completedGames.length / scopedGames.length) * 100 : 0}%` }}
+                        style={{ width: `${(counts.completedGames / counts.totalGames) * 100}%` }}
                       />
                     </div>
                   </div>

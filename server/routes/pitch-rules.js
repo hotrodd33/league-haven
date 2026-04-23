@@ -462,6 +462,28 @@ router.get('/all-rest', authMiddleware, async (req, res) => {
       }
     }
 
+    // Enrich result with player names and team assignments for dashboard use
+    const restPlayerIds = Object.keys(result).map(Number);
+    if (restPlayerIds.length > 0) {
+      const { rows: nameRows } = await pool.query(
+        `SELECT p.id,
+                CONCAT(p.first_name, ' ', p.last_name) AS name,
+                json_agg(json_build_object('team_id', tp.team_id, 'team_name', t.name)) AS teams
+         FROM players p
+         JOIN team_players tp ON tp.player_id = p.id
+         JOIN teams t ON t.id = tp.team_id
+         WHERE p.id = ANY($1)
+         GROUP BY p.id, p.first_name, p.last_name`,
+        [restPlayerIds]
+      );
+      for (const row of nameRows) {
+        if (result[row.id]) {
+          result[row.id].name = row.name;
+          result[row.id].teams = row.teams;
+        }
+      }
+    }
+
     res.json(result);
   } catch (err) {
     console.error('Pitch rules all-rest error:', err);
