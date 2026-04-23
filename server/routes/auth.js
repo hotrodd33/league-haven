@@ -84,7 +84,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: user.is_umpire || false, email: user.email },
+      user: { id: user.id, username: user.username, name: user.name, role: user.role, is_umpire: user.is_umpire || false, email: user.email, must_change_password: user.must_change_password || false },
       permissions,
     });
   } catch (err) {
@@ -318,7 +318,7 @@ router.put('/change-password', authMiddleware, async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
 
     const hash = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.user.id]);
+    await pool.query('UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2', [hash, req.user.id]);
 
     // Send notification email (non-blocking)
     if (rows[0].email) {

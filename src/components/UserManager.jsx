@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   fetchUsers, createUser, updateUser, deleteUser, updateUserPermissions,
-  fetchOrganizations, fetchTeams, inviteUser,
+  fetchOrganizations, fetchTeams, inviteUser, resendPendingInvites,
   fetchPendingApprovals, approveUser, rejectUser, resetUserApproval,
 } from '../api/index.js';
 import { Button, Input, Select, Modal, Badge } from './ui/index.js';
@@ -75,6 +75,24 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
   }
 
   const [inviting, setInviting] = useState(null);
+  const [resending, setResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
+
+  async function handleResendPending() {
+    setResending(true);
+    setResendMsg('');
+    try {
+      const result = await resendPendingInvites();
+      setResendMsg(result.message || 'Done.');
+      setTimeout(() => setResendMsg(''), 6000);
+    } catch (err) {
+      setResendMsg('Error: ' + err.message);
+      setTimeout(() => setResendMsg(''), 6000);
+    } finally {
+      setResending(false);
+    }
+  }
+
   async function handleInvite(user) {
     if (!user.email) { alert('User has no email address. Edit the user to add one first.'); return; }
     setInviting(user.id);
@@ -167,10 +185,19 @@ export default function UserManager({ onBack, initialTab, showUsersTab = true })
               {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.size} selected`}
             </Button>
           )}
+          {tab === 'users' && (
+            <Button variant="secondary" onClick={handleResendPending} disabled={resending} loading={resending}>
+              {resending ? 'Sending…' : 'Resend Pending (48h)'}
+            </Button>
+          )}
           {tab === 'users' && <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Add User</Button>}
           {onBack && <Button variant="secondary" onClick={onBack}>← Back</Button>}
         </div>
       </div>
+
+      {resendMsg && (
+        <div className={`lh-alert ${resendMsg.startsWith('Error') ? 'lh-alert-error' : 'lh-alert-success'} mt-2`}>{resendMsg}</div>
+      )}
 
       {/* Approvals tab */}
       {tab === 'approvals' && <PendingApprovals />}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { changePassword } from '../api/index.js';
 import { Button, Input, Modal } from './ui';
 
-export default function ChangePassword({ onClose }) {
+export default function ChangePassword({ onClose, forced = false, onPasswordChanged }) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -17,7 +17,11 @@ export default function ChangePassword({ onClose }) {
     try {
       await changePassword(currentPassword, newPassword);
       setSuccess(true);
-      setTimeout(onClose, 1500);
+      if (forced && onPasswordChanged) {
+        setTimeout(onPasswordChanged, 1200);
+      } else {
+        setTimeout(onClose, 1500);
+      }
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   }
@@ -25,23 +29,28 @@ export default function ChangePassword({ onClose }) {
   return (
     <Modal
       open
-      onClose={onClose}
+      onClose={forced ? undefined : onClose}
       size="sm"
-      title="Change Password"
+      title={forced ? 'Set Your Password' : 'Change Password'}
       footer={
         !success && (
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+            {!forced && <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>}
             <Button size="sm" loading={loading} onClick={() => document.getElementById('change-pwd-form').requestSubmit()}>
-              {loading ? 'Changing…' : 'Change Password'}
+              {loading ? 'Saving…' : forced ? 'Set Password' : 'Change Password'}
             </Button>
           </div>
         )
       }
     >
+      {forced && !success && (
+        <div className="lh-alert lh-alert-info mb-4">
+          Your account was created with a temporary password. Enter it below and choose a new one to continue.
+        </div>
+      )}
       {success ? (
         <div className="lh-alert lh-alert-success">
-          Password changed successfully!
+          Password {forced ? 'set' : 'changed'} successfully!
         </div>
       ) : (
         <form id="change-pwd-form" onSubmit={handleSubmit} className="space-y-4">
