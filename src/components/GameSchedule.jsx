@@ -133,7 +133,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const { isAdmin, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: teams = [] } = useQuery({
+  const { data: teams = [], isLoading: teamsLoading } = useQuery({
     queryKey: ['teams'],
     queryFn: fetchTeams,
     staleTime: STALE.THREE_MIN,
@@ -164,11 +164,23 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
 
   // Filters
   const [filterTeam, setFilterTeam] = useState('');
-  const [filterSeason, setFilterSeason] = useState('');
+  const [filterSeason, setFilterSeason] = useState(() => {
+    // Pre-populate from React Query cache so repeat navigation never fires the
+    // "all seasons" games query — the season filter is ready on the first render.
+    const cached = queryClient.getQueryData(['seasons']);
+    if (Array.isArray(cached) && cached.length) {
+      const active = cached.find(s => s.is_active);
+      return active ? String(active.id) : '';
+    }
+    return '';
+  });
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
   const [filterEventType, setFilterEventType] = useState('games');
   const [sortOrder, setSortOrder] = useState('asc');
+  // For non-admins: block the games query until we know which teams to filter on.
+  // Lazy-initialize to true for admins so they get zero extra render cycles.
+  const [filterTeamReady, setFilterTeamReady] = useState(() => isAdmin);
 
   // My teams (for coaches/org admins)
   const myTeamIds = useMemo(() => {
@@ -194,8 +206,25 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     }
   }, [seasons, filterSeason]);
 
+  // One-time: set the default team filter for non-admins once teams data is ready.
+  // Single-team users get a real team_id (server-side filter); multi-team users
+  // get '__my_teams__' (client-side filter, same payload as today's ⭐ option).
+  useEffect(() => {
+    if (filterTeamReady || isAdmin) { if (!filterTeamReady) setFilterTeamReady(true); return; }
+    if (teamsLoading) return;
+    if (myTeamIds.length === 1) {
+      setFilterTeam(String(myTeamIds[0]));
+    } else if (myTeamIds.length > 1) {
+      setFilterTeam('__my_teams__');
+    }
+    setFilterTeamReady(true);
+  }, [teamsLoading, isAdmin, myTeamIds, filterTeamReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── React Query: filter-driven data ────────────────────────────────────────
   const isMyTeams = filterTeam === '__my_teams__';
+  // True when a non-admin is scoped to their own teams (via __my_teams__ or a single real team_id)
+  const isInMyTeamsMode = !isAdmin && myTeamIds.length > 0 &&
+    (filterTeam === '__my_teams__' || myTeamIds.some(id => String(id) === filterTeam));
   const gamesFilters = {
     ...(filterTeam && !isMyTeams ? { team_id: filterTeam } : {}),
     ...(filterSeason ? { season_id: filterSeason } : {}),
@@ -208,6 +237,10 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     queryFn: () => fetchGames(gamesFilters),
     staleTime: STALE.ONE_MIN,
     placeholderData: keepPreviousData,
+    // Hold until both the season filter and the team filter are initialized.
+    // filterTeamReady is true immediately for admins; non-admins wait for teams to load.
+    // Exception: if seasons loaded with no active season, allow the unfiltered fetch.
+    enabled: filterTeamReady && (!!filterSeason || (!seasonsLoading && !seasons.some(s => s.is_active))),
   });
 
   const practicesFilters = filterTeam && !isMyTeams ? { team_id: filterTeam } : {};
@@ -238,7 +271,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     return rawPractices.filter(p => mySet.has(Number(p.team_id)));
   }, [rawPractices, isMyTeams, mySet]);
 
-  const loading = seasonsLoading || gamesLoading;
+  const loading = seasonsLoading || gamesLoading || !filterTeamReady;
   const error = gamesError?.message || null;
 
   // ── Weather: fetch only new game IDs, never re-fetch on filter/sort ─────────
@@ -450,7 +483,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-2">
-          <select value={filterSeason} onChange={(e) => setFilterSeason(e.target.value)}
+          <select value={filterSeason} onChange={(e) => {
+            setFilterSeason(e.target.value);
+            // Reset team filter to user's default when season changes
+            if (!isAdmin && myTeamIds.length === 1) setFilterTeam(String(myTeamIds[0]));
+            else if (!isAdmin && myTeamIds.length > 1) setFilterTeam('__my_teams__');
+          }}
             className="lh-select min-w-[160px]">
             <option value="">All Seasons</option>
             {seasons.map(s => (
@@ -495,15 +533,35 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
         </div>
       </div>
 
+      {/* Non-admin scoped-to-my-teams info bar */}
+      {isInMyTeamsMode && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-chrome-900 border border-chrome-700 rounded-lg text-sm text-gray-300">
+          <span>Showing your team{myTeamIds.length !== 1 ? 's' : ''} only</span>
+          <button onClick={() => setFilterTeam('')} className="text-action-300 hover:underline ml-auto">
+            View all teams
+          </button>
+        </div>
+      )}
+
       {viewMode === 'list' ? (
         <>
           {mergedItems.length === 0 ? (
             <div className="py-12 text-center text-gray-400">
-              No events found.
-              {canScheduleGames && (
+              {isInMyTeamsMode ? (
                 <>
+                  No games for your team{myTeamIds.length !== 1 ? 's' : ''} this season.
                   <br />
-                  <button onClick={() => setShowForm(true)} className="text-action-300 underline mt-1 inline-block">Schedule the first event</button>
+                  <button onClick={() => setFilterTeam('')} className="text-action-300 underline mt-1 inline-block">View all teams</button>
+                </>
+              ) : (
+                <>
+                  No events found.
+                  {canScheduleGames && (
+                    <>
+                      <br />
+                      <button onClick={() => setShowForm(true)} className="text-action-300 underline mt-1 inline-block">Schedule the first event</button>
+                    </>
+                  )}
                 </>
               )}
             </div>
