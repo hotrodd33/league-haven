@@ -34,7 +34,9 @@ const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-black px-1 py-0.5
 
 function formatDate(dateStr) {
   if (!dateStr || dateStr === '__unknown__') return 'TBD';
-  const d = new Date(`${dateStr}T00:00:00`);
+  // Accept full ISO strings (e.g. "2026-04-23T00:00:00.000Z") by using only the date part
+  const datePart = String(dateStr).slice(0, 10);
+  const d = new Date(`${datePart}T00:00:00`);
   if (Number.isNaN(d.getTime())) return 'TBD';
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }

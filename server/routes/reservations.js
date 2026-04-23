@@ -4,6 +4,14 @@ const { authMiddleware, canEditOrg, canEditTeam } = require('../auth');
 
 const router = express.Router();
 
+// Postgres DATE columns arrive as JS Date objects; normalize to YYYY-MM-DD strings.
+function normalizeEventDate(row) {
+  let d = row.event_date;
+  if (d instanceof Date) d = d.toISOString().slice(0, 10);
+  else if (typeof d === 'string' && d.length > 10) d = d.slice(0, 10);
+  return { ...row, event_date: d };
+}
+
 // Default game prep time in minutes (blocked before a game)
 const GAME_PREP_MINUTES = 180;
 // Default game duration in minutes
@@ -365,7 +373,7 @@ router.get('/all', async (req, res) => {
     if (to) { params.push(to); sql += ` AND r.event_date <= $${params.length}`; }
     sql += ' ORDER BY r.event_date, r.start_time LIMIT 500';
     const { rows } = await pool.query(sql, params);
-    res.json(rows);
+    res.json(rows.map(normalizeEventDate));
   } catch (err) {
     console.error('Fetch all reservations error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -386,7 +394,7 @@ router.get('/team/:teamId', async (req, res) => {
        ORDER BY r.event_date, r.start_time`,
       [teamId]
     );
-    res.json(rows);
+    res.json(rows.map(normalizeEventDate));
   } catch (err) {
     console.error('Fetch team reservations error:', err);
     res.status(500).json({ error: 'Internal server error' });
