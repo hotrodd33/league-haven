@@ -591,7 +591,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Capture old values for change detection
     const oldDate = normalizeDate(game.game_date);
-    const oldTime = game.game_time || null;
+    const oldTime = normalizeTime(game.game_time);
 
     await client.query('BEGIN');
     if (shouldClearSchedule) {
@@ -647,7 +647,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Detect date/time changes and notify staff
     const newDate = normalizeDate(game_date || game.game_date);
-    const newTime = game_time !== undefined ? (game_time || null) : oldTime;
+    const newTime = normalizeTime(game_time !== undefined ? game_time : game.game_time);
     if (oldDate !== newDate || oldTime !== newTime) {
       notifyGameChange(updated, oldDate, newDate, oldTime, newTime, req.user);
     }
@@ -681,6 +681,12 @@ function normalizeDate(d) {
   if (!d) return null;
   if (d instanceof Date) return d.toISOString().slice(0, 10);
   return String(d).slice(0, 10);
+}
+
+// Normalize time to HH:MM so DB values (HH:MM:SS) compare equal to request values (HH:MM)
+function normalizeTime(t) {
+  if (!t) return null;
+  return String(t).slice(0, 5);
 }
 
 async function notifyGameChange(game, oldDate, newDate, oldTime, newTime, user) {
