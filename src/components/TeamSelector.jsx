@@ -331,9 +331,9 @@ function TeamItem({ team, isSelected, onSelect }) {
       )}
       <div className="flex-1 min-w-0">
         <p className="truncate leading-tight">
-          {(team.team_city && team.name?.startsWith(team.team_city + ' '))
-            ? team.name.slice(team.team_city.length + 1)
-            : team.name}
+          {(team.team_mascot || team.team_color)
+            ? [team.team_mascot, team.team_color].filter(Boolean).join(' ')
+            : (team.team_city || team.name)}
         </p>
         {team.age_group && (
           <p className="text-[10px] text-gray-400 leading-tight">{team.age_group}{team.level ? ` · ${team.level}` : ''}</p>
