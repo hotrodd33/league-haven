@@ -33,6 +33,7 @@ export function fetchGames(params = {}) {
   if (params.status)    qs.set('status',     params.status);
   if (params.from)      qs.set('from',       params.from);
   if (params.to)        qs.set('to',         params.to);
+  qs.set('slim', 'true'); // public site only needs display fields
   const q = qs.toString();
   return apiFetch(`/games${q ? '?' + q : ''}`);
 }

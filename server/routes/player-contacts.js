@@ -43,6 +43,7 @@ router.get('/all-guardians', async (req, res) => {
       LEFT JOIN guardian_volunteers gv ON gv.guardian_id = g.id
       GROUP BY g.id
       ORDER BY g.last_name, g.first_name
+      LIMIT 500
     `);
     res.json(guardians);
   } catch (err) {

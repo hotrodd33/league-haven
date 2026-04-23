@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { STALE } from '../lib/queryConfig.js';
 import {
   fetchRegistrations,
   createRegistration,
@@ -15,12 +17,7 @@ import { Button, Badge, Input, Select, Modal } from './ui';
 
 export default function LeagueFees({ onBack }) {
   const { isSuperAdmin } = useAuth();
-  const [registrations, setRegistrations] = useState([]);
-  const [summary, setSummary] = useState({ total_teams: 0, total_fees: 0, total_collected: 0, total_outstanding: 0 });
-  const [teams, setTeams] = useState([]);
-  const [seasons, setSeasons] = useState([]);
-  const [ageGroups, setAgeGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [error, setError] = useState(null);
 
   // Filters
@@ -52,55 +49,47 @@ export default function LeagueFees({ onBack }) {
   const [editingFeeId, setEditingFeeId] = useState(null);
   const [editFeeValue, setEditFeeValue] = useState('');
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const filters = {};
-      if (seasonFilter) filters.season_id = seasonFilter;
-      if (ageGroupFilter) filters.age_group = ageGroupFilter;
-      if (paymentFilter) filters.payment = paymentFilter;
+  const { data: teams = [] } = useQuery({
+    queryKey: ['teams'],
+    queryFn: fetchTeams,
+    staleTime: STALE.THREE_MIN,
+  });
 
-      const [regData, teamRows, seasonRows, agRows] = await Promise.all([
-        fetchRegistrations(filters),
-        fetchTeams(),
-        fetchSeasons(),
-        fetchAgeGroups(),
-      ]);
-      setRegistrations(regData.registrations || []);
-      setSummary(regData.summary || { total_teams: 0, total_fees: 0, total_collected: 0, total_outstanding: 0 });
-      setTeams(teamRows || []);
-      setSeasons(seasonRows || []);
-      setAgeGroups(agRows || []);
+  const { data: seasons = [] } = useQuery({
+    queryKey: ['seasons'],
+    queryFn: fetchSeasons,
+    staleTime: STALE.HOUR,
+  });
 
-      // Default season filter to active season
-      if (!seasonFilter && seasonRows?.length) {
-        const active = seasonRows.find(s => s.is_active);
-        if (active) setSeasonFilter(String(active.id));
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  const { data: ageGroups = [] } = useQuery({
+    queryKey: ['age-groups'],
+    queryFn: fetchAgeGroups,
+    staleTime: STALE.HOUR,
+  });
+
+  // Auto-select active season when seasons load
+  useEffect(() => {
+    if (seasons.length && !seasonFilter) {
+      const active = seasons.find(s => s.is_active);
+      if (active) setSeasonFilter(String(active.id));
     }
-  }, [seasonFilter, ageGroupFilter, paymentFilter]);
+  }, [seasons, seasonFilter]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const regFilters = {
+    ...(seasonFilter ? { season_id: seasonFilter } : {}),
+    ...(ageGroupFilter ? { age_group: ageGroupFilter } : {}),
+    ...(paymentFilter ? { payment: paymentFilter } : {}),
+  };
 
-  // Reload just registrations (lighter)
-  async function reloadRegs() {
-    try {
-      const filters = {};
-      if (seasonFilter) filters.season_id = seasonFilter;
-      if (ageGroupFilter) filters.age_group = ageGroupFilter;
-      if (paymentFilter) filters.payment = paymentFilter;
-      const regData = await fetchRegistrations(filters);
-      setRegistrations(regData.registrations || []);
-      setSummary(regData.summary || summary);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
+  const { data: regData = { registrations: [], summary: { total_teams: 0, total_fees: 0, total_collected: 0, total_outstanding: 0 } }, isLoading: loading } = useQuery({
+    queryKey: ['registrations', regFilters],
+    queryFn: () => fetchRegistrations(regFilters),
+    staleTime: STALE.FIVE_MIN,
+    placeholderData: keepPreviousData,
+  });
+
+  const registrations = regData.registrations || [];
+  const summary = regData.summary || { total_teams: 0, total_fees: 0, total_collected: 0, total_outstanding: 0 };
 
   // Register a team
   async function handleRegister(e) {
@@ -114,7 +103,7 @@ export default function LeagueFees({ onBack }) {
       setShowRegister(false);
       setRegisterTeamId('');
       setRegisterFee('');
-      await reloadRegs();
+      queryClient.invalidateQueries({ queryKey: ['registrations'] });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -131,7 +120,7 @@ export default function LeagueFees({ onBack }) {
     setError(null);
     try {
       const result = await bulkRegisterTeams(Number(sid));
-      await reloadRegs();
+      queryClient.invalidateQueries({ queryKey: ['registrations'] });
       if (result.registered === 0) setError('All teams are already registered for this season.');
     } catch (err) {
       setError(err.message);
@@ -161,7 +150,7 @@ export default function LeagueFees({ onBack }) {
         payment_notes: payNotes || undefined,
       });
       setPayingReg(null);
-      await reloadRegs();
+      queryClient.invalidateQueries({ queryKey: ['registrations'] });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -173,7 +162,7 @@ export default function LeagueFees({ onBack }) {
   async function handleMarkUnpaid(reg) {
     try {
       await updateRegistration(reg.id, { is_paid: false, paid_amount: null, check_number: null, payment_notes: null });
-      await reloadRegs();
+      queryClient.invalidateQueries({ queryKey: ['registrations'] });
     } catch (err) {
       setError(err.message);
     }
@@ -186,7 +175,7 @@ export default function LeagueFees({ onBack }) {
       const fee = editFeeValue !== '' ? Number(editFeeValue) : null;
       await updateRegistration(reg.id, { fee });
       setEditingFeeId(null);
-      await reloadRegs();
+      queryClient.invalidateQueries({ queryKey: ['registrations'] });
     } catch (err) {
       setError(err.message);
     }
@@ -197,7 +186,7 @@ export default function LeagueFees({ onBack }) {
     if (!window.confirm(`Remove ${reg.team_name} from this season?`)) return;
     try {
       await deleteRegistration(reg.id);
-      await reloadRegs();
+      queryClient.invalidateQueries({ queryKey: ['registrations'] });
     } catch (err) {
       setError(err.message);
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
 import { cn } from '../lib/cn.js';
@@ -107,18 +107,41 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
   const loading = teamsPending || gamesPending || seasonsPending || orgsPending;
 
   // Fetch weather for today's games (current) and upcoming games (forecast)
+  const weatherFetchedRef = useRef(new Set());
+
   useEffect(() => {
     if (!games.length) return;
     const todayStr_ = new Date().toISOString().slice(0, 10);
 
-    // Current weather for today's games (deduplicated by location)
-    const todaysWithLoc = games.filter(g => g.game_date === todayStr_ && g.location_lat && g.location_lon);
+    // Current weather for today's games (deduplicated by location, skip already-fetched)
+    const todaysWithLoc = games.filter(g =>
+      g.game_date === todayStr_ && g.location_lat && g.location_lon &&
+      !weatherFetchedRef.current.has(`loc:${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`)
+    );
     const seenLocs = new Set();
     const uniqueToday = [];
     for (const g of todaysWithLoc) {
       const key = `${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`;
       if (!seenLocs.has(key)) { seenLocs.add(key); uniqueToday.push(g); }
     }
+
+    // Forecast weather for upcoming games (within 16 days, not today, skip already-fetched)
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 16);
+    const maxDateStr = maxDate.toISOString().slice(0, 10);
+    const upcomingWithLoc = games.filter(g =>
+      g.game_date > todayStr_ && g.game_date <= maxDateStr &&
+      g.location_lat && g.location_lon &&
+      g.status !== 'final' && g.status !== 'cancelled' &&
+      !weatherFetchedRef.current.has(String(g.id))
+    ).slice(0, 10);
+
+    if (!uniqueToday.length && !upcomingWithLoc.length) return;
+
+    for (const g of uniqueToday) {
+      weatherFetchedRef.current.add(`loc:${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`);
+    }
+    for (const g of upcomingWithLoc) weatherFetchedRef.current.add(String(g.id));
 
     const currentPromises = uniqueToday.map(g => {
       // Use forecast for game hour if time is set, otherwise current weather
@@ -129,16 +152,6 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
         .then(w => ({ key: `${parseFloat(g.location_lat).toFixed(2)},${parseFloat(g.location_lon).toFixed(2)}`, weather: w }))
         .catch(() => null);
     });
-
-    // Forecast weather for upcoming games (within 16 days, not today)
-    const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + 16);
-    const maxDateStr = maxDate.toISOString().slice(0, 10);
-    const upcomingWithLoc = games.filter(g =>
-      g.game_date > todayStr_ && g.game_date <= maxDateStr &&
-      g.location_lat && g.location_lon &&
-      g.status !== 'final' && g.status !== 'cancelled'
-    ).slice(0, 10); // Limit to 10 forecast calls
 
     const forecastPromises = upcomingWithLoc.map(g =>
       fetchWeatherForecast(g.location_lat, g.location_lon, g.game_date, g.game_time || null)
@@ -151,7 +164,7 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
       for (const r of results) {
         if (r && r.weather && !r.weather.unavailable) map[r.key] = r.weather;
       }
-      setGameWeather(map);
+      setGameWeather(prev => ({ ...prev, ...map }));
     });
   }, [games]);
 

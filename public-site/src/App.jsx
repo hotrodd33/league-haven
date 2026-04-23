@@ -1,10 +1,37 @@
-import { useEffect, useState } from 'react';
+import { Component, useEffect, useState } from 'react';
 import Teams from './components/Teams.jsx';
 import Standings from './components/Standings.jsx';
 import Scores from './components/Scores.jsx';
 import TeamDetail from './components/TeamDetail.jsx';
 import TravelMatrix from './components/TravelMatrix.jsx';
 import { fetchBranding } from './api/index.js';
+
+class SiteErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, message: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, message: error?.message || 'An unexpected error occurred.' };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#f87171' }}>
+          <h2 style={{ marginBottom: '0.5rem', fontSize: '1.25rem', fontWeight: 700 }}>Something went wrong</h2>
+          <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{this.state.message}</p>
+          <button
+            onClick={() => { this.setState({ hasError: false, message: null }); }}
+            style={{ marginTop: '1rem', padding: '0.4rem 1rem', borderRadius: '6px', background: '#1f2937', color: '#e5e7eb', border: '1px solid #374151', cursor: 'pointer' }}
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const TABS = [
   { key: 'standings', label: 'Standings' },
@@ -136,12 +163,12 @@ export default function App() {
             onBack={() => window.history.back()}
           />
         ) : (
-          <>
+          <SiteErrorBoundary>
             {nav.tab === 'standings' && <Standings onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'teams'     && <Teams     onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'travel'    && <TravelMatrix />}
-          </>
+          </SiteErrorBoundary>
         )}
       </main>
 

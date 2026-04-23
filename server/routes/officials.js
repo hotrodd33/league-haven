@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware, canEditOrg, getUserPermissions } = require('../auth');
+const cache = require('../cache');
 
 const router = express.Router();
 
@@ -108,6 +109,10 @@ router.get('/assignable', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const { org_id, scope, search } = req.query;
+    const cacheKey = `officials:${req.user.id}:${org_id||''}:${scope||''}:${search||''}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
     const params = [];
     const clauses = [];
 
@@ -185,7 +190,7 @@ router.get('/', authMiddleware, async (req, res) => {
     );
 
     const isGlobalFinancial = ['super_admin', 'accountant'].includes(req.user.role);
-    res.json(rows.map(r => {
+    const result = rows.map(r => {
       const o = normalizeOfficial(r);
       // Admin/accountant see all financials; org_admin sees only their own org's officials
       const canSeeThisFinancial = isGlobalFinancial || (userOrgIds && o.org_ids?.some(oid => userOrgIds.includes(oid)));
@@ -195,7 +200,9 @@ router.get('/', authMiddleware, async (req, res) => {
         delete o.venmo_id;
       }
       return o;
-    }));
+    });
+    cache.set(cacheKey, result, 120_000);
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -265,6 +272,7 @@ router.post('/', authMiddleware, async (req, res) => {
       const { rows: orgRows } = await pool.query('SELECT name FROM organizations WHERE id = $1', [oid]);
       if (orgRows[0]) insertedOrgNames.push(orgRows[0].name);
     }
+    cache.invalidatePrefix('officials:');
     res.status(201).json(normalizeOfficial({ ...row, org_ids: orgIds, org_names: insertedOrgNames }));
   } catch (err) {
     console.error(err);
@@ -384,6 +392,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     const row = rows[0];
     const { rows: userRows } = await pool.query('SELECT username FROM users WHERE id = $1', [row.user_id]);
+    cache.invalidatePrefix('officials:');
     res.json(normalizeOfficial({ ...row, org_ids: nextOrgIds, org_names: orgNames, linked_username: userRows[0]?.username || null }));
   } catch (err) {
     console.error(err);
@@ -408,6 +417,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 
     await pool.query('DELETE FROM officials WHERE id = $1', [id]);
+    cache.invalidatePrefix('officials:');
     res.json({ success: true });
   } catch (err) {
     console.error(err);

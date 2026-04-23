@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { fetchStandings, fetchSeasons } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
 
@@ -12,7 +12,8 @@ export default function Standings({ onNavigateToTeam }) {
   const [seasonId, setSeasonId] = useState('');
   const [divisionFilter, setDivisionFilter] = useState('');
   const [standings, setStandings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [seasonsLoading, setSeasonsLoading] = useState(true);
+  const [standingsLoading, setStandingsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -23,27 +24,29 @@ export default function Standings({ onNavigateToTeam }) {
         if (active) setSeasonId(String(active.id));
       })
       .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+      .finally(() => setSeasonsLoading(false));
   }, []);
 
-  const loadStandings = useCallback(async () => {
+  useEffect(() => {
     if (!seasonId) { setStandings([]); return; }
-    setLoading(true); setError(null);
-    try {
-      setStandings(await fetchStandings(seasonId));
-    } catch (err) { setError(err.message); }
-    finally { setLoading(false); }
+    setStandingsLoading(true);
+    setError(null);
+    fetchStandings(seasonId)
+      .then(data => setStandings(data))
+      .catch(err => setError(err.message))
+      .finally(() => setStandingsLoading(false));
   }, [seasonId]);
 
-  useEffect(() => { loadStandings(); }, [loadStandings]);
   useEffect(() => { setDivisionFilter(''); }, [seasonId]);
+
+  const loading = seasonsLoading || standingsLoading;
 
   const divisionOptions = Object.values(
     standings.reduce((acc, row) => {
       if (!row.division_id) return acc;
       const key = String(row.division_id);
       if (!acc[key]) {
-        acc[key] = { id: key, name: row.division_name || 'Other', sort: row.division_sort || 'zzz' };
+        acc[key] = { id: key, name: row.division_name || 'Other', sort: String(row.division_sort ?? 'zzz') };
       }
       return acc;
     }, {})
