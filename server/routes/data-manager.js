@@ -5,6 +5,7 @@ const { pool } = require('../db');
 const { authMiddleware, requireAdmin } = require('../auth');
 const { normalizeDOB } = require('../utils/dob');
 const { sendCoachInviteEmail } = require('../email');
+const cache = require('../cache');
 
 const router = express.Router();
 
@@ -119,6 +120,8 @@ router.post('/clear', authMiddleware, requireAdmin, async (req, res) => {
         case 'games':
           await pool.query('DELETE FROM game_pitch_counts');
           await pool.query('DELETE FROM games');
+          cache.invalidatePrefix('games:');
+          cache.invalidatePrefix('standings:');
           cleared.push('games');
           break;
         case 'players':

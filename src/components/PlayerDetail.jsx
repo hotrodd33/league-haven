@@ -21,13 +21,68 @@ const TABS = [
   { key: 'notes', label: 'Notes' },
 ];
 
+function JerseyBadge({ num, label, canEdit, onClick }) {
+  return (
+    <button
+      onClick={canEdit ? onClick : undefined}
+      disabled={!canEdit}
+      title={canEdit ? 'Click to edit jersey number' : undefined}
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border transition-colors
+        ${num != null && num !== ''
+          ? 'bg-action-900/50 text-action-300 border-action-700/60'
+          : 'bg-gray-800 text-gray-500 border-gray-700'}
+        ${canEdit ? 'hover:bg-action-800/70 hover:text-action-200 hover:border-action-600 cursor-pointer' : 'cursor-default'}`}
+    >
+      {num != null && num !== '' ? `#${num}` : '+#'}
+      {label && <span className="text-[10px] font-normal text-action-500 ml-0.5">{label}</span>}
+    </button>
+  );
+}
+
+function JerseyInput({ value, onChange, onSave, onCancel, label }) {
+  return (
+    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-action-900/60 border border-action-600 text-xs font-bold">
+      <span className="text-action-500">#</span>
+      <input
+        autoFocus
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onBlur={onSave}
+        onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') onCancel(); }}
+        className="w-10 bg-transparent text-action-200 font-bold focus:outline-none placeholder-action-700"
+        placeholder="—"
+        maxLength={3}
+      />
+      {label && <span className="text-[10px] font-normal text-action-500">{label}</span>}
+    </div>
+  );
+}
+
 export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit = true }) {
   const [tab, setTab] = useState('info');
   const [currentPlayer, setCurrentPlayer] = useState(player);
+  const [jerseyEditTeamId, setJerseyEditTeamId] = useState(null); // teamId being edited, or 'all'
+  const [jerseyEditValue, setJerseyEditValue] = useState('');
 
   useEffect(() => { setCurrentPlayer(player); }, [player]);
 
+  async function saveHeaderJersey(teamIds) {
+    const v = jerseyEditValue.trim();
+    setJerseyEditTeamId(null);
+    try {
+      await Promise.all(teamIds.map(id => updatePlayerJersey(id, currentPlayer.id, v)));
+      setCurrentPlayer(p => ({ ...p, teams: p.teams.map(t => teamIds.includes(t.team_id || t.id) ? { ...t, jersey_number: v || null } : t) }));
+    } catch { alert('Failed to save jersey number'); }
+  }
+
   if (!currentPlayer) return null;
+
+  const teamJerseys = (currentPlayer.teams || []).map(t => ({ id: t.team_id || t.id, name: t.team_name || t.name, num: t.jersey_number }));
+  const allTeamIds = teamJerseys.map(t => t.id);
+  const uniqueNums = [...new Set(teamJerseys.map(t => t.num).filter(n => n != null && n !== ''))];
+  // Single badge if 0 or 1 teams, or all teams share the same number
+  const showSingleBadge = teamJerseys.length <= 1 || uniqueNums.length <= 1;
 
   return (
     <div className="space-y-4">
@@ -40,7 +95,29 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit
           <UserIcon className="w-6 h-6 text-chrome-400" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-white">{currentPlayer.first_name} {currentPlayer.last_name}</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-xl font-bold text-white">{currentPlayer.first_name} {currentPlayer.last_name}</h2>
+            {showSingleBadge ? (
+              jerseyEditTeamId === 'all' ? (
+                <JerseyInput value={jerseyEditValue} onChange={setJerseyEditValue} onSave={() => saveHeaderJersey(allTeamIds)} onCancel={() => setJerseyEditTeamId(null)} />
+              ) : (
+                <JerseyBadge
+                  num={uniqueNums[0]}
+                  canEdit={canEdit && teamJerseys.length > 0}
+                  onClick={() => { setJerseyEditValue(String(uniqueNums[0] ?? '')); setJerseyEditTeamId('all'); }}
+                />
+              )
+            ) : (
+              // Multiple teams with differing numbers — one badge each
+              teamJerseys.map(t => (
+                jerseyEditTeamId === t.id ? (
+                  <JerseyInput key={t.id} label={t.name} value={jerseyEditValue} onChange={setJerseyEditValue} onSave={() => saveHeaderJersey([t.id])} onCancel={() => setJerseyEditTeamId(null)} />
+                ) : (
+                  <JerseyBadge key={t.id} num={t.num} label={t.name} canEdit={canEdit} onClick={() => { setJerseyEditValue(String(t.num ?? '')); setJerseyEditTeamId(t.id); }} />
+                )
+              ))
+            )}
+          </div>
           <p className="text-sm text-gray-400">
             {currentPlayer.teams?.length ? currentPlayer.teams.map(t => t.name || t.team_name).join(', ') : 'No team'}
           </p>

@@ -142,7 +142,7 @@ function PageContent({
                             onRegisterEditTrigger={fn => { editTeamTriggerRef.current = fn; }}
                         />
                     </aside>
-                    <div className="flex-1 p-4 lg:p-6 overflow-x-auto">
+                    <div className="flex-1 p-4 lg:p-6 overflow-x-auto lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
                         <TeamPage
                             teamId={selectedTeam}
                             teamOrgId={selectedTeamOrgId}
