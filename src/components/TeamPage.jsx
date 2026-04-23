@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
-import { fetchTeams, fetchGames, fetchRegistrations } from '../api/index.js';
+import { fetchTeams, fetchGames, fetchRegistrations, fetchStaffByTeam, fetchPlayersByTeam } from '../api/index.js';
 import { cn } from '../lib/cn.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo, { HomePlate, plateLabel } from './TeamLogo.jsx';
@@ -69,6 +69,20 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
 
   const registrations = (registrationsData?.registrations || []).filter(r => r.team_id === teamId);
 
+  const { data: staffData = [] } = useQuery({
+    queryKey: ['staff', teamId],
+    queryFn: () => fetchStaffByTeam(teamId),
+    enabled: !!teamId,
+    staleTime: STALE.THREE_MIN,
+  });
+
+  const { data: rosterData = [] } = useQuery({
+    queryKey: ['roster', teamId],
+    queryFn: () => fetchPlayersByTeam(teamId),
+    enabled: !!teamId,
+    staleTime: STALE.THREE_MIN,
+  });
+
   // Reset tab and selected game when team changes
   useEffect(() => { setActiveTab('overview'); setSelectedGameId(null); }, [teamId]);
 
@@ -109,6 +123,9 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
           {TABS.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
+            const count = tab.key === 'schedule' ? gamesData.length
+              : tab.key === 'roster' ? rosterData.length
+              : null;
             return (
               <button
                 key={tab.key}
@@ -122,6 +139,12 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
               >
                 {Icon && <Icon className="w-4 h-4" />}
                 {tab.label}
+                {count > 0 && (
+                  <span className={cn(
+                    'text-[11px] font-bold px-1.5 py-0.5 rounded-full tabular-nums',
+                    isActive ? 'bg-chrome-900/50 text-chrome-300' : 'bg-gray-700 text-gray-400'
+                  )}>{count}</span>
+                )}
               </button>
             );
           })}
@@ -134,7 +157,15 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
           <GameDetail gameId={selectedGameId} onBack={() => setSelectedGameId(null)} onNavigateToTeam={onNavigateToTeam} />
         )}
         {activeTab === 'overview' && !selectedGameId && (
-          <OverviewTab team={team} recentGames={recentGames} registrations={registrations} canViewPayment={canViewPayment} onSelectGame={setSelectedGameId} />
+          <OverviewTab
+            team={team}
+            recentGames={recentGames}
+            registrations={registrations}
+            canViewPayment={canViewPayment}
+            onSelectGame={setSelectedGameId}
+            staffData={staffData}
+            onContactCoach={s => setContactModal({ scope: 'individual', scopeId: s.id, scopeLabel: s.name })}
+          />
         )}
         {activeTab === 'schedule' && (
           <TeamSchedule teamId={teamId} onNavigateToTeam={onNavigateToTeam} />
@@ -230,8 +261,24 @@ function TeamHeader({ team, recentGames, onContactTeam }) {
   );
 }
 
+const ROLE_LABELS = {
+  head_coach: 'Head Coach',
+  assistant_coach: 'Asst. Coach',
+  scorekeeper: 'Scorekeeper',
+};
+
+const ROLE_ORDER = ['head_coach', 'assistant_coach', 'scorekeeper'];
+
 /* ── Overview Tab ── */
-function OverviewTab({ team, recentGames, registrations, canViewPayment, onSelectGame }) {
+function OverviewTab({ team, recentGames, registrations, canViewPayment, onSelectGame, staffData, onContactCoach }) {
+  const coaches = (staffData || [])
+    .filter(s => s.role !== 'org_admin')
+    .sort((a, b) => {
+      const ai = ROLE_ORDER.indexOf(a.role);
+      const bi = ROLE_ORDER.indexOf(b.role);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || (a.name || '').localeCompare(b.name || '');
+    });
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Team Info */}
@@ -257,6 +304,40 @@ function OverviewTab({ team, recentGames, registrations, canViewPayment, onSelec
           )}
         </dl>
       </div>
+
+      {/* Coaches */}
+      {coaches.length > 0 && (
+        <div className="bg-gray-800 rounded-xl shadow-card p-4">
+          <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-3">Coaches</h3>
+          <div className="space-y-3">
+            {coaches.map(s => (
+              <div key={s.id} className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-gray-200">{s.name}</div>
+                  <div className="text-[11px] text-gray-500 uppercase tracking-wide font-medium mb-0.5">{ROLE_LABELS[s.role] || s.role}</div>
+                  {s.email && (
+                    <a href={`mailto:${s.email}`} className="block text-xs text-chrome-400 hover:text-chrome-300 truncate">{s.email}</a>
+                  )}
+                  {s.phone && (
+                    <a href={`tel:${s.phone}`} className="block text-xs text-gray-400 hover:text-gray-200">{s.phone}</a>
+                  )}
+                </div>
+                {s.email && (
+                  <button
+                    onClick={() => onContactCoach(s)}
+                    className="p-1.5 mt-0.5 text-gray-500 hover:text-chrome-400 hover:bg-chrome-900/30 rounded-lg transition-colors shrink-0"
+                    title={`Email ${s.name}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Games */}
       <div className="bg-gray-800 rounded-xl shadow-card p-4">
