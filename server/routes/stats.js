@@ -1,8 +1,12 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware } = require('../auth');
+const cache = require('../cache');
 
 const router = express.Router();
+
+const STAT_DEFS_KEY = 'stats:definitions';
+const STAT_DEFS_TTL = 5 * 60_000;
 
 // ── Stat Definitions (configurable fields) ──
 
@@ -10,6 +14,9 @@ const router = express.Router();
 router.get('/definitions', async (req, res) => {
   try {
     const { category, active_only } = req.query;
+    const cacheKey = `${STAT_DEFS_KEY}:${category || ''}:${active_only || ''}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
     let sql = 'SELECT * FROM stat_definitions';
     const params = [];
     const conditions = [];
@@ -18,6 +25,7 @@ router.get('/definitions', async (req, res) => {
     if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
     sql += ' ORDER BY category, sort_order, name';
     const { rows } = await pool.query(sql, params);
+    cache.set(cacheKey, rows, STAT_DEFS_TTL);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -37,6 +45,7 @@ router.post('/definitions', authMiddleware, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [name, abbreviation, category || 'batting', data_type || 'integer', sort_order || 0, gc_column_name || null]
     );
+    cache.invalidatePrefix(STAT_DEFS_KEY);
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -60,6 +69,7 @@ router.put('/definitions/:id', authMiddleware, async (req, res) => {
       [name, abbreviation, category, data_type, sort_order, is_active, gc_column_name, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Stat definition not found' });
+    cache.invalidatePrefix(STAT_DEFS_KEY);
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -73,6 +83,7 @@ router.delete('/definitions/:id', authMiddleware, async (req, res) => {
     if (req.user.role !== 'super_admin') return res.status(403).json({ error: 'Admin only' });
     const { rowCount } = await pool.query('DELETE FROM stat_definitions WHERE id=$1', [req.params.id]);
     if (!rowCount) return res.status(404).json({ error: 'Stat definition not found' });
+    cache.invalidatePrefix(STAT_DEFS_KEY);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
