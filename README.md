@@ -13,10 +13,10 @@ A full-featured baseball league management application. Manage organizations, te
 
 ### Rosters & Staff
 - **Players** — Full player profiles with DOB, grade (Pre K–12), batting hand (R/L/S), throwing hand (R/L), jersey/hat sizing (YXS–A3XL, fitted hat sizes), "needs new jersey" / "needs new hat" toggles, and parent contact info; multi-team support via junction table with per-team jersey numbers
-- **Player Detail Page** — Tabbed player profile with Info (inline edit, team assignments), Contacts (full CRUD with relationship types), Stats (per-game stat display), Documents (upload birth certs, waivers — PNG/JPEG/GIF/WebP/PDF, 2MB limit), and Notes (timestamped, author-attributed)
+- **Player Detail Page** — Tabbed player profile with Info (inline edit, team assignments), Contacts (full CRUD with relationship types), Stats (per-game stat display), Documents (upload birth certs, waivers — PNG/JPEG/GIF/WebP/PDF, 2MB limit), and Notes (timestamped, author-attributed); jersey number shown in the player header with inline editing
 - **Players Directory** — League-wide searchable player list with org/team filters, sortable columns (name, age, grade, B/T, team, org), and pitch rest status badges
 - **Positions** — Many-to-many player ↔ position assignments
-- **Coaches & Staff** — Standalone staff profiles (head coach, assistant coach, travel director) that can be assigned to multiple teams independently
+- **Coaches & Staff** — Standalone staff profiles (head coach, assistant coach, scorekeeper, org admin) that can be assigned to multiple teams independently; any staff member can be flagged as the team's **Scheduling Contact** via a checkbox in the Coaches tab
 
 ### Scheduling & Field Reservations
 - **Unified Scheduling** — Both the Game Schedule and Field Calendar support scheduling games, practices, events, and maintenance via an event type toggle
@@ -25,7 +25,7 @@ A full-featured baseball league management application. Manage organizations, te
 - **iCal Subscription** — Subscribe to game/practice schedules via webcal:// URL from any calendar app (Google, Apple, Outlook); filterable by team, season, location, org
 - **Status Workflow** — `unscheduled` → `scheduled` → `in_progress` → `completed` / `cancelled` / `postponed`; games can be created without dates and promoted via "Schedule It!" button
 - **Unscheduled Games** — Import or create games without dates/times; they appear with a warning badge and "Schedule It!" CTA; once date, time, and location are set, promote to scheduled
-- **Coach Contact on Game Cards** — Unscheduled game cards display head coach name, email, and phone for easy coordination
+- **Scheduling Contact on Game Cards** — Unscheduled game cards display a priority contact for scheduling coordination: whoever is flagged as the team's Scheduling Contact appears first (labeled "Scheduler"), falling back to Head Coach then Org Admin
 - **Live Scoring** — In-game score entry with pitch count tracking per pitcher per inning
 - **Game Change Notifications** — Automatic email and push notifications to staff when game date/time changes or games are cancelled/postponed
 - **Standings** — Auto-calculated W/L/T standings with points system (W=3, T=2, L=1), win %, runs for/against; grouped by hierarchical division paths via recursive CTE
@@ -113,7 +113,8 @@ A full-featured baseball league management application. Manage organizations, te
 - **Multi-Role Self-Registration** — Step-by-step wizard for coaches, directors/org admins, scorekeepers, and umpires with role-specific flows
 - **Email Confirmation** — Token-based email verification required before login; resend support
 - **Password reset** — Secure token (SHA-256 hashed, 1-hour expiry) via email
-- **Admin invite** — Generate temp password and send credentials via email
+- **Admin invite** — Generate temp password and send credentials via email; org/team permissions can be assigned at creation time; a reminder email is sent after 48 hours if the temp password hasn't been changed
+- **First-login password change** — Users logging in with an admin-assigned temporary password are required to set a new password before accessing the app
 - **Granular permissions** — Org-level and team-level permission grants per user
 - **Roster privacy** — Contact info restricted by role
 
