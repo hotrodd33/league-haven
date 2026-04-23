@@ -244,10 +244,10 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                       ) : (
                         <button
                           onClick={() => editable && setJerseyEdit({ playerId: player.id, value: String(player.jersey_number ?? '') })}
-                          className={`${editable ? 'hover:text-chrome-200 cursor-pointer' : 'cursor-default'}`}
-                          title={editable ? 'Click to edit' : undefined}
+                          className={`${editable ? 'hover:text-chrome-200 cursor-pointer underline decoration-dotted decoration-chrome-600' : 'cursor-default'}`}
+                          title={editable ? 'Click to edit jersey number' : undefined}
                         >
-                          {player.jersey_number ?? '—'}
+                          {player.jersey_number ?? (editable ? '+#' : '—')}
                         </button>
                       )}
                     </td>
