@@ -212,10 +212,10 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
               <tbody className="divide-y divide-gray-700">
                 {sortedPlayers.map((player) => (
                   <tr key={player.id} className="hover:bg-gray-900">
-                    <td className="px-3 py-2 font-bold text-chrome-300">
+                    <td className="px-3 py-2">
                       {editable && jerseyEdit?.playerId === player.id ? (
-                        <div className="flex items-center gap-0.5">
-                          <span className="text-xs text-gray-400">#</span>
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-action-900/60 border border-action-600 text-xs font-bold">
+                          <span className="text-action-500">#</span>
                           <input
                             autoFocus
                             type="text"
@@ -237,17 +237,22 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
                               if (e.key === 'Enter') e.target.blur();
                               if (e.key === 'Escape') setJerseyEdit(null);
                             }}
-                            className="w-12 px-1 py-0 text-xs bg-gray-900 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-1 focus:ring-action-500"
+                            className="w-10 bg-transparent text-action-200 font-bold focus:outline-none placeholder-action-700"
                             placeholder="—"
+                            maxLength={3}
                           />
                         </div>
                       ) : (
                         <button
                           onClick={() => editable && setJerseyEdit({ playerId: player.id, value: String(player.jersey_number ?? '') })}
-                          className={`${editable ? 'hover:text-chrome-200 cursor-pointer underline decoration-dotted decoration-chrome-600' : 'cursor-default'}`}
                           title={editable ? 'Click to edit jersey number' : undefined}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border transition-colors
+                            ${player.jersey_number != null
+                              ? 'bg-action-900/50 text-action-300 border-action-700/60'
+                              : 'bg-gray-800 text-gray-500 border-gray-700'}
+                            ${editable ? 'hover:bg-action-800/70 hover:text-action-200 hover:border-action-600 cursor-pointer' : 'cursor-default'}`}
                         >
-                          {player.jersey_number ?? (editable ? '+#' : '—')}
+                          {player.jersey_number != null ? `#${player.jersey_number}` : (editable ? '+#' : '—')}
                         </button>
                       )}
                     </td>
@@ -292,12 +297,16 @@ export default function RosterList({ teamId, teamOrgId, onEditPlayer, onAddPlaye
               <div key={player.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4 text-gray-200">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <button
+                      <button
                       onClick={() => editable && setJerseyEdit({ playerId: player.id, value: String(player.jersey_number ?? '') })}
-                      className={`text-chrome-300 font-bold text-lg mr-2 ${editable ? 'hover:text-chrome-200 cursor-pointer' : 'cursor-default'}`}
                       title={editable ? 'Click to edit jersey number' : undefined}
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border transition-colors
+                        ${player.jersey_number != null
+                          ? 'bg-action-900/50 text-action-300 border-action-700/60'
+                          : 'bg-gray-800 text-gray-500 border-gray-700'}
+                        ${editable ? 'hover:bg-action-800/70 hover:text-action-200 hover:border-action-600 cursor-pointer' : 'cursor-default'}`}
                     >
-                      #{player.jersey_number ?? '—'}
+                      {player.jersey_number != null ? `#${player.jersey_number}` : (editable ? '+#' : '—')}
                     </button>
                     <button onClick={() => onViewPlayer?.(player.id)} className="font-semibold text-base hover:text-chrome-300 transition-colors underline decoration-gray-600 hover:decoration-chrome-400">
                       {player.first_name} {player.last_name}
