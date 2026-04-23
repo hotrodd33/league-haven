@@ -45,6 +45,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
     onRegisterEditTrigger(editTriggerRef.current);
   }, [selected, isAdmin, onRegisterEditTrigger]);
 
+  async function handleDelete() {
     if (!selected) return;
     if (!window.confirm(`Delete "${selected.name}"? This will remove all players and staff on this team.`)) return;
     setDeleting(true);
@@ -139,6 +140,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
                 <img src={org.logo} alt="" className="w-4 h-4 object-contain rounded shrink-0" />
               )}
               <span className="flex-1 truncate">{orgName}</span>
+              <span className="text-[10px] font-bold tabular-nums text-gray-500 shrink-0">{org.teams.length}</span>
               <svg className={cn('w-3.5 h-3.5 shrink-0 transition-transform', isCollapsed ? '-rotate-90' : '')} viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
               </svg>
@@ -254,6 +256,7 @@ export default function TeamSelector({ selectedTeam, onSelectTeam, onTeamsChange
             </div>
           </div>
         )}
+        {mobileOpen && (
           <div className="mt-2 max-h-80 overflow-y-auto">
             {teamList}
           </div>
