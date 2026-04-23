@@ -40,7 +40,12 @@ export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit
           <UserIcon className="w-6 h-6 text-chrome-400" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-white">{currentPlayer.first_name} {currentPlayer.last_name}</h2>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-xl font-bold text-white">{currentPlayer.first_name} {currentPlayer.last_name}</h2>
+            {currentPlayer.jersey_number != null && (
+              <span className="text-sm font-semibold text-chrome-300">#{currentPlayer.jersey_number}</span>
+            )}
+          </div>
           <p className="text-sm text-gray-400">
             {currentPlayer.teams?.length ? currentPlayer.teams.map(t => t.name || t.team_name).join(', ') : 'No team'}
           </p>
