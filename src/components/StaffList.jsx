@@ -10,6 +10,7 @@ const ROLE_OPTIONS = [
   { value: 'head_coach', label: 'Head Coach' },
   { value: 'assistant_coach', label: 'Assistant Coach' },
   { value: 'scorekeeper', label: 'Scorekeeper' },
+  { value: 'org_admin', label: 'Org Administrator' },
 ];
 
 export default function StaffList({ teamId, teamOrgId }) {
@@ -288,6 +289,7 @@ export default function StaffList({ teamId, teamOrgId }) {
       {orgAdmins.length > 0 && (
         <div className="mt-6">
           <h3 className="text-lg font-display font-bold text-white mb-2">Org Administrators ({orgAdmins.length})</h3>
+          <p className="text-xs text-gray-400 mb-2">Org admins can be marked as scheduling contact or reassigned a team role using Edit.</p>
           {/* Desktop table */}
           <div className="hidden md:block">
             <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
@@ -296,6 +298,8 @@ export default function StaffList({ teamId, teamOrgId }) {
                   <th className="px-3 py-2 text-left eyebrow">Name</th>
                   <th className="px-3 py-2 text-left eyebrow">Email</th>
                   <th className="px-3 py-2 text-left eyebrow">Phone</th>
+                  {editable && <th className="px-3 py-2 text-center eyebrow" title="Scheduling Contact">Sched.</th>}
+                  {editable && <th className="px-3 py-2 text-left eyebrow">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -316,6 +320,19 @@ export default function StaffList({ teamId, teamOrgId }) {
                       </div>
                     </td>
                     <td className="px-3 py-2">{m.phone || '—'}</td>
+                    {editable && (
+                      <td className="px-3 py-2 text-center">
+                        <input type="checkbox" checked={!!m.is_scheduling_contact}
+                          onChange={() => handleToggleSched(m)}
+                          title="Mark as scheduling contact"
+                          className="w-4 h-4 text-accent-600 rounded border-gray-600 focus:ring-accent-500 cursor-pointer" />
+                      </td>
+                    )}
+                    {editable && (
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <button onClick={() => { setEditing(m); setShowForm(true); }} className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -325,8 +342,23 @@ export default function StaffList({ teamId, teamOrgId }) {
           <div className="md:hidden space-y-3">
             {orgAdmins.map((m) => (
               <div key={m.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4 text-gray-200">
-                <div className="font-semibold">{m.name}</div>
-                <div className="text-sm text-gray-400 mb-1">Org Administrator</div>
+                <div className="flex items-start justify-between mb-1">
+                  <div>
+                    <div className="font-semibold">{m.name}</div>
+                    <div className="text-sm text-gray-400">Org Administrator</div>
+                  </div>
+                  {editable && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <label className="flex items-center gap-1.5 cursor-pointer" title="Scheduling contact">
+                        <input type="checkbox" checked={!!m.is_scheduling_contact}
+                          onChange={() => handleToggleSched(m)}
+                          className="w-4 h-4 text-accent-600 rounded border-gray-600 focus:ring-accent-500" />
+                        <span className="text-xs text-gray-400">Sched.</span>
+                      </label>
+                      <button onClick={() => { setEditing(m); setShowForm(true); }} className="px-2.5 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
+                    </div>
+                  )}
+                </div>
                 <div className="text-sm text-gray-300 space-y-0.5">
                   {m.email && (
                     <div className="flex items-center gap-1.5">
