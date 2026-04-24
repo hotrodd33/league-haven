@@ -332,11 +332,19 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     const label = `${game.home_team_name} vs ${game.away_team_name} on ${formatDate(game.game_date)}`;
     if (!window.confirm(`Delete game: ${label}?`)) return;
     setDeleting(game.id);
+    // Optimistic removal — strip the game from every cached games query immediately
+    // so the list updates before the server round-trip completes.
+    queryClient.setQueriesData({ queryKey: ['games'] }, (old) =>
+      Array.isArray(old) ? old.filter(g => g.id !== game.id) : old
+    );
     try {
       await deleteGame(game.id);
       queryClient.invalidateQueries({ queryKey: ['games'] });
-    } catch (err) { alert(`Failed to delete: ${err.message}`); }
-    finally { setDeleting(null); }
+    } catch (err) {
+      // Server rejected — pull fresh data back to restore the game
+      queryClient.invalidateQueries({ queryKey: ['games'] });
+      alert(`Failed to delete: ${err.message}`);
+    } finally { setDeleting(null); }
   }
 
   function handleScheduleIt(game) {

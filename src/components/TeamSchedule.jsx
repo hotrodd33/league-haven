@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { STALE } from '../lib/queryConfig.js';
 import { formatPhone } from '../utils/formatPhone.js';
 import { fetchGames, fetchTeams, fetchSeasons, fetchTeamPractices, updateReservation, deleteReservation, fetchLocations } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -45,11 +47,9 @@ const PRACTICE_COLORS = {
 export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const { isAdmin, canScoreGame, canScheduleGames } = useAuth();
   const canManageGames = isAdmin || canScheduleGames;
-  const [games, setGames] = useState([]);
-  const [practices, setPractices] = useState([]);
+  const queryClient = useQueryClient();
   const [teams, setTeams] = useState([]);
   const [seasons, setSeasons] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [trackingGameId, setTrackingGameId] = useState(null);
@@ -62,22 +62,33 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const [editingGame, setEditingGame] = useState(null);
   const [deletingPractice, setDeletingPractice] = useState(null);
 
-  const loadGames = useCallback(() => {
-    if (!teamId) { setGames([]); setPractices([]); return; }
-    setLoading(true);
-    Promise.all([
-      fetchGames({ team_id: teamId }),
-      fetchTeamPractices(teamId),
-    ])
-      .then(([gamesData, practicesData]) => {
-        setGames(gamesData || []);
-        setPractices((practicesData || []).filter(p => p.event_type !== 'game_hold'));
-      })
-      .catch(() => { setGames([]); setPractices([]); })
-      .finally(() => setLoading(false));
-  }, [teamId]);
+  // Games + practices use react-query so cache invalidation from other pages
+  // (e.g. a delete in GameSchedule) propagates here automatically.
+  const gamesFilters = useMemo(() => ({ team_id: teamId }), [teamId]);
+  const { data: games = [], isLoading: gamesLoading } = useQuery({
+    queryKey: ['games', gamesFilters],
+    queryFn: () => fetchGames(gamesFilters),
+    enabled: !!teamId,
+    staleTime: STALE.ONE_MIN,
+    placeholderData: keepPreviousData,
+  });
+  const { data: practicesRaw = [], isLoading: practicesLoading } = useQuery({
+    queryKey: ['practices', gamesFilters],
+    queryFn: () => fetchTeamPractices(teamId),
+    enabled: !!teamId,
+    staleTime: STALE.FIVE_MIN,
+    placeholderData: keepPreviousData,
+  });
+  const practices = useMemo(
+    () => (practicesRaw || []).filter(p => p.event_type !== 'game_hold'),
+    [practicesRaw]
+  );
+  const loading = gamesLoading || practicesLoading;
 
-  useEffect(() => { loadGames(); }, [loadGames]);
+  const loadGames = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['games'] });
+    queryClient.invalidateQueries({ queryKey: ['practices'] });
+  }, [queryClient]);
 
   useEffect(() => {
     if (!canManageGames) return;
