@@ -39,6 +39,7 @@ const travelRoutes = require('./routes/travel');
 const bugReportRoutes = require('./routes/bug-report');
 
 const helmet = require('helmet');
+const compression = require('compression');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -49,6 +50,7 @@ const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
   : ['http://localhost:5173', 'http://localhost:3001', 'http://localhost:4173'];
 
 app.use(helmet());
+app.use(compression());
 app.use(cors({
   origin: (origin, callback) => {
     // Allow same-origin requests (no Origin header) and explicitly listed origins
@@ -58,6 +60,17 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// Default Cache-Control for all GET responses — aligns with React Query staleTime.
+// Browser HTTP cache intercepts re-requests within the TTL so Vercel Functions
+// aren't invoked unnecessarily (no Fast Origin Transfer billed for cached hits).
+// Public endpoints (no auth) override this to 'public, s-maxage=N' in their handlers.
+app.use((req, res, next) => {
+  if (req.method === 'GET') {
+    res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=30');
+  }
+  next();
+});
 
 // Wait for DB migration before handling requests
 app.use(async (req, res, next) => {

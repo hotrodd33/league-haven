@@ -11,6 +11,9 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 60_000,
       retry: 1,
+      // Disable refetch on window focus — prevents burst of requests every time
+      // a user tabs back to the app, which is a primary driver of Fast Origin Transfer.
+      refetchOnWindowFocus: false,
     },
   },
 });

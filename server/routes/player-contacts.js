@@ -30,6 +30,10 @@ router.get('/all-guardians', authMiddleware, async (req, res) => {
                    'relationship', pg.relationship, 'team_names',
                    (SELECT string_agg(DISTINCT t.name, ', ')
                     FROM team_players tp JOIN teams t ON t.id = tp.team_id
+                    WHERE tp.player_id = p.id),
+                   'team_ids',
+                   (SELECT COALESCE(array_agg(DISTINCT tp.team_id), '{}')
+                    FROM team_players tp
                     WHERE tp.player_id = p.id)
                  )
                ) FILTER (WHERE p.id IS NOT NULL), '[]'

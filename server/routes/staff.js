@@ -66,6 +66,48 @@ router.patch('/toggle-sched', authMiddleware, async (req, res) => {
   }
 });
 
+// GET /staff/all-coaches — list all staff who have at least one coaching assignment,
+// with aggregated team/age-group info per person. For the Coaches directory page.
+router.get('/all-coaches', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT sm.id, sm.name, sm.email, sm.phone,
+             COALESCE(
+               json_agg(
+                 DISTINCT jsonb_build_object(
+                   'team_id', t.id,
+                   'team_name', t.name,
+                   'age_group', t.age_group,
+                   'role', tsa.role,
+                   'role_label', CASE tsa.role
+                     WHEN 'head_coach' THEN 'Head Coach'
+                     WHEN 'assistant_coach' THEN 'Assistant Coach'
+                     WHEN 'scorekeeper' THEN 'Scorekeeper'
+                     WHEN 'org_admin' THEN 'Org Administrator'
+                     ELSE tsa.role
+                   END
+                 )
+               ) FILTER (WHERE t.id IS NOT NULL), '[]'
+             ) AS assignments
+      FROM staff_members sm
+      JOIN team_staff_assignments tsa ON tsa.staff_id = sm.id
+      JOIN teams t ON t.id = tsa.team_id
+      WHERE EXISTS (
+        SELECT 1 FROM team_staff_assignments tsa2
+        WHERE tsa2.staff_id = sm.id
+          AND tsa2.role IN ('head_coach', 'assistant_coach')
+      )
+      GROUP BY sm.id
+      ORDER BY sm.name
+      LIMIT 1000
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM staff_members WHERE id = $1', [req.params.id]);

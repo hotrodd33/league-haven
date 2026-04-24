@@ -20,6 +20,7 @@ import ManageAnnouncements from './ManageAnnouncements.jsx';
 import TeamSelector from './TeamSelector.jsx';
 import TeamPage from './TeamPage.jsx';
 import GuardiansPage from './GuardiansPage.jsx';
+import CoachesPage from './CoachesPage.jsx';
 import TravelMatrix from './TravelMatrix.jsx';
 
 export default function FeatureRouter(props) {
@@ -99,6 +100,11 @@ function PageContent({
         case 'guardians':
             return (isAdmin || isOrgAdmin)
                 ? <GuardiansPage onViewPlayer={onViewPlayer} />
+                : null;
+
+        case 'coaches':
+            return (isAdmin || isOrgAdmin)
+                ? <CoachesPage />
                 : null;
 
         case 'account':

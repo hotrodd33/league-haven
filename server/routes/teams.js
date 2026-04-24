@@ -87,6 +87,8 @@ async function syncDivisions(teamId, divisionIds, client) {
 
 router.get('/', async (req, res) => {
   try {
+    // Teams list is public (no auth) — allow CDN edge caching
+    res.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
     const { org_id } = req.query;
     const cacheKey = org_id ? teamsOrgKey(org_id) : teamsAllKey();
     const cached = cache.get(cacheKey);
