@@ -524,6 +524,19 @@ router.get('/standings', async (req, res) => {
   }
 });
 
+// GET deleted games — super_admin only
+router.get('/deleted', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      SLIM_SELECT + ' WHERE g.deleted_at IS NOT NULL ORDER BY g.deleted_at DESC LIMIT 200'
+    );
+    res.json(rows.map(enrichGame));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET single game
 router.get('/:id', async (req, res) => {
   try {
@@ -843,19 +856,6 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     cache.invalidatePrefix('standings:');
     cache.invalidatePrefix('umpires:');
     res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET deleted games — super_admin only
-router.get('/deleted', authMiddleware, requireAdmin, async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      SLIM_SELECT + ' WHERE g.deleted_at IS NOT NULL ORDER BY g.deleted_at DESC LIMIT 200'
-    );
-    res.json(rows.map(enrichGame));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
