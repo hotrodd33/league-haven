@@ -1250,6 +1250,12 @@ export async function fetchAllGuardians() {
   return apiFetch('/player-contacts/all-guardians');
 }
 
+// ── All Coaches ──
+
+export async function fetchAllCoaches() {
+  return apiFetch('/staff/all-coaches');
+}
+
 // ── Travel Matrix ──
 
 export async function fetchTravelMatrix() {

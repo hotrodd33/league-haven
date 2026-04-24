@@ -3,13 +3,10 @@ import {
   UsersIcon, BuildingIcon, CalendarIcon, TrophyIcon,
   ClipboardIcon, CogIcon, UserGroupIcon, DatabaseIcon,
   ChevronLeftIcon, ChevronRightIcon, HomeIcon, CurrencyDollarIcon,
-  MapPinIcon, UserIcon, MegaphoneIcon, GlobeIcon,
+  MapPinIcon, UserIcon, MegaphoneIcon, GlobeIcon, BookOpenIcon,
+  ArrowTrendingUpIcon, AcademicCapIcon, ShieldCheckIcon, LockIcon,
+  ArrowTopRightOnSquareIcon,
 } from './icons.jsx';
-
-const teamNav = [
-  { key: 'rosters', label: 'Teams',   icon: UsersIcon },
-  { key: 'players', label: 'Players', icon: UserIcon },
-];
 
 export default function Sidebar({
   page,
@@ -29,50 +26,61 @@ export default function Sidebar({
 }) {
   const ft = (key) => features[key] !== false;
 
-  // Build League nav — conditionally include items based on feature toggles
-  const leagueItems = [
-    { key: 'dashboard', label: 'Dashboard', icon: HomeIcon },
+  // Standalone home — no group
+  const homeItem = { key: 'dashboard', label: 'Dashboard', icon: HomeIcon };
+
+  // ACTIVITY — day-to-day operational destinations
+  const activityItems = [
     { key: 'schedule',  label: 'Schedule',  icon: CalendarIcon },
     { key: 'standings', label: 'Standings', icon: TrophyIcon },
-    { key: 'directory', label: 'Directory', icon: ClipboardIcon },
     { key: 'fields',    label: 'Fields',    icon: MapPinIcon },
-    { key: 'travel',    label: 'Travel',    icon: MapPinIcon },
+    { key: 'travel',    label: 'Travel',    icon: ArrowTrendingUpIcon },
   ];
 
-  if (branding?.public_site_url) {
-    leagueItems.push({
-      key: 'website',
-      label: 'Website',
-      icon: GlobeIcon,
-      href: `${branding.public_site_url.replace(/\/+$/, '')}/site`,
-    });
-  }
-
-  // Build Organization items based on role + feature toggles
-  const orgItems = [];
-  orgItems.push({ key: 'organizations', label: 'Organizations', icon: BuildingIcon });
+  // ROSTER — teams + every people directory in one place
+  const rosterItems = [
+    { key: 'rosters', label: 'Teams',   icon: UsersIcon },
+    { key: 'players', label: 'Players', icon: UserIcon },
+  ];
   if (isAdmin || isOrgAdmin) {
-    orgItems.push({ key: 'guardians', label: 'Guardians', icon: UserGroupIcon });
+    rosterItems.push({ key: 'coaches', label: 'Coaches', icon: AcademicCapIcon });
+    rosterItems.push({ key: 'guardians', label: 'Guardians', icon: UserGroupIcon });
   }
   if ((isAdmin || isOrgAdmin || isAccountant) && ft('feature_officials')) {
-    orgItems.push({ key: 'officials', label: 'Officials', icon: UserGroupIcon });
+    rosterItems.push({ key: 'officials', label: 'Officials', icon: ShieldCheckIcon });
   }
-  if (isAdmin || isOrgAdmin || isTeamManager) {
-    orgItems.push({ key: 'approvals', label: 'Approvals', icon: ClipboardIcon, badge: pendingApprovalCount });
-  }
+  rosterItems.push({ key: 'directory', label: 'Contacts', icon: BookOpenIcon });
 
-  // Build Administration items based on role + feature toggles
+  // ADMIN — configuration, management, infrequent tools
   const adminItems = [];
-  if ((isAdmin || isAccountant) && ft('feature_financials')) {
-    adminItems.push({ key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon });
+  if (isAdmin || isOrgAdmin || isTeamManager) {
+    adminItems.push({ key: 'approvals', label: 'Approvals', icon: ClipboardIcon, badge: pendingApprovalCount });
   }
   if (isAdmin || isOrgAdmin) {
     adminItems.push({ key: 'announcements', label: 'Announcements', icon: MegaphoneIcon, badge: unreadAnnouncementCount });
   }
+  adminItems.push({ key: 'organizations', label: 'Orgs & Teams', icon: BuildingIcon });
   if (isAdmin) {
+    adminItems.push({ key: 'users', label: 'Users', icon: LockIcon });
     adminItems.push({ key: 'league', label: 'League Config', icon: CogIcon });
-    adminItems.push({ key: 'users', label: 'Users', icon: UserGroupIcon });
+  }
+  if ((isAdmin || isAccountant) && ft('feature_financials')) {
+    adminItems.push({ key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon });
+  }
+  if (isAdmin) {
     adminItems.push({ key: 'data', label: 'Data Manager', icon: DatabaseIcon });
+  }
+
+  // External outlink — visually separated at the bottom
+  const externalItems = [];
+  if (branding?.public_site_url) {
+    externalItems.push({
+      key: 'website',
+      label: 'Website',
+      icon: GlobeIcon,
+      external: true,
+      href: `${branding.public_site_url.replace(/\/+$/, '')}/site`,
+    });
   }
 
   return (
@@ -118,14 +126,25 @@ export default function Sidebar({
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 scrollbar-thin">
-          <NavGroup label="League" items={leagueItems} page={page} collapsed={collapsed}
+          {/* Dashboard — standalone home, above all groups */}
+          <div className={cn('pt-1 pb-2', collapsed ? 'px-2' : 'px-0')}>
+            <NavItem
+              item={homeItem}
+              active={page === homeItem.key}
+              collapsed={collapsed}
+              onClick={() => { onNavigate(homeItem.key); onCloseMobile?.(); }}
+            />
+          </div>
+          <NavGroup label="Activity" items={activityItems} page={page} collapsed={collapsed}
             onNavigate={onNavigate} onCloseMobile={onCloseMobile} />
-          <NavGroup label="Teams & Players" items={teamNav} page={page} collapsed={collapsed}
+          <NavGroup label="Roster" items={rosterItems} page={page} collapsed={collapsed}
             onNavigate={onNavigate} onCloseMobile={onCloseMobile} />
-          <NavGroup label="Organization" items={orgItems} page={page} collapsed={collapsed}
+          <NavGroup label="Admin" items={adminItems} page={page} collapsed={collapsed}
             onNavigate={onNavigate} onCloseMobile={onCloseMobile} />
-          <NavGroup label="Administration" items={adminItems} page={page} collapsed={collapsed}
-            onNavigate={onNavigate} onCloseMobile={onCloseMobile} />
+          {externalItems.length > 0 && (
+            <NavGroup label="External" items={externalItems} page={page} collapsed={collapsed}
+              onNavigate={onNavigate} onCloseMobile={onCloseMobile} />
+          )}
         </nav>
 
         {/* Collapse toggle — desktop only */}
@@ -168,7 +187,12 @@ function NavItem({ item, active, collapsed, onClick }) {
         onClick={onClick}
       >
         <Icon className="w-5 h-5 shrink-0" />
-        {!collapsed && <span className="truncate">{item.label}</span>}
+        {!collapsed && (
+          <>
+            <span className="truncate">{item.label}</span>
+            {item.external && <ArrowTopRightOnSquareIcon className="ml-auto w-3.5 h-3.5 shrink-0 text-white/40" />}
+          </>
+        )}
       </a>
     );
   }
