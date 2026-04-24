@@ -1165,11 +1165,15 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
   const [fieldConflicts, setFieldConflicts] = useState(null);
   const [confirmSave, setConfirmSave] = useState(false);
+  const [isDoubleheader, setIsDoubleheader] = useState(false);
+  const [awayLocations, setAwayLocations] = useState([]);
 
   const selectedHomeTeam = teams.find((t) => String(t.id) === String(form.home_team_id));
+  const selectedAwayTeam = teams.find((t) => String(t.id) === String(form.away_team_id));
   const interestedOfficialIds = (game?.interested_official_ids || []).map((id) => Number(id));
   const interestedOfficialSet = new Set(interestedOfficialIds);
   const homeOrgId = selectedHomeTeam?.org_id || null;
+  const awayOrgId = selectedAwayTeam?.org_id || null;
   const orgOfficialsEnabled = homeOrgId ? !!orgSettings[homeOrgId]?.officials_enabled : false;
   const officialsEnabled = orgOfficialsEnabled || officials.length > 0;
 
@@ -1224,6 +1228,17 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       setForm((prev) => ({ ...prev, official_ids: [] }));
     });
   }, [homeOrgId]);
+
+  // Load away team's org locations when doubleheader is toggled on
+  useEffect(() => {
+    if (!isDoubleheader || !awayOrgId || awayOrgId === homeOrgId) {
+      setAwayLocations([]);
+      return;
+    }
+    fetchLocations(awayOrgId).then((locs) => {
+      setAwayLocations(locs);
+    }).catch(() => setAwayLocations([]));
+  }, [isDoubleheader, awayOrgId, homeOrgId]);
 
   // For non-game types, load locations from user's org(s)
   useEffect(() => {
@@ -1560,22 +1575,57 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               <div>
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <label htmlFor="game-location" className="lh-eyebrow mb-0">Location</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddLocationForm(true)}
-                    disabled={!homeOrgId}
-                    className="text-xs font-semibold text-action-300 hover:text-action-100 underline disabled:opacity-50 disabled:no-underline"
-                  >
-                    + Add new field
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={isDoubleheader}
+                        onChange={e => {
+                          setIsDoubleheader(e.target.checked);
+                          if (!e.target.checked) setAwayLocations([]);
+                        }}
+                        className="accent-green-500"
+                      />
+                      Doubleheader
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddLocationForm(true)}
+                      disabled={!homeOrgId}
+                      className="text-xs font-semibold text-action-300 hover:text-action-100 underline disabled:opacity-50 disabled:no-underline"
+                    >
+                      + Add new field
+                    </button>
+                  </div>
                 </div>
                 <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId}>
                   <option value="">— None —</option>
-                  {locations
-                    .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
-                    .map(l => (
-                    <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
-                  ))}
+                  {isDoubleheader ? (
+                    <>
+                      <optgroup label={selectedHomeTeam?.org_name || 'Home Team Fields'}>
+                        {locations
+                          .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
+                          .map(l => (
+                            <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
+                          ))}
+                      </optgroup>
+                      {awayOrgId && awayOrgId !== homeOrgId && (
+                        <optgroup label={selectedAwayTeam?.org_name || 'Away Team Fields'}>
+                          {awayLocations
+                            .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
+                            .map(l => (
+                              <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
+                            ))}
+                        </optgroup>
+                      )}
+                    </>
+                  ) : (
+                    locations
+                      .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
+                      .map(l => (
+                        <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
+                      ))
+                  )}
                 </select>
                 {!homeOrgId ? (
                   <p className="text-xs text-gray-400 mt-1">Select a home team first to see that organization&apos;s fields.</p>
