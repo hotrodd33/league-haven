@@ -44,6 +44,7 @@ function formatTime(value) {
 
 router.get('/branding', async (req, res) => {
   try {
+    res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=60');
     res.json(await getBranding());
   } catch (err) {
     console.error(err);
@@ -314,6 +315,7 @@ router.delete('/age-groups/:id', authMiddleware, requireAdmin, async (req, res) 
 
 router.get('/levels', async (req, res) => {
   try {
+    res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=60');
     const cached = cache.get(LEVELS_KEY);
     if (cached) return res.json(cached);
     const { rows } = await pool.query('SELECT * FROM league_levels ORDER BY sort_order, name');
@@ -376,6 +378,7 @@ router.delete('/levels/:id', authMiddleware, requireAdmin, async (req, res) => {
 
 router.get('/seasons', async (req, res) => {
   try {
+    res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=60');
     const cached = cache.get(SEASONS_KEY);
     if (cached) return res.json(cached);
     const { rows } = await pool.query('SELECT * FROM league_seasons ORDER BY sort_order, year DESC, name');
@@ -464,6 +467,7 @@ async function getDivisionsWithPaths(seasonId) {
 
 router.get('/divisions', async (req, res) => {
   try {
+    res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=60');
     const seasonId = req.query.season_id || null;
     const cacheKey = divisionsKey(seasonId);
     const cached = cache.get(cacheKey);
