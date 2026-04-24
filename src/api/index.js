@@ -442,6 +442,14 @@ export async function deleteGame(gameId) {
   });
 }
 
+export async function fetchDeletedGames() {
+  return apiFetch('/games/deleted');
+}
+
+export async function restoreGame(gameId) {
+  return apiFetch(`/games/${gameId}/restore`, { method: 'PATCH' });
+}
+
 export async function heartbeatGame(gameId) {
   return apiFetch(`/games/${gameId}/heartbeat`, { method: 'PUT' });
 }

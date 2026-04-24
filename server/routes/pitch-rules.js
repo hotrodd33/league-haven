@@ -88,7 +88,7 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
       const { rows } = await pool.query(
         `SELECT gpc.player_id, gpc.pitch_count, g.game_date::text AS game_date, g.id AS game_id
          FROM game_pitch_counts gpc
-         JOIN games g ON g.id = gpc.game_id
+         JOIN games g ON g.id = gpc.game_id AND g.deleted_at IS NULL
          WHERE gpc.player_id = ANY($1)
            AND g.season_id IS NOT NULL
            AND g.game_date >= $2::date
@@ -240,7 +240,7 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
               COALESCE(opp.name, '?') AS opponent_name,
               CASE WHEN g.home_team_id = $2 THEN 'vs' ELSE '@' END AS home_away
        FROM game_pitch_counts gpc
-       JOIN games g ON g.id = gpc.game_id
+       JOIN games g ON g.id = gpc.game_id AND g.deleted_at IS NULL
        LEFT JOIN teams opp ON opp.id = CASE WHEN g.home_team_id = $2 THEN g.away_team_id ELSE g.home_team_id END
        WHERE gpc.player_id = ANY($1)
          AND gpc.team_id = $2
@@ -260,7 +260,7 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
                   SUM(gpc.pitch_count) AS total_pitches,
                   MAX(g.game_date::text) AS last_pitched
            FROM game_pitch_counts gpc
-           JOIN games g ON g.id = gpc.game_id
+           JOIN games g ON g.id = gpc.game_id AND g.deleted_at IS NULL
            WHERE gpc.player_id = ANY($1)
              AND gpc.team_id = $2
              AND g.season_id = $3
@@ -412,7 +412,7 @@ router.get('/all-rest', authMiddleware, async (req, res) => {
     const { rows: recent } = await pool.query(
       `SELECT gpc.player_id, gpc.pitch_count, g.game_date::text AS game_date
        FROM game_pitch_counts gpc
-       JOIN games g ON g.id = gpc.game_id
+       JOIN games g ON g.id = gpc.game_id AND g.deleted_at IS NULL
        WHERE gpc.player_id = ANY($1)
          AND g.game_date >= $2::date
          AND g.game_date <= $3::date

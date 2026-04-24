@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { clearData, exportDataUrl, importData, fetchSeasons, fetchTeams, fetchOrganizations } from '../api/index.js';
+import { clearData, exportDataUrl, importData, fetchSeasons, fetchTeams, fetchOrganizations, fetchDeletedGames, restoreGame } from '../api/index.js';
 import { Button, Input, Select, Card } from './ui';
 
 const ENTITIES = [
@@ -40,6 +40,10 @@ export default function DataManager({ onOpenImport }) {
   const [exportTeamId, setExportTeamId] = useState('');
   const [orgs, setOrgs] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [deletedGames, setDeletedGames] = useState(null);
+  const [deletedLoading, setDeletedLoading] = useState(false);
+  const [deletedError, setDeletedError] = useState(null);
+  const [restoringId, setRestoringId] = useState(null);
 
   const exportFilename = (entityKey, tId, oId) => {
     const date = new Date().toISOString().slice(0, 10);
@@ -109,6 +113,31 @@ export default function DataManager({ onOpenImport }) {
   const rowCount = csv.trim() ? csv.trim().split(/\r?\n/).length - 1 : 0;
   const needsSeason = ['teams', 'divisions'].includes(selectedEntity);
 
+  async function loadDeletedGames() {
+    setDeletedLoading(true);
+    setDeletedError(null);
+    try {
+      const rows = await fetchDeletedGames();
+      setDeletedGames(rows);
+    } catch (err) {
+      setDeletedError(err.message);
+    } finally {
+      setDeletedLoading(false);
+    }
+  }
+
+  async function handleRestore(gameId) {
+    setRestoringId(gameId);
+    try {
+      await restoreGame(gameId);
+      setDeletedGames(prev => prev.filter(g => g.id !== gameId));
+    } catch (err) {
+      setDeletedError(err.message);
+    } finally {
+      setRestoringId(null);
+    }
+  }
+
   const tabCls = (t) => `lh-tab ${tab === t ? 'lh-tab-active' : 'lh-tab-inactive'}`;
 
   return (
@@ -121,6 +150,7 @@ export default function DataManager({ onOpenImport }) {
         <button className={tabCls('import')} onClick={() => setTab('import')}>Import</button>
         <button className={tabCls('export')} onClick={() => setTab('export')}>Export</button>
         <button className={tabCls('clear')} onClick={() => setTab('clear')}>Clear Data</button>
+        <button className={tabCls('deleted')} onClick={() => { setTab('deleted'); if (!deletedGames) loadDeletedGames(); }}>Deleted Games</button>
       </div>
 
       <div className="bg-gray-800 border border-gray-700 rounded-b-xl rounded-tr-xl p-5">
@@ -337,6 +367,56 @@ export default function DataManager({ onOpenImport }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+        {/* ── DELETED GAMES TAB ── */}
+        {tab === 'deleted' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-400">Games that were soft-deleted can be restored. Only super admins can see this panel.</p>
+              <Button size="xs" variant="secondary" onClick={loadDeletedGames} disabled={deletedLoading}>
+                {deletedLoading ? 'Loading…' : 'Refresh'}
+              </Button>
+            </div>
+
+            {deletedError && (
+              <div className="bg-signal-900/30 border border-signal-200 rounded-lg p-3 text-sm text-signal-400">{deletedError}</div>
+            )}
+
+            {deletedLoading && !deletedGames && (
+              <p className="text-sm text-gray-400">Loading deleted games…</p>
+            )}
+
+            {deletedGames && deletedGames.length === 0 && (
+              <p className="text-sm text-gray-400">No deleted games found.</p>
+            )}
+
+            {deletedGames && deletedGames.length > 0 && (
+              <div className="space-y-2">
+                {deletedGames.map(g => (
+                  <div key={g.id} className="border border-gray-700 rounded-lg p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-gray-200 truncate">
+                        {g.home_team_name} vs {g.away_team_name}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {g.game_date ? g.game_date : 'No date'}{g.game_time ? ` · ${g.game_time.slice(0,5)}` : ''}{g.season_name ? ` · ${g.season_name}` : ''}{g.location_name ? ` · ${g.location_name}` : ''}
+                      </div>
+                      <div className="text-xs text-gray-500">Game ID: {g.id} · Status: {g.status}</div>
+                    </div>
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      onClick={() => handleRestore(g.id)}
+                      disabled={restoringId === g.id}
+                      loading={restoringId === g.id}
+                    >
+                      Restore
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

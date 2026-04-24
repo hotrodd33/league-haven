@@ -50,6 +50,7 @@ router.get('/', async (req, res) => {
        WHERE g.location_id = $1
          AND g.game_date >= $2 AND g.game_date <= $3
          AND g.status IN ('scheduled', 'in_progress')
+         AND g.deleted_at IS NULL
        ORDER BY g.game_date, g.game_time`,
       [location_id, dateFrom, dateTo]
     );

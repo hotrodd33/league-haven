@@ -317,7 +317,7 @@ router.get('/', async (req, res) => {
     const cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 
-    const conditions = [];
+    const conditions = ['g.deleted_at IS NULL'];
     const params = [];
     let idx = 1;
 
@@ -347,7 +347,7 @@ router.get('/', async (req, res) => {
       idx++;
     }
 
-    const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
+    const where = ' WHERE ' + conditions.join(' AND ');
     const selectBase = isSlim ? SLIM_SELECT : BASE_SELECT;
     const sql = selectBase + where + ' ORDER BY gd.division_sort NULLS LAST, gd.division_name NULLS LAST, g.game_date, g.game_time NULLS LAST';
     const { rows } = await pool.query(sql, params);
@@ -396,7 +396,7 @@ router.get('/standings', async (req, res) => {
       WITH completed_games AS (
         SELECT id, home_team_id, away_team_id, home_score, away_score
         FROM games
-        WHERE status = 'completed' AND season_id = $1
+        WHERE status = 'completed' AND season_id = $1 AND deleted_at IS NULL
       ),
       team_results AS (
         SELECT home_team_id AS team_id,
@@ -838,11 +838,43 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       }
     }
 
-    await pool.query('DELETE FROM games WHERE id = $1', [id]);
+    await pool.query('UPDATE games SET deleted_at = NOW() WHERE id = $1', [id]);
     cache.invalidatePrefix('games:');
     cache.invalidatePrefix('standings:');
     cache.invalidatePrefix('umpires:');
     res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET deleted games — super_admin only
+router.get('/deleted', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      SLIM_SELECT + ' WHERE g.deleted_at IS NOT NULL ORDER BY g.deleted_at DESC LIMIT 200'
+    );
+    res.json(rows.map(enrichGame));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH restore deleted game — super_admin only
+router.patch('/:id/restore', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      'UPDATE games SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL RETURNING id',
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Deleted game not found' });
+    cache.invalidatePrefix('games:');
+    cache.invalidatePrefix('standings:');
+    cache.invalidatePrefix('umpires:');
+    res.json({ success: true, id: rows[0].id });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

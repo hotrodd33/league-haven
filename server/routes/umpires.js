@@ -59,7 +59,7 @@ router.get('/assigned-games', authMiddleware, async (req, res) => {
        LEFT JOIN officials off ON off.id = goa.official_id
        JOIN game_official_assignments my_goa ON my_goa.game_id = g.id
        JOIN officials my_off ON my_off.id = my_goa.official_id
-       WHERE my_off.user_id = $1
+       WHERE my_off.user_id = $1 AND g.deleted_at IS NULL
        GROUP BY g.id, g.game_date, g.game_time, g.status, g.home_team_id, g.away_team_id, g.location_id, g.home_score, g.away_score, ht.id, ht.name, ht.age_group, ht.level, ht.division, at.id, at.name, at.age_group, at.level, at.division, fl.id, fl.name
        ORDER BY g.game_date DESC, g.game_time ASC`,
       [req.user.id]
@@ -99,7 +99,7 @@ router.get('/available-games', authMiddleware, async (req, res) => {
     const eligibleAgeGroupIds = profileRows[0]?.eligible_age_group_ids ?? null;
 
     const params = [req.user.id];
-    let whereClause = 'WHERE g.status = \'scheduled\'';
+    let whereClause = 'WHERE g.status = \'scheduled\' AND g.deleted_at IS NULL';
 
     // Org-scoped umpires only see games for their organization
     if (umpireOrgId !== null) {
@@ -176,7 +176,7 @@ router.get('/game-interests', authMiddleware, async (req, res) => {
          COUNT(DISTINCT goa.official_id) > 0 AS is_assigned,
          STRING_AGG(DISTINCT off_assigned.name, ', ') AS assigned_official_names
        FROM umpire_game_interests ugi
-       JOIN games g ON g.id = ugi.game_id
+       JOIN games g ON g.id = ugi.game_id AND g.deleted_at IS NULL
        JOIN teams ht ON ht.id = g.home_team_id
        JOIN teams at ON at.id = g.away_team_id
        LEFT JOIN field_locations fl ON fl.id = g.location_id

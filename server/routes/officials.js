@@ -170,7 +170,7 @@ router.get('/', authMiddleware, async (req, res) => {
              ELSE 0 END
            ), 0) AS total_owed
          FROM game_official_assignments goa
-         JOIN games g ON g.id = goa.game_id
+         JOIN games g ON g.id = goa.game_id AND g.deleted_at IS NULL
          LEFT JOIN teams ht ON ht.id = g.home_team_id
          WHERE goa.official_id = o.id
        ) stats ON true
@@ -541,7 +541,7 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
          ls.name AS season_name,
          lag.umpire_rate AS age_group_rate
        FROM game_official_assignments goa
-       JOIN games g ON g.id = goa.game_id
+       JOIN games g ON g.id = goa.game_id AND g.deleted_at IS NULL
        LEFT JOIN teams ht ON ht.id = g.home_team_id
        LEFT JOIN teams at ON at.id = g.away_team_id
        LEFT JOIN field_locations fl ON fl.id = g.location_id
@@ -723,7 +723,7 @@ router.get('/:id/interested-games', authMiddleware, async (req, res) => {
          ugi.interested_at,
          COUNT(DISTINCT goa.official_id) AS assigned_count
        FROM umpire_game_interests ugi
-       JOIN games g ON g.id = ugi.game_id
+       JOIN games g ON g.id = ugi.game_id AND g.deleted_at IS NULL
        LEFT JOIN teams ht ON ht.id = g.home_team_id
        LEFT JOIN teams at ON at.id = g.away_team_id
        LEFT JOIN field_locations fl ON fl.id = g.location_id

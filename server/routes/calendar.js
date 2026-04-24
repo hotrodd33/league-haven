@@ -64,7 +64,7 @@ router.get('/games.ics', async (req, res) => {
       return res.send(cachedICS);
     }
 
-    const conditions = [];
+    const conditions = ['g.deleted_at IS NULL'];
     const params = [];
     let idx = 1;
 
@@ -99,7 +99,7 @@ router.get('/games.ics', async (req, res) => {
       idx++;
     }
 
-    const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
+    const where = ' WHERE ' + conditions.join(' AND ');
 
     const sql = `
       SELECT g.id, g.game_date, g.game_time, g.status, g.notes,
