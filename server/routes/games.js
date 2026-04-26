@@ -830,6 +830,14 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Game not found' });
 
     if (req.user.role !== 'super_admin') {
+      // League-wide feature gate — non-super-admins can only delete when enabled
+      const { rows: brandingRows } = await pool.query(
+        'SELECT feature_game_delete FROM app_branding WHERE id = 1'
+      );
+      if (!brandingRows[0]?.feature_game_delete) {
+        return res.status(403).json({ error: 'Game deletion is disabled in league settings' });
+      }
+
       const perms = await getUserPermissions(req.user.id);
       if (req.user.role === 'org_admin') {
         const { rows: teamOrgs } = await pool.query(

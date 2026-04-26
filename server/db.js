@@ -775,6 +775,7 @@ async function migrate() {
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_public_site BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_push_notifications BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS public_site_url TEXT;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_game_delete BOOLEAN NOT NULL DEFAULT FALSE;`);
 
   // ── Field ↔ Age-group eligibility ──
   await pool.query(`

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   fetchAgeGroups, createAgeGroup, updateAgeGroup, deleteAgeGroup,
   fetchLevels, createLevel, updateLevel, deleteLevel,
@@ -247,9 +248,11 @@ const FEATURE_DEFS = [
   { key: 'feature_registration',      label: 'Team Registration',   desc: 'Public team registration form for new organizations' },
   { key: 'feature_public_site',       label: 'Public Site',         desc: 'Public-facing schedule, standings, and scores' },
   { key: 'feature_push_notifications', label: 'Push Notifications', desc: 'Browser push notifications for schedule changes and announcements' },
+  { key: 'feature_game_delete',       label: 'Allow Game Deletion', desc: 'When off, only super-admins can delete games. Turn on to let org-admins and team managers delete games for their own teams.' },
 ];
 
 function FeatureTogglesConfig() {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -270,6 +273,10 @@ function FeatureTogglesConfig() {
     try {
       const result = await updateFeatureToggles({ [key]: updated[key] });
       setToggles(result);
+      // Branding query feeds useBranding() in other components — invalidate so
+      // gates like the Delete button react immediately without waiting on
+      // the 1-hour staleTime.
+      queryClient.invalidateQueries({ queryKey: ['branding'] });
     } catch (err) {
       setToggles(toggles); // revert
       setError(err.message);

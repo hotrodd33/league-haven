@@ -13,6 +13,7 @@ const DEFAULT_FEATURES = {
     feature_registration: true,
     feature_public_site: true,
     feature_push_notifications: true,
+    feature_game_delete: false,
 };
 
 export function useBranding(isAuthenticated) {
@@ -30,7 +31,10 @@ export function useBranding(isAuthenticated) {
     };
 
     const features = Object.fromEntries(
-        Object.keys(DEFAULT_FEATURES).map(k => [k, data?.[k] !== false])
+        Object.keys(DEFAULT_FEATURES).map(k => {
+            const v = data?.[k];
+            return [k, typeof v === 'boolean' ? v : DEFAULT_FEATURES[k]];
+        })
     );
 
     useEffect(() => {
