@@ -442,6 +442,14 @@ export async function deleteGame(gameId) {
   });
 }
 
+export async function fetchDeletedGames() {
+  return apiFetch('/games/deleted');
+}
+
+export async function restoreGame(gameId) {
+  return apiFetch(`/games/${gameId}/restore`, { method: 'PATCH' });
+}
+
 export async function heartbeatGame(gameId) {
   return apiFetch(`/games/${gameId}/heartbeat`, { method: 'PUT' });
 }
@@ -925,10 +933,11 @@ export async function clearData(entities) {
   });
 }
 
-export function exportDataUrl(entity, { teamId, orgId } = {}) {
+export function exportDataUrl(entity, { teamId, orgId, divisionId } = {}) {
   const params = new URLSearchParams();
   if (teamId) params.set('team_id', teamId);
   if (orgId) params.set('org_id', orgId);
+  if (divisionId) params.set('division_id', divisionId);
   const qs = params.toString();
   return `${API_BASE}/data-manager/export/${entity}${qs ? '?' + qs : ''}`;
 }

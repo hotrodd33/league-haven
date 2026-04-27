@@ -113,7 +113,7 @@ router.get('/activity', authMiddleware, async (req, res) => {
          FROM games g
          LEFT JOIN teams ht ON ht.id = g.home_team_id
          LEFT JOIN teams at ON at.id = g.away_team_id
-         WHERE g.updated_at IS NOT NULL
+         WHERE g.updated_at IS NOT NULL AND g.deleted_at IS NULL
          ORDER BY g.updated_at DESC
          LIMIT $1`, [limit]
       ),
@@ -253,7 +253,7 @@ router.get('/summary', authMiddleware, async (req, res) => {
       // Today's games
       pool.query(
         `SELECT ${SLIM_GAME_COLS} ${SLIM_GAME_FROM}
-         WHERE g.game_date = $1::date AND g.status != 'cancelled'
+         WHERE g.game_date = $1::date AND g.status != 'cancelled' AND g.deleted_at IS NULL
          ${isAdmin ? '' : 'AND (g.home_team_id = ANY($2) OR g.away_team_id = ANY($2))'}
          ORDER BY g.game_time NULLS LAST`,
         isAdmin ? [today] : [today, teamScopeIds]
@@ -262,7 +262,7 @@ router.get('/summary', authMiddleware, async (req, res) => {
       // Upcoming games — next 5 not yet completed/cancelled
       pool.query(
         `SELECT ${SLIM_GAME_COLS} ${SLIM_GAME_FROM}
-         WHERE g.game_date > $1::date AND g.status NOT IN ('completed', 'cancelled')
+         WHERE g.game_date > $1::date AND g.status NOT IN ('completed', 'cancelled') AND g.deleted_at IS NULL
          ${isAdmin ? '' : 'AND (g.home_team_id = ANY($2) OR g.away_team_id = ANY($2))'}
          ORDER BY g.game_date, g.game_time NULLS LAST
          LIMIT 5`,
@@ -272,7 +272,7 @@ router.get('/summary', authMiddleware, async (req, res) => {
       // Recent results — last 5 completed
       pool.query(
         `SELECT ${SLIM_GAME_COLS} ${SLIM_GAME_FROM}
-         WHERE g.status = 'completed'
+         WHERE g.status = 'completed' AND g.deleted_at IS NULL
          ${isAdmin ? '' : 'AND (g.home_team_id = ANY($1) OR g.away_team_id = ANY($1))'}
          ORDER BY g.game_date DESC, g.game_time DESC
          LIMIT 5`,
@@ -282,7 +282,7 @@ router.get('/summary', authMiddleware, async (req, res) => {
       // Unscored past games (past date + still scheduled)
       pool.query(
         `SELECT ${SLIM_GAME_COLS} ${SLIM_GAME_FROM}
-         WHERE g.game_date < $1::date AND g.status = 'scheduled'
+         WHERE g.game_date < $1::date AND g.status = 'scheduled' AND g.deleted_at IS NULL
          ${isAdmin ? '' : 'AND (g.home_team_id = ANY($2) OR g.away_team_id = ANY($2))'}
          ORDER BY g.game_date ASC
          LIMIT 25`,
@@ -292,7 +292,7 @@ router.get('/summary', authMiddleware, async (req, res) => {
       // Games this week count
       pool.query(
         `SELECT COUNT(*) AS count FROM games g
-         WHERE g.game_date BETWEEN $1::date AND $2::date AND g.status != 'cancelled'
+         WHERE g.game_date BETWEEN $1::date AND $2::date AND g.status != 'cancelled' AND g.deleted_at IS NULL
          ${isAdmin ? '' : 'AND (g.home_team_id = ANY($3) OR g.away_team_id = ANY($3))'}`,
         isAdmin ? [weekStartStr, weekEndStr] : [weekStartStr, weekEndStr, teamScopeIds]
       ),
@@ -303,7 +303,7 @@ router.get('/summary', authMiddleware, async (req, res) => {
            COUNT(*) FILTER (WHERE g.status != 'cancelled') AS total,
            COUNT(*) FILTER (WHERE g.status = 'completed') AS completed
          FROM games g
-         ${isAdmin ? '' : 'WHERE (g.home_team_id = ANY($1) OR g.away_team_id = ANY($1))'}`,
+         ${isAdmin ? 'WHERE g.deleted_at IS NULL' : 'WHERE g.deleted_at IS NULL AND (g.home_team_id = ANY($1) OR g.away_team_id = ANY($1))'}`,
         isAdmin ? [] : [teamScopeIds]
       ),
 

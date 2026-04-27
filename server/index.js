@@ -47,7 +47,7 @@ const PORT = process.env.PORT || 3001;
 // Build allowed origins list from env var (comma-separated) or fall back to localhost for dev
 const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
-  : ['http://localhost:5173', 'http://localhost:3001', 'http://localhost:4173'];
+  : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:3001', 'http://localhost:4173'];
 
 app.use(helmet());
 app.use(compression());

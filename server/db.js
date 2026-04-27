@@ -312,6 +312,26 @@ async function migrate() {
   await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS primary_color TEXT;`);
   await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS secondary_color TEXT;`);
 
+  // Enforce globally unique team names (case-insensitive). Skipped with a warning
+  // if duplicates already exist so the migration doesn't crash existing leagues.
+  try {
+    const { rows: dupes } = await pool.query(
+      `SELECT array_agg(name ORDER BY id) AS names, array_agg(id ORDER BY id) AS ids, COUNT(*) AS n
+       FROM teams WHERE name IS NOT NULL
+       GROUP BY LOWER(name) HAVING COUNT(*) > 1`
+    );
+    if (dupes.length === 0) {
+      await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_name_unique_ci ON teams (LOWER(name));`);
+    } else {
+      console.warn(`[migration] ${dupes.length} duplicate team name(s) found; unique index NOT added. Resolve and restart to enforce uniqueness:`);
+      for (const d of dupes) {
+        console.warn(`  - "${d.names[0]}" appears ${d.n} times (team ids: ${d.ids.join(', ')})`);
+      }
+    }
+  } catch (err) {
+    console.error('[migration] team name uniqueness check failed:', err.message);
+  }
+
   // Drop unique constraint on league_divisions.name if it exists (allow duplicate names in different branches)
   await pool.query(`
     DO $$ BEGIN
@@ -775,6 +795,7 @@ async function migrate() {
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_public_site BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_push_notifications BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS public_site_url TEXT;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_game_delete BOOLEAN NOT NULL DEFAULT FALSE;`);
 
   // ── Field ↔ Age-group eligibility ──
   await pool.query(`

@@ -12,6 +12,7 @@ import {
   createReservation, fetchAllPractices, updateReservation, deleteReservation,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useBranding } from '../hooks/useBranding.js';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
@@ -132,8 +133,13 @@ function buildTimeSlots(startTime, endTime, increment) {
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport }) {
-  const { isAdmin, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
+  const { isAdmin, isSuperAdmin, isAuthenticated, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
+  const { features } = useBranding(isAuthenticated);
   const queryClient = useQueryClient();
+  const gameDeleteEnabled = features.feature_game_delete === true;
+  const canShowDelete = (game) =>
+    canDeleteGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id)
+    && (isSuperAdmin || gameDeleteEnabled);
 
   const { data: teams = [], isLoading: teamsLoading } = useQuery({
     queryKey: ['teams'],
@@ -332,11 +338,19 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     const label = `${game.home_team_name} vs ${game.away_team_name} on ${formatDate(game.game_date)}`;
     if (!window.confirm(`Delete game: ${label}?`)) return;
     setDeleting(game.id);
+    // Optimistic removal — strip the game from every cached games query immediately
+    // so the list updates before the server round-trip completes.
+    queryClient.setQueriesData({ queryKey: ['games'] }, (old) =>
+      Array.isArray(old) ? old.filter(g => g.id !== game.id) : old
+    );
     try {
       await deleteGame(game.id);
       queryClient.invalidateQueries({ queryKey: ['games'] });
-    } catch (err) { alert(`Failed to delete: ${err.message}`); }
-    finally { setDeleting(null); }
+    } catch (err) {
+      // Server rejected — pull fresh data back to restore the game
+      queryClient.invalidateQueries({ queryKey: ['games'] });
+      alert(`Failed to delete: ${err.message}`);
+    } finally { setDeleting(null); }
   }
 
   function handleScheduleIt(game) {
@@ -679,7 +693,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                               {game.status !== 'unscheduled' && (
                                 <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
                               )}
-                              {canDeleteGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
+                              {canShowDelete(game) && (
                                 <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Del'}</Button>
                               )}
                             </div>
@@ -801,7 +815,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                             {game.status !== 'unscheduled' && (
                               <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
                             )}
-                            {canDeleteGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
+                            {canShowDelete(game) && (
                               <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Delete'}</Button>
                             )}
                           </>

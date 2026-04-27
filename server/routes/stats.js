@@ -103,7 +103,7 @@ router.get('/player/:playerId', async (req, res) => {
              ht.name AS home_team_name, at.name AS away_team_name
       FROM player_game_stats pgs
       JOIN stat_definitions sd ON sd.id = pgs.stat_definition_id
-      JOIN games g ON g.id = pgs.game_id
+      JOIN games g ON g.id = pgs.game_id AND g.deleted_at IS NULL
       LEFT JOIN teams ht ON ht.id = g.home_team_id
       LEFT JOIN teams at ON at.id = g.away_team_id
       WHERE pgs.player_id = $1`;

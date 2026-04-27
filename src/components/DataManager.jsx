@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { clearData, exportDataUrl, importData, fetchSeasons, fetchTeams, fetchOrganizations } from '../api/index.js';
+import { clearData, exportDataUrl, importData, fetchSeasons, fetchTeams, fetchOrganizations, fetchDivisions, fetchDeletedGames, restoreGame } from '../api/index.js';
 import { Button, Input, Select, Card } from './ui';
 
 const ENTITIES = [
@@ -8,9 +8,9 @@ const ENTITIES = [
   { key: 'seasons', label: 'Seasons', icon: '📅', cols: 'name, year, is_active, sort_order' },
   { key: 'divisions', label: 'Divisions', icon: '🏆', cols: 'division_path (e.g. "10U AA / East"), season, season_year, sort_order' },
   { key: 'teams', label: 'Teams', icon: '⚾', cols: 'abbreviation (auto-generated), team_city, team_mascot, team_color, primary_color, secondary_color, team_name (auto-generated), org_name, age_group, level, division (full path; use ; for multiple)' },
-  { key: 'players', label: 'Players / Rosters', icon: '🧢', cols: 'first_name, last_name, date_of_birth, batting_hand, throwing_hand, grade, player_email, player_phone, jersey_size, hat_size, needs_new_jersey, needs_new_hat, team (use "Team (Org)" if names overlap), jersey_number, guardian1_first_name, guardian1_last_name, guardian1_email, guardian1_phone, guardian1_relationship, guardian2_first_name, guardian2_last_name, guardian2_email, guardian2_phone, guardian2_relationship' },
-  { key: 'staff', label: 'Coaches / Staff', icon: '👔', cols: 'name, email, phone, team (use "Team (Org)" if names overlap), role (head_coach / assistant_coach / scorekeeper / org_admin)' },
-  { key: 'games', label: 'Games / Schedule', icon: '🗓️', cols: 'game_date, game_time, home_team, away_team (use "Team (Org)" if names overlap), location, season, status, home_score, away_score, innings_played, notes' },
+  { key: 'players', label: 'Players / Rosters', icon: '🧢', cols: 'first_name, last_name, date_of_birth, batting_hand, throwing_hand, grade, player_email, player_phone, jersey_size, hat_size, needs_new_jersey, needs_new_hat, team, jersey_number, guardian1_first_name, guardian1_last_name, guardian1_email, guardian1_phone, guardian1_relationship, guardian2_first_name, guardian2_last_name, guardian2_email, guardian2_phone, guardian2_relationship' },
+  { key: 'staff', label: 'Coaches / Staff', icon: '👔', cols: 'name, email, phone, team, role (head_coach / assistant_coach / scorekeeper / org_admin)' },
+  { key: 'games', label: 'Games / Schedule', icon: '🗓️', cols: 'game_date, game_time, home_team, away_team, location, season, status, home_score, away_score, innings_played, notes' },
 ];
 
 const CLEAR_GROUPS = [
@@ -38,15 +38,24 @@ export default function DataManager({ onOpenImport }) {
   const [clearResult, setClearResult] = useState(null);
   const [exportOrgId, setExportOrgId] = useState('');
   const [exportTeamId, setExportTeamId] = useState('');
+  const [exportDivisionId, setExportDivisionId] = useState('');
   const [orgs, setOrgs] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [divisions, setDivisions] = useState([]);
+  const [deletedGames, setDeletedGames] = useState(null);
+  const [deletedLoading, setDeletedLoading] = useState(false);
+  const [deletedError, setDeletedError] = useState(null);
+  const [restoringId, setRestoringId] = useState(null);
 
-  const exportFilename = (entityKey, tId, oId) => {
+  const exportFilename = (entityKey, tId, oId, dId) => {
     const date = new Date().toISOString().slice(0, 10);
     let filter = 'all';
     if (tId) {
       const t = teams.find(t => String(t.id) === String(tId));
       if (t) filter = t.name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+    } else if (dId) {
+      const d = divisions.find(d => String(d.id) === String(dId));
+      if (d) filter = (d.name || '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
     } else if (oId) {
       const o = orgs.find(o => String(o.id) === String(oId));
       if (o) filter = o.name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -62,7 +71,13 @@ export default function DataManager({ onOpenImport }) {
         setTeams(ts);
         setOrgs(os);
         const active = ss.find(s => s.is_active);
-        setSeasonId(active ? active.id : ss.length > 0 ? ss[0].id : null);
+        const initialSeasonId = active ? active.id : ss.length > 0 ? ss[0].id : null;
+        setSeasonId(initialSeasonId);
+        // Load divisions across all seasons so the Export filter can target any of them.
+        const divLists = await Promise.all(ss.map(s => fetchDivisions(s.id).catch(() => [])));
+        const seasonNameById = Object.fromEntries(ss.map(s => [s.id, `${s.name} (${s.year})`]));
+        const merged = divLists.flat().map(d => ({ ...d, season_label: seasonNameById[d.season_id] || '' }));
+        setDivisions(merged);
       } catch {}
     })();
   }, []);
@@ -109,6 +124,31 @@ export default function DataManager({ onOpenImport }) {
   const rowCount = csv.trim() ? csv.trim().split(/\r?\n/).length - 1 : 0;
   const needsSeason = ['teams', 'divisions'].includes(selectedEntity);
 
+  async function loadDeletedGames() {
+    setDeletedLoading(true);
+    setDeletedError(null);
+    try {
+      const rows = await fetchDeletedGames();
+      setDeletedGames(rows);
+    } catch (err) {
+      setDeletedError(err.message);
+    } finally {
+      setDeletedLoading(false);
+    }
+  }
+
+  async function handleRestore(gameId) {
+    setRestoringId(gameId);
+    try {
+      await restoreGame(gameId);
+      setDeletedGames(prev => prev.filter(g => g.id !== gameId));
+    } catch (err) {
+      setDeletedError(err.message);
+    } finally {
+      setRestoringId(null);
+    }
+  }
+
   const tabCls = (t) => `lh-tab ${tab === t ? 'lh-tab-active' : 'lh-tab-inactive'}`;
 
   return (
@@ -121,6 +161,7 @@ export default function DataManager({ onOpenImport }) {
         <button className={tabCls('import')} onClick={() => setTab('import')}>Import</button>
         <button className={tabCls('export')} onClick={() => setTab('export')}>Export</button>
         <button className={tabCls('clear')} onClick={() => setTab('clear')}>Clear Data</button>
+        <button className={tabCls('deleted')} onClick={() => { setTab('deleted'); if (!deletedGames) loadDeletedGames(); }}>Deleted Games</button>
       </div>
 
       <div className="bg-gray-800 border border-gray-700 rounded-b-xl rounded-tr-xl p-5">
@@ -270,6 +311,17 @@ export default function DataManager({ onOpenImport }) {
                 </Select>
               </div>
               <div className="flex-1 min-w-[160px]">
+                <label className="lh-eyebrow block mb-1">Filter by Division</label>
+                <Select value={exportDivisionId} onChange={e => { setExportDivisionId(e.target.value); setExportTeamId(''); }}>
+                  <option value="">All Divisions</option>
+                  {divisions.map(d => (
+                    <option key={d.id} value={d.id}>
+                      {(d.path || d.name)}{d.season_label ? ` — ${d.season_label}` : ''}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="flex-1 min-w-[160px]">
                 <label className="lh-eyebrow block mb-1">Filter by Team</label>
                 <Select value={exportTeamId} onChange={e => setExportTeamId(e.target.value)}>
                   <option value="">All Teams</option>
@@ -277,21 +329,27 @@ export default function DataManager({ onOpenImport }) {
                 </Select>
               </div>
             </div>
-            {(exportOrgId || exportTeamId) && (
+            {(exportOrgId || exportTeamId || exportDivisionId) && (
               <p className="text-xs text-action-400">
-                Filtering: {exportTeamId ? teams.find(t => String(t.id) === String(exportTeamId))?.name : orgs.find(o => String(o.id) === String(exportOrgId))?.name}
-                {' '}<button className="underline text-gray-400 hover:text-gray-200" onClick={() => { setExportOrgId(''); setExportTeamId(''); }}>Clear</button>
+                Filtering: {
+                  exportTeamId
+                    ? teams.find(t => String(t.id) === String(exportTeamId))?.name
+                    : exportDivisionId
+                      ? (divisions.find(d => String(d.id) === String(exportDivisionId))?.path || divisions.find(d => String(d.id) === String(exportDivisionId))?.name)
+                      : orgs.find(o => String(o.id) === String(exportOrgId))?.name
+                }
+                {' '}<button className="underline text-gray-400 hover:text-gray-200" onClick={() => { setExportOrgId(''); setExportTeamId(''); setExportDivisionId(''); }}>Clear</button>
               </p>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {ENTITIES.map(ent => (
-                <a key={ent.key} href={exportDataUrl(ent.key, { teamId: exportTeamId || undefined, orgId: exportOrgId || undefined })} download={exportFilename(ent.key, exportTeamId, exportOrgId)}
+                <a key={ent.key} href={exportDataUrl(ent.key, { teamId: exportTeamId || undefined, orgId: exportOrgId || undefined, divisionId: exportDivisionId || undefined })} download={exportFilename(ent.key, exportTeamId, exportOrgId, exportDivisionId)}
                   className="flex items-center gap-3 px-4 py-3 border border-gray-700 rounded-lg hover:bg-gray-900 transition-colors"
                 >
                   <span className="text-xl">{ent.icon}</span>
                   <div>
                     <div className="text-sm font-semibold text-gray-200">{ent.label}</div>
-                    <div className="text-xs text-gray-400">{exportFilename(ent.key, exportTeamId, exportOrgId)}</div>
+                    <div className="text-xs text-gray-400">{exportFilename(ent.key, exportTeamId, exportOrgId, exportDivisionId)}</div>
                   </div>
                   <svg className="ml-auto w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 </a>
@@ -337,6 +395,56 @@ export default function DataManager({ onOpenImport }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+        {/* ── DELETED GAMES TAB ── */}
+        {tab === 'deleted' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-400">Games that were soft-deleted can be restored. Only super admins can see this panel.</p>
+              <Button size="xs" variant="secondary" onClick={loadDeletedGames} disabled={deletedLoading}>
+                {deletedLoading ? 'Loading…' : 'Refresh'}
+              </Button>
+            </div>
+
+            {deletedError && (
+              <div className="bg-signal-900/30 border border-signal-200 rounded-lg p-3 text-sm text-signal-400">{deletedError}</div>
+            )}
+
+            {deletedLoading && !deletedGames && (
+              <p className="text-sm text-gray-400">Loading deleted games…</p>
+            )}
+
+            {deletedGames && deletedGames.length === 0 && (
+              <p className="text-sm text-gray-400">No deleted games found.</p>
+            )}
+
+            {deletedGames && deletedGames.length > 0 && (
+              <div className="space-y-2">
+                {deletedGames.map(g => (
+                  <div key={g.id} className="border border-gray-700 rounded-lg p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-gray-200 truncate">
+                        {g.home_team_name} vs {g.away_team_name}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {g.game_date ? g.game_date : 'No date'}{g.game_time ? ` · ${g.game_time.slice(0,5)}` : ''}{g.season_name ? ` · ${g.season_name}` : ''}{g.location_name ? ` · ${g.location_name}` : ''}
+                      </div>
+                      <div className="text-xs text-gray-500">Game ID: {g.id} · Status: {g.status}</div>
+                    </div>
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      onClick={() => handleRestore(g.id)}
+                      disabled={restoringId === g.id}
+                      loading={restoringId === g.id}
+                    >
+                      Restore
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
