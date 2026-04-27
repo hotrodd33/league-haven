@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '../../lib/cn.js';
 import { XMarkIcon } from './icons.jsx';
 
@@ -25,7 +26,9 @@ export default function Drawer({
 
   if (!open) return null;
 
-  return (
+  // Portal to document.body so the drawer escapes any ancestor stacking context
+  // (e.g. position: sticky parents) and reliably overlays the page.
+  return createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex bg-black/40 backdrop-blur-sm animate-fade-in"
@@ -64,6 +67,7 @@ export default function Drawer({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
