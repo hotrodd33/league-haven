@@ -50,8 +50,35 @@ function csvEsc(v) {
   return `"${s.replace(/"/g, '""')}"`;
 }
 
+// Format a Postgres DATE value (returned by pg as a JS Date) to YYYY-MM-DD
+// so the export round-trips cleanly through the import.
+function fmtDate(v) {
+  if (v == null || v === '') return '';
+  if (v instanceof Date) {
+    const y = v.getFullYear();
+    const m = String(v.getMonth() + 1).padStart(2, '0');
+    const d = String(v.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const m = String(v).match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : String(v);
+}
+
 function findCol(headers, ...names) {
   return headers.find(h => names.includes(h)) || null;
+}
+
+// Resolve a division id to itself plus all descendant ids.
+async function getDivisionTreeIds(divisionId) {
+  const { rows } = await pool.query(
+    `WITH RECURSIVE tree AS (
+       SELECT id FROM league_divisions WHERE id = $1
+       UNION ALL
+       SELECT d.id FROM league_divisions d JOIN tree t ON d.parent_id = t.id
+     ) SELECT id FROM tree`,
+    [divisionId]
+  );
+  return rows.map(r => r.id);
 }
 
 // Build team lookup supporting bare names (if unique), "Name (Org)" format, and abbreviation
@@ -202,13 +229,22 @@ router.get('/export/:entity', async (req, res) => {
     const { entity } = req.params;
     const teamId = req.query.team_id ? parseInt(req.query.team_id) : null;
     const orgId = req.query.org_id ? parseInt(req.query.org_id) : null;
+    const divisionId = req.query.division_id ? parseInt(req.query.division_id) : null;
+    // When divisionId is set, divisionIds is always an array (possibly empty) so
+    // an unknown id filters to zero rows rather than silently returning everything.
+    const divisionIds = divisionId ? await getDivisionTreeIds(divisionId) : null;
     let csvLines = [];
 
     switch (entity) {
       case 'organizations': {
         const params = [];
-        let where = '';
-        if (orgId) { params.push(orgId); where = ' WHERE id = $1'; }
+        const conditions = [];
+        if (orgId) { params.push(orgId); conditions.push(`id = $${params.length}`); }
+        if (divisionIds) {
+          params.push(divisionIds);
+          conditions.push(`id IN (SELECT t.org_id FROM teams t JOIN team_divisions td ON td.team_id = t.id WHERE td.division_id = ANY($${params.length}::int[]) AND t.org_id IS NOT NULL)`);
+        }
+        const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(`SELECT name, contact_name, contact_email, contact_phone, address, city, state, zip, notes FROM organizations${where} ORDER BY name`, params);
         csvLines = ['name,contact_name,contact_email,contact_phone,address,city,state,zip,notes'];
         for (const r of rows) {
@@ -221,6 +257,10 @@ router.get('/export/:entity', async (req, res) => {
         const conditions = [];
         if (orgId) { params.push(orgId); conditions.push(`t.org_id = $${params.length}`); }
         if (teamId) { params.push(teamId); conditions.push(`t.id = $${params.length}`); }
+        if (divisionIds) {
+          params.push(divisionIds);
+          conditions.push(`t.id IN (SELECT team_id FROM team_divisions WHERE division_id = ANY($${params.length}::int[]))`);
+        }
         const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT t.id, t.name, t.abbreviation, t.team_city, t.team_color, t.team_mascot, t.primary_color, t.secondary_color, o.name AS org_name, t.age_group, t.level
@@ -247,6 +287,10 @@ router.get('/export/:entity', async (req, res) => {
         const conditions = [];
         if (teamId) { params.push(teamId); conditions.push(`tp.team_id = $${params.length}`); }
         if (orgId) { params.push(orgId); conditions.push(`t.org_id = $${params.length}`); }
+        if (divisionIds) {
+          params.push(divisionIds);
+          conditions.push(`tp.team_id IN (SELECT team_id FROM team_divisions WHERE division_id = ANY($${params.length}::int[]))`);
+        }
         const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT p.first_name, p.last_name, p.date_of_birth, p.batting_hand, p.throwing_hand, p.grade,
@@ -258,7 +302,7 @@ router.get('/export/:entity', async (req, res) => {
                   g2.first_name AS guardian2_first_name, g2.last_name AS guardian2_last_name,
                   g2.email AS guardian2_email, g2.phone AS guardian2_phone,
                   pg2.relationship AS guardian2_relationship,
-                  COALESCE(string_agg(DISTINCT CASE WHEN o.name IS NOT NULL THEN t.name || ' (' || o.name || ')' ELSE t.name END, '; '), '') AS teams,
+                  COALESCE(string_agg(DISTINCT t.name, '; '), '') AS teams,
                   COALESCE(string_agg(DISTINCT tp.jersey_number::text, '; '), '') AS jersey_numbers
            FROM players p
            LEFT JOIN team_players tp ON tp.player_id = p.id
@@ -284,15 +328,18 @@ router.get('/export/:entity', async (req, res) => {
         const conditions = [];
         if (teamId) { params.push(teamId); conditions.push(`tsa.team_id = $${params.length}`); }
         if (orgId) { params.push(orgId); conditions.push(`t.org_id = $${params.length}`); }
+        if (divisionIds) {
+          params.push(divisionIds);
+          conditions.push(`tsa.team_id IN (SELECT team_id FROM team_divisions WHERE division_id = ANY($${params.length}::int[]))`);
+        }
         const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT sm.name, sm.email, sm.phone,
-                  COALESCE(string_agg(DISTINCT CASE WHEN o.name IS NOT NULL THEN t.name || ' (' || o.name || ')' ELSE t.name END, '; '), '') AS teams,
+                  COALESCE(string_agg(DISTINCT t.name, '; '), '') AS teams,
                   COALESCE(string_agg(DISTINCT tsa.role, '; '), '') AS roles
            FROM staff_members sm
            LEFT JOIN team_staff_assignments tsa ON tsa.staff_id = sm.id
            LEFT JOIN teams t ON t.id = tsa.team_id
-           LEFT JOIN organizations o ON o.id = t.org_id
            ${where}
            GROUP BY sm.id ORDER BY sm.name`, params
         );
@@ -304,8 +351,13 @@ router.get('/export/:entity', async (req, res) => {
       }
       case 'locations': {
         const params = [];
-        let where = '';
-        if (orgId) { params.push(orgId); where = ' WHERE fl.org_id = $1'; }
+        const conditions = [];
+        if (orgId) { params.push(orgId); conditions.push(`fl.org_id = $${params.length}`); }
+        if (divisionIds) {
+          params.push(divisionIds);
+          conditions.push(`fl.org_id IN (SELECT t.org_id FROM teams t JOIN team_divisions td ON td.team_id = t.id WHERE td.division_id = ANY($${params.length}::int[]) AND t.org_id IS NOT NULL)`);
+        }
+        const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT fl.name, o.name AS org_name, fl.address, fl.city, fl.state, fl.zip, fl.latitude, fl.longitude, fl.comments
            FROM field_locations fl LEFT JOIN organizations o ON o.id = fl.org_id${where} ORDER BY o.name, fl.name`, params
@@ -321,17 +373,18 @@ router.get('/export/:entity', async (req, res) => {
         const conditions = [];
         if (teamId) { params.push(teamId); conditions.push(`(g.home_team_id = $${params.length} OR g.away_team_id = $${params.length})`); }
         if (orgId) { params.push(orgId); conditions.push(`(ht.org_id = $${params.length} OR at.org_id = $${params.length})`); }
+        if (divisionIds) {
+          params.push(divisionIds);
+          conditions.push(`(g.home_team_id IN (SELECT team_id FROM team_divisions WHERE division_id = ANY($${params.length}::int[])) OR g.away_team_id IN (SELECT team_id FROM team_divisions WHERE division_id = ANY($${params.length}::int[])))`);
+        }
         const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
         const { rows } = await pool.query(
           `SELECT g.game_date, g.game_time, g.status, g.home_score, g.away_score, g.innings_played, g.notes,
-                  CASE WHEN ho.name IS NOT NULL THEN ht.name || ' (' || ho.name || ')' ELSE ht.name END AS home_team,
-                  CASE WHEN ao.name IS NOT NULL THEN at.name || ' (' || ao.name || ')' ELSE at.name END AS away_team,
+                  ht.name AS home_team, at.name AS away_team,
                   fl.name AS location, ls.name AS season
            FROM games g
            LEFT JOIN teams ht ON ht.id = g.home_team_id
-           LEFT JOIN organizations ho ON ho.id = ht.org_id
            LEFT JOIN teams at ON at.id = g.away_team_id
-           LEFT JOIN organizations ao ON ao.id = at.org_id
            LEFT JOIN field_locations fl ON fl.id = g.location_id
            LEFT JOIN league_seasons ls ON ls.id = g.season_id
            ${where}
@@ -339,11 +392,17 @@ router.get('/export/:entity', async (req, res) => {
         );
         csvLines = ['game_date,game_time,home_team,away_team,location,season,status,home_score,away_score,innings_played,notes'];
         for (const r of rows) {
-          csvLines.push([r.game_date, r.game_time, r.home_team, r.away_team, r.location, r.season, r.status, r.home_score, r.away_score, r.innings_played, r.notes].map(csvEsc).join(','));
+          csvLines.push([fmtDate(r.game_date), r.game_time, r.home_team, r.away_team, r.location, r.season, r.status, r.home_score, r.away_score, r.innings_played, r.notes].map(csvEsc).join(','));
         }
         break;
       }
       case 'divisions': {
+        const params = [];
+        let filterSql = '';
+        if (divisionIds) {
+          params.push(divisionIds);
+          filterSql = ` WHERE tree.id = ANY($${params.length}::int[])`;
+        }
         const { rows } = await pool.query(
           `WITH RECURSIVE tree AS (
             SELECT id, name, parent_id, season_id, name::text AS path, sort_order, 0 AS depth
@@ -354,8 +413,8 @@ router.get('/export/:entity', async (req, res) => {
             FROM league_divisions d JOIN tree ON tree.id = d.parent_id
           )
           SELECT tree.path AS division_path, ls.name AS season, ls.year AS season_year, tree.sort_order
-          FROM tree LEFT JOIN league_seasons ls ON ls.id = tree.season_id
-          ORDER BY ls.year, ls.name, tree.path`
+          FROM tree LEFT JOIN league_seasons ls ON ls.id = tree.season_id${filterSql}
+          ORDER BY ls.year, ls.name, tree.path`, params
         );
         csvLines = ['division_path,season,season_year,sort_order'];
         for (const r of rows) {
@@ -364,7 +423,13 @@ router.get('/export/:entity', async (req, res) => {
         break;
       }
       case 'seasons': {
-        const { rows } = await pool.query('SELECT name, year, is_active, sort_order FROM league_seasons ORDER BY year, name');
+        const params = [];
+        let where = '';
+        if (divisionId) {
+          params.push(divisionId);
+          where = ` WHERE id = (SELECT season_id FROM league_divisions WHERE id = $${params.length})`;
+        }
+        const { rows } = await pool.query(`SELECT name, year, is_active, sort_order FROM league_seasons${where} ORDER BY year, name`, params);
         csvLines = ['name,year,is_active,sort_order'];
         for (const r of rows) {
           csvLines.push([r.name, r.year, r.is_active, r.sort_order].map(csvEsc).join(','));
@@ -381,6 +446,9 @@ router.get('/export/:entity', async (req, res) => {
     if (teamId) {
       const { rows: tRows } = await pool.query('SELECT name FROM teams WHERE id = $1', [teamId]);
       if (tRows.length) filterPart = tRows[0].name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+    } else if (divisionId) {
+      const { rows: dRows } = await pool.query('SELECT name FROM league_divisions WHERE id = $1', [divisionId]);
+      if (dRows.length) filterPart = dRows[0].name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
     } else if (orgId) {
       const { rows: oRows } = await pool.query('SELECT name FROM organizations WHERE id = $1', [orgId]);
       if (oRows.length) filterPart = oRows[0].name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');

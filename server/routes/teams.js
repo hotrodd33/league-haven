@@ -147,6 +147,14 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!name) return res.status(400).json({ error: 'Team city is required' });
     const abbr = team_city ? buildAbbreviation(team_city, team_mascot, team_color, age_group, level) : null;
 
+    // Enforce globally unique team names (case-insensitive)
+    const { rows: nameClash } = await pool.query(
+      'SELECT id FROM teams WHERE LOWER(name) = LOWER($1) LIMIT 1', [name]
+    );
+    if (nameClash.length) {
+      return res.status(409).json({ error: `A team named "${name}" already exists. Team names must be unique across the league.` });
+    }
+
     const { rows } = await pool.query(
       'INSERT INTO teams (name, abbreviation, team_city, team_color, team_mascot, age_group, level, division, org_id, primary_color, secondary_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id',
       [name, abbr, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id || null, primary_color || null, secondary_color || null]
@@ -182,6 +190,14 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     const { rows: existing } = await pool.query('SELECT id FROM teams WHERE id = $1', [id]);
     if (!existing.length) return res.status(404).json({ error: 'Team not found' });
+
+    // Enforce globally unique team names (case-insensitive), excluding this team itself
+    const { rows: nameClash } = await pool.query(
+      'SELECT id FROM teams WHERE LOWER(name) = LOWER($1) AND id <> $2 LIMIT 1', [name, id]
+    );
+    if (nameClash.length) {
+      return res.status(409).json({ error: `A team named "${name}" already exists. Team names must be unique across the league.` });
+    }
 
     await pool.query(
       'UPDATE teams SET name = $1, abbreviation = $2, team_city = $3, team_color = $4, team_mascot = $5, age_group = $6, level = $7, division = $8, org_id = $9, primary_color = $10, secondary_color = $11 WHERE id = $12',
