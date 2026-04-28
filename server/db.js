@@ -386,6 +386,9 @@ async function migrate() {
   // Add innings_played column to games if missing
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS innings_played INTEGER;`);
 
+  // Add game_duration_minutes to games (default 150 min = 2h 30m)
+  await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS game_duration_minutes INTEGER NOT NULL DEFAULT 150;`);
+
   // Fix: Change games team FKs from CASCADE to SET NULL so deleting a team
   // doesn't wipe out all its games (and cascading pitch counts).
   await pool.query(`

@@ -12,9 +12,9 @@ function normalizeEventDate(row) {
   return { ...row, event_date: d };
 }
 
-// Default game prep time in minutes (blocked before a game)
-const GAME_PREP_MINUTES = 180;
-// Default game duration in minutes
+// Default game prep time in minutes — used only for proximity warnings (not hard block)
+const GAME_PROXIMITY_MINUTES = 180;
+// Default game duration in minutes (fallback when column missing)
 const GAME_DURATION_MINUTES = 150;
 
 // ── GET /reservations?location_id=&from=&to= ──
@@ -40,9 +40,9 @@ router.get('/', async (req, res) => {
       [location_id, dateFrom, dateTo]
     );
 
-    // 2) Games scheduled at this field — generate game_hold entries
+    // 2) Games scheduled at this field — generate game_hold entries (actual game window only)
     const { rows: games } = await pool.query(
-      `SELECT g.id AS game_id, g.game_date, g.game_time, g.status,
+      `SELECT g.id AS game_id, g.game_date, g.game_time, g.status, g.game_duration_minutes,
               ht.name AS home_team_name, at.name AS away_team_name
        FROM games g
        JOIN teams ht ON ht.id = g.home_team_id
@@ -57,11 +57,10 @@ router.get('/', async (req, res) => {
 
     const gameHolds = games.map(g => {
       const gameTime = g.game_time || '18:00:00';
-      // Parse game start, compute prep start and game end
       const [gh, gm] = gameTime.split(':').map(Number);
       const gameStartMin = gh * 60 + gm;
-      const prepStartMin = gameStartMin - GAME_PREP_MINUTES;
-      const gameEndMin = gameStartMin + GAME_DURATION_MINUTES;
+      const durationMin = g.game_duration_minutes || GAME_DURATION_MINUTES;
+      const gameEndMin = gameStartMin + durationMin;
 
       const fmt = (mins) => {
         const h = Math.floor(Math.max(0, mins) / 60);
@@ -83,10 +82,10 @@ router.get('/', async (req, res) => {
         title: `${g.home_team_name} vs ${g.away_team_name}`,
         event_type: 'game_hold',
         event_date: g.game_date,
-        start_time: fmt(prepStartMin),
+        start_time: fmt(gameStartMin),
         end_time: fmt(gameEndMin),
         game_id: g.game_id,
-        notes: `Game at ${fmt12(gameTime)} — field reserved 3 hrs prior for prep`,
+        notes: `Game at ${fmt12(gameTime)}`,
         team_name: g.home_team_name,
         is_game: true,
       };
@@ -129,33 +128,42 @@ router.post('/', authMiddleware, async (req, res) => {
       [location_id, event_date, start_time, end_time]
     );
 
-    // Also check game conflicts
+    // Also check game conflicts — hard block only if reservation overlaps actual game window;
+    // return warning if within 3 hours of game start but not overlapping
     const { rows: gameConflicts } = await pool.query(
-      `SELECT g.id, g.game_time FROM games g
+      `SELECT g.id, g.game_time, g.game_duration_minutes FROM games g
        WHERE g.location_id = $1 AND g.game_date = $2
          AND g.status IN ('scheduled', 'in_progress')`,
       [location_id, event_date]
     );
 
-    const gameOverlaps = gameConflicts.filter(g => {
+    const gameOverlaps = [];
+    const gameWarnings = [];
+    for (const g of gameConflicts) {
       const gameTime = g.game_time || '18:00:00';
       const [gh, gm] = gameTime.split(':').map(Number);
       const gameStartMin = gh * 60 + gm;
-      const prepStartMin = gameStartMin - GAME_PREP_MINUTES;
-      const gameEndMin = gameStartMin + GAME_DURATION_MINUTES;
-
+      const durationMin = g.game_duration_minutes || GAME_DURATION_MINUTES;
+      const gameEndMin = gameStartMin + durationMin;
       const [sh, sm] = start_time.split(':').map(Number);
       const [eh, em] = end_time.split(':').map(Number);
       const reqStart = sh * 60 + sm;
       const reqEnd = eh * 60 + em;
-
-      return reqStart < gameEndMin && reqEnd > prepStartMin;
-    });
+      if (reqStart < gameEndMin && reqEnd > gameStartMin) {
+        gameOverlaps.push(g);
+      } else if (reqStart >= gameEndMin && reqStart < gameEndMin + GAME_PROXIMITY_MINUTES) {
+        // After game but within 3-hour proximity
+        gameWarnings.push(gameTime);
+      } else if (reqEnd > gameStartMin - GAME_PROXIMITY_MINUTES && reqEnd <= gameStartMin) {
+        // Before game, within 3-hour proximity window
+        gameWarnings.push(gameTime);
+      }
+    }
 
     if (conflicts.length > 0 || gameOverlaps.length > 0) {
       const msgs = [];
       conflicts.forEach(c => msgs.push(`"${c.title}" (${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)})`));
-      gameOverlaps.forEach(() => msgs.push('a scheduled game (including 3-hr prep)'));
+      gameOverlaps.forEach(() => msgs.push('a scheduled game'));
       return res.status(409).json({
         error: `Time conflict with ${msgs.join(' and ')}`,
         conflicts: conflicts.map(c => ({
@@ -178,7 +186,11 @@ router.post('/', authMiddleware, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [location_id, team_id || null, title, type, event_date, start_time, end_time, notes || null, req.user.id]
     );
-    res.status(201).json(rows[0]);
+    const row = rows[0];
+    const warning = gameWarnings.length > 0
+      ? `This reservation is within 3 hours of a game starting at ${gameWarnings[0].slice(0,5)}.`
+      : null;
+    res.status(201).json(warning ? { ...row, warning } : row);
   } catch (err) {
     console.error('Create reservation error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -226,26 +238,37 @@ router.put('/:id', authMiddleware, async (req, res) => {
     );
 
     const { rows: gameConflicts } = await pool.query(
-      `SELECT g.id, g.game_time FROM games g
+      `SELECT g.id, g.game_time, g.game_duration_minutes FROM games g
        WHERE g.location_id = $1 AND g.game_date = $2
          AND g.status IN ('scheduled', 'in_progress')`,
       [old.location_id, event_date]
     );
 
-    const gameOverlaps = gameConflicts.filter(g => {
+    const gameOverlaps = [];
+    const gameWarningsPut = [];
+    for (const g of gameConflicts) {
       const gameTime = g.game_time || '18:00:00';
       const [gh, gm] = gameTime.split(':').map(Number);
-      const prepStartMin = gh * 60 + gm - GAME_PREP_MINUTES;
-      const gameEndMin = gh * 60 + gm + GAME_DURATION_MINUTES;
+      const gameStartMin = gh * 60 + gm;
+      const durationMin = g.game_duration_minutes || GAME_DURATION_MINUTES;
+      const gameEndMin = gameStartMin + durationMin;
       const [sh, sm] = start_time.split(':').map(Number);
       const [eh, em] = end_time.split(':').map(Number);
-      return (sh * 60 + sm) < gameEndMin && (eh * 60 + em) > prepStartMin;
-    });
+      const reqStart = sh * 60 + sm;
+      const reqEnd = eh * 60 + em;
+      if (reqStart < gameEndMin && reqEnd > gameStartMin) {
+        gameOverlaps.push(g);
+      } else if (reqEnd > gameStartMin - GAME_PROXIMITY_MINUTES && reqEnd <= gameStartMin) {
+        gameWarningsPut.push(gameTime);
+      } else if (reqStart >= gameEndMin && reqStart < gameEndMin + GAME_PROXIMITY_MINUTES) {
+        gameWarningsPut.push(gameTime);
+      }
+    }
 
     if (conflicts.length > 0 || gameOverlaps.length > 0) {
       const msgs = [];
       conflicts.forEach(c => msgs.push(`"${c.title}" (${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)})`));
-      gameOverlaps.forEach(() => msgs.push('a scheduled game (including 3-hr prep)'));
+      gameOverlaps.forEach(() => msgs.push('a scheduled game'));
       return res.status(409).json({
         error: `Time conflict with ${msgs.join(' and ')}`,
         conflicts: conflicts.map(c => ({
@@ -270,7 +293,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
        WHERE id = $8 RETURNING *`,
       [title, type, event_date, start_time, end_time, team_id || null, notes || null, id]
     );
-    res.json(rows[0]);
+    const rowPut = rows[0];
+    const warningPut = gameWarningsPut.length > 0
+      ? `This reservation is within 3 hours of a game starting at ${gameWarningsPut[0].slice(0,5)}.`
+      : null;
+    res.json(warningPut ? { ...rowPut, warning: warningPut } : rowPut);
   } catch (err) {
     console.error('Update reservation error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -301,19 +328,19 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // ── GET /reservations/check-game-conflicts ──
-// Check for existing reservations that would conflict with a game hold.
-// Used by the game scheduler to warn about displaced practices.
+// Check for existing reservations that would conflict with a game's actual duration window.
+// Also returns warnings for reservations within 3 hours of game start.
 router.get('/check-game-conflicts', async (req, res) => {
   try {
-    const { location_id, game_date, game_time } = req.query;
+    const { location_id, game_date, game_time, game_duration_minutes } = req.query;
     if (!location_id || !game_date || !game_time) {
       return res.status(400).json({ error: 'location_id, game_date, and game_time are required' });
     }
 
     const [gh, gm] = game_time.split(':').map(Number);
     const gameStartMin = gh * 60 + gm;
-    const prepStartMin = Math.max(0, gameStartMin - GAME_PREP_MINUTES);
-    const gameEndMin = gameStartMin + GAME_DURATION_MINUTES;
+    const durationMin = game_duration_minutes ? Number(game_duration_minutes) : GAME_DURATION_MINUTES;
+    const gameEndMin = gameStartMin + durationMin;
 
     const fmt = (mins) => {
       const h = Math.floor(Math.max(0, mins) / 60);
@@ -321,10 +348,12 @@ router.get('/check-game-conflicts', async (req, res) => {
       return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     };
 
-    const holdStart = fmt(prepStartMin);
-    const holdEnd = fmt(gameEndMin);
+    const gameStart = fmt(gameStartMin);
+    const gameEnd = fmt(gameEndMin);
+    // 3-hour warning window before game start
+    const warnStart = fmt(Math.max(0, gameStartMin - GAME_PROXIMITY_MINUTES));
 
-    // Find overlapping reservations
+    // Find reservations that overlap the actual game window (hard conflict)
     const { rows: conflicts } = await pool.query(
       `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type, r.team_id, r.created_at,
               t.name AS team_name, u.name AS created_by_name, u.email AS created_by_email
@@ -333,21 +362,38 @@ router.get('/check-game-conflicts', async (req, res) => {
        LEFT JOIN users u ON u.id = r.created_by
        WHERE r.location_id = $1 AND r.event_date = $2
          AND r.start_time < $4 AND r.end_time > $3`,
-      [location_id, game_date, holdStart, holdEnd]
+      [location_id, game_date, gameStart, gameEnd]
     );
+
+    // Find reservations within the 3-hour proximity window before game (warning only)
+    const { rows: warningRows } = await pool.query(
+      `SELECT r.id, r.title, r.start_time, r.end_time, r.event_type, r.team_id, r.created_at,
+              t.name AS team_name, u.name AS created_by_name, u.email AS created_by_email
+       FROM field_reservations r
+       LEFT JOIN teams t ON t.id = r.team_id
+       LEFT JOIN users u ON u.id = r.created_by
+       WHERE r.location_id = $1 AND r.event_date = $2
+         AND r.start_time < $4 AND r.end_time > $3
+         AND NOT (r.start_time < $6 AND r.end_time > $5)`,
+      [location_id, game_date, warnStart, gameStart, gameStart, gameEnd]
+    );
+
+    const mapRow = c => ({
+      id: c.id, title: c.title, event_type: c.event_type,
+      start_time: c.start_time, end_time: c.end_time,
+      team_name: c.team_name,
+      created_by_name: c.created_by_name,
+      created_by_email: c.created_by_email,
+      created_at: c.created_at,
+    });
 
     res.json({
       has_conflicts: conflicts.length > 0,
-      hold_start: holdStart,
-      hold_end: holdEnd,
-      conflicts: conflicts.map(c => ({
-        id: c.id, title: c.title, event_type: c.event_type,
-        start_time: c.start_time, end_time: c.end_time,
-        team_name: c.team_name,
-        created_by_name: c.created_by_name,
-        created_by_email: c.created_by_email,
-        created_at: c.created_at,
-      })),
+      has_warnings: warningRows.length > 0,
+      game_start: gameStart,
+      game_end: gameEnd,
+      conflicts: conflicts.map(mapRow),
+      warnings: warningRows.map(mapRow),
     });
   } catch (err) {
     console.error('Check game conflicts error:', err);
