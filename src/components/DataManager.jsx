@@ -48,7 +48,12 @@ export default function DataManager({ onOpenImport }) {
   const [restoringId, setRestoringId] = useState(null);
 
   const exportFilename = (entityKey, tId, oId, dId) => {
-    const date = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const date = now.toISOString().slice(0, 10);
+    const time = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    const hostname = window.location.hostname;
+    const parts = hostname.split('.');
+    const subdomain = parts.length > 2 ? parts[0] : hostname.replace(/\./g, '_');
     let filter = 'all';
     if (tId) {
       const t = teams.find(t => String(t.id) === String(tId));
@@ -60,7 +65,7 @@ export default function DataManager({ onOpenImport }) {
       const o = orgs.find(o => String(o.id) === String(oId));
       if (o) filter = o.name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
     }
-    return `${entityKey}_${filter}_${date}.csv`;
+    return `${subdomain}_${entityKey}_${filter}_${date}_${time}.csv`;
   };
 
   useEffect(() => {
