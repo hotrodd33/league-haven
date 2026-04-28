@@ -70,9 +70,10 @@ function BrandingConfig() {
   const [error, setError] = useState(null);
   const [savingName, setSavingName] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);
+  const [savingTimezone, setSavingTimezone] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [removingLogo, setRemovingLogo] = useState(false);
-  const [form, setForm] = useState({ app_name: 'LeagueHaven', logo_url: null, public_site_url: '' });
+  const [form, setForm] = useState({ app_name: 'LeagueHaven', logo_url: null, public_site_url: '', timezone: 'America/Chicago' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +84,7 @@ function BrandingConfig() {
         app_name: data?.app_name || 'LeagueHaven',
         logo_url: data?.logo_url || null,
         public_site_url: data?.public_site_url || '',
+        timezone: data?.timezone || 'America/Chicago',
       });
     } catch (err) {
       setError(err.message);
@@ -106,6 +108,7 @@ function BrandingConfig() {
         app_name: updated?.app_name || appName,
         logo_url: updated?.logo_url ?? prev.logo_url,
         public_site_url: updated?.public_site_url ?? prev.public_site_url,
+        timezone: updated?.timezone ?? prev.timezone,
       }));
     } catch (err) {
       setError(err.message);
@@ -125,11 +128,26 @@ function BrandingConfig() {
         app_name: updated?.app_name || prev.app_name,
         logo_url: updated?.logo_url ?? prev.logo_url,
         public_site_url: updated?.public_site_url || '',
+        timezone: updated?.timezone ?? prev.timezone,
       }));
     } catch (err) {
       setError(err.message);
     } finally {
       setSavingUrl(false);
+    }
+  }
+
+  async function handleSaveTimezone(e) {
+    e.preventDefault();
+    setSavingTimezone(true);
+    setError(null);
+    try {
+      const updated = await updateBranding({ timezone: form.timezone });
+      setForm((prev) => ({ ...prev, timezone: updated?.timezone ?? prev.timezone }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingTimezone(false);
     }
   }
 
@@ -207,6 +225,30 @@ function BrandingConfig() {
         </div>
         <Button type="submit" disabled={savingUrl}>
           {savingUrl ? 'Saving…' : 'Save URL'}
+        </Button>
+      </form>
+
+      <form onSubmit={handleSaveTimezone} className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
+        <div>
+          <label className="lh-eyebrow block mb-1">League Timezone</label>
+          <select
+            value={form.timezone}
+            onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
+            className="lh-input"
+          >
+            <option value="America/New_York">Eastern (ET) — America/New_York</option>
+            <option value="America/Chicago">Central (CT) — America/Chicago</option>
+            <option value="America/Denver">Mountain (MT) — America/Denver</option>
+            <option value="America/Phoenix">Arizona (MST) — America/Phoenix</option>
+            <option value="America/Los_Angeles">Pacific (PT) — America/Los_Angeles</option>
+            <option value="America/Anchorage">Alaska (AKT) — America/Anchorage</option>
+            <option value="Pacific/Honolulu">Hawaii (HST) — Pacific/Honolulu</option>
+            <option value="America/Puerto_Rico">Puerto Rico (AST) — America/Puerto_Rico</option>
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Used for ICS calendar exports. Must match the timezone where games are played.</p>
+        </div>
+        <Button type="submit" disabled={savingTimezone}>
+          {savingTimezone ? 'Saving…' : 'Save Timezone'}
         </Button>
       </form>
 
