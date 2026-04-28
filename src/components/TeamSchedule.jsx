@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
 import { formatPhone } from '../utils/formatPhone.js';
-import { fetchGames, fetchTeams, fetchSeasons, fetchTeamPractices, updateReservation, deleteReservation, fetchLocations, fetchWeather, fetchWeatherForecast } from '../api/index.js';
+import { fetchGames, fetchTeams, fetchSeasons, fetchTeamPractices, updateReservation, deleteReservation, fetchLocations, createReservation, fetchWeather, fetchWeatherForecast } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
@@ -244,9 +244,14 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
             {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
           </Button>
           {canManageGames && (
-            <Button size="xs" onClick={() => setShowForm((prev) => !prev)}>
-              {showForm ? 'Cancel' : '+ Add Game'}
-            </Button>
+            <>
+              <Button size="xs" onClick={() => setShowForm((prev) => !prev)}>
+                {showForm ? 'Cancel' : '+ Add Game'}
+              </Button>
+              <Button size="xs" variant="secondary" onClick={() => setAddingPractice({})}>
+                + Add Practice
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -288,6 +293,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                       : <PracticeCard key={`practice-${item.id}`} practice={item}
                           editable={canManageGames}
                           onEdit={() => setEditingPractice(item)}
+                          onClone={() => setAddingPractice({ clone: item })}
                           onDelete={() => handleDeletePractice(item)}
                           deleting={deletingPractice} />
                   ))}
@@ -315,6 +321,15 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
 
       {showSubscribe && (
         <TeamSubscribeModal teamId={teamId} onClose={() => setShowSubscribe(false)} />
+      )}
+
+      {addingPractice !== null && (
+        <PracticeAddModal
+          teamId={teamId}
+          template={addingPractice}
+          onDone={() => { setAddingPractice(null); loadGames(); }}
+          onCancel={() => setAddingPractice(null)}
+        />
       )}
 
       {editingPractice && (
@@ -451,7 +466,7 @@ function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canSco
 
 /* ── Practice Card (list view) ── */
 
-export function PracticeCard({ practice, editable, onEdit, onDelete, deleting }) {
+export function PracticeCard({ practice, editable, onEdit, onDelete, onClone, deleting }) {
   const colors = PRACTICE_COLORS[practice.event_type] || PRACTICE_COLORS.practice;
   const typeLabel = practice.event_type === 'practice' ? 'Practice'
     : practice.event_type === 'event' ? 'Event' : practice.event_type || 'Practice';
@@ -476,6 +491,7 @@ export function PracticeCard({ practice, editable, onEdit, onDelete, deleting })
         {editable && (
           <>
             <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); onEdit(); }}>Edit</Button>
+            {onClone && <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); onClone(); }} title="Clone this event">Clone</Button>}
             <Button size="xs" variant="danger" onClick={(e) => { e.stopPropagation(); onDelete(); }} disabled={deleting === practice.id}>
               {deleting === practice.id ? '…' : 'Del'}
             </Button>
@@ -646,6 +662,7 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
                   return <PracticeCard key={`p-${item.id}`} practice={item}
                     editable={canManageGames}
                     onEdit={() => setEditingPractice(item)}
+                    onClone={() => setAddingPractice({ clone: item })}
                     onDelete={() => handleDeletePractice(item)}
                     deleting={deletingPractice} />;
                 }
@@ -710,9 +727,211 @@ function TeamSubscribeModal({ teamId, onClose }) {
   );
 }
 
+/* ── Practice Add Modal (with recurrence + clone) ── */
+
+const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildRecurringDates(startDate, recurType, recurDays, recurEndDate, recurCount) {
+  if (recurType === 'none') return [startDate];
+  const dates = [];
+  const limit = recurType === 'count' ? Number(recurCount) : 365;
+  let cur = startDate;
+  while (dates.length < limit) {
+    const dow = new Date(cur + 'T00:00:00').getDay();
+    if (recurDays.includes(dow)) dates.push(cur);
+    cur = addDays(cur, 1);
+    if (recurType === 'until' && cur > recurEndDate) break;
+    if (cur > addDays(startDate, 365)) break; // hard safety cap
+  }
+  return dates;
+}
+
+function PracticeAddModal({ teamId, template, onDone, onCancel }) {
+  const clone = template?.clone;
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [locations, setLocations] = useState([]);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [form, setForm] = useState({
+    title: clone?.title || '',
+    event_type: clone?.event_type || 'practice',
+    event_date: clone ? addDays(clone.event_date || clone._date || today, 7) : today,
+    start_time: clone?.start_time?.slice(0, 5) || '',
+    end_time: clone?.end_time?.slice(0, 5) || '',
+    location_id: clone?.location_id || '',
+    notes: clone?.notes || '',
+  });
+
+  const [recurType, setRecurType] = useState('none'); // 'none' | 'until' | 'count'
+  const [recurDays, setRecurDays] = useState(() => {
+    const dow = new Date((clone?.event_date || clone?._date || today) + 'T00:00:00').getDay();
+    return [dow];
+  });
+  const [recurEndDate, setRecurEndDate] = useState(addDays(today, 42));
+  const [recurCount, setRecurCount] = useState(6);
+
+  useEffect(() => {
+    fetchLocations().then(setLocations).catch(() => setLocations([]));
+  }, []);
+
+  function handleChange(e) {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  function toggleDow(d) {
+    setRecurDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort());
+  }
+
+  const previewDates = useMemo(() => {
+    if (!form.event_date) return [];
+    return buildRecurringDates(form.event_date, recurType, recurDays, recurEndDate, recurCount);
+  }, [form.event_date, recurType, recurDays, recurEndDate, recurCount]);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.title.trim()) { setError('Title is required.'); return; }
+    if (!form.start_time || !form.end_time) { setError('Start and end times are required.'); return; }
+    if (form.start_time >= form.end_time) { setError('End time must be after start time.'); return; }
+    if (recurType !== 'none' && recurDays.length === 0) { setError('Select at least one day of the week.'); return; }
+    if (previewDates.length === 0) { setError('No dates match the recurrence pattern.'); return; }
+    setSaving(true); setError(null);
+    try {
+      for (const date of previewDates) {
+        await createReservation({
+          team_id: teamId,
+          location_id: form.location_id ? Number(form.location_id) : null,
+          title: form.title.trim(),
+          event_type: form.event_type,
+          event_date: date,
+          start_time: form.start_time,
+          end_time: form.end_time,
+          notes: form.notes.trim() || null,
+        });
+      }
+      onDone();
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  const eventTypeOptions = [
+    { value: 'practice', label: 'Practice' },
+    { value: 'event', label: 'Event' },
+    { value: 'maintenance', label: 'Maintenance' },
+  ];
+
+  const modalTitle = clone ? `Clone: ${clone.title}` : 'Add Practice / Event';
+
+  return (
+    <Modal open onClose={onCancel} title={modalTitle} size="md">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Event type */}
+        <div>
+          <label className="lh-eyebrow block mb-1">Type</label>
+          <div className="flex gap-1 p-1 bg-gray-900 rounded-lg">
+            {eventTypeOptions.map(opt => (
+              <button key={opt.value} type="button"
+                onClick={() => setForm(prev => ({ ...prev, event_type: opt.value }))}
+                className={`flex-1 lh-tab ${form.event_type === opt.value ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Input label="Title *" id="pa-title" name="title" type="text" value={form.title} onChange={handleChange} required />
+
+        <Input label="Start Date" id="pa-date" name="event_date" type="date" value={form.event_date} onChange={handleChange} />
+
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Start Time *" id="pa-start" name="start_time" type="time" value={form.start_time} onChange={handleChange} required />
+          <Input label="End Time *" id="pa-end" name="end_time" type="time" value={form.end_time} onChange={handleChange} required />
+        </div>
+
+        <Select label="Location" id="pa-location" name="location_id" value={form.location_id} onChange={handleChange}>
+          <option value="">—</option>
+          {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+        </Select>
+
+        <div>
+          <label htmlFor="pa-notes" className="lh-eyebrow block mb-1">Notes</label>
+          <textarea id="pa-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} className="lh-input" />
+        </div>
+
+        {/* Recurrence */}
+        <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 space-y-3">
+          <div>
+            <label className="lh-eyebrow block mb-1">Repeat</label>
+            <div className="flex gap-1 p-1 bg-gray-800 rounded-lg">
+              {[['none', 'Once'], ['until', 'Until date'], ['count', '# of times']].map(([val, lbl]) => (
+                <button key={val} type="button" onClick={() => setRecurType(val)}
+                  className={`flex-1 lh-tab text-xs ${recurType === val ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {recurType !== 'none' && (
+            <>
+              <div>
+                <label className="lh-eyebrow block mb-1">Days of week</label>
+                <div className="flex gap-1 flex-wrap">
+                  {DOW_LABELS.map((lbl, i) => (
+                    <button key={i} type="button" onClick={() => toggleDow(i)}
+                      className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                        recurDays.includes(i) ? 'bg-action-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {recurType === 'until' && (
+                <Input label="Repeat until" id="pa-until" type="date" value={recurEndDate}
+                  onChange={e => setRecurEndDate(e.target.value)} />
+              )}
+              {recurType === 'count' && (
+                <Input label="Number of occurrences" id="pa-count" type="number" min={1} max={52} value={recurCount}
+                  onChange={e => setRecurCount(e.target.value)} />
+              )}
+
+              {previewDates.length > 0 && (
+                <div>
+                  <p className="lh-eyebrow mb-1">Preview — {previewDates.length} event{previewDates.length !== 1 ? 's' : ''}</p>
+                  <div className="max-h-28 overflow-y-auto space-y-0.5">
+                    {previewDates.map(d => (
+                      <div key={d} className="text-xs text-gray-400">{formatDate(d)}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {error && <div className="lh-alert lh-alert-error">{error}</div>}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" disabled={saving} loading={saving}>
+            {saving ? 'Saving…' : previewDates.length > 1 ? `Create ${previewDates.length} Events` : 'Create'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 /* ── Practice Edit Modal ── */
-
-
 
 export function PracticeEditModal({ practice, onDone, onCancel }) {
   const [saving, setSaving] = useState(false);
