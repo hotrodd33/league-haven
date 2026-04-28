@@ -59,6 +59,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [sortOrder, setSortOrder] = useState('asc');
   const [editingPractice, setEditingPractice] = useState(null);
+  const [addingPractice, setAddingPractice] = useState(null);
   const [editingGame, setEditingGame] = useState(null);
   const [deletingPractice, setDeletingPractice] = useState(null);
   const [gameWeather, setGameWeather] = useState({});
