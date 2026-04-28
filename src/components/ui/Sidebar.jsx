@@ -44,6 +44,8 @@ export default function Sidebar({
   ];
   if (isAdmin || isOrgAdmin) {
     rosterItems.push({ key: 'coaches', label: 'Coaches', icon: AcademicCapIcon });
+  }
+  if (isAdmin || isOrgAdmin || isTeamManager) {
     rosterItems.push({ key: 'guardians', label: 'Guardians', icon: UserGroupIcon });
   }
   if ((isAdmin || isOrgAdmin || isAccountant) && ft('feature_officials')) {

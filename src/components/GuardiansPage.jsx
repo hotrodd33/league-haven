@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { fetchAllGuardians, fetchVolunteerRoles, fetchTeams } from '../api/index.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { MagnifyingGlassIcon } from './ui/icons.jsx';
 import { Input, Select, Badge } from './ui';
 
@@ -8,6 +9,8 @@ function Spinner() {
 }
 
 export default function GuardiansPage({ onViewPlayer }) {
+  const { isAdmin, isOrgAdmin, permissions } = useAuth();
+  const isCoachOnly = !isAdmin && !isOrgAdmin;
   const [guardians, setGuardians] = useState([]);
   const [volunteerRoles, setVolunteerRoles] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -27,9 +30,18 @@ export default function GuardiansPage({ onViewPlayer }) {
     ]).then(([g, vr, t]) => {
       setGuardians(g);
       setVolunteerRoles(vr);
-      setTeams(t);
+      // Coaches (team_manager) only see their assigned teams in the filter dropdown
+      const myTeamIds = permissions?.team_ids || [];
+      const visibleTeams = isCoachOnly && myTeamIds.length > 0
+        ? t.filter(team => myTeamIds.includes(Number(team.id)))
+        : t;
+      setTeams(visibleTeams);
+      // Pre-select team if coach only has one
+      if (isCoachOnly && visibleTeams.length === 1) {
+        setFilterTeam(String(visibleTeams[0].id));
+      }
     }).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleSort(col) {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
