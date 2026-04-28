@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
 import { formatPhone } from '../utils/formatPhone.js';
-import { fetchGames, fetchTeams, fetchSeasons, fetchTeamPractices, updateReservation, deleteReservation, fetchLocations } from '../api/index.js';
+import { fetchGames, fetchTeams, fetchSeasons, fetchTeamPractices, updateReservation, deleteReservation, fetchLocations, fetchWeather, fetchWeatherForecast } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
@@ -61,6 +61,8 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   const [editingPractice, setEditingPractice] = useState(null);
   const [editingGame, setEditingGame] = useState(null);
   const [deletingPractice, setDeletingPractice] = useState(null);
+  const [gameWeather, setGameWeather] = useState({});
+  const weatherFetchedRef = useRef(new Set());
 
   // Games + practices use react-query so cache invalidation from other pages
   // (e.g. a delete in GameSchedule) propagates here automatically.
@@ -89,6 +91,36 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
     queryClient.invalidateQueries({ queryKey: ['games'] });
     queryClient.invalidateQueries({ queryKey: ['practices'] });
   }, [queryClient]);
+
+  // Fetch weather for scheduled upcoming games with known location
+  useEffect(() => {
+    if (!games.length) return;
+    const now = new Date();
+    const weatherableGames = games.filter(g =>
+      g.location_lat && g.location_lon &&
+      g.status !== 'completed' && g.status !== 'cancelled' &&
+      g.game_date &&
+      !weatherFetchedRef.current.has(String(g.id))
+    );
+    if (!weatherableGames.length) return;
+    for (const g of weatherableGames) weatherFetchedRef.current.add(String(g.id));
+    const isToday = (dateStr) => {
+      const d = new Date(dateStr + 'T00:00:00');
+      return d.toDateString() === now.toDateString();
+    };
+    const promises = weatherableGames.map(g =>
+      (isToday(g.game_date)
+        ? fetchWeather(g.location_lat, g.location_lon)
+        : fetchWeatherForecast(g.location_lat, g.location_lon, g.game_date, g.game_time || null))
+        .then(w => (w && !w.unavailable) ? { key: String(g.id), weather: w } : null)
+        .catch(() => null)
+    );
+    Promise.all(promises).then(results => {
+      const map = {};
+      for (const r of results) if (r) map[r.key] = r.weather;
+      setGameWeather(prev => ({ ...prev, ...map }));
+    });
+  }, [games]);
 
   useEffect(() => {
     if (!canManageGames) return;
@@ -248,6 +280,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
                   {itemsByDate[dateKey].map(item => (
                     item._type === 'game'
                       ? <GameCard key={`game-${item.id}`} game={item} teamId={teamId}
+                          weather={gameWeather[String(item.id)]}
                           onSelect={() => setSelectedGameId(item.id)}
                           onTrack={() => setTrackingGameId(item.id)}
                           onSchedule={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id) ? () => { setEditingGame(item); setShowForm(true); } : undefined}
@@ -297,7 +330,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
 
 /* ── Game Card (list view) ── */
 
-function GameCard({ game, teamId, onSelect, onTrack, onSchedule, canScore }) {
+function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canScore }) {
   const isHome = game.home_team_id === teamId;
   const opponent = isHome ? game.away_team_name : game.home_team_name;
   const opponentLogo = isHome ? game.away_logo : game.home_logo;
@@ -318,7 +351,9 @@ function GameCard({ game, teamId, onSelect, onTrack, onSchedule, canScore }) {
   }
   const resultColor = result === 'W' ? 'text-action-400' : result === 'L' ? 'text-signal-400' : result === 'T' ? 'text-gray-400' : '';
   const isUnplayed = game.status !== 'completed';
-  const cardTone = isUnplayed ? 'bg-slate-800/85 border-slate-600/80' : 'bg-gray-800 border-gray-700';
+  const cardTone = isHome
+    ? (isUnplayed ? 'bg-slate-800/85 border-green-600/70' : 'bg-gray-800 border-green-700/60')
+    : (isUnplayed ? 'bg-slate-800/85 border-slate-600/80' : 'bg-gray-800 border-gray-700');
 
   return (
     <div onClick={onSelect}
@@ -368,6 +403,30 @@ function GameCard({ game, teamId, onSelect, onTrack, onSchedule, canScore }) {
         </div>
       )}
       </div>
+      {/* Location + Weather row */}
+      {(game.location_name || weather) && game.status !== 'unscheduled' && (
+        <div className="flex items-center gap-3 mt-1 ml-[76px] text-xs text-gray-400">
+          {game.location_name && (
+            <span className="truncate max-w-[200px]">📍 {game.location_name}</span>
+          )}
+          {weather && (
+            <span className="inline-flex items-center gap-1 shrink-0" title={`${weather.description}${weather.isForecast ? ' (forecast)' : ''}`}>
+              <span>{weather.icon}</span>
+              <span>{weather.temp}°</span>
+              {weather.precipitationProbability > 0 && (
+                <span className={weather.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️{weather.precipitationProbability}%</span>
+              )}
+              {weather.playability && weather.playability.rating !== 'good' && (
+                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+                  weather.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
+                  weather.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                  'bg-yellow-900/40 text-yellow-300'
+                }`}>{weather.playability.rating}</span>
+              )}
+            </span>
+          )}
+        </div>
+      )}
       {game.status === 'unscheduled' && canScore && (game.home_sched_name || game.away_sched_name) && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 ml-[76px] text-xs text-gray-400">
           {game.home_sched_name && (
