@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
-import { Button, Input, Select, Modal } from './ui/index.js';
+import { Button, Input, Select } from './ui/index.js';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
 import { GameForm } from './GameSchedule.jsx';
 import { fetchTeams, fetchSeasons } from '../api/index.js';
@@ -262,15 +262,13 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       </div>
 
       {showEditForm && (
-        <Modal open onClose={() => setShowEditForm(false)} title="Edit Game" size="lg">
-          <GameForm
-            game={game}
-            teams={editTeams}
-            seasons={editSeasons}
-            onDone={() => { setShowEditForm(false); loadAll(); }}
-            onCancel={() => setShowEditForm(false)}
-          />
-        </Modal>
+        <GameForm
+          game={game}
+          teams={editTeams}
+          seasons={editSeasons}
+          onDone={() => { setShowEditForm(false); loadAll(); }}
+          onCancel={() => setShowEditForm(false)}
+        />
       )}
 
       {/* Game header */}

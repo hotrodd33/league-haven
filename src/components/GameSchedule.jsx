@@ -81,9 +81,7 @@ function AddFieldModal({ homeOrgId, onDone, onCancel }) {
   if (loading) return <Modal open onClose={onCancel} title="Add Field Location" size="lg"><div className="p-6 text-center text-gray-400">Loading...</div></Modal>;
   const editableOrgIds = new Set(orgs.map(o => o.id));
   return (
-    <Modal open onClose={onCancel} title="Add Field Location" size="lg">
-      <FieldForm orgId={homeOrgId} editableOrgIds={editableOrgIds} orgs={orgs} ageGroups={ageGroups} onDone={onDone} onCancel={onCancel} />
-    </Modal>
+    <FieldForm orgId={homeOrgId} editableOrgIds={editableOrgIds} orgs={orgs} ageGroups={ageGroups} onDone={onDone} onCancel={onCancel} />
   );
 }
 
