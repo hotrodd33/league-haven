@@ -119,15 +119,46 @@ function UmpireStatusList({ officials, interestedUmpires }) {
 }
 
 function buildTimeSlots(startTime, endTime, increment) {
-  const start = toMinutes(startTime);
-  const end = toMinutes(endTime);
+  const start = toMinutes(startTime);  const end = toMinutes(endTime);
   if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) return [];
-  const step = Number(increment) || 30;
-  const slots = [];
+  const step = Number(increment) || 30;  const slots = [];
   for (let cur = start; cur <= end; cur += step) {
     slots.push(toHHMM(cur));
   }
   return slots;
+}
+
+// Duration options: 1 hr, then 15-min increments up to 12 hrs
+const DURATION_OPTIONS = (() => {
+  const opts = [];
+  for (let m = 60; m <= 720; m += 15) {
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    const label = min === 0 ? `${h} hr${h !== 1 ? 's' : ''}` : `${h}:${String(min).padStart(2, '0')}`;
+    opts.push({ value: m, label });
+  }
+  return opts;
+})();
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCount) {
+  if (recurType === 'none') return [startDate];
+  const dates = [];
+  const limit = recurType === 'count' ? Number(recurCount) : 365;
+  let cur = startDate;
+  while (dates.length < limit) {
+    const dow = new Date(cur + 'T00:00:00').getDay();
+    if (recurDays.includes(dow)) dates.push(cur);
+    cur = addDays(cur, 1);
+    if (recurType === 'until' && cur > recurEndDate) break;
+    if (cur > addDays(startDate, 365)) break;
+  }
+  return dates;
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport }) {
@@ -1122,7 +1153,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
   );
 }
 
-export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, onDone, onCancel, onTeamsChanged }) {
+export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, defaultEventType, onDone, onCancel, onTeamsChanged }) {
   const isEditing = !!game;
   const { isSuperAdmin, isOrgAdmin, permissions, role, canEditOrg } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -1133,7 +1164,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const [locations, setLocations] = useState([]);
   const [orgSettings, setOrgSettings] = useState({});
   const [officials, setOfficials] = useState([]);
-  const [eventType, setEventType] = useState('game'); // 'game' | 'practice' | 'event' | 'maintenance'
+  const [eventType, setEventType] = useState(defaultEventType || 'game'); // 'game' | 'practice' | 'event' | 'maintenance'
   const [scheduleSettings, setScheduleSettings] = useState({
     game_start_time: '08:00',
     game_end_time: '20:00',
@@ -1148,6 +1179,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     location_id: game?.location_id || '',
     game_date: initialGameDate,
     game_time: game?.game_time?.slice(0, 5) || '',
+    game_duration_minutes: game?.game_duration_minutes || 150,
     status: initialStatus,
     home_score: game?.home_score ?? '',
     away_score: game?.away_score ?? '',
@@ -1159,10 +1191,18 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   // Reservation-specific fields (for practice/event/maintenance)
   const [resForm, setResForm] = useState({
     title: '',
-    team_id: '',
+    team_id: defaultHomeTeamId ? String(defaultHomeTeamId) : '',
     start_time: '17:00',
-    end_time: '19:00',
+    duration_minutes: 120,
   });
+
+  // Recurrence (practice/event only)
+  const [recurType, setRecurType] = useState('none'); // 'none' | 'until' | 'count'
+  const [recurDays, setRecurDays] = useState(() => [new Date().getDay()]);
+  const [recurEndDate, setRecurEndDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 42); return d.toISOString().slice(0, 10);
+  });
+  const [recurCount, setRecurCount] = useState(6);
 
   const isGame = eventType === 'game';
 
@@ -1176,6 +1216,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   });
 
   const [fieldConflicts, setFieldConflicts] = useState(null);
+  const [resWarning, setResWarning] = useState(null);
   const [confirmSave, setConfirmSave] = useState(false);
   const [isDoubleheader, setIsDoubleheader] = useState(false);
   const [awayLocations, setAwayLocations] = useState([]);
@@ -1272,20 +1313,18 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     }
   }, [isGame, isSuperAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 15-minute time options for reservation types
+  // Time options for reservation types — use the same settings as game times but wider window
   const resTimeOptions = useMemo(() => {
-    const options = [];
-    for (let h = 0; h < 24; h++) {
-      for (let m = 0; m < 60; m += 15) {
-        const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h % 12 || 12;
-        const label = `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-        options.push({ value, label });
-      }
-    }
-    return options;
-  }, []);
+    const start = scheduleSettings.game_start_time || '06:00';
+    const end = scheduleSettings.game_end_time || '22:00';
+    const inc = scheduleSettings.game_time_increment_minutes || 30;
+    return buildTimeSlots(start, end, inc).map(value => {
+      const [h, m] = value.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return { value, label: `${h12}:${String(m).padStart(2, '0')} ${ampm}` };
+    });
+  }, [scheduleSettings]);
 
   const timeSlots = buildTimeSlots(
     scheduleSettings.game_start_time,
@@ -1373,29 +1412,41 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   }
 
   async function handleSubmit(e) {
-    e.preventDefault(); setSaving(true); setError(null);
+    e.preventDefault(); setSaving(true); setError(null); setResWarning(null);
 
     // Handle reservation (practice/event/maintenance)
     if (!isGame) {
       if (!resForm.title.trim()) { setSaving(false); setError('Title is required.'); return; }
       if (!form.game_date) { setSaving(false); setError('Date is required.'); return; }
-      if (!resForm.start_time || !resForm.end_time) { setSaving(false); setError('Start and end times are required.'); return; }
-      if (resForm.start_time >= resForm.end_time) { setSaving(false); setError('End time must be after start time.'); return; }
+      if (!resForm.start_time) { setSaving(false); setError('Start time is required.'); return; }
+      if (!resForm.duration_minutes) { setSaving(false); setError('Duration is required.'); return; }
       if (!form.location_id) { setSaving(false); setError('Location is required for reservations.'); return; }
+      if (recurType !== 'none' && recurDays.length === 0) { setSaving(false); setError('Select at least one day of week for recurrence.'); return; }
 
-      const data = {
-        location_id: Number(form.location_id),
-        team_id: resForm.team_id ? Number(resForm.team_id) : null,
-        title: resForm.title.trim(),
-        event_type: eventType,
-        event_date: form.game_date,
-        start_time: resForm.start_time,
-        end_time: resForm.end_time,
-        notes: form.notes.trim() || null,
-      };
+      // Compute end_time from start + duration
+      const [sh, sm] = resForm.start_time.split(':').map(Number);
+      const endMin = sh * 60 + sm + Number(resForm.duration_minutes);
+      const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
+
+      const recurDates = buildRecurDates(form.game_date, recurType, recurDays, recurEndDate, recurCount);
+      if (!recurDates.length) { setSaving(false); setError('No dates match the recurrence pattern.'); return; }
 
       try {
-        await createReservation(data);
+        let lastWarning = null;
+        for (const date of recurDates) {
+          const result = await createReservation({
+            location_id: Number(form.location_id),
+            team_id: resForm.team_id ? Number(resForm.team_id) : null,
+            title: resForm.title.trim(),
+            event_type: eventType,
+            event_date: date,
+            start_time: resForm.start_time,
+            end_time: endTime,
+            notes: form.notes.trim() || null,
+          });
+          if (result?.warning) lastWarning = result.warning;
+        }
+        if (lastWarning) { setResWarning(lastWarning); setSaving(false); return; }
         onDone();
       } catch (err) { setError(err.message); }
       finally { setSaving(false); }
@@ -1409,6 +1460,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       location_id: form.location_id ? Number(form.location_id) : null,
       game_date: form.game_date || null,
       game_time: form.game_time || null,
+      game_duration_minutes: Number(form.game_duration_minutes) || 150,
       status: form.status,
       home_score: form.home_score !== '' ? Number(form.home_score) : null,
       away_score: form.away_score !== '' ? Number(form.away_score) : null,
@@ -1420,8 +1472,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     // Check for field reservation conflicts when scheduling a game with location + time
     if (data.location_id && data.game_time && !confirmSave) {
       try {
-        const result = await checkGameConflicts(data.location_id, data.game_date, data.game_time);
-        if (result.has_conflicts) {
+        const result = await checkGameConflicts(data.location_id, data.game_date, data.game_time, data.game_duration_minutes);
+        if (result.has_conflicts || result.has_warnings) {
           setFieldConflicts(result);
           setSaving(false);
           return;
@@ -1563,14 +1615,14 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                 </div>
               </div>
 
-              {/* Date/Time */}
+              {/* Date/Time/Duration */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="game-date" className="lh-eyebrow block mb-1">Date</label>
                   <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} onTouchEnd={(e) => e.stopPropagation()} className="lh-input" />
                 </div>
                 <div>
-                  <label htmlFor="game-time" className="lh-eyebrow block mb-1">Time</label>
+                  <label htmlFor="game-time" className="lh-eyebrow block mb-1">Start Time</label>
                   <select id="game-time" name="game_time" value={form.game_time} onChange={handleChange} className="lh-select">
                     <option value="">— Select Time —</option>
                     {timeSlots.map((slot) => (
@@ -1579,6 +1631,14 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                     {currentTimeIncluded && (
                       <option value={form.game_time}>{formatTime(form.game_time)} (custom)</option>
                     )}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="game-duration" className="lh-eyebrow block mb-1">Duration</label>
+                  <select id="game-duration" name="game_duration_minutes" value={form.game_duration_minutes} onChange={handleChange} className="lh-select">
+                    {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -1739,12 +1799,11 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="res-end" className="lh-eyebrow block mb-1">End Time *</label>
-                  <select id="res-end" value={resForm.end_time}
-                    onChange={e => setResForm(prev => ({ ...prev, end_time: e.target.value }))}
+                  <label htmlFor="res-duration" className="lh-eyebrow block mb-1">Duration *</label>
+                  <select id="res-duration" value={resForm.duration_minutes}
+                    onChange={e => setResForm(prev => ({ ...prev, duration_minutes: Number(e.target.value) }))}
                     required className="lh-select">
-                    <option value="">— Select —</option>
-                    {resTimeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -1759,6 +1818,46 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                   ))}
                 </select>
               </div>
+
+              {/* Recurrence */}
+              <div className="space-y-3 border border-white/10 rounded-lg p-3">
+                <div className="flex items-center gap-3">
+                  <span className="lh-eyebrow">Repeat</span>
+                  <select value={recurType} onChange={e => setRecurType(e.target.value)} className="lh-select flex-1">
+                    <option value="none">No repeat (single date)</option>
+                    <option value="until">Repeat until date</option>
+                    <option value="count">Repeat N times</option>
+                  </select>
+                </div>
+                {recurType !== 'none' && (
+                  <>
+                    <div>
+                      <label className="lh-eyebrow block mb-1">Days of Week</label>
+                      <div className="flex flex-wrap gap-2">
+                        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, i) => (
+                          <button key={i} type="button"
+                            onClick={() => setRecurDays(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
+                            className={`px-2.5 py-1 rounded text-sm font-medium border transition-colors ${recurDays.includes(i) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/20 text-white/60 hover:border-white/40'}`}>
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {recurType === 'until' && (
+                      <div>
+                        <label className="lh-eyebrow block mb-1">End Date</label>
+                        <input type="date" value={recurEndDate} onChange={e => setRecurEndDate(e.target.value)} className="lh-input" />
+                      </div>
+                    )}
+                    {recurType === 'count' && (
+                      <div>
+                        <label className="lh-eyebrow block mb-1">Number of Occurrences</label>
+                        <input type="number" min="1" max="60" value={recurCount} onChange={e => setRecurCount(Number(e.target.value))} className="lh-input w-24" />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </>
           )}
 
@@ -1769,43 +1868,82 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               className="lh-input" />
           </div>
 
+          {/* Proximity warning after reservation saved */}
+          {resWarning && (
+            <div className="bg-yellow-900/30 border border-yellow-600 text-yellow-200 text-sm px-4 py-3 rounded-lg flex items-start gap-2">
+              <span className="text-yellow-400 font-bold mt-0.5">⚠</span>
+              <div className="flex-1">
+                <p>{resWarning}</p>
+                <Button size="xs" variant="secondary" className="mt-2" onClick={() => { setResWarning(null); onDone(); }}>
+                  OK, got it
+                </Button>
+              </div>
+            </div>
+          )}
+
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
           {fieldConflicts && (
             <div className="bg-amber-900/30 border border-amber-600 text-amber-200 text-sm px-4 py-3 rounded-lg space-y-2">
-              <div className="font-bold text-amber-100">Field Conflict Detected</div>
-              <p className="text-xs text-amber-300">
-                This game will reserve the field from {formatTime(fieldConflicts.hold_start)} to {formatTime(fieldConflicts.hold_end)} (includes 3-hr prep). The following existing reservations conflict:
-              </p>
-              {fieldConflicts.conflicts.map((c, i) => (
-                <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
-                  <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
-                  <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
-                  {c.created_by_name && (
-                    <div className="text-amber-200">
-                      Booked by: <span className="font-semibold text-white">{c.created_by_name}</span>
-                      {c.created_by_email && (
-                        <> — <a href={`mailto:${c.created_by_email}?subject=Field%20Reservation%20Conflict&body=Hi%20${encodeURIComponent(c.created_by_name)}%2C%0A%0AYour%20reservation%20%22${encodeURIComponent(c.title)}%22%20on%20${encodeURIComponent(form.game_date)}%20conflicts%20with%20a%20scheduled%20game.%20Games%20have%20priority%20so%20your%20reservation%20will%20need%20to%20be%20moved.%0A%0AThank%20you.`}
-                          className="text-chrome-400 underline hover:text-chrome-300">
-                          {c.created_by_email}
-                        </a></>
-                      )}
-                      {c.created_at && (
-                        <span className="ml-1 text-amber-400">on {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+              {fieldConflicts.has_conflicts ? (
+                <>
+                  <div className="font-bold text-amber-100">Field Conflict Detected</div>
+                  <p className="text-xs text-amber-300">
+                    This game runs from {formatTime(fieldConflicts.game_start)} to {formatTime(fieldConflicts.game_end)}. The following existing reservations overlap:
+                  </p>
+                  {fieldConflicts.conflicts.map((c, i) => (
+                    <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
+                      <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
+                      <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
+                      {c.created_by_name && (
+                        <div className="text-amber-200">
+                          Booked by: <span className="font-semibold text-white">{c.created_by_name}</span>
+                          {c.created_by_email && (
+                            <> — <a href={`mailto:${c.created_by_email}?subject=Field%20Reservation%20Conflict&body=Hi%20${encodeURIComponent(c.created_by_name)}%2C%0A%0AYour%20reservation%20%22${encodeURIComponent(c.title)}%22%20on%20${encodeURIComponent(form.game_date)}%20conflicts%20with%20a%20scheduled%20game.%20Games%20have%20priority%20so%20your%20reservation%20will%20need%20to%20be%20moved.%0A%0AThank%20you.`}
+                              className="text-chrome-400 underline hover:text-chrome-300">
+                              {c.created_by_email}
+                            </a></>
+                          )}
+                          {c.created_at && (
+                            <span className="ml-1 text-amber-400">on {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-              ))}
-              <p className="text-xs text-amber-400">Games always have priority. Please contact the person(s) above to notify them their reservation needs to move.</p>
-              <div className="flex gap-2 pt-1">
-                <Button size="xs" variant="warn" onClick={handleConfirmSave}>
-                  Schedule Anyway
-                </Button>
-                <Button size="xs" variant="secondary" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}>
-                  Cancel
-                </Button>
-              </div>
+                  ))}
+                  <p className="text-xs text-amber-400">Games always have priority. Please contact the person(s) above to notify them their reservation needs to move.</p>
+                  <div className="flex gap-2 pt-1">
+                    <Button size="xs" variant="warn" onClick={handleConfirmSave}>
+                      Schedule Anyway
+                    </Button>
+                    <Button size="xs" variant="secondary" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="font-bold text-amber-100">⚠ Nearby Reservations</div>
+                  <p className="text-xs text-amber-300">
+                    The following reservations are within 3 hours of this game ({formatTime(fieldConflicts.game_start)}). They don't overlap but may want a heads-up:
+                  </p>
+                  {fieldConflicts.warnings.map((c, i) => (
+                    <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
+                      <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
+                      <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
+                      {c.created_by_name && <div className="text-amber-200">Booked by: <span className="font-semibold text-white">{c.created_by_name}</span></div>}
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-1">
+                    <Button size="xs" onClick={handleConfirmSave}>
+                      Save Game
+                    </Button>
+                    <Button size="xs" variant="secondary" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

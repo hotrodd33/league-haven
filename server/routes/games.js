@@ -553,7 +553,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes, official_ids } = req.body;
+    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, official_ids } = req.body;
     if (!home_team_id || !away_team_id) {
       return res.status(400).json({ error: 'home_team_id and away_team_id are required' });
     }
@@ -589,10 +589,11 @@ router.post('/', authMiddleware, async (req, res) => {
 
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, status, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
       [season_id || null, home_team_id, away_team_id, location_id || null,
-       game_date || null, game_time || null, status || (game_date && game_time && location_id ? 'scheduled' : 'unscheduled'), notes || null]
+       game_date || null, game_time || null, game_duration_minutes ? Number(game_duration_minutes) : 150,
+       status || (game_date && game_time && location_id ? 'scheduled' : 'unscheduled'), notes || null]
     );
     const gameId = rows[0].id;
     const officialIds = Array.isArray(official_ids) ? official_ids : [];
@@ -641,7 +642,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const allowed = await canScoreGame(req.user, game.home_team_id, game.away_team_id);
     if (!allowed) return res.status(403).json({ error: 'Not authorized to update this game' });
 
-    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, home_score, away_score, innings_played, notes, official_ids } = req.body;
+    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, home_score, away_score, innings_played, notes, official_ids } = req.body;
     let { status } = req.body;
     const hasGameDate = Object.prototype.hasOwnProperty.call(req.body, 'game_date');
 
@@ -681,15 +682,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
         location_id = $4,
         game_date = COALESCE($5, game_date),
         game_time = $6,
-        status = COALESCE($7, status),
-        home_score = $8,
-        away_score = $9,
-        innings_played = $10,
-        notes = $11,
+        game_duration_minutes = COALESCE($7, game_duration_minutes),
+        status = COALESCE($8, status),
+        home_score = $9,
+        away_score = $10,
+        innings_played = $11,
+        notes = $12,
         updated_at = NOW()
-       WHERE id = $12`,
+       WHERE id = $13`,
       [season_id, home_team_id, away_team_id, location_id ?? null,
-       game_date, game_time ?? null, status, home_score ?? null, away_score ?? null,
+       game_date, game_time ?? null, game_duration_minutes ? Number(game_duration_minutes) : null,
+       status, home_score ?? null, away_score ?? null,
        innings_played ?? null, notes ?? null, id]
     );
 

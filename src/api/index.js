@@ -736,8 +736,10 @@ export async function deleteReservation(id) {
   });
 }
 
-export async function checkGameConflicts(locationId, gameDate, gameTime) {
-  return apiFetch(`/reservations/check-game-conflicts?location_id=${locationId}&game_date=${gameDate}&game_time=${gameTime}`);
+export async function checkGameConflicts(locationId, gameDate, gameTime, gameDurationMinutes) {
+  const params = new URLSearchParams({ location_id: locationId, game_date: gameDate, game_time: gameTime });
+  if (gameDurationMinutes) params.set('game_duration_minutes', gameDurationMinutes);
+  return apiFetch(`/reservations/check-game-conflicts?${params.toString()}`);
 }
 
 // ── League Config ──

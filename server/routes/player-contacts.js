@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, canEditTeam } = require('../auth');
+const { authMiddleware, canEditTeam, getUserPermissions } = require('../auth');
 
 const router = express.Router();
 
@@ -19,36 +19,88 @@ async function canEditPlayer(user, playerId) {
 // MUST be defined before /:playerId to avoid route conflict
 
 // GET /player-contacts/all-guardians — list all guardians with players + volunteer roles
+// Admins / org_admins see all. Team managers see only guardians whose players are on their teams.
 router.get('/all-guardians', authMiddleware, async (req, res) => {
   try {
-    const { rows: guardians } = await pool.query(`
-      SELECT g.id, g.first_name, g.last_name, g.email, g.phone,
-             COALESCE(
-               json_agg(
-                 DISTINCT jsonb_build_object(
-                   'player_id', p.id, 'player_name', p.first_name || ' ' || p.last_name,
-                   'relationship', pg.relationship, 'team_names',
-                   (SELECT string_agg(DISTINCT t.name, ', ')
-                    FROM team_players tp JOIN teams t ON t.id = tp.team_id
-                    WHERE tp.player_id = p.id),
-                   'team_ids',
-                   (SELECT COALESCE(array_agg(DISTINCT tp.team_id), '{}')
-                    FROM team_players tp
-                    WHERE tp.player_id = p.id)
-                 )
-               ) FILTER (WHERE p.id IS NOT NULL), '[]'
-             ) AS players,
-             COALESCE(
-               array_agg(DISTINCT gv.role_id) FILTER (WHERE gv.role_id IS NOT NULL), '{}'
-             ) AS volunteer_role_ids
-      FROM guardians g
-      LEFT JOIN player_guardians pg ON pg.guardian_id = g.id
-      LEFT JOIN players p ON p.id = pg.player_id
-      LEFT JOIN guardian_volunteers gv ON gv.guardian_id = g.id
-      GROUP BY g.id
-      ORDER BY g.last_name, g.first_name
-      LIMIT 500
-    `);
+    const isBroadAdmin = req.user.role === 'super_admin' || req.user.role === 'org_admin';
+    let teamFilter = null;
+
+    if (!isBroadAdmin) {
+      const perms = await getUserPermissions(req.user.id);
+      // If user has org-level permissions treat them as broad admin for this query
+      if (perms.org_ids.length > 0) {
+        // org-level access — no team restriction needed
+      } else if (perms.team_ids.length > 0) {
+        teamFilter = perms.team_ids;
+      } else {
+        return res.json([]); // no permissions — return empty
+      }
+    }
+
+    let sql;
+    let params = [];
+
+    if (teamFilter) {
+      params = [teamFilter];
+      sql = `
+        SELECT g.id, g.first_name, g.last_name, g.email, g.phone,
+               COALESCE(
+                 json_agg(
+                   DISTINCT jsonb_build_object(
+                     'player_id', p.id, 'player_name', p.first_name || ' ' || p.last_name,
+                     'relationship', pg.relationship, 'team_names',
+                     (SELECT string_agg(DISTINCT t.name, ', ')
+                      FROM team_players tp JOIN teams t ON t.id = tp.team_id
+                      WHERE tp.player_id = p.id),
+                     'team_ids',
+                     (SELECT COALESCE(array_agg(DISTINCT tp.team_id), '{}')
+                      FROM team_players tp
+                      WHERE tp.player_id = p.id)
+                   )
+                 ) FILTER (WHERE p.id IS NOT NULL), '[]'
+               ) AS players,
+               COALESCE(
+                 array_agg(DISTINCT gv.role_id) FILTER (WHERE gv.role_id IS NOT NULL), '{}'
+               ) AS volunteer_role_ids
+        FROM guardians g
+        INNER JOIN player_guardians pg ON pg.guardian_id = g.id
+        INNER JOIN players p ON p.id = pg.player_id
+        INNER JOIN team_players tp2 ON tp2.player_id = p.id AND tp2.team_id = ANY($1)
+        LEFT JOIN guardian_volunteers gv ON gv.guardian_id = g.id
+        GROUP BY g.id
+        ORDER BY g.last_name, g.first_name
+        LIMIT 500`;
+    } else {
+      sql = `
+        SELECT g.id, g.first_name, g.last_name, g.email, g.phone,
+               COALESCE(
+                 json_agg(
+                   DISTINCT jsonb_build_object(
+                     'player_id', p.id, 'player_name', p.first_name || ' ' || p.last_name,
+                     'relationship', pg.relationship, 'team_names',
+                     (SELECT string_agg(DISTINCT t.name, ', ')
+                      FROM team_players tp JOIN teams t ON t.id = tp.team_id
+                      WHERE tp.player_id = p.id),
+                     'team_ids',
+                     (SELECT COALESCE(array_agg(DISTINCT tp.team_id), '{}')
+                      FROM team_players tp
+                      WHERE tp.player_id = p.id)
+                   )
+                 ) FILTER (WHERE p.id IS NOT NULL), '[]'
+               ) AS players,
+               COALESCE(
+                 array_agg(DISTINCT gv.role_id) FILTER (WHERE gv.role_id IS NOT NULL), '{}'
+               ) AS volunteer_role_ids
+        FROM guardians g
+        LEFT JOIN player_guardians pg ON pg.guardian_id = g.id
+        LEFT JOIN players p ON p.id = pg.player_id
+        LEFT JOIN guardian_volunteers gv ON gv.guardian_id = g.id
+        GROUP BY g.id
+        ORDER BY g.last_name, g.first_name
+        LIMIT 500`;
+    }
+
+    const { rows: guardians } = await pool.query(sql, params);
     res.json(guardians);
   } catch (err) {
     console.error(err);

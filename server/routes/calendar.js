@@ -4,6 +4,13 @@ const cache = require('../cache');
 
 const router = express.Router();
 
+async function getLeagueTz() {
+  const cached = cache.get('league-config:branding');
+  if (cached?.timezone) return cached.timezone;
+  const { rows } = await pool.query('SELECT timezone FROM app_branding WHERE id = 1');
+  return rows[0]?.timezone || 'America/Chicago';
+}
+
 /* ── helpers ── */
 
 function esc(str) {
@@ -52,6 +59,7 @@ function practiceUid(reservationId) {
 router.get('/games.ics', async (req, res) => {
   try {
     const { team_id, season_id, location_id, org_id, from, to } = req.query;
+    const LEAGUE_TZ = await getLeagueTz();
 
     const cacheKey = `ics:${team_id||''}:${season_id||''}:${location_id||''}:${org_id||''}:${from||''}:${to||''}`;
     const cachedICS = cache.get(cacheKey);
@@ -143,7 +151,7 @@ router.get('/games.ics', async (req, res) => {
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
       `X-WR-CALNAME:${esc(calName)}`,
-      'X-WR-TIMEZONE:America/New_York',
+      `X-WR-TIMEZONE:${LEAGUE_TZ}`,
     ];
 
     for (const g of rows) {
@@ -203,14 +211,14 @@ router.get('/games.ics', async (req, res) => {
         const nd = nextDay.toISOString().slice(0, 10).replace(/-/g, '');
         lines.push(foldLine(`DTEND;VALUE=DATE:${nd}`));
       } else {
-        lines.push(foldLine(`DTSTART;TZID=America/New_York:${dtstart}`));
+        lines.push(foldLine(`DTSTART;TZID=${LEAGUE_TZ}:${dtstart}`));
         // Default 2.5 hour game duration
         const [h, m] = g.game_time.split(':').map(Number);
         const endMin = h * 60 + m + 150;
         const endH = String(Math.floor(endMin / 60)).padStart(2, '0');
         const endM = String(endMin % 60).padStart(2, '0');
         const dtend = formatICSDate(gameDate, `${endH}:${endM}`);
-        lines.push(foldLine(`DTEND;TZID=America/New_York:${dtend}`));
+        lines.push(foldLine(`DTEND;TZID=${LEAGUE_TZ}:${dtend}`));
       }
 
       lines.push(foldLine(`SUMMARY:${esc(summary)}`));
@@ -274,10 +282,10 @@ router.get('/games.ics', async (req, res) => {
           const nd = nextDay.toISOString().slice(0, 10).replace(/-/g, '');
           lines.push(foldLine(`DTEND;VALUE=DATE:${nd}`));
         } else {
-          lines.push(foldLine(`DTSTART;TZID=America/New_York:${dtstart}`));
+          lines.push(foldLine(`DTSTART;TZID=${LEAGUE_TZ}:${dtstart}`));
           if (endTime) {
             const dtend = formatICSDate(eventDate, endTime);
-            lines.push(foldLine(`DTEND;TZID=America/New_York:${dtend}`));
+            lines.push(foldLine(`DTEND;TZID=${LEAGUE_TZ}:${dtend}`));
           }
         }
 

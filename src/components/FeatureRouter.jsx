@@ -98,7 +98,7 @@ function PageContent({
             return <PlayersPage onSelectPlayer={onViewPlayer} />;
 
         case 'guardians':
-            return (isAdmin || isOrgAdmin)
+            return (isAdmin || isOrgAdmin || isTeamManager)
                 ? <GuardiansPage onViewPlayer={onViewPlayer} />
                 : null;
 
