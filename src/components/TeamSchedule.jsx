@@ -14,6 +14,16 @@ import { DARK_STATUS_COLORS, DARK_TRACK_BUTTON_TONE } from '../constants/statusC
 const STATUS_COLORS = DARK_STATUS_COLORS;
 const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-black px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-[#00f092]';
 
+const DURATION_OPTIONS = (() => {
+  const opts = [];
+  for (let m = 60; m <= 720; m += 15) {
+    const h = Math.floor(m / 60), min = m % 60;
+    const label = min === 0 ? `${h} hr${h > 1 ? 's' : ''}` : `${h}:${String(min).padStart(2, '0')}`;
+    opts.push({ value: m, label });
+  }
+  return opts;
+})();
+
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -718,16 +728,28 @@ function TeamSubscribeModal({ teamId, onClose }) {
 export function PracticeEditModal({ practice, onDone, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [warning, setWarning] = useState(null);
   const [locations, setLocations] = useState([]);
 
-  const [form, setForm] = useState({
-    title: practice.title || '',
-    event_type: practice.event_type || 'practice',
-    event_date: (practice.event_date || practice._date || '').slice(0, 10),
-    start_time: (practice.start_time || '').slice(0, 5),
-    end_time: (practice.end_time || '').slice(0, 5),
-    location_id: practice.location_id || '',
-    notes: practice.notes || '',
+  const [form, setForm] = useState(() => {
+    const startStr = (practice.start_time || '').slice(0, 5);
+    const endStr = (practice.end_time || '').slice(0, 5);
+    let duration_minutes = 120;
+    if (startStr && endStr) {
+      const [sh, sm] = startStr.split(':').map(Number);
+      const [eh, em] = endStr.split(':').map(Number);
+      const computed = (eh * 60 + em) - (sh * 60 + sm);
+      if (computed > 0) duration_minutes = computed;
+    }
+    return {
+      title: practice.title || '',
+      event_type: practice.event_type || 'practice',
+      event_date: (practice.event_date || practice._date || '').slice(0, 10),
+      start_time: startStr,
+      duration_minutes,
+      location_id: practice.location_id || '',
+      notes: practice.notes || '',
+    };
   });
 
   useEffect(() => {
@@ -741,20 +763,26 @@ export function PracticeEditModal({ practice, onDone, onCancel }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.title.trim()) { setError('Title is required.'); return; }
-    if (!form.start_time || !form.end_time) { setError('Start and end times are required.'); return; }
-    if (form.start_time >= form.end_time) { setError('End time must be after start time.'); return; }
+    if (!form.start_time) { setError('Start time is required.'); return; }
+    if (!form.duration_minutes) { setError('Duration is required.'); return; }
     setSaving(true); setError(null);
+
+    const [sh, sm] = form.start_time.split(':').map(Number);
+    const endMin = sh * 60 + sm + Number(form.duration_minutes);
+    const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
+
     try {
-      await updateReservation(practice.id, {
+      const result = await updateReservation(practice.id, {
         location_id: form.location_id ? Number(form.location_id) : (practice.location_id || null),
         team_id: practice.team_id || null,
         title: form.title.trim(),
         event_type: form.event_type,
         event_date: form.event_date,
         start_time: form.start_time,
-        end_time: form.end_time,
+        end_time: endTime,
         notes: form.notes.trim() || null,
       });
+      if (result?.warning) { setWarning(result.warning); setSaving(false); return; }
       onDone();
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -792,7 +820,12 @@ export function PracticeEditModal({ practice, onDone, onCancel }) {
 
           <div className="grid grid-cols-2 gap-3">
             <Input label="Start Time *" id="pe-start" name="start_time" type="time" value={form.start_time} onChange={handleChange} required />
-            <Input label="End Time *" id="pe-end" name="end_time" type="time" value={form.end_time} onChange={handleChange} required />
+            <div>
+              <label htmlFor="pe-duration" className="lh-eyebrow block mb-1">Duration *</label>
+              <select id="pe-duration" name="duration_minutes" value={form.duration_minutes} onChange={handleChange} required className="lh-select">
+                {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
           </div>
 
           <Select label="Location" id="pe-location" name="location_id" value={form.location_id} onChange={handleChange}>
@@ -807,11 +840,25 @@ export function PracticeEditModal({ practice, onDone, onCancel }) {
 
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
 
+          {warning && (
+            <div className="bg-yellow-900/30 border border-yellow-600 text-yellow-200 text-sm px-4 py-3 rounded-lg flex items-start gap-2">
+              <span className="text-yellow-400 font-bold mt-0.5">⚠</span>
+              <div className="flex-1">
+                <p>{warning}</p>
+                <Button size="xs" variant="secondary" className="mt-2" onClick={() => { setWarning(null); onDone(); }}>
+                  OK, got it
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-            <Button type="submit" disabled={saving} loading={saving}>
-              {saving ? 'Saving…' : 'Update'}
-            </Button>
+            {!warning && (
+              <Button type="submit" disabled={saving} loading={saving}>
+                {saving ? 'Saving…' : 'Update'}
+              </Button>
+            )}
           </div>
         </form>
     </Modal>

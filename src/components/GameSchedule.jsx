@@ -1446,7 +1446,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
           });
           if (result?.warning) lastWarning = result.warning;
         }
-        if (lastWarning) setResWarning(lastWarning);
+        if (lastWarning) { setResWarning(lastWarning); setSaving(false); return; }
         onDone();
       } catch (err) { setError(err.message); }
       finally { setSaving(false); }
@@ -1867,6 +1867,19 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
             <textarea id="game-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Any additional info…"
               className="lh-input" />
           </div>
+
+          {/* Proximity warning after reservation saved */}
+          {resWarning && (
+            <div className="bg-yellow-900/30 border border-yellow-600 text-yellow-200 text-sm px-4 py-3 rounded-lg flex items-start gap-2">
+              <span className="text-yellow-400 font-bold mt-0.5">⚠</span>
+              <div className="flex-1">
+                <p>{resWarning}</p>
+                <Button size="xs" variant="secondary" className="mt-2" onClick={() => { setResWarning(null); onDone(); }}>
+                  OK, got it
+                </Button>
+              </div>
+            </div>
+          )}
 
           {error && <div className="lh-alert lh-alert-error">{error}</div>}
 

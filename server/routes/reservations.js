@@ -133,7 +133,8 @@ router.post('/', authMiddleware, async (req, res) => {
     const { rows: gameConflicts } = await pool.query(
       `SELECT g.id, g.game_time, g.game_duration_minutes FROM games g
        WHERE g.location_id = $1 AND g.game_date = $2
-         AND g.status IN ('scheduled', 'in_progress')`,
+         AND g.status IN ('scheduled', 'in_progress')
+         AND g.deleted_at IS NULL`,
       [location_id, event_date]
     );
 
@@ -240,7 +241,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const { rows: gameConflicts } = await pool.query(
       `SELECT g.id, g.game_time, g.game_duration_minutes FROM games g
        WHERE g.location_id = $1 AND g.game_date = $2
-         AND g.status IN ('scheduled', 'in_progress')`,
+         AND g.status IN ('scheduled', 'in_progress')
+         AND g.deleted_at IS NULL`,
       [old.location_id, event_date]
     );
 
