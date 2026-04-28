@@ -122,12 +122,32 @@ function buildTimeSlots(startTime, endTime, increment) {
   const start = toMinutes(startTime);
   const end = toMinutes(endTime);
   if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) return [];
-  const step = Number(increment) || 30;
-  const slots = [];
+  const step = Number(increment) || 30;  const slots = [];
   for (let cur = start; cur <= end; cur += step) {
     slots.push(toHHMM(cur));
   }
   return slots;
+}
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCount) {
+  if (recurType === 'none') return [startDate];
+  const dates = [];
+  const limit = recurType === 'count' ? Number(recurCount) : 365;
+  let cur = startDate;
+  while (dates.length < limit) {
+    const dow = new Date(cur + 'T00:00:00').getDay();
+    if (recurDays.includes(dow)) dates.push(cur);
+    cur = addDays(cur, 1);
+    if (recurType === 'until' && cur > recurEndDate) break;
+    if (cur > addDays(startDate, 365)) break;
+  }
+  return dates;
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport }) {
@@ -1122,7 +1142,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
   );
 }
 
-export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, onDone, onCancel, onTeamsChanged }) {
+export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, defaultEventType, onDone, onCancel, onTeamsChanged }) {
   const isEditing = !!game;
   const { isSuperAdmin, isOrgAdmin, permissions, role, canEditOrg } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -1133,7 +1153,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const [locations, setLocations] = useState([]);
   const [orgSettings, setOrgSettings] = useState({});
   const [officials, setOfficials] = useState([]);
-  const [eventType, setEventType] = useState('game'); // 'game' | 'practice' | 'event' | 'maintenance'
+  const [eventType, setEventType] = useState(defaultEventType || 'game'); // 'game' | 'practice' | 'event' | 'maintenance'
   const [scheduleSettings, setScheduleSettings] = useState({
     game_start_time: '08:00',
     game_end_time: '20:00',
@@ -1159,10 +1179,18 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   // Reservation-specific fields (for practice/event/maintenance)
   const [resForm, setResForm] = useState({
     title: '',
-    team_id: '',
+    team_id: defaultHomeTeamId ? String(defaultHomeTeamId) : '',
     start_time: '17:00',
     end_time: '19:00',
   });
+
+  // Recurrence (practice/event only)
+  const [recurType, setRecurType] = useState('none'); // 'none' | 'until' | 'count'
+  const [recurDays, setRecurDays] = useState(() => [new Date().getDay()]);
+  const [recurEndDate, setRecurEndDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 42); return d.toISOString().slice(0, 10);
+  });
+  const [recurCount, setRecurCount] = useState(6);
 
   const isGame = eventType === 'game';
 
@@ -1272,20 +1300,18 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     }
   }, [isGame, isSuperAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 15-minute time options for reservation types
+  // Time options for reservation types — use the same settings as game times but wider window
   const resTimeOptions = useMemo(() => {
-    const options = [];
-    for (let h = 0; h < 24; h++) {
-      for (let m = 0; m < 60; m += 15) {
-        const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h % 12 || 12;
-        const label = `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-        options.push({ value, label });
-      }
-    }
-    return options;
-  }, []);
+    const start = scheduleSettings.game_start_time || '06:00';
+    const end = scheduleSettings.game_end_time || '22:00';
+    const inc = scheduleSettings.game_time_increment_minutes || 30;
+    return buildTimeSlots(start, end, inc).map(value => {
+      const [h, m] = value.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return { value, label: `${h12}:${String(m).padStart(2, '0')} ${ampm}` };
+    });
+  }, [scheduleSettings]);
 
   const timeSlots = buildTimeSlots(
     scheduleSettings.game_start_time,
@@ -1382,20 +1408,24 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       if (!resForm.start_time || !resForm.end_time) { setSaving(false); setError('Start and end times are required.'); return; }
       if (resForm.start_time >= resForm.end_time) { setSaving(false); setError('End time must be after start time.'); return; }
       if (!form.location_id) { setSaving(false); setError('Location is required for reservations.'); return; }
+      if (recurType !== 'none' && recurDays.length === 0) { setSaving(false); setError('Select at least one day of week for recurrence.'); return; }
 
-      const data = {
-        location_id: Number(form.location_id),
-        team_id: resForm.team_id ? Number(resForm.team_id) : null,
-        title: resForm.title.trim(),
-        event_type: eventType,
-        event_date: form.game_date,
-        start_time: resForm.start_time,
-        end_time: resForm.end_time,
-        notes: form.notes.trim() || null,
-      };
+      const recurDates = buildRecurDates(form.game_date, recurType, recurDays, recurEndDate, recurCount);
+      if (!recurDates.length) { setSaving(false); setError('No dates match the recurrence pattern.'); return; }
 
       try {
-        await createReservation(data);
+        for (const date of recurDates) {
+          await createReservation({
+            location_id: Number(form.location_id),
+            team_id: resForm.team_id ? Number(resForm.team_id) : null,
+            title: resForm.title.trim(),
+            event_type: eventType,
+            event_date: date,
+            start_time: resForm.start_time,
+            end_time: resForm.end_time,
+            notes: form.notes.trim() || null,
+          });
+        }
         onDone();
       } catch (err) { setError(err.message); }
       finally { setSaving(false); }
@@ -1758,6 +1788,46 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                     <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* Recurrence */}
+              <div className="space-y-3 border border-white/10 rounded-lg p-3">
+                <div className="flex items-center gap-3">
+                  <span className="lh-eyebrow">Repeat</span>
+                  <select value={recurType} onChange={e => setRecurType(e.target.value)} className="lh-select flex-1">
+                    <option value="none">No repeat (single date)</option>
+                    <option value="until">Repeat until date</option>
+                    <option value="count">Repeat N times</option>
+                  </select>
+                </div>
+                {recurType !== 'none' && (
+                  <>
+                    <div>
+                      <label className="lh-eyebrow block mb-1">Days of Week</label>
+                      <div className="flex flex-wrap gap-2">
+                        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, i) => (
+                          <button key={i} type="button"
+                            onClick={() => setRecurDays(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
+                            className={`px-2.5 py-1 rounded text-sm font-medium border transition-colors ${recurDays.includes(i) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/20 text-white/60 hover:border-white/40'}`}>
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {recurType === 'until' && (
+                      <div>
+                        <label className="lh-eyebrow block mb-1">End Date</label>
+                        <input type="date" value={recurEndDate} onChange={e => setRecurEndDate(e.target.value)} className="lh-input" />
+                      </div>
+                    )}
+                    {recurType === 'count' && (
+                      <div>
+                        <label className="lh-eyebrow block mb-1">Number of Occurrences</label>
+                        <input type="number" min="1" max="60" value={recurCount} onChange={e => setRecurCount(Number(e.target.value))} className="lh-input w-24" />
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </>
           )}
