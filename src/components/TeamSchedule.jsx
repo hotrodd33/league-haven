@@ -574,12 +574,9 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
                       item.status === 'cancelled' ? 'bg-signal-900/40 text-signal-300 line-through' :
                       item.status === 'postponed' ? 'bg-amber-900/40 text-amber-300' :
                       'bg-slate-800/80 text-gray-300';
-                    const isHome = item.home_team_id === teamId;
-                    const opp = isHome ? item.away_team_name : item.home_team_name;
-                    const prefix = isHome ? 'vs' : '@';
                     return (
                       <div key={`g-${item.id}`} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${statusColor}`}>
-                        {formatTime(item.game_time)} {prefix} {opp}
+                        {formatTime(item.game_time)} {[item.home_age_group, item.home_level].filter(Boolean).join(' ')} {item.home_city_abbr} vs {item.away_city_abbr}
                       </div>
                     );
                   } else {
