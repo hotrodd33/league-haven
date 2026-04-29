@@ -1062,7 +1062,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                     'bg-chrome-900/40 text-chrome-300';
                   return (
                     <div key={g.id || j} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${statusColor}`}>
-                      {formatTime(g.game_time)} {g.home_team_abbr || g.home_city_abbr} vs {g.away_team_abbr || g.away_city_abbr}
+                      {formatTime(g.game_time)} {[g.home_age_group, g.home_level].filter(Boolean).join(' ')} {g.home_city_abbr} vs {g.away_city_abbr}
                     </div>
                   );
                 })}
