@@ -428,23 +428,17 @@ router.post(
         return res.status(400).json({ error: 'Upload a file or paste box score text' });
       }
 
-      // Parse team mappings from frontend (JSON string: { "GC Name": teamId, ... })
-      let teamMappings = {};
-      if (req.body.teamMappings) {
-        try { teamMappings = JSON.parse(req.body.teamMappings); } catch { /* ignore */ }
-      }
-
-      // Parse player mappings from frontend (JSON string: { "GC Name": playerId|"__new__", ... })
-      let playerMappings = {};
-      if (req.body.playerMappings) {
-        try { playerMappings = JSON.parse(req.body.playerMappings); } catch { /* ignore */ }
-      }
-
-      // Parse column mappings from frontend (JSON string: { fieldKey: "CSV Header Name", ... })
-      let columnMappings = {};
-      if (req.body.columnMappings) {
-        try { columnMappings = JSON.parse(req.body.columnMappings); } catch { /* ignore */ }
-      }
+      // Parse team mappings from frontend (JSON string OR already-parsed object)
+      // When using pasted-text (JSON body), Express parses the body first, so these
+      // arrive as objects rather than strings. Both cases must be handled.
+      const parseBodyMapping = (raw) => {
+        if (!raw) return {};
+        if (typeof raw === 'object') return raw;
+        try { return JSON.parse(raw); } catch { return {}; }
+      };
+      const teamMappings = parseBodyMapping(req.body.teamMappings);
+      const playerMappings = parseBodyMapping(req.body.playerMappings);
+      const columnMappings = parseBodyMapping(req.body.columnMappings);
 
       if (importType === 'boxscore') {
         const parsed = await parseBoxScoreInput(req);

@@ -319,6 +319,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
       const updatedPlayersByTeam = { ...playersByTeam };
       const updatedPitcherMappings = [...pitcherMappings];
 
+      let playerFetchFailed = false;
       for (const tid of resolvedTeamIds) {
         if (!updatedPlayersByTeam[tid]) {
           try {
@@ -329,8 +330,15 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
               last_name: p.last_name,
               jersey_number: p.jersey_number,
             }));
-          } catch { /* ignore */ }
+          } catch (err) {
+            console.error('Failed to fetch players for team', tid, err);
+            playerFetchFailed = true;
+            updatedPlayersByTeam[tid] = [];
+          }
         }
+      }
+      if (playerFetchFailed) {
+        setImportError('Could not load the roster for one or more teams. You can still map pitchers manually or choose "Create new player".');
       }
 
       // Update pitcher mappings with resolved team IDs from team mappings
@@ -354,7 +362,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
     }
 
     setStep(next);
-  }, [step, parseFile, unmatchedTeams, pitcherMappings]);
+  }, [step, parseFile, unmatchedTeams, pitcherMappings, teamMappings, playersByTeam]);
 
   const prevStep = useCallback(() => {
     if (step > 0 && step < 7) {
@@ -430,6 +438,13 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
       });
 
       clearInterval(progressInterval);
+
+      if (result.success === false) {
+        setImportError(result.message || 'No data was imported.');
+        setProgress(0);
+        return;
+      }
+
       setProgress(100);
       setProgressStatus('finalizing');
 
