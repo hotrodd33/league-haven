@@ -113,10 +113,20 @@ function parseBoxScoreText(text) {
     };
   }
 
+  // ── 8. Extract per-player extra stats (2B, 3B, SB, HR) from summary lines ──
+  //   These appear after both teams' "Totals" rows in the batting section.
+  const lastTotalsIdx = battingLines.reduceRight(
+    (found, line, i) => (found !== -1 ? found : /^Totals?\b/i.test(line) ? i : -1), -1
+  );
+  const extrasLines = lastTotalsIdx >= 0
+    ? battingLines.slice(lastTotalsIdx + 1).filter(l => !/^Scorekeeping/i.test(l))
+    : [];
+  const battingExtras = parseExtrasLines(extrasLines);
+
   const result = {
     gameInfo,
     linescore,
-    batting: { away: awayBatting, home: homeBatting },
+    batting: { away: awayBatting, home: homeBatting, extras: battingExtras },
     pitching: { away: awayPitching, home: homePitching },
     raw: text,
   };
@@ -512,6 +522,56 @@ function normalizeTime(str) {
     if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
   }
   return String(h).padStart(2, '0') + ':' + m;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Extras Parser
+   Handles the summary lines between batting tables and PITCHING:
+     "HR: G Berktold, TB: B Skoug, T Corey, G Berktold 4, SB: B Skoug, H Finley 3, ..."
+   Returns: { 'HR': { 'G Berktold': 1 }, 'SB': { 'H Finley': 3, ... }, '2B': {...}, '3B': {...} }
+   Only extracts stats that map to player_game_stats definitions (HR/SB/2B/3B).
+   TB and LOB are skipped (derived or team-level).
+   ══════════════════════════════════════════════════════════ */
+function parseExtrasLines(lines) {
+  if (!lines || !lines.length) return {};
+  const WANTED = new Set(['HR', 'SB', '2B', '3B']);
+  const result = {};
+
+  // Join all lines — handles PDF re-flow that splits a single logical extras line
+  const text = lines.join(' ');
+  if (!/\b(HR|SB|2B|3B|TB|LOB):/i.test(text)) return result;
+
+  // Find all KEY: segment boundaries
+  const keyRe = /\b(HR|SB|2B|3B|TB|LOB|CS|HBP|SAC):/gi;
+  const segments = [];
+  let m;
+  while ((m = keyRe.exec(text)) !== null) {
+    segments.push({ key: m[1].toUpperCase(), valueStart: keyRe.lastIndex, matchStart: m.index });
+  }
+
+  for (let i = 0; i < segments.length; i++) {
+    const { key, valueStart } = segments[i];
+    const valueEnd = i + 1 < segments.length ? segments[i + 1].matchStart : text.length;
+    const raw = text.slice(valueStart, valueEnd).trim().replace(/,\s*$/, '');
+
+    if (!WANTED.has(key) || !raw) continue;
+    if (!result[key]) result[key] = {};
+
+    // Each entry is "Player Name" or "Player Name N" (N = count, default 1)
+    for (const part of raw.split(',').map(s => s.trim()).filter(Boolean)) {
+      const tokens = part.split(/\s+/);
+      let count = 1;
+      let nameParts = tokens;
+      if (tokens.length > 1 && /^\d+$/.test(tokens[tokens.length - 1])) {
+        count = parseInt(tokens[tokens.length - 1]);
+        nameParts = tokens.slice(0, -1);
+      }
+      const name = nameParts.join(' ').trim();
+      if (name) result[key][name] = (result[key][name] || 0) + count;
+    }
+  }
+
+  return result;
 }
 
 module.exports = { parseBoxScorePDF, parseBoxScoreText };

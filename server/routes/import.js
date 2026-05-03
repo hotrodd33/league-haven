@@ -1122,6 +1122,32 @@ async function importBoxScore(req, res, opts) {
       pitching.home = await enrichSide(pitching.home, homeTeamId);
     }
 
+    // ── Merge extras (HR, SB, 2B, 3B) from summary lines into batter records ──
+    //   extras = { 'HR': { 'G Berktold': 1 }, 'SB': { 'H Finley': 3, ... }, ... }
+    //   Match by player name (case-insensitive substring) since GC uses initials.
+    const extras = (batting && batting.extras) || {};
+    if (Object.keys(extras).length > 0) {
+      const EXTRAS_FIELD_MAP = { 'HR': 'hr', 'SB': 'sb', '2B': 'doubles', '3B': 'triples' };
+      const mergeExtras = (batters) => {
+        for (const batter of batters) {
+          const bn = (batter.name || '').toLowerCase().trim();
+          for (const [key, playerMap] of Object.entries(extras)) {
+            const field = EXTRAS_FIELD_MAP[key];
+            if (!field) continue;
+            for (const [ename, count] of Object.entries(playerMap)) {
+              const en = ename.toLowerCase().trim();
+              if (en === bn || bn.includes(en) || en.includes(bn)) {
+                batter[field] = count;
+                break;
+              }
+            }
+          }
+        }
+      };
+      mergeExtras(batting.away || []);
+      mergeExtras(batting.home || []);
+    }
+
     // ── Roll per-player batting + pitching stats up into player_game_stats so
     //    the PlayerDetail page can aggregate season/career totals from imports.
     //    Uses stat_definitions abbreviations: AB/H/R/RBI/HR/BB/K (batting) and
@@ -1138,6 +1164,7 @@ async function importBoxScore(req, res, opts) {
       // Parser-field → stat-definition-abbreviation per category.
       const battingMap = {
         ab: 'AB', h: 'H', r: 'R', rbi: 'RBI', hr: 'HR', bb: 'BB', so: 'K',
+        doubles: '2B', triples: '3B', sb: 'SB',
       };
       const pitchingMap = {
         ip: 'IP', h: 'HA', r: 'RA', er: 'ER', bb: 'BB',
