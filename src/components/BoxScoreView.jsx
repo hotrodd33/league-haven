@@ -112,6 +112,30 @@ function Linescore({ rows }) {
 // Stat column width shared by batting tables so away+home columns align.
 const BATTING_STAT_W = 'w-8 text-center shrink-0';
 
+// Build extras summary lines: "HR: Berktold, SB: Corey 2, Skoug"
+function ExtrasSummary({ rows }) {
+  const LABELS = [
+    { field: 'hr',      label: 'HR' },
+    { field: 'doubles', label: '2B' },
+    { field: 'triples', label: '3B' },
+    { field: 'sb',      label: 'SB' },
+  ];
+  const parts = [];
+  for (const { field, label } of LABELS) {
+    const players = rows
+      .filter(b => b[field] != null && b[field] > 0)
+      .map(b => {
+        const name = (b.player_last_name || (b.name || '').split(' ').slice(1).join(' ') || b.name || '').trim();
+        return b[field] > 1 ? `${name} ${b[field]}` : name;
+      });
+    if (players.length) parts.push(`${label}: ${players.join(', ')}`);
+  }
+  if (!parts.length) return null;
+  return (
+    <p className="text-xs text-gray-400 mt-1 px-1">{parts.join(' \u00b7 ')}</p>
+  );
+}
+
 function BattingTable({ title, rows, onViewPlayer }) {
   if (!rows.length) return null;
   // Determine which optional extra columns have any data in this table
@@ -169,6 +193,7 @@ function BattingTable({ title, rows, onViewPlayer }) {
           ))}
         </tbody>
       </table>
+      <ExtrasSummary rows={rows} />
     </div>
   );
 }
@@ -192,6 +217,7 @@ function PitchingTable({ title, rows, onViewPlayer }) {
           <col className="w-8" />{/* HR */}
           <col className="w-10" />{/* P */}
           <col className="w-10" />{/* S */}
+          <col className="w-12" />{/* S% */}
         </colgroup>
         <thead>
           <tr>
@@ -205,23 +231,30 @@ function PitchingTable({ title, rows, onViewPlayer }) {
             <th className={PITCHING_STAT_W}>HR</th>
             <th className={PITCHING_STAT_W}>P</th>
             <th className={PITCHING_STAT_W}>S</th>
+            <th className={PITCHING_STAT_W}>S%</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((p, i) => (
-            <tr key={i}>
-              <td><PlayerCell row={p} onViewPlayer={onViewPlayer} /></td>
-              <td className="text-center">{p.ip ?? ''}</td>
-              <td className="text-center">{p.h ?? ''}</td>
-              <td className="text-center">{p.r ?? ''}</td>
-              <td className="text-center">{p.er ?? ''}</td>
-              <td className="text-center">{p.bb ?? ''}</td>
-              <td className="text-center">{p.k ?? ''}</td>
-              <td className="text-center">{p.hr ?? ''}</td>
-              <td className="text-center">{p.pitches ?? ''}</td>
-              <td className="text-center">{p.strikes ?? ''}</td>
-            </tr>
-          ))}
+          {rows.map((p, i) => {
+            const strikePct = (p.pitches > 0 && p.strikes != null)
+              ? Math.round((p.strikes / p.pitches) * 100) + '%'
+              : '';
+            return (
+              <tr key={i}>
+                <td><PlayerCell row={p} onViewPlayer={onViewPlayer} /></td>
+                <td className="text-center">{p.ip ?? ''}</td>
+                <td className="text-center">{p.h ?? ''}</td>
+                <td className="text-center">{p.r ?? ''}</td>
+                <td className="text-center">{p.er ?? ''}</td>
+                <td className="text-center">{p.bb ?? ''}</td>
+                <td className="text-center">{p.k ?? ''}</td>
+                <td className="text-center">{p.hr ?? ''}</td>
+                <td className="text-center">{p.pitches ?? ''}</td>
+                <td className="text-center">{p.strikes ?? ''}</td>
+                <td className="text-center">{strikePct}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

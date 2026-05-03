@@ -1168,7 +1168,7 @@ async function importBoxScore(req, res, opts) {
       };
       const pitchingMap = {
         ip: 'IP', h: 'HA', r: 'RA', er: 'ER', bb: 'BB',
-        so: 'K', k: 'K', hr: 'HR', pitches: 'PC',
+        so: 'K', k: 'K', hr: 'HR', pitches: 'PC', strikes: 'STK',
       };
 
       const writeStat = async (playerId, teamId, defId, value) => {
