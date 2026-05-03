@@ -61,7 +61,8 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.text({ limit: '10mb' }));
 
 // Default Cache-Control for all GET responses — aligns with React Query staleTime.
 // Browser HTTP cache intercepts re-requests within the TTL so Vercel Functions
