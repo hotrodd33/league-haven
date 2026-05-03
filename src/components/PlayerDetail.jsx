@@ -952,11 +952,13 @@ const PITCHING_COLUMNS = [
   { key: 'BB', label: 'BB' },
   { key: 'K', label: 'SO' },
   { key: 'PC', label: 'PC' },
+  { key: 'STK', label: 'S' },
+  { key: 'SPCT', label: 'S%', rate: true, decimals: 1, suffix: '%' },
   { key: 'ERA', label: 'ERA', rate: true, decimals: 2 },
   { key: 'WHIP', label: 'WHIP', rate: true, decimals: 2 },
 ];
 
-const PITCHING_GAMELOG_COLUMNS = ['IP', 'HA', 'RA', 'ER', 'BB', 'K', 'PC'];
+const PITCHING_GAMELOG_COLUMNS = ['IP', 'HA', 'RA', 'ER', 'BB', 'K', 'PC', 'STK'];
 
 function battingRates(b) {
   const ab = +b.AB || 0;
@@ -981,9 +983,12 @@ function pitchingRates(p) {
   const er = +p.ER || 0;
   const ha = +p.HA || 0;
   const bb = +p.BB || 0;
+  const pc = +p.PC || 0;
+  const stk = +p.STK || 0;
   const era = innings > 0 ? (er * 9) / innings : 0;
   const whip = innings > 0 ? (ha + bb) / innings : 0;
-  return { ERA: era, WHIP: whip };
+  const spct = pc > 0 ? (stk / pc) * 100 : null;
+  return { ERA: era, WHIP: whip, SPCT: spct };
 }
 
 function ipToOuts(ip) {
@@ -1054,7 +1059,10 @@ function StatTable({ title, columns, seasons, career }) {
 }
 
 function renderStatCell(value, col) {
-  if (col.rate) return formatRate(value, col.decimals ?? 3);
+  if (col.rate) {
+    const formatted = formatRate(value, col.decimals ?? 3);
+    return (formatted !== '—' && col.suffix) ? formatted + col.suffix : formatted;
+  }
   if (col.display) return col.display(value);
   if (value == null || value === '') return '—';
   return value;
