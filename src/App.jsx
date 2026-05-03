@@ -16,7 +16,7 @@ import GameChangerImportWizard from "./components/import/GameChangerImportWizard
 import FeatureRouter from "./components/FeatureRouter.jsx";
 
 export default function App() {
-    const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, user, role, logout, canEditTeam, isSuperAdmin, mustChangePassword, clearMustChangePassword } = useAuth();
+    const { isAuthenticated, isAdmin, isAccountant, isOrgAdmin, isUmpire, isGuardian, user, role, logout, canEditTeam, isSuperAdmin, mustChangePassword, clearMustChangePassword } = useAuth();
     const isTeamManager = role === 'team_manager';
 
     const queryClient = useQueryClient();
@@ -33,6 +33,7 @@ export default function App() {
     const [selectedPlayerData, setSelectedPlayerData] = useState(null);
     const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
     const [unreadAnnouncementCount, setUnreadAnnouncementCount] = useState(0);
+    const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
     // Fetch pending counts for nav badges
     useEffect(() => {
@@ -47,10 +48,14 @@ export default function App() {
                     const { count } = await fetchUnreadAnnouncementCount();
                     setUnreadAnnouncementCount(count || 0);
                 }
+                // Chat unread count
+                const { fetchChatUnreadCount } = await import('./api/index.js');
+                const { count: chatCount } = await fetchChatUnreadCount().catch(() => ({ count: 0 }));
+                setChatUnreadCount(chatCount || 0);
             } catch { /* ignore */ }
         };
         loadCounts();
-        const interval = setInterval(loadCounts, 60000);
+        const interval = setInterval(loadCounts, 10000);
         return () => clearInterval(interval);
     }, [isAuthenticated, isAdmin, isOrgAdmin, isTeamManager]);
 
@@ -75,11 +80,19 @@ export default function App() {
     if (confirmToken) {
         return <ConfirmEmail token={confirmToken} onDone={() => { window.history.replaceState({}, '', window.location.pathname); window.location.reload(); }} />;
     }
-    if (params.has('register')) {
-        return <TeamRegistration onDone={() => { window.history.replaceState({}, '', window.location.pathname); window.location.reload(); }} />;
+    if (!isAuthenticated) {
+        if (params.has('register')) {
+            return <TeamRegistration onDone={() => { window.history.replaceState({}, '', window.location.pathname); window.location.reload(); }} />;
+        }
+        return <Login />;
     }
 
-    if (!isAuthenticated) return <Login />;
+    // Handle push notification deep-links (e.g. ?page=chat from SW click)
+    const deepLinkPage = params.get('page');
+    if (deepLinkPage && deepLinkPage !== nav.page) {
+        window.history.replaceState({}, '', window.location.pathname);
+        nav.setPage(deepLinkPage);
+    }
 
     // Force password change before allowing access for admin-created accounts
     if (mustChangePassword) {
@@ -109,7 +122,9 @@ export default function App() {
         } catch (err) { console.error(err); }
     }
 
+    const { claimedPlayerIds } = useAuth();
     const canEditSelectedPlayer = isSuperAdmin ||
+        (selectedPlayerId && claimedPlayerIds.includes(selectedPlayerId)) ||
         (selectedPlayerData?.teams || []).some(t => canEditTeam(t.team_id || t.id, t.org_id));
 
     return (
@@ -121,11 +136,13 @@ export default function App() {
                 isAccountant={isAccountant}
                 isOrgAdmin={isOrgAdmin}
                 isTeamManager={isTeamManager}
+                isGuardian={isGuardian}
                 user={user}
                 branding={branding}
                 features={features}
                 pendingApprovalCount={pendingApprovalCount}
                 unreadAnnouncementCount={unreadAnnouncementCount}
+                chatUnreadCount={chatUnreadCount}
                 onChangePassword={() => setShowChangePassword(true)}
                 onLogout={logout}
                 onNavigateToTeam={nav.navigateToTeam}
@@ -135,6 +152,7 @@ export default function App() {
                     page={nav.page}
                     setPage={nav.setPage}
                     isUmpire={isUmpire}
+                    isGuardian={isGuardian}
                     isAdmin={isAdmin}
                     isOrgAdmin={isOrgAdmin}
                     isTeamManager={isTeamManager}
@@ -170,6 +188,7 @@ export default function App() {
                 open={showImportWizard}
                 onClose={() => { setShowImportWizard(false); setImportWizardGameId(null); }}
                 onNavigate={nav.setPage}
+                onNavigateToGame={nav.navigateToGame}
                 gameId={importWizardGameId}
             />
         </>

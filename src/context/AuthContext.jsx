@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react';
-import { login as apiLogin, register as apiRegister, registerAsUmpire as apiRegisterUmpire } from '../api/index.js';
+import { login as apiLogin, register as apiRegister, registerGuardian as apiRegisterGuardian, registerAsUmpire as apiRegisterUmpire } from '../api/index.js';
 
 const AuthContext = createContext(null);
 
@@ -49,7 +49,27 @@ export function AuthProvider({ children }) {
       const saved = {
         token: data.token,
         user: data.user,
-        permissions: data.permissions || { org_ids: [], team_ids: [] },
+        permissions: data.permissions || { org_ids: [], team_ids: [], claimed_player_ids: [] },
+      };
+      setAuth(saved);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const registerGuardian = useCallback(async (username, password, name, email) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiRegisterGuardian(username, password, name, email);
+      const saved = {
+        token: data.token,
+        user: data.user,
+        permissions: data.permissions || { org_ids: [], team_ids: [], claimed_player_ids: [] },
       };
       setAuth(saved);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
@@ -102,7 +122,9 @@ export function AuthProvider({ children }) {
   const isAccountant = role === 'accountant';
   const isAdmin = isSuperAdmin; // backward compat
   const isUmpire = role === 'umpire' || auth?.user?.is_umpire === true;
-  const permissions = auth?.permissions || { org_ids: [], team_ids: [] };
+  const isGuardian = role === 'guardian';
+  const permissions = auth?.permissions || { org_ids: [], team_ids: [], claimed_player_ids: [] };
+  const claimedPlayerIds = permissions.claimed_player_ids || [];
 
   const canEditOrg = useCallback((orgId) => {
     if (isSuperAdmin) return true;
@@ -156,6 +178,8 @@ export function AuthProvider({ children }) {
     isOrgAdmin,
     isAccountant,
     isUmpire,
+    isGuardian,
+    claimedPlayerIds,
     role,
     permissions,
     canEditOrg,
@@ -167,6 +191,7 @@ export function AuthProvider({ children }) {
     error,
     login,
     register,
+    registerGuardian,
     registerUmpire,
     logout,
     clearMustChangePassword,
