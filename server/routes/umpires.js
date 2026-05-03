@@ -20,8 +20,11 @@ router.get('/me', authMiddleware, async (req, res) => {
       [req.user.id]
     );
 
+    // Soft response: a flagged umpire may not yet have an officials profile.
+    // Returning 200 + null lets the dashboard render without aborting other
+    // queries (assigned games, interests, etc.) so the user can still work.
     if (!rows.length) {
-      return res.status(404).json({ error: 'Umpire profile not found' });
+      return res.json(null);
     }
 
     res.json(rows[0]);

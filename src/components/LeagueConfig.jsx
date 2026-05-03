@@ -291,6 +291,7 @@ const FEATURE_DEFS = [
   { key: 'feature_public_site',       label: 'Public Site',         desc: 'Public-facing schedule, standings, and scores' },
   { key: 'feature_push_notifications', label: 'Push Notifications', desc: 'Browser push notifications for schedule changes and announcements' },
   { key: 'feature_game_delete',       label: 'Allow Game Deletion', desc: 'When off, only super-admins can delete games. Turn on to let org-admins and team managers delete games for their own teams.' },
+  { key: 'feature_chat',              label: 'Team Chat',            desc: 'In-app messaging for team channels and direct messages between members.' },
 ];
 
 function FeatureTogglesConfig() {

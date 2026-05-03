@@ -54,7 +54,7 @@ const PRACTICE_COLORS = {
   maintenance: { bg: 'bg-amber-900/40', border: 'border-amber-500', text: 'text-amber-300', dot: 'bg-amber-500', badge: 'bg-amber-900/60 text-amber-300' },
 };
 
-export default function TeamSchedule({ teamId, onNavigateToTeam }) {
+export default function TeamSchedule({ teamId, onNavigateToTeam, onViewPlayer }) {
   const { isAdmin, canScoreGame, canScheduleGames } = useAuth();
   const canManageGames = isAdmin || canScheduleGames;
   const queryClient = useQueryClient();
@@ -209,7 +209,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   if (selectedGameId) {
     return (
       <div className="mt-6">
-        <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} onNavigateToTeam={onNavigateToTeam} />
+        <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} onNavigateToTeam={onNavigateToTeam} onViewPlayer={onViewPlayer} />
       </div>
     );
   }

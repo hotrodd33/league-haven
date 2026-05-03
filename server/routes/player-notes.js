@@ -1,17 +1,9 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, canEditTeam } = require('../auth');
+const { authMiddleware } = require('../auth');
+const { canEditPlayer } = require('./players');
 
 const router = express.Router();
-
-async function canEditPlayer(user, playerId) {
-  if (user.role === 'super_admin') return true;
-  const { rows } = await pool.query('SELECT team_id FROM team_players WHERE player_id = $1', [playerId]);
-  for (const r of rows) {
-    if (await canEditTeam(user, r.team_id)) return true;
-  }
-  return false;
-}
 
 // GET /player-notes/:playerId
 router.get('/:playerId', authMiddleware, async (req, res) => {

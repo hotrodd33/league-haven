@@ -280,8 +280,40 @@ function sendRejectionEmail(to, name, { replyTo } = {}) {
   });
 }
 
+function sendGuardianClaimApprovedEmail(to, guardianName, playerName) {
+  return sendEmail({
+    to,
+    subject: 'LeagueHaven — Your player claim was approved!',
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+        <h2 style="color:#15803d;">✅ Claim Approved</h2>
+        <p>Hi ${esc(guardianName)},</p>
+        <p>Your request to be linked as a guardian of <strong>${esc(playerName)}</strong> has been <strong>approved</strong>.</p>
+        <p>You can now sign in to LeagueHaven to view and manage ${esc(playerName)}'s profile.</p>
+        <p style="margin-top:16px;"><a href="${APP_URL}" style="display:inline-block;padding:10px 24px;background:#1e3a5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Open LeagueHaven</a></p>
+      </div>
+    `,
+  });
+}
+
+function sendGuardianClaimDeniedEmail(to, guardianName, playerName, adminNotes) {
+  return sendEmail({
+    to,
+    subject: 'LeagueHaven — Update on your player claim',
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+        <h2 style="color:#b91c1c;">Player Claim Not Approved</h2>
+        <p>Hi ${esc(guardianName)},</p>
+        <p>Your request to be linked as a guardian of <strong>${esc(playerName)}</strong> was not approved at this time.</p>
+        ${adminNotes ? `<div style="background:#fef2f2;border-left:4px solid #b91c1c;padding:10px 14px;border-radius:4px;margin:12px 0;"><p style="margin:0;font-size:14px;color:#7f1d1d;"><strong>Reason:</strong> ${esc(adminNotes)}</p></div>` : ''}
+        <p style="font-size:13px;color:#888;">If you believe this is an error, please contact your league administrator.</p>
+        <p style="margin-top:12px;"><a href="${APP_URL}" style="color:#1d4ed8;">Visit LeagueHaven</a></p>
+      </div>
+    `,
+  });
+}
+
 module.exports = {
-  sendEmail,
   sendWelcomeEmail,
   sendInviteEmail,
   sendCoachInviteEmail,
@@ -292,4 +324,6 @@ module.exports = {
   sendApprovalRequestEmail,
   sendApprovalEmail,
   sendRejectionEmail,
+  sendGuardianClaimApprovedEmail,
+  sendGuardianClaimDeniedEmail,
 };
