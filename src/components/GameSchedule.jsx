@@ -383,9 +383,23 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     setShowForm(true);
   }
 
-  function handleFormDone() {
+  function handleFormDone(savedGame) {
     setShowForm(false);
     setEditing(null);
+    // Optimistically patch the saved/new game in every cached games query so the
+    // list updates immediately, then do a background refetch to confirm.
+    if (savedGame?.id) {
+      queryClient.setQueriesData({ queryKey: ['games'] }, (old) => {
+        if (!Array.isArray(old)) return old;
+        const idx = old.findIndex(g => g.id === savedGame.id);
+        if (idx >= 0) {
+          const next = [...old];
+          next[idx] = { ...old[idx], ...savedGame };
+          return next;
+        }
+        return [...old, savedGame]; // new game — append
+      });
+    }
     queryClient.invalidateQueries({ queryKey: ['games'] });
     queryClient.invalidateQueries({ queryKey: ['practices'] });
   }
@@ -1478,11 +1492,10 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     }
 
     try {
-      if (isEditing) await updateGame(game.id, data);
-      else await createGame(data);
+      const saved = isEditing ? await updateGame(game.id, data) : await createGame(data);
       setConfirmSave(false);
       setFieldConflicts(null);
-      onDone();
+      onDone(saved);
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   }
