@@ -948,6 +948,10 @@ async function migrate() {
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS driving_distance_enabled BOOLEAN NOT NULL DEFAULT FALSE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS driving_distance_api_key TEXT;`);
 
+  // Email redirect — when set, all outbound emails go to this address instead of the real recipient
+  // Use in staging to prevent accidental emails to real users
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS email_redirect TEXT;`);
+
   // ── Force-password-change flag (set for admin-created / invited accounts) ──
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;`);
 
