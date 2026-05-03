@@ -349,13 +349,18 @@ router.get('/org-stats', async (req, res) => {
   }
 });
 
-// GET games — supports filters: ?team_id=, ?season_id=, ?status=, ?from=, ?to=, ?slim=true
+// GET games — supports filters: ?team_id=, ?team_ids=1,2,3, ?season_id=, ?status=, ?from=, ?to=, ?slim=true
 router.get('/', async (req, res) => {
   try {
-    const { team_id, season_id, status, from, to, slim } = req.query;
+    const { team_id, team_ids, season_id, status, from, to, slim } = req.query;
     const isSlim = slim === 'true';
 
-    const cacheKey = `games:${isSlim ? 'slim' : 'full'}:${team_id||''}:${season_id||''}:${status||''}:${from||''}:${to||''}`;
+    // Parse team_ids (comma-separated list for multi-team queries like "my teams")
+    const teamIdList = team_ids
+      ? team_ids.split(',').map(Number).filter(Number.isFinite)
+      : null;
+
+    const cacheKey = `games:${isSlim ? 'slim' : 'full'}:${team_id||''}:${teamIdList ? teamIdList.sort().join('_') : ''}:${season_id||''}:${status||''}:${from||''}:${to||''}`;
     const cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 
@@ -365,7 +370,11 @@ router.get('/', async (req, res) => {
 
     if (team_id) {
       conditions.push(`(g.home_team_id = $${idx} OR g.away_team_id = $${idx})`);
-      params.push(team_id);
+      params.push(Number(team_id));
+      idx++;
+    } else if (teamIdList && teamIdList.length > 0) {
+      conditions.push(`(g.home_team_id = ANY($${idx}::int[]) OR g.away_team_id = ANY($${idx}::int[]))`);
+      params.push(teamIdList);
       idx++;
     }
     if (season_id) {

@@ -741,6 +741,7 @@ export async function fetchTeamPractices(teamId) {
 export async function fetchAllPractices(filters = {}) {
   const params = new URLSearchParams();
   if (filters.team_id) params.append('team_id', filters.team_id);
+  if (filters.team_ids) params.append('team_ids', filters.team_ids);
   if (filters.event_type) params.append('event_type', filters.event_type);
   const qs = params.toString();
   return apiFetch(`/reservations/all${qs ? '?' + qs : ''}`);

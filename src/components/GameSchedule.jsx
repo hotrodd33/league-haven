@@ -263,7 +263,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const isInMyTeamsMode = !isAdmin && myTeamIds.length > 0 &&
     (filterTeam === '__my_teams__' || myTeamIds.some(id => String(id) === filterTeam));
   const gamesFilters = {
-    ...(filterTeam && !isMyTeams ? { team_id: filterTeam } : {}),
+    // For multi-team mode pass the full id list so the server filters in SQL (avoids fetching all games)
+    ...(isMyTeams && myTeamIds.length > 0 ? { team_ids: myTeamIds.join(',') } : {}),
+    ...(!isMyTeams && filterTeam ? { team_id: filterTeam } : {}),
     ...(filterSeason ? { season_id: filterSeason } : {}),
     ...(filterStatus ? { status: filterStatus } : {}),
     slim: 'true',
@@ -280,7 +282,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     enabled: filterTeamReady && (!!filterSeason || (!seasonsLoading && !seasons.some(s => s.is_active))),
   });
 
-  const practicesFilters = filterTeam && !isMyTeams ? { team_id: filterTeam } : {};
+  const practicesFilters = isMyTeams && myTeamIds.length > 0
+    ? { team_ids: myTeamIds.join(',') }
+    : filterTeam && !isMyTeams ? { team_id: filterTeam } : {};
   const { data: rawPractices = [] } = useQuery({
     queryKey: ['practices', practicesFilters],
     queryFn: () => fetchAllPractices(practicesFilters),
@@ -296,17 +300,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   });
   const interestGameIds = (interestRows || []).map((g) => Number(g.id)).filter(Number.isFinite);
 
-  const mySet = useMemo(() => isMyTeams ? new Set(myTeamIds.map(Number)) : null, [isMyTeams, myTeamIds]);
-
-  const games = useMemo(() => {
-    if (!isMyTeams || !mySet) return rawGames;
-    return rawGames.filter(g => mySet.has(Number(g.home_team_id)) || mySet.has(Number(g.away_team_id)));
-  }, [rawGames, isMyTeams, mySet]);
-
-  const practices = useMemo(() => {
-    if (!isMyTeams || !mySet) return rawPractices;
-    return rawPractices.filter(p => mySet.has(Number(p.team_id)));
-  }, [rawPractices, isMyTeams, mySet]);
+  // Server now filters by team_ids directly — no client-side re-filtering needed
+  const games = rawGames;
+  const practices = rawPractices;
 
   const loading = seasonsLoading || gamesLoading || !filterTeamReady;
   const error = gamesError?.message || null;
