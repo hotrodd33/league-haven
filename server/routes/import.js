@@ -1102,14 +1102,25 @@ async function importBoxScore(req, res, opts) {
       if (!Array.isArray(rows) || !rows.length || !teamId) return rows;
       const { lookup } = await buildPlayerLookup(teamId);
       return rows.map(r => {
-        const m = matchPlayer(r.name, r.jersey, lookup);
+        // Check user-supplied playerMappings first (same logic as pitcher processing)
+        let resolvedId = null;
+        if (playerMappings && r.name) {
+          const mapped = playerMappings[r.name];
+          if (mapped && mapped !== '__new__') {
+            const parsed = parseInt(mapped);
+            if (!isNaN(parsed)) resolvedId = parsed;
+          }
+        }
+        const m = resolvedId ? { id: resolvedId } : matchPlayer(r.name, r.jersey, lookup);
         if (!m) return r;
+        // If we only have id from mapping, fill in name fields from lookup if available
+        const rosterMatch = resolvedId ? matchPlayer(r.name, r.jersey, lookup) : m;
         return {
           ...r,
           player_id: m.id,
-          player_first_name: m.first_name,
-          player_last_name: m.last_name,
-          player_jersey: m.jersey,
+          player_first_name: rosterMatch?.first_name,
+          player_last_name: rosterMatch?.last_name,
+          player_jersey: rosterMatch?.jersey,
         };
       });
     };
