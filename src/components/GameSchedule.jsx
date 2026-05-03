@@ -364,13 +364,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     if (!window.confirm(`Delete game: ${label}?`)) return;
     setDeleting(game.id);
     // Optimistic removal — strip the game from every cached games query immediately
-    // so the list updates before the server round-trip completes.
     queryClient.setQueriesData({ queryKey: ['games'] }, (old) =>
       Array.isArray(old) ? old.filter(g => g.id !== game.id) : old
     );
     try {
       await deleteGame(game.id);
-      queryClient.invalidateQueries({ queryKey: ['games'] });
+      // Mark stale so next navigation/focus refetches, but don't trigger an immediate
+      // background refetch here — that would cause keepPreviousData to flash the old list.
+      queryClient.invalidateQueries({ queryKey: ['games'], refetchType: 'none' });
     } catch (err) {
       // Server rejected — pull fresh data back to restore the game
       queryClient.invalidateQueries({ queryKey: ['games'] });
