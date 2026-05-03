@@ -455,7 +455,7 @@ function mergePitchCountsGlobal(allPitchers, postPitchingLines) {
     // a single number which would confuse the "Name N-N" regex.
     let chunk = rawChunk.replace(/\b(BF|E):[\s\S]*$/i, '');
 
-    const re = /([A-Za-z][A-Za-z'.-]*(?:\s+[A-Za-z][A-Za-z'.-]*)+)\s+(\d+)-(\d+)/g;
+    const re = /([A-Za-z][A-Za-z'\u2018\u2019.-]*(?:\s+[A-Za-z][A-Za-z'\u2018\u2019.-]*)+)\s+(\d+)-(\d+)/g;
     let m;
     while ((m = re.exec(chunk)) !== null) {
       const rawName = m[1].trim();
