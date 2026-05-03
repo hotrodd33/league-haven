@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchOrganizations, createOrganization, updateOrganization, deleteOrganization,
-  fetchTeams, fetchGames, createTeam, updateTeam, uploadOrgLogo, removeOrgLogo,
+  fetchTeams, fetchGameOrgStats, createTeam, updateTeam, uploadOrgLogo, removeOrgLogo,
   fetchAgeGroups, fetchLevels, fetchSeasons, fetchDivisions, uploadTeamLogo, removeTeamLogo,
   fetchRegistrations,
 } from '../api/index.js';
@@ -44,35 +44,12 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   const loadOrgs = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [orgData, games, regData] = await Promise.all([fetchOrganizations(), fetchGames({ slim: true }), fetchRegistrations().catch(() => ({ registrations: [] }))]);    
+      const [orgData, orgStatsData, regData] = await Promise.all([fetchOrganizations(), fetchGameOrgStats().catch(() => ({})), fetchRegistrations().catch(() => ({ registrations: [] }))]);
       setOrgs(orgData);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().slice(0, 10);
-      // Build team → org map
-      const teamToOrg = {};
-      for (const org of orgData) {
-        for (const team of org.teams || []) teamToOrg[team.id] = org.id;
-      }
-      // Build per-org game stats
+      // Build per-org game stats from pre-aggregated server response
       const stats = {};
-      for (const org of orgData) stats[org.id] = { scheduled: 0, played: 0, missingScores: 0 };
-      for (const g of games || []) {
-        if (!g?.game_date) continue;
-        const involvedOrgs = new Set();
-        for (const teamId of [g.home_team_id, g.away_team_id]) {
-          if (teamId && teamToOrg[teamId]) involvedOrgs.add(teamToOrg[teamId]);
-        }
-        for (const orgId of involvedOrgs) {
-          if (!stats[orgId]) continue;
-          if (g.status === 'completed') {
-            stats[orgId].played += 1;
-          } else if (g.game_date < todayStr && !['cancelled', 'completed'].includes(g.status)) {
-            stats[orgId].missingScores += 1;
-          } else if (g.game_date >= todayStr && ['scheduled', 'in_progress', 'postponed'].includes(g.status)) {
-            stats[orgId].scheduled += 1;
-          }
-        }
+      for (const org of orgData) {
+        stats[org.id] = orgStatsData[org.id] || { scheduled: 0, played: 0, missingScores: 0 };
       }
       setOrgStats(stats);
 

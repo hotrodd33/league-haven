@@ -425,6 +425,10 @@ export async function fetchGames(filters = {}) {
   return apiFetch(`/games${qs ? '?' + qs : ''}`);
 }
 
+export async function fetchGameOrgStats() {
+  return apiFetch('/games/org-stats');
+}
+
 export async function fetchGame(gameId) {
   return apiFetch(`/games/${gameId}`);
 }

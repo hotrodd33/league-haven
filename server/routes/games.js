@@ -309,6 +309,46 @@ async function canAssignOfficialsForTeam(client, teamId) {
   return !!rows[0]?.officials_enabled;
 }
 
+// GET /games/org-stats — per-org game summary counts (avoids loading all rows into memory)
+router.get('/org-stats', async (req, res) => {
+  try {
+    const cacheKey = 'games:org-stats';
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
+    const { rows } = await pool.query(`
+      WITH game_orgs AS (
+        SELECT DISTINCT g.id AS game_id, t.org_id, g.status, g.game_date
+        FROM games g
+        JOIN teams t ON (t.id = g.home_team_id OR t.id = g.away_team_id)
+        WHERE g.deleted_at IS NULL AND t.org_id IS NOT NULL
+      )
+      SELECT
+        org_id,
+        COUNT(*) FILTER (WHERE status = 'completed') AS played,
+        COUNT(*) FILTER (WHERE game_date >= CURRENT_DATE AND status IN ('scheduled', 'in_progress', 'postponed')) AS scheduled,
+        COUNT(*) FILTER (WHERE game_date < CURRENT_DATE AND status NOT IN ('cancelled', 'completed')) AS missing_scores
+      FROM game_orgs
+      GROUP BY org_id
+    `);
+
+    // Convert bigint strings to numbers
+    const result = {};
+    for (const row of rows) {
+      result[row.org_id] = {
+        played: Number(row.played),
+        scheduled: Number(row.scheduled),
+        missingScores: Number(row.missing_scores),
+      };
+    }
+    cache.set(cacheKey, result, GAMES_TTL);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET games — supports filters: ?team_id=, ?season_id=, ?status=, ?from=, ?to=, ?slim=true
 router.get('/', async (req, res) => {
   try {
