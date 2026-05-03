@@ -58,6 +58,8 @@ function PlayerCell({ row, onViewPlayer }) {
   const displayName = profileName || fallback || '—';
   const jersey = row.player_jersey ?? row.jersey;
   const prefix = jersey ? `#${jersey} ` : '';
+  const pos = row.position ? ` (${row.position})` : '';
+  const label = `${prefix}${displayName}${pos}`;
   if (row.player_id && onViewPlayer) {
     return (
       <button
@@ -65,11 +67,11 @@ function PlayerCell({ row, onViewPlayer }) {
         onClick={() => onViewPlayer(row.player_id)}
         className="text-action-300 hover:text-action-100 hover:underline text-left"
       >
-        {prefix}{displayName}
+        {label}
       </button>
     );
   }
-  return <span>{prefix}{displayName}</span>;
+  return <span>{label}</span>;
 }
 
 function Linescore({ rows }) {
@@ -107,35 +109,62 @@ function Linescore({ rows }) {
   );
 }
 
+// Stat column width shared by batting tables so away+home columns align.
+const BATTING_STAT_W = 'w-8 text-center shrink-0';
+
 function BattingTable({ title, rows, onViewPlayer }) {
   if (!rows.length) return null;
+  // Determine which optional extra columns have any data in this table
+  const hasHR  = rows.some(b => b.hr   != null && b.hr  !== 0);
+  const has2B  = rows.some(b => b.doubles != null && b.doubles !== 0);
+  const has3B  = rows.some(b => b.triples != null && b.triples !== 0);
+  const hasSB  = rows.some(b => b.sb   != null && b.sb  !== 0);
   return (
     <div className="lh-card overflow-x-auto">
       <h4 className="font-semibold mb-2">{title}</h4>
-      <table className="lh-table w-full text-sm">
+      <table className="lh-table w-full text-sm table-fixed">
+        <colgroup>
+          <col />{/* Player — fills remaining space */}
+          <col className="w-8" />{/* AB */}
+          <col className="w-8" />{/* R */}
+          <col className="w-8" />{/* H */}
+          <col className="w-8" />{/* RBI */}
+          <col className="w-8" />{/* BB */}
+          <col className="w-8" />{/* SO */}
+          {hasHR && <col className="w-8" />}
+          {has2B && <col className="w-8" />}
+          {has3B && <col className="w-8" />}
+          {hasSB && <col className="w-8" />}
+        </colgroup>
         <thead>
           <tr>
             <th className="text-left">Player</th>
-            <th>Pos</th>
-            <th>AB</th>
-            <th>R</th>
-            <th>H</th>
-            <th>RBI</th>
-            <th>BB</th>
-            <th>SO</th>
+            <th className={BATTING_STAT_W}>AB</th>
+            <th className={BATTING_STAT_W}>R</th>
+            <th className={BATTING_STAT_W}>H</th>
+            <th className={BATTING_STAT_W}>RBI</th>
+            <th className={BATTING_STAT_W}>BB</th>
+            <th className={BATTING_STAT_W}>SO</th>
+            {hasHR && <th className={BATTING_STAT_W}>HR</th>}
+            {has2B && <th className={BATTING_STAT_W}>2B</th>}
+            {has3B && <th className={BATTING_STAT_W}>3B</th>}
+            {hasSB && <th className={BATTING_STAT_W}>SB</th>}
           </tr>
         </thead>
         <tbody>
           {rows.map((b, i) => (
             <tr key={i}>
               <td><PlayerCell row={b} onViewPlayer={onViewPlayer} /></td>
-              <td className="text-center">{b.position || ''}</td>
               <td className="text-center">{b.ab ?? ''}</td>
               <td className="text-center">{b.r ?? ''}</td>
               <td className="text-center">{b.h ?? ''}</td>
               <td className="text-center">{b.rbi ?? ''}</td>
               <td className="text-center">{b.bb ?? ''}</td>
               <td className="text-center">{b.so ?? ''}</td>
+              {hasHR && <td className="text-center">{b.hr ?? ''}</td>}
+              {has2B && <td className="text-center">{b.doubles ?? ''}</td>}
+              {has3B && <td className="text-center">{b.triples ?? ''}</td>}
+              {hasSB && <td className="text-center">{b.sb ?? ''}</td>}
             </tr>
           ))}
         </tbody>
@@ -144,24 +173,38 @@ function BattingTable({ title, rows, onViewPlayer }) {
   );
 }
 
+const PITCHING_STAT_W = 'w-8 text-center shrink-0';
+
 function PitchingTable({ title, rows, onViewPlayer }) {
   if (!rows.length) return null;
   return (
     <div className="lh-card overflow-x-auto">
       <h4 className="font-semibold mb-2">{title}</h4>
-      <table className="lh-table w-full text-sm">
+      <table className="lh-table w-full text-sm table-fixed">
+        <colgroup>
+          <col />{/* Pitcher — fills remaining space */}
+          <col className="w-8" />{/* IP */}
+          <col className="w-8" />{/* H */}
+          <col className="w-8" />{/* R */}
+          <col className="w-8" />{/* ER */}
+          <col className="w-8" />{/* BB */}
+          <col className="w-8" />{/* K */}
+          <col className="w-8" />{/* HR */}
+          <col className="w-10" />{/* P */}
+          <col className="w-10" />{/* S */}
+        </colgroup>
         <thead>
           <tr>
             <th className="text-left">Pitcher</th>
-            <th>IP</th>
-            <th>H</th>
-            <th>R</th>
-            <th>ER</th>
-            <th>BB</th>
-            <th>K</th>
-            <th>HR</th>
-            <th>P</th>
-            <th>S</th>
+            <th className={PITCHING_STAT_W}>IP</th>
+            <th className={PITCHING_STAT_W}>H</th>
+            <th className={PITCHING_STAT_W}>R</th>
+            <th className={PITCHING_STAT_W}>ER</th>
+            <th className={PITCHING_STAT_W}>BB</th>
+            <th className={PITCHING_STAT_W}>K</th>
+            <th className={PITCHING_STAT_W}>HR</th>
+            <th className={PITCHING_STAT_W}>P</th>
+            <th className={PITCHING_STAT_W}>S</th>
           </tr>
         </thead>
         <tbody>
