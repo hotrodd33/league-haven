@@ -452,6 +452,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       {error && <div className="lh-alert lh-alert-error mb-4">{error}</div>}
 
       {/* Box Score (only renders if a GameChanger box score has been imported) */}
+      {game.is_gamechanger_imported && (
       <div className="mb-4">
         <BoxScoreView
           gameId={game.id}
@@ -460,6 +461,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
           onViewPlayer={onViewPlayer}
         />
       </div>
+      )}
 
       {/* Pitch Counts — Home */}
       <PitchCountSection
