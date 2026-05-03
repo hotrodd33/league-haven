@@ -33,17 +33,20 @@ A complete guide to managing your league. This guide covers every feature, organ
 24. [Manage Your Account](#24-manage-your-account)
 25. [Schedule Games Without Dates (Unscheduled Games)](#25-schedule-games-without-dates-unscheduled-games)
 26. [Use the Travel Distance Matrix](#26-use-the-travel-distance-matrix)
+27. [Use Team Chat](#27-use-team-chat)
+28. [Guardian Registration & Player Claims](#28-guardian-registration--player-claims)
+29. [Delete & Restore Games](#29-delete--restore-games)
 
 ### Usage Reference
-27. [Dashboard](#27-dashboard)
-28. [Weather Integration](#28-weather-integration)
-29. [Player Directory](#29-player-directory)
-30. [Team Directory & Contact](#30-team-directory--contact)
-31. [Player Stats](#31-player-stats)
-32. [Player Documents](#32-player-documents)
+30. [Dashboard](#30-dashboard)
+31. [Weather Integration](#31-weather-integration)
+32. [Player Directory](#32-player-directory)
+33. [Team Directory & Contact](#33-team-directory--contact)
+34. [Player Stats](#34-player-stats)
+35. [Player Documents](#35-player-documents)
 
 ### FAQ
-33. [Frequently Asked Questions](#33-frequently-asked-questions)
+36. [Frequently Asked Questions](#36-frequently-asked-questions)
 
 ---
 
@@ -270,6 +273,8 @@ Priority order on unscheduled game cards: **Scheduling Contact** → Head Coach 
    - **Home Team** and **Away Team**
    - **Date** and **Game Time** (optional — leave blank to create an unscheduled game)
    - **Location** (field) — if the field doesn't exist, click **+ Add Field** to create one inline with the full field form (org, address, age groups, GPS)
+   - **Duration** — game length in minutes (defaults to 150 min / 2h 30m); used for field conflict detection
+   - **Doubleheader** — check this box for back-to-back games; the away team's field options appear in the location dropdown for convenience
    - **Notes** (optional)
 5. Click **Schedule Game**
 
@@ -286,7 +291,10 @@ Admins and Org Admins can schedule non-game events directly from the Schedule pa
    - **Team** (for practices)
    - **Location** (field)
    - **Date**, **Start Time**, and **End Time**
-4. Click **Save**
+   - **Duration** — auto-calculated from start/end time
+4. To repeat the event, enable **Recurrence** and choose the pattern: Daily, Weekly, or Bi-weekly; set the end date
+5. To copy an existing event, use **Clone** from the event's action menu
+6. Click **Save**
 
 This creates a field reservation that appears on the Field Calendar.
 
@@ -595,10 +603,21 @@ Available under **League Config** in the sidebar (admin only).
 
 ### Feature Toggles
 
-Enable or disable 9 features independently:
-- Live Scoring, Pitch Tracking, Officials, Player Stats, Player Documents, Financials, Team Registration, Public Site, Push Notifications
+Enable or disable 11 features independently:
+- Live Scoring, Pitch Tracking, Officials, Player Stats, Player Documents, Financials, Team Registration, Public Site, Push Notifications, **Allow Game Deletion**, **Team Chat**
 
 Disabled features are hidden from the sidebar and UI.
+
+### Staging Email Redirect
+
+When you have real data in a staging environment, you can prevent accidental emails to real users:
+
+1. Go to **League Config** → **Branding**
+2. Scroll to **Email Redirect (Staging / Testing)**
+3. Enter an email address (e.g., your admin address)
+4. Click **Save Email Redirect**
+
+When set, **all outbound emails** (invites, password resets, game change notifications, etc.) are sent to that address instead of the real recipient. The subject line is prefixed with the original recipient's address so you know who the email was intended for. Clear the field to restore normal sending.
 
 ### Age Groups
 
@@ -828,11 +847,102 @@ The Travel Matrix is available on the **public site** under the Travel tab:
 
 ---
 
+## 27. Use Team Chat
+
+Team Chat lets coaches, managers, and staff communicate in real time within the app. The Chat feature must be enabled in League Config → Feature Toggles.
+
+### How to Open a Chat Channel
+
+1. Click **Chat** in the sidebar
+2. You'll see channels you belong to:
+   - **Team channels** — one channel per team you have access to
+   - **Org channels** — one channel per organization you manage
+   - **Direct messages** — private conversations with individual users
+3. Click any channel to open it
+
+### How to Send a Message
+
+1. Type your message in the input box at the bottom
+2. Press **Enter** or click **Send**
+3. Messages appear in real time for all channel members
+
+### How to Reply, Edit, or Delete a Message
+
+- **Reply** — hover a message and click the reply icon to respond in thread context
+- **Edit** — hover your own message and click the edit icon; the message is updated in place
+- **Delete** — hover your own message and click the delete icon; the message is removed
+
+### Unread Badges
+
+The sidebar shows a badge with the count of unread messages across all your channels.
+
+---
+
+## 28. Guardian Registration & Player Claims
+
+The Guardian Portal allows parents and guardians to register themselves, link to their player, and get a read-only view of schedule and roster info.
+
+### How to Register as a Guardian
+
+1. On the login page, click **Register**
+2. Choose **Guardian / Parent** as your role
+3. Fill in your name, email, and password
+4. Verify your email via the confirmation link
+
+### How to Submit a Player Claim
+
+After logging in for the first time:
+
+1. You'll be taken to the **Guardian Home** screen
+2. Click **Find My Player**
+3. Search for your player by first and last name
+4. Select the correct player and click **Submit Claim**
+5. Your request is sent to the league admin for review
+
+### What Happens After Approval
+
+Once a super admin approves your claim:
+- Your account is linked to the player
+- **Guardian Home** shows your player's upcoming schedule, team info, and stats (if enabled by the team)
+
+### For Admins: Reviewing Claims
+
+1. Go to **Users** → **Guardian Claims** tab
+2. Review pending claims — name, email, and which player they're claiming
+3. Click **Approve** or **Deny**
+4. Denied claims can include a note explaining why
+
+---
+
+## 29. Delete & Restore Games
+
+Game deletion uses soft delete — games are hidden from all views but not permanently removed, and can be restored.
+
+### Who Can Delete Games
+
+- **Super Admins** — can always delete any game
+- **Org Admins / Team Managers** — can delete games for their teams only **if** the `Allow Game Deletion` feature toggle is enabled in League Config
+
+### How to Delete a Game
+
+1. Open a game from the schedule
+2. Click **Delete Game** (or the trash icon on the game card)
+3. Confirm the deletion
+4. The game disappears immediately from all schedule views
+
+### How to Restore a Deleted Game (Super Admin only)
+
+1. Go to **Schedule** and enable the **Show Deleted** filter (if visible)
+2. Find the deleted game (shown with a deleted badge)
+3. Click **Restore** to bring it back
+
+---
+
 # Usage Reference
 
 ---
 
-## 27. Dashboard
+## 30. Dashboard
 
 The Dashboard is your home screen, showing a time-of-day greeting and the current season name.
 
@@ -853,7 +963,7 @@ The Dashboard is your home screen, showing a time-of-day greeting and the curren
 
 ---
 
-## 28. Weather Integration
+## 31. Weather Integration
 
 Weather data is fetched automatically from **Open-Meteo** for games within a 16-day forecast window.
 
@@ -879,7 +989,7 @@ Weather is shown on game cards, scoreboards, and the dashboard. Games with poor/
 
 ---
 
-## 29. Player Directory
+## 32. Player Directory
 
 The **Players** page provides a league-wide searchable player directory.
 
@@ -891,7 +1001,7 @@ The **Players** page provides a league-wide searchable player directory.
 
 ---
 
-## 30. Team Directory & Contact
+## 33. Team Directory & Contact
 
 ### Team Directory
 
@@ -914,7 +1024,7 @@ The **Players** page provides a league-wide searchable player directory.
 
 ---
 
-## 31. Player Stats
+## 34. Player Stats
 
 ### Stat Definitions
 
@@ -929,7 +1039,7 @@ Player stats are viewable on the **Stats** tab of the Player Detail page, showin
 
 ---
 
-## 32. Player Documents
+## 35. Player Documents
 
 ### Supported Files
 
@@ -952,7 +1062,7 @@ Documents are stored as base64 and can be downloaded or viewed at any time.
 
 ---
 
-## 33. Frequently Asked Questions
+## 36. Frequently Asked Questions
 
 ### General
 
@@ -1016,9 +1126,22 @@ A: On unscheduled game cards, a priority contact is shown for each team: the sta
 
 ---
 
-### Scheduling
+**Q: Who can delete games?**
+A: Super Admins can always delete any game. Org Admins and Team Managers can delete games for their teams only if the **Allow Game Deletion** feature toggle is enabled in League Config. All deletes are soft deletes — games can be restored by a Super Admin.
 
-**Q: How do I schedule a practice instead of a game?**
+**Q: Can I schedule a doubleheader?**
+A: Yes. When creating a game, check the **Doubleheader** checkbox. The away team's fields will appear in the location dropdown so you can quickly find a suitable field for back-to-back games.
+
+**Q: How do I schedule recurring practices?**
+A: When creating a practice or event, enable **Recurrence** in the form and choose Daily, Weekly, or Bi-weekly. Set the recurrence end date and all events will be created at once.
+
+**Q: Can parents see their child's information?**
+A: Yes, via the **Guardian Portal**. Parents register with the Guardian role, submit a player claim, and after admin approval they get a read-only home screen with their player's schedule, team info, and stats (if the team has stats visibility enabled). See [Guardian Registration & Player Claims](#28-guardian-registration--player-claims).
+
+**Q: How do I prevent emails from going to real users in staging?**
+A: Go to League Config → Branding → **Email Redirect** and enter your admin email. All outbound emails will be redirected there until you clear the field.
+
+
 A: On the Schedule page, click **+ Schedule**, then toggle the event type from "Game" to "Practice." You can also create practices from the Field Calendar. Practices create field reservations and show on the calendar.
 
 **Q: What happens when I change a game's date or time?**
