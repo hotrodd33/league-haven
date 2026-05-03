@@ -138,11 +138,6 @@ function ExtrasSummary({ rows }) {
 
 function BattingTable({ title, rows, onViewPlayer }) {
   if (!rows.length) return null;
-  // Determine which optional extra columns have any data in this table
-  const hasHR  = rows.some(b => b.hr   != null && b.hr  !== 0);
-  const has2B  = rows.some(b => b.doubles != null && b.doubles !== 0);
-  const has3B  = rows.some(b => b.triples != null && b.triples !== 0);
-  const hasSB  = rows.some(b => b.sb   != null && b.sb  !== 0);
   return (
     <div className="lh-card overflow-x-auto">
       <h4 className="font-semibold mb-2">{title}</h4>
@@ -155,10 +150,6 @@ function BattingTable({ title, rows, onViewPlayer }) {
           <col className="w-8" />{/* RBI */}
           <col className="w-8" />{/* BB */}
           <col className="w-8" />{/* SO */}
-          {hasHR && <col className="w-8" />}
-          {has2B && <col className="w-8" />}
-          {has3B && <col className="w-8" />}
-          {hasSB && <col className="w-8" />}
         </colgroup>
         <thead>
           <tr>
@@ -169,10 +160,6 @@ function BattingTable({ title, rows, onViewPlayer }) {
             <th className={BATTING_STAT_W}>RBI</th>
             <th className={BATTING_STAT_W}>BB</th>
             <th className={BATTING_STAT_W}>SO</th>
-            {hasHR && <th className={BATTING_STAT_W}>HR</th>}
-            {has2B && <th className={BATTING_STAT_W}>2B</th>}
-            {has3B && <th className={BATTING_STAT_W}>3B</th>}
-            {hasSB && <th className={BATTING_STAT_W}>SB</th>}
           </tr>
         </thead>
         <tbody>
@@ -185,10 +172,6 @@ function BattingTable({ title, rows, onViewPlayer }) {
               <td className="text-center">{b.rbi ?? ''}</td>
               <td className="text-center">{b.bb ?? ''}</td>
               <td className="text-center">{b.so ?? ''}</td>
-              {hasHR && <td className="text-center">{b.hr ?? ''}</td>}
-              {has2B && <td className="text-center">{b.doubles ?? ''}</td>}
-              {has3B && <td className="text-center">{b.triples ?? ''}</td>}
-              {hasSB && <td className="text-center">{b.sb ?? ''}</td>}
             </tr>
           ))}
         </tbody>
