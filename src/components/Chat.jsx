@@ -36,6 +36,8 @@ export default function Chat() {
   const queryClient = useQueryClient();
   const [activeChannelId, setActiveChannelId] = useState(null);
   const [showNewDM, setShowNewDM] = useState(false);
+  // Mobile navigation: 'list' shows channel list, 'messages' shows message pane
+  const [mobileView, setMobileView] = useState('list');
 
   // Channel list — polled
   const { data: channels = [] } = useQuery({
@@ -47,7 +49,7 @@ export default function Chat() {
     retry: false,
   });
 
-  // Auto-select first channel
+  // Auto-select first channel for desktop pre-loading — does NOT navigate on mobile
   useEffect(() => {
     if (!activeChannelId && channels.length > 0) {
       setActiveChannelId(channels[0].id);
@@ -57,22 +59,37 @@ export default function Chat() {
   function handleSelectChannel(id) {
     setActiveChannelId(id);
     setShowNewDM(false);
-    // Mark as read
+    setMobileView('messages');
     queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
   }
 
   function handleDMCreated(channelId) {
     setShowNewDM(false);
     setActiveChannelId(channelId);
+    setMobileView('messages');
     queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
   }
 
+  function handleBack() {
+    setMobileView('list');
+  }
+
+  const activeChannel = channels.find(ch => ch.id === activeChannelId);
   const totalUnread = channels.reduce((sum, ch) => sum + (Number(ch.unread_count) || 0), 0);
 
   return (
-    <div className="flex h-[calc(100vh-6rem)] max-h-200 rounded-xl border border-gray-700 overflow-hidden bg-gray-900">
-      {/* ── Sidebar ── */}
-      <aside className="w-60 shrink-0 bg-gray-800 border-r border-gray-700 flex flex-col">
+    <div className="relative flex h-[calc(100vh-6rem)] max-h-200 rounded-xl border border-gray-700 overflow-hidden bg-gray-900">
+
+      {/* ── Sidebar / Channel list ── */}
+      <aside className={[
+        'bg-gray-800 border-r border-gray-700 flex flex-col shrink-0',
+        // Mobile: absolute, full-width panel that slides out to the left
+        'absolute inset-y-0 left-0 w-full z-10',
+        'transition-transform duration-300 ease-in-out',
+        // Desktop: normal flow, fixed width, always visible
+        'sm:relative sm:inset-auto sm:w-60 sm:z-auto sm:!translate-x-0',
+        mobileView === 'messages' ? '-translate-x-full' : 'translate-x-0',
+      ].join(' ')}>
         <div className="px-4 py-3 flex items-center justify-between border-b border-gray-700">
           <h2 className="text-sm font-bold text-chrome-300">
             Chat {totalUnread > 0 && (
@@ -82,8 +99,8 @@ export default function Chat() {
           <button
             type="button"
             title="New Direct Message"
-            onClick={() => setShowNewDM(true)}
-            className="text-gray-400 hover:text-chrome-300 text-lg leading-none"
+            onClick={() => { setShowNewDM(true); setMobileView('messages'); }}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-chrome-300 hover:bg-gray-700 text-lg leading-none transition-colors"
           >
             +
           </button>
@@ -105,11 +122,29 @@ export default function Chat() {
       </aside>
 
       {/* ── Main pane ── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={[
+        'flex-1 flex flex-col min-w-0 bg-gray-900',
+        // Mobile: absolute full-width panel that slides in from the right
+        'absolute inset-y-0 left-0 w-full',
+        'transition-transform duration-300 ease-in-out',
+        // Desktop: normal flow, always visible
+        'sm:relative sm:inset-auto sm:!translate-x-0',
+        mobileView === 'messages' ? 'translate-x-0' : 'translate-x-full',
+      ].join(' ')}>
         {showNewDM ? (
-          <NewDMPane onDMCreated={handleDMCreated} onCancel={() => setShowNewDM(false)} />
+          <NewDMPane
+            onDMCreated={handleDMCreated}
+            onCancel={() => { setShowNewDM(false); setMobileView('list'); }}
+            onBack={handleBack}
+          />
         ) : activeChannelId ? (
-          <MessagePane channelId={activeChannelId} currentUserId={user?.id} />
+          <MessagePane
+            channelId={activeChannelId}
+            currentUserId={user?.id}
+            channelName={activeChannel ? channelLabel(activeChannel) : 'Chat'}
+            channelType={activeChannel?.type}
+            onBack={handleBack}
+          />
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
             Select a channel to start chatting
@@ -127,7 +162,7 @@ function ChannelItem({ channel, active, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left px-4 py-2 flex items-start gap-2 transition-colors ${
+      className={`w-full text-left px-4 py-3 sm:py-2 flex items-start gap-2 transition-colors ${
         active ? 'bg-gray-700 text-gray-100' : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'
       }`}
     >
@@ -152,7 +187,7 @@ function ChannelItem({ channel, active, onClick }) {
 }
 
 // ── Message pane ────────────────────────────────────────────────
-function MessagePane({ channelId, currentUserId }) {
+function MessagePane({ channelId, currentUserId, channelName, channelType, onBack }) {
   const queryClient = useQueryClient();
   const bottomRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
@@ -242,8 +277,22 @@ function MessagePane({ channelId, currentUserId }) {
   return (
     <>
       {/* Header */}
-      <div className="px-4 py-2 border-b border-gray-700 bg-gray-850 text-sm font-semibold text-gray-200 shrink-0">
-        Chat
+      <div className="px-3 py-2.5 border-b border-gray-700 bg-gray-850 flex items-center gap-2 shrink-0">
+        {/* Back button — mobile only */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="sm:hidden flex items-center justify-center w-8 h-8 -ml-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-700 transition-colors shrink-0"
+          aria-label="Back to channels"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+        <span className="text-xs shrink-0 text-gray-500">
+          {channelType === 'direct' ? '●' : channelType === 'team' ? '⚾' : '🏢'}
+        </span>
+        <span className="text-sm font-semibold text-gray-200 truncate">{channelName || 'Chat'}</span>
       </div>
 
       {/* Messages */}
@@ -382,7 +431,7 @@ function MessageRow({ msg, isOwn, editing, editBody, onEditStart, onEditChange, 
 }
 
 // ── New DM pane ──────────────────────────────────────────────────
-function NewDMPane({ onDMCreated, onCancel }) {
+function NewDMPane({ onDMCreated, onCancel, onBack }) {
   const [search, setSearch] = useState('');
 
   const { data: users = [] } = useQuery({
@@ -404,9 +453,19 @@ function NewDMPane({ onDMCreated, onCancel }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-gray-700 flex items-center gap-2">
+      <div className="px-3 py-2.5 border-b border-gray-700 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="sm:hidden flex items-center justify-center w-8 h-8 -ml-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-700 transition-colors shrink-0"
+          aria-label="Back to channels"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
         <span className="text-sm font-semibold text-gray-200">New Direct Message</span>
-        <button type="button" onClick={onCancel} className="ml-auto text-gray-500 hover:text-gray-300">✕</button>
+        <button type="button" onClick={onCancel} className="hidden sm:block ml-auto text-gray-500 hover:text-gray-300">✕</button>
       </div>
       <div className="px-4 py-3">
         <input
