@@ -519,6 +519,7 @@ export async function deletePitchCount(gameId, id) {
 // ── Pitch Rules ──
 
 export async function fetchPitchEligibility(teamId, gameDate, gameId) {
+  if (!gameDate || gameDate === 'null') return null;
   const params = new URLSearchParams({ team_id: teamId, game_date: gameDate });
   if (gameId) params.set('game_id', gameId);
   return apiFetch(`/pitch-rules/eligibility?${params}`);
