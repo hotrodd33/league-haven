@@ -9,11 +9,15 @@ import {
   updatePlayerJersey,
   fetchVolunteerRoles, fetchGuardianVolunteers, updateGuardianVolunteers,
 } from '../api/index.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { ChevronLeftIcon, PlusIcon, TrashIcon, PencilIcon, DocumentIcon, ChatBubbleIcon, UserIcon, ChartBarIcon } from './ui/icons.jsx';
 import { formatDOB, calculateAge } from '../utils/dob.js';
 import { Button, Input, Select } from './ui';
 
-const TABS = [
+// Roles that must NOT see guardian contact details (privacy boundary)
+const NO_CONTACTS_ROLES = new Set(['score_reporter', 'umpire', 'accountant']);
+
+const ALL_TABS = [
   { key: 'info', label: 'Info' },
   { key: 'contacts', label: 'Guardians' },
   { key: 'stats', label: 'Stats' },
@@ -60,10 +64,14 @@ function JerseyInput({ value, onChange, onSave, onCancel, label }) {
 }
 
 export default function PlayerDetail({ player, onBack, onNavigateToTeam, canEdit = true }) {
+  const { role } = useAuth();
   const [tab, setTab] = useState('info');
   const [currentPlayer, setCurrentPlayer] = useState(player);
-  const [jerseyEditTeamId, setJerseyEditTeamId] = useState(null); // teamId being edited, or 'all'
+  const [jerseyEditTeamId, setJerseyEditTeamId] = useState(null);
   const [jerseyEditValue, setJerseyEditValue] = useState('');
+
+  // Filter out Guardians tab for roles that shouldn't see contact PII
+  const TABS = ALL_TABS.filter(t => t.key !== 'contacts' || !NO_CONTACTS_ROLES.has(role));
 
   useEffect(() => { setCurrentPlayer(player); }, [player]);
 
@@ -566,8 +574,11 @@ function TeamRow({ team: t, player, canEdit, onNavigateToTeam, onPlayerUpdated }
 
 /* ─── Contacts Tab ─── */
 function ContactsTab({ playerId, canEdit }) {
+  const { user, role } = useAuth();
+  const isStaff = ['super_admin', 'org_admin', 'team_manager'].includes(role);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [volunteerRoles, setVolunteerRoles] = useState([]);
@@ -580,16 +591,25 @@ function ContactsTab({ playerId, canEdit }) {
     ]).then(([c, vr]) => {
       setContacts(c);
       setVolunteerRoles(vr);
-      // Load volunteer interests for each guardian
-      Promise.all(
-        c.map(g => fetchGuardianVolunteers(g.id).then(ids => [g.id, ids]).catch(() => [g.id, []]))
-      ).then(results => {
-        const map = {};
-        for (const [gid, ids] of results) map[gid] = ids;
-        setGuardianVolunteers(map);
-      });
-    }).catch(console.error).finally(() => setLoading(false));
-  }, [playerId]);
+      // Staff load all guardians' volunteer data; guardians only load their own linked record
+      // Match by user_id OR by email (handles records not yet lazily linked)
+      const toFetch = isStaff
+        ? c
+        : c.filter(g => g.user_id === user?.id || (user?.email && g.email && g.email.toLowerCase() === user.email.toLowerCase()));
+      if (toFetch.length) {
+        Promise.all(
+          toFetch.map(g => fetchGuardianVolunteers(g.id).then(ids => [g.id, ids]).catch(() => [g.id, []]))
+        ).then(results => {
+          const map = {};
+          for (const [gid, ids] of results) map[gid] = ids;
+          setGuardianVolunteers(map);
+        });
+      }
+    }).catch(err => {
+      if (err.status === 403) setAccessDenied(true);
+      else console.error(err);
+    }).finally(() => setLoading(false));
+  }, [playerId, isStaff, user?.id]);
 
   useEffect(load, [load]);
 
@@ -608,6 +628,10 @@ function ContactsTab({ playerId, canEdit }) {
   function handleSaved() { setShowForm(false); setEditing(null); load(); }
 
   if (loading) return <Spinner />;
+
+  if (accessDenied) return (
+    <p className="text-sm text-gray-500 py-4 text-center">You do not have access to this information</p>
+  );
 
   return (
     <div className="space-y-3">
@@ -655,22 +679,25 @@ function ContactsTab({ playerId, canEdit }) {
               </div>
             )}
           </div>
-          {volunteerRoles.length > 0 && (
+          {volunteerRoles.length > 0 && guardianVolunteers[c.id] !== undefined && (
             <div className="mt-3 pt-3 border-t border-gray-700">
               <p className="text-xs font-medium text-gray-400 mb-1.5">Volunteer Interests</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {volunteerRoles.map(role => (
-                  <label key={role.id} className="flex items-center gap-1.5 text-sm text-gray-300">
-                    <input
-                      type="checkbox"
-                      checked={(guardianVolunteers[c.id] || []).includes(role.id)}
-                      onChange={e => toggleVolunteer(c.id, role.id, e.target.checked)}
-                      disabled={!canEdit}
-                      className="rounded border-gray-600 bg-gray-700 text-action-500"
-                    />
-                    {role.name}
-                  </label>
-                ))}
+                {volunteerRoles.map(role => {
+                  const canEditThisGuardian = isStaff || c.user_id === user?.id || (user?.email && c.email && c.email.toLowerCase() === user.email.toLowerCase());
+                  return (
+                    <label key={role.id} className="flex items-center gap-1.5 text-sm text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={(guardianVolunteers[c.id] || []).includes(role.id)}
+                        onChange={e => toggleVolunteer(c.id, role.id, e.target.checked)}
+                        disabled={!canEditThisGuardian}
+                        className="rounded border-gray-600 bg-gray-700 text-action-500"
+                      />
+                      {role.name}
+                    </label>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -748,80 +775,314 @@ function ContactForm({ playerId, contact, onSaved, onCancel }) {
 /* ─── Stats Tab ─── */
 function StatsTab({ playerId }) {
   const [stats, setStats] = useState([]);
-  const [definitions, setDefinitions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     Promise.all([
       fetchPlayerStats(playerId),
       fetchStatDefinitions({ active_only: true }),
-    ]).then(([s, d]) => {
+    ]).then(([s]) => {
       setStats(s);
-      setDefinitions(d);
-    }).catch(console.error).finally(() => setLoading(false));
+    }).catch(err => {
+      if (err.status === 403) setAccessDenied(true);
+      else console.error(err);
+    }).finally(() => setLoading(false));
   }, [playerId]);
 
   if (loading) return <Spinner />;
 
-  // Group stats by game
-  const gameMap = {};
-  for (const s of stats) {
-    const key = s.game_id;
-    if (!gameMap[key]) gameMap[key] = { game_id: key, game_date: s.game_date, home_team_name: s.home_team_name, away_team_name: s.away_team_name, stats: [] };
-    gameMap[key].stats.push(s);
-  }
-  const games = Object.values(gameMap).sort((a, b) => new Date(b.game_date) - new Date(a.game_date));
+  if (accessDenied) return (
+    <p className="text-sm text-gray-500 py-4 text-center">You do not have access to this information</p>
+  );
 
-  // Season totals by stat (for numeric stats)
-  const totals = {};
+  if (!stats.length) {
+    return <p className="text-sm text-gray-500 py-4 text-center">No stats recorded yet</p>;
+  }
+
+  // ── Group rows by game so we can count G (games played) per category ──
+  const gamesById = {};
   for (const s of stats) {
-    if (!totals[s.stat_definition_id]) totals[s.stat_definition_id] = { ...s, total: 0, count: 0 };
+    const g = gamesById[s.game_id] || (gamesById[s.game_id] = {
+      game_id: s.game_id,
+      game_date: s.game_date,
+      season_id: s.season_id,
+      season_name: s.season_name,
+      season_year: s.season_year,
+      home_team_name: s.home_team_name,
+      away_team_name: s.away_team_name,
+      batting: {},
+      pitching: {},
+    });
+    const bucket = s.category === 'pitching' ? g.pitching : g.batting;
     const num = Number(s.value);
-    if (!isNaN(num)) {
-      totals[s.stat_definition_id].total += num;
-      totals[s.stat_definition_id].count++;
+    bucket[s.abbreviation.toUpperCase()] = isNaN(num) ? s.value : num;
+  }
+  const allGames = Object.values(gamesById).sort(
+    (a, b) => new Date(b.game_date) - new Date(a.game_date)
+  );
+
+  // ── Aggregate by season for the MLB-style summary table ──
+  const seasonAgg = {}; // key: season_id || 'unknown'
+  for (const g of allGames) {
+    const key = g.season_id ?? 'unknown';
+    const row = seasonAgg[key] || (seasonAgg[key] = {
+      season_id: g.season_id,
+      season_name: g.season_name || (g.season_year ? String(g.season_year) : 'Unassigned'),
+      season_year: g.season_year || 0,
+      battingGames: 0, pitchingGames: 0,
+      batting: {}, pitching: {},
+    });
+    if (Object.keys(g.batting).length) {
+      row.battingGames++;
+      for (const [k, v] of Object.entries(g.batting)) {
+        if (typeof v === 'number') row.batting[k] = (row.batting[k] || 0) + v;
+      }
+    }
+    if (Object.keys(g.pitching).length) {
+      row.pitchingGames++;
+      for (const [k, v] of Object.entries(g.pitching)) {
+        if (typeof v === 'number') row.pitching[k] = (row.pitching[k] || 0) + v;
+      }
+    }
+  }
+  const seasons = Object.values(seasonAgg).sort(
+    (a, b) => (b.season_year || 0) - (a.season_year || 0)
+  );
+
+  const hasBatting = seasons.some(s => s.battingGames > 0);
+  const hasPitching = seasons.some(s => s.pitchingGames > 0);
+
+  // ── Career totals ──
+  const careerBatting = { G: 0 };
+  const careerPitching = { G: 0 };
+  for (const s of seasons) {
+    careerBatting.G += s.battingGames;
+    for (const [k, v] of Object.entries(s.batting)) {
+      careerBatting[k] = (careerBatting[k] || 0) + v;
+    }
+    careerPitching.G += s.pitchingGames;
+    for (const [k, v] of Object.entries(s.pitching)) {
+      careerPitching[k] = (careerPitching[k] || 0) + v;
     }
   }
 
   return (
-    <div className="space-y-4">
-      {/* Season totals */}
-      {Object.keys(totals).length > 0 && (
-        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-          <h3 className="eyebrow text-gray-300 mb-3">Season Totals</h3>
-          <div className="flex flex-wrap gap-4">
-            {Object.values(totals).map(t => (
-              <div key={t.stat_definition_id} className="text-center">
-                <p className="text-lg font-bold text-white">{t.total}</p>
-                <p className="text-xs text-gray-400">{t.abbreviation}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+    <div className="space-y-6">
+      {hasBatting && (
+        <StatTable
+          title="Hitting"
+          columns={BATTING_COLUMNS}
+          seasons={seasons.map(s => ({
+            label: s.season_name,
+            year: s.season_year,
+            row: { ...s.batting, G: s.battingGames, ...battingRates({ ...s.batting, G: s.battingGames }) },
+          }))}
+          career={{ ...careerBatting, ...battingRates(careerBatting) }}
+        />
       )}
 
-      {/* Per-game stats */}
-      {games.length > 0 ? games.map(g => (
-        <div key={g.game_id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-          <div className="flex justify-between items-center mb-2">
-            <p className="text-sm font-medium text-white">{g.home_team_name} vs {g.away_team_name}</p>
-            <p className="text-xs text-gray-400">{new Date(g.game_date).toLocaleDateString()}</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {g.stats.map(s => (
-              <div key={s.id} className="bg-gray-700/40 rounded-lg px-3 py-1.5 text-center">
-                <p className="text-sm font-medium text-white">{s.value}</p>
-                <p className="text-xs text-gray-400">{s.abbreviation}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )) : (
-        <p className="text-sm text-gray-500 py-4 text-center">No stats recorded yet</p>
+      {hasPitching && (
+        <StatTable
+          title="Pitching"
+          columns={PITCHING_COLUMNS}
+          seasons={seasons.map(s => ({
+            label: s.season_name,
+            year: s.season_year,
+            row: { ...s.pitching, G: s.pitchingGames, ...pitchingRates({ ...s.pitching, G: s.pitchingGames }) },
+          }))}
+          career={{ ...careerPitching, ...pitchingRates(careerPitching) }}
+        />
       )}
 
-      {definitions.length === 0 && (
-        <p className="text-xs text-gray-500 text-center">No stat fields configured. Go to League Config to set up stat definitions.</p>
+      {/* Game log */}
+      <div>
+        <h3 className="eyebrow text-gray-300 mb-2">Game Log</h3>
+        <div className="space-y-2">
+          {allGames.map(g => (
+            <div key={g.game_id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-sm font-medium text-white">{g.away_team_name} @ {g.home_team_name}</p>
+                <p className="text-xs text-gray-400">{new Date(g.game_date).toLocaleDateString()}</p>
+              </div>
+              {Object.keys(g.batting).length > 0 && (
+                <GameStatLine label="B" stats={g.batting} columns={BATTING_GAMELOG_COLUMNS} rates={battingRates(g.batting)} />
+              )}
+              {Object.keys(g.pitching).length > 0 && (
+                <GameStatLine label="P" stats={g.pitching} columns={PITCHING_GAMELOG_COLUMNS} rates={pitchingRates(g.pitching)} />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Stat helpers ─── */
+const BATTING_COLUMNS = [
+  { key: 'G', label: 'G' },
+  { key: 'AB', label: 'AB' },
+  { key: 'R', label: 'R' },
+  { key: 'H', label: 'H' },
+  { key: '2B', label: '2B' },
+  { key: '3B', label: '3B' },
+  { key: 'HR', label: 'HR' },
+  { key: 'RBI', label: 'RBI' },
+  { key: 'BB', label: 'BB' },
+  { key: 'K', label: 'SO' },
+  { key: 'SB', label: 'SB' },
+  { key: 'AVG', label: 'AVG', rate: true },
+  { key: 'OBP', label: 'OBP', rate: true },
+  { key: 'SLG', label: 'SLG', rate: true },
+  { key: 'OPS', label: 'OPS', rate: true },
+];
+
+const BATTING_GAMELOG_COLUMNS = ['AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'BB', 'K'];
+
+const PITCHING_COLUMNS = [
+  { key: 'G', label: 'G' },
+  { key: 'W', label: 'W' },
+  { key: 'L', label: 'L' },
+  { key: 'SV', label: 'SV' },
+  { key: 'IP', label: 'IP', display: formatIP },
+  { key: 'HA', label: 'H' },
+  { key: 'RA', label: 'R' },
+  { key: 'ER', label: 'ER' },
+  { key: 'BB', label: 'BB' },
+  { key: 'K', label: 'SO' },
+  { key: 'PC', label: 'PC' },
+  { key: 'ERA', label: 'ERA', rate: true, decimals: 2 },
+  { key: 'WHIP', label: 'WHIP', rate: true, decimals: 2 },
+];
+
+const PITCHING_GAMELOG_COLUMNS = ['IP', 'HA', 'RA', 'ER', 'BB', 'K', 'PC'];
+
+function battingRates(b) {
+  const ab = +b.AB || 0;
+  const h = +b.H || 0;
+  const bb = +b.BB || 0;
+  const dbl = +b['2B'] || 0;
+  const tpl = +b['3B'] || 0;
+  const hr = +b.HR || 0;
+  const avg = ab > 0 ? h / ab : 0;
+  const obpDen = ab + bb;
+  const obp = obpDen > 0 ? (h + bb) / obpDen : 0;
+  const tb = h + dbl + 2 * tpl + 3 * hr;
+  const slg = ab > 0 ? tb / ab : 0;
+  const ops = obp + slg;
+  return { AVG: avg, OBP: obp, SLG: slg, OPS: ops };
+}
+
+function pitchingRates(p) {
+  // IP is stored with .1/.2 thirds notation (e.g., 5.2 = 5⅔). Convert to outs.
+  const outs = ipToOuts(+p.IP || 0);
+  const innings = outs / 3;
+  const er = +p.ER || 0;
+  const ha = +p.HA || 0;
+  const bb = +p.BB || 0;
+  const era = innings > 0 ? (er * 9) / innings : 0;
+  const whip = innings > 0 ? (ha + bb) / innings : 0;
+  return { ERA: era, WHIP: whip };
+}
+
+function ipToOuts(ip) {
+  const whole = Math.floor(ip);
+  const frac = Math.round((ip - whole) * 10);
+  return whole * 3 + (frac === 1 ? 1 : frac === 2 ? 2 : 0);
+}
+
+function formatIP(ip) {
+  if (ip == null || ip === '') return '—';
+  const n = Number(ip);
+  if (isNaN(n)) return ip;
+  return n.toFixed(1);
+}
+
+function formatRate(v, decimals = 3) {
+  if (v == null || isNaN(v)) return '—';
+  if (decimals === 3) {
+    // Drop leading zero (e.g., .345)
+    const s = v.toFixed(3);
+    return v < 1 ? s.replace(/^0/, '') : s;
+  }
+  return v.toFixed(decimals);
+}
+
+function StatTable({ title, columns, seasons, career }) {
+  return (
+    <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-gray-700 bg-gray-900/40">
+        <h3 className="text-sm font-bold text-white uppercase tracking-wider">{title}</h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-900/30 border-b border-gray-700">
+              <th className="text-left px-3 py-2 text-xs font-semibold text-gray-300 uppercase tracking-wider">Season</th>
+              {columns.map(c => (
+                <th key={c.key} className="text-right px-2 py-2 text-xs font-semibold text-gray-300 uppercase tracking-wider tabular-nums">{c.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {seasons.map((s, i) => (
+              <tr key={i} className="border-b border-gray-700/50 hover:bg-gray-700/20">
+                <td className="px-3 py-2 text-gray-100 whitespace-nowrap">{s.label}</td>
+                {columns.map(c => (
+                  <td key={c.key} className="text-right px-2 py-2 text-gray-100 tabular-nums">
+                    {renderStatCell(s.row[c.key], c)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+            {seasons.length > 1 && (
+              <tr className="bg-gray-900/40 font-bold border-t border-gray-600">
+                <td className="px-3 py-2 text-white">Career</td>
+                {columns.map(c => (
+                  <td key={c.key} className="text-right px-2 py-2 text-white tabular-nums">
+                    {renderStatCell(career[c.key], c)}
+                  </td>
+                ))}
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function renderStatCell(value, col) {
+  if (col.rate) return formatRate(value, col.decimals ?? 3);
+  if (col.display) return col.display(value);
+  if (value == null || value === '') return '—';
+  return value;
+}
+
+function GameStatLine({ label, stats, columns, rates }) {
+  return (
+    <div className="flex items-center gap-2 text-xs flex-wrap">
+      <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-action-700 text-white font-bold text-[10px]">{label}</span>
+      {columns.map(k => (
+        <span key={k} className="text-gray-300">
+          <span className="text-gray-500">{k === 'K' ? 'SO' : k === 'HA' ? 'H' : k === 'RA' ? 'R' : k}</span>{' '}
+          <span className="font-semibold text-white tabular-nums">
+            {k === 'IP' ? formatIP(stats[k]) : (stats[k] ?? 0)}
+          </span>
+        </span>
+      ))}
+      {label === 'B' && (
+        <>
+          <span className="text-gray-300"><span className="text-gray-500">AVG</span> <span className="font-semibold text-white tabular-nums">{formatRate(rates.AVG)}</span></span>
+          <span className="text-gray-300"><span className="text-gray-500">OPS</span> <span className="font-semibold text-white tabular-nums">{formatRate(rates.OPS)}</span></span>
+        </>
+      )}
+      {label === 'P' && (
+        <>
+          <span className="text-gray-300"><span className="text-gray-500">ERA</span> <span className="font-semibold text-white tabular-nums">{formatRate(rates.ERA, 2)}</span></span>
+          <span className="text-gray-300"><span className="text-gray-500">WHIP</span> <span className="font-semibold text-white tabular-nums">{formatRate(rates.WHIP, 2)}</span></span>
+        </>
       )}
     </div>
   );
