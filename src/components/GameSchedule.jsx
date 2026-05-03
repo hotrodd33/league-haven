@@ -161,7 +161,7 @@ function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCou
   return dates;
 }
 
-export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport }) {
+export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport, onViewPlayer }) {
   const { isAdmin, isSuperAdmin, isAuthenticated, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
   const { features } = useBranding(isAuthenticated);
   const queryClient = useQueryClient();
@@ -492,7 +492,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   }
 
   if (selectedGameId) {
-    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); queryClient.invalidateQueries({ queryKey: ['games'] }); }} onNavigateToTeam={onNavigateToTeam} onOpenImport={onOpenImport} />;
+    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); queryClient.invalidateQueries({ queryKey: ['games'] }); }} onNavigateToTeam={onNavigateToTeam} onOpenImport={onOpenImport} onViewPlayer={onViewPlayer} />;
   }
 
   return (

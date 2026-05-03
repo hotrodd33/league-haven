@@ -35,24 +35,29 @@ export default function ImportSettings({ importType, settings, onChange }) {
         </p>
       </div>
 
-      {/* Team assignment */}
-      <SettingGroup label="Assign to Team">
-        <select
-          value={settings.teamId || ''}
-          onChange={(e) => set('teamId', e.target.value || null)}
-          className="lh-select"
-        >
-          <option value="">Auto-detect from file</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}{t.org_name ? ` (${t.org_name})` : ''}
-            </option>
-          ))}
-        </select>
-      </SettingGroup>
+      {/* Team assignment — only relevant for roster CSV imports.
+          Box scores resolve teams from the Map Teams step, and schedule
+          imports embed teams in each row. */}
+      {importType === 'roster' && (
+        <SettingGroup label="Assign to Team">
+          <select
+            value={settings.teamId || ''}
+            onChange={(e) => set('teamId', e.target.value || null)}
+            className="lh-select"
+          >
+            <option value="">Auto-detect from file</option>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}{t.org_name ? ` (${t.org_name})` : ''}
+              </option>
+            ))}
+          </select>
+        </SettingGroup>
+      )}
 
-      {/* Season assignment */}
-      {(importType === 'boxscore' || importType === 'stats' || importType === 'schedule') && (
+      {/* Season assignment — hidden for box score imports because the season
+          is auto-derived from the selected/created game (or the active season). */}
+      {(importType === 'stats' || importType === 'schedule') && (
         <SettingGroup label="Season">
           <select
             value={settings.seasonId || ''}
@@ -70,10 +75,14 @@ export default function ImportSettings({ importType, settings, onChange }) {
       )}
 
       {/* Toggle: Overwrite Existing */}
-      {(importType === 'stats' || importType === 'roster') && (
+      {(importType === 'stats' || importType === 'roster' || importType === 'boxscore') && (
         <SettingToggle
           label="Overwrite existing data"
-          description="Replace existing stats or player info with imported data. If off, only new records are created."
+          description={
+            importType === 'boxscore'
+              ? 'Replace previously-imported scores, pitch counts, and box score for this game. Leave off to skip if the game was already imported.'
+              : 'Replace existing stats or player info with imported data. If off, only new records are created.'
+          }
           checked={!!settings.overwrite}
           onChange={() => toggle('overwrite')}
         />

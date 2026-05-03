@@ -14,6 +14,8 @@ export default function PlayerMapper({
   playersByTeam = {},
   mappings,
   onChange,
+  createMissingBatters = false,
+  onCreateMissingBattersChange,
 }) {
   if (pitcherMappings.length === 0) {
     return (
@@ -47,6 +49,25 @@ export default function PlayerMapper({
           Change the mapping if needed, or choose "Create new player".
         </p>
       </div>
+
+      {/* Bulk-create batters opt-in */}
+      {onCreateMissingBattersChange && (
+        <label className="flex items-start gap-2 cursor-pointer rounded-lg border border-gray-700 bg-gray-900/40 px-3 py-2.5">
+          <input
+            type="checkbox"
+            checked={!!createMissingBatters}
+            onChange={(e) => onCreateMissingBattersChange(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="text-xs text-gray-300">
+            <span className="font-semibold text-gray-100">Auto-create missing batters</span> on the rostered teams.
+            Any batter from the box score not already on the team's roster will be added as a new player.
+            <span className="block text-gray-500 mt-0.5">
+              (Newly-created opponent teams always get their full roster seeded automatically.)
+            </span>
+          </span>
+        </label>
+      )}
 
       {Object.entries(byTeam).map(([teamName, { teamId, pitchers }]) => {
         const players = teamId ? (playersByTeam[teamId] || []) : [];

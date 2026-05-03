@@ -19,7 +19,10 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
  * Returns true on success, false on failure (auto-removes stale subscriptions).
  */
 async function sendToSubscription(sub, payload) {
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return false;
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
+    console.warn('[push] VAPID keys not configured — skipping push notification');
+    return false;
+  }
   try {
     await webpush.sendNotification(
       {
@@ -32,7 +35,10 @@ async function sendToSubscription(sub, payload) {
   } catch (err) {
     // 404/410 = subscription expired; 401/403 = VAPID key mismatch — all are unrecoverable
     if ([401, 403, 404, 410].includes(err.statusCode)) {
+      console.warn(`[push] Removing stale subscription (HTTP ${err.statusCode}): ${sub.endpoint.slice(0, 60)}...`);
       await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+    } else {
+      console.error('[push] sendNotification failed:', err.statusCode, err.message);
     }
     return false;
   }

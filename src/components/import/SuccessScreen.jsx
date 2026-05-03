@@ -2,7 +2,7 @@ import { cn } from '../../lib/cn.js';
 import { Button } from '../ui/index.js';
 import {
   UsersIcon, CalendarIcon, HomeIcon, ArrowUpTrayIcon, TrophyIcon,
-  SparklesIcon,
+  SparklesIcon, EyeIcon,
 } from '../ui/icons.jsx';
 
 /* ═══════════════════════════════════════════════════════
@@ -10,7 +10,7 @@ import {
    Celebration with summary stats and next actions.
    ═══════════════════════════════════════════════════════ */
 
-export default function SuccessScreen({ result, onNavigate, onImportAnother, onClose }) {
+export default function SuccessScreen({ result, onNavigate, onNavigateToGame, onImportAnother, onClose }) {
   const summary = result || {};
 
   return (
@@ -85,6 +85,14 @@ export default function SuccessScreen({ result, onNavigate, onImportAnother, onC
         </p>
 
         <div className="grid grid-cols-1 gap-2">
+          {summary.gameId && onNavigateToGame && (
+            <NextAction
+              icon={<EyeIcon className="w-4 h-4" />}
+              label="View Imported Game"
+              description="Open box score and game details"
+              onClick={() => { onClose(); onNavigateToGame(summary.gameId); }}
+            />
+          )}
           <NextAction
             icon={<UsersIcon className="w-4 h-4" />}
             label="View Team"

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { forgotPassword, resendConfirmation } from '../api/index.js';
 import { Button, Card, CardBody, Input } from './ui';
+import GuardianRegister from './GuardianRegister.jsx';
 
 export default function Login({ onResetPassword }) {
   const { login, loading, error } = useAuth();
-  const [mode, setMode] = useState('login'); // 'login' | 'forgot'
+  const [mode, setMode] = useState('login'); // 'login' | 'forgot' | 'guardian-register'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -109,7 +110,20 @@ export default function Login({ onResetPassword }) {
                   Create an account →
                 </Button>
               </div>
+              <div className="pt-1 text-center">
+                <button
+                  type="button"
+                  onClick={() => setMode('guardian-register')}
+                  className="text-xs text-gray-500 hover:text-chrome-400 underline transition-colors"
+                >
+                  I'm a parent / guardian →
+                </button>
+              </div>
             </form>
+          )}
+
+          {mode === 'guardian-register' && (
+            <GuardianRegister onBack={() => setMode('login')} />
           )}
 
           {mode === 'forgot' && (

@@ -22,11 +22,13 @@ export default function AppShell({
   isAccountant,
   isOrgAdmin,
   isTeamManager,
+  isGuardian,
   user,
   branding,
   features,
   pendingApprovalCount = 0,
   unreadAnnouncementCount = 0,
+  chatUnreadCount = 0,
   onChangePassword,
   onLogout,
   onNavigateToTeam,
@@ -57,6 +59,8 @@ export default function AppShell({
     fields: 'Fields',
     travel: 'Travel Matrix',
     account: 'My Account',
+    chat: 'Chat',
+    'guardian-home': 'My Players',
   }[page] || 'Dashboard';
 
   return (
@@ -69,10 +73,12 @@ export default function AppShell({
         isAccountant={isAccountant}
         isOrgAdmin={isOrgAdmin}
         isTeamManager={isTeamManager}
+        isGuardian={isGuardian}
         branding={branding}
         features={features}
         pendingApprovalCount={pendingApprovalCount}
         unreadAnnouncementCount={unreadAnnouncementCount}
+        chatUnreadCount={chatUnreadCount}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         mobileOpen={mobileMenuOpen}
