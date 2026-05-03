@@ -114,7 +114,11 @@ export default function TeamMapper({
                   value={mappings[name] || ''}
                   onChange={(e) => {
                     const val = e.target.value || null;
-                    onChange({ ...mappings, [name]: val ? parseInt(val) : null });
+                    if (val === '__new__') {
+                      onChange({ ...mappings, [name]: '__new__' });
+                    } else {
+                      onChange({ ...mappings, [name]: val ? parseInt(val) : null });
+                    }
                   }}
                   className={cn(
                     'mt-2 w-full rounded-lg border bg-gray-800 px-3 py-2 text-sm text-gray-100',
@@ -123,12 +127,19 @@ export default function TeamMapper({
                   )}
                 >
                   <option value="">— Select a team —</option>
+                  <option value="__new__">+ Create new team “{name}” (External Opponent)</option>
                   {teams.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}{t.org_name ? ` (${t.org_name})` : ''}{t.age_group ? ` · ${t.age_group}` : ''}
                     </option>
                   ))}
                 </select>
+                {mappings[name] === '__new__' && (
+                  <p className="text-xs text-action-300 mt-1.5">
+                    A new team will be created in the <span className="font-semibold">External Opponents</span> organization,
+                    seeded with the players from this box score.
+                  </p>
+                )}
               </div>
             </div>
           </div>
