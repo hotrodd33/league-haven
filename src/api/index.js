@@ -493,7 +493,11 @@ export async function releaseGameScoring(gameId) {
 }
 
 export async function fetchGameBoxScore(gameId) {
-  return apiFetch(`/games/${gameId}/box-score`);
+  // 404 is expected for games without an imported box score — return null instead of throwing
+  const response = await fetch(`${API_BASE}/games/${gameId}/box-score`, { headers: authHeaders() });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
 }
 
 export async function createPitchCount(gameId, data) {
