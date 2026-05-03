@@ -7,6 +7,20 @@ import { Button, Card, CardBody } from './ui';
 // Configure marked for safe rendering
 marked.setOptions({ breaks: true, gfm: true });
 
+// Add heading IDs so TOC anchor links work (GitHub-style slug: lowercase, remove punctuation, spaces→hyphens)
+marked.use({
+  renderer: {
+    heading({ text, depth, raw }) {
+      const id = raw
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')  // remove punctuation (keeps letters, numbers, spaces, hyphens)
+        .replace(/\s+/g, '-')      // spaces → hyphens
+        .replace(/^-+|-+$/g, ''); // trim leading/trailing hyphens
+      return `<h${depth} id="${id}">${text}</h${depth}>\n`;
+    },
+  },
+});
+
 const TABS = [
   { key: 'about', label: 'About' },
   { key: 'guide', label: 'User Guide' },
