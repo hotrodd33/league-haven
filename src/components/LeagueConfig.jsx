@@ -70,9 +70,11 @@ function BrandingConfig() {
   const [error, setError] = useState(null);
   const [savingName, setSavingName] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);
+  const [savingTimezone, setSavingTimezone] = useState(false);
+  const [savingEmailRedirect, setSavingEmailRedirect] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [removingLogo, setRemovingLogo] = useState(false);
-  const [form, setForm] = useState({ app_name: 'LeagueHaven', logo_url: null, public_site_url: '' });
+  const [form, setForm] = useState({ app_name: 'LeagueHaven', logo_url: null, public_site_url: '', timezone: 'America/Chicago', email_redirect: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +85,8 @@ function BrandingConfig() {
         app_name: data?.app_name || 'LeagueHaven',
         logo_url: data?.logo_url || null,
         public_site_url: data?.public_site_url || '',
+        timezone: data?.timezone || 'America/Chicago',
+        email_redirect: data?.email_redirect || '',
       });
     } catch (err) {
       setError(err.message);
@@ -106,6 +110,7 @@ function BrandingConfig() {
         app_name: updated?.app_name || appName,
         logo_url: updated?.logo_url ?? prev.logo_url,
         public_site_url: updated?.public_site_url ?? prev.public_site_url,
+        timezone: updated?.timezone ?? prev.timezone,
       }));
     } catch (err) {
       setError(err.message);
@@ -125,11 +130,40 @@ function BrandingConfig() {
         app_name: updated?.app_name || prev.app_name,
         logo_url: updated?.logo_url ?? prev.logo_url,
         public_site_url: updated?.public_site_url || '',
+        timezone: updated?.timezone ?? prev.timezone,
       }));
     } catch (err) {
       setError(err.message);
     } finally {
       setSavingUrl(false);
+    }
+  }
+
+  async function handleSaveTimezone(e) {
+    e.preventDefault();
+    setSavingTimezone(true);
+    setError(null);
+    try {
+      const updated = await updateBranding({ timezone: form.timezone });
+      setForm((prev) => ({ ...prev, timezone: updated?.timezone ?? prev.timezone }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingTimezone(false);
+    }
+  }
+
+  async function handleSaveEmailRedirect(e) {
+    e.preventDefault();
+    setSavingEmailRedirect(true);
+    setError(null);
+    try {
+      const updated = await updateBranding({ email_redirect: (form.email_redirect || '').trim() });
+      setForm((prev) => ({ ...prev, email_redirect: updated?.email_redirect || '' }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingEmailRedirect(false);
     }
   }
 
@@ -210,6 +244,49 @@ function BrandingConfig() {
         </Button>
       </form>
 
+      <form onSubmit={handleSaveTimezone} className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
+        <div>
+          <label className="lh-eyebrow block mb-1">League Timezone</label>
+          <select
+            value={form.timezone}
+            onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
+            className="lh-input"
+          >
+            <option value="America/New_York">Eastern (ET) — America/New_York</option>
+            <option value="America/Chicago">Central (CT) — America/Chicago</option>
+            <option value="America/Denver">Mountain (MT) — America/Denver</option>
+            <option value="America/Phoenix">Arizona (MST) — America/Phoenix</option>
+            <option value="America/Los_Angeles">Pacific (PT) — America/Los_Angeles</option>
+            <option value="America/Anchorage">Alaska (AKT) — America/Anchorage</option>
+            <option value="Pacific/Honolulu">Hawaii (HST) — Pacific/Honolulu</option>
+            <option value="America/Puerto_Rico">Puerto Rico (AST) — America/Puerto_Rico</option>
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Used for ICS calendar exports. Must match the timezone where games are played.</p>
+        </div>
+        <Button type="submit" disabled={savingTimezone}>
+          {savingTimezone ? 'Saving…' : 'Save Timezone'}
+        </Button>
+      </form>
+
+      <form onSubmit={handleSaveEmailRedirect} className="bg-gray-900 border border-yellow-700/50 rounded-lg p-4 space-y-3">
+        <div>
+          <label className="lh-eyebrow block mb-1">Email Redirect <span className="text-yellow-400 font-normal normal-case">(Staging / Testing)</span></label>
+          <input
+            type="email"
+            value={form.email_redirect}
+            onChange={(e) => setForm((prev) => ({ ...prev, email_redirect: e.target.value }))}
+            className="lh-input"
+            placeholder="admin@example.com"
+          />
+          <p className="text-xs text-yellow-500/80 mt-1">
+            When set, <strong>all outbound emails</strong> are redirected to this address instead of the real recipient — subject is prefixed with the original recipient. Leave blank to send emails normally.
+          </p>
+        </div>
+        <Button type="submit" disabled={savingEmailRedirect} variant="secondary">
+          {savingEmailRedirect ? 'Saving…' : 'Save Email Redirect'}
+        </Button>
+      </form>
+
       <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
         <label className="lh-eyebrow block mb-1">Application Logo</label>
         <div className="flex items-center gap-3">
@@ -249,6 +326,7 @@ const FEATURE_DEFS = [
   { key: 'feature_public_site',       label: 'Public Site',         desc: 'Public-facing schedule, standings, and scores' },
   { key: 'feature_push_notifications', label: 'Push Notifications', desc: 'Browser push notifications for schedule changes and announcements' },
   { key: 'feature_game_delete',       label: 'Allow Game Deletion', desc: 'When off, only super-admins can delete games. Turn on to let org-admins and team managers delete games for their own teams.' },
+  { key: 'feature_chat',              label: 'Team Chat',            desc: 'In-app messaging for team channels and direct messages between members.' },
 ];
 
 function FeatureTogglesConfig() {

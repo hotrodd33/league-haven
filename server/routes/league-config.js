@@ -22,7 +22,7 @@ async function getBranding() {
             feature_live_scoring, feature_pitch_tracking, feature_officials,
             feature_stats, feature_documents, feature_financials,
             feature_registration, feature_public_site, feature_push_notifications,
-            feature_game_delete
+            feature_game_delete, feature_chat, timezone, email_redirect
      FROM app_branding WHERE id = 1`
   );
   const result = rows[0] || { app_name: 'LeagueHaven', logo_url: null };
@@ -79,6 +79,29 @@ router.put('/branding', authMiddleware, requireAdmin, async (req, res) => {
         }
       }
       sets.push(`public_site_url = $${idx++}`);
+      vals.push(raw || null);
+    }
+
+    if (req.body?.timezone !== undefined) {
+      const tz = String(req.body.timezone || '').trim();
+      const VALID_TIMEZONES = [
+        'America/New_York', 'America/Chicago', 'America/Denver',
+        'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage',
+        'Pacific/Honolulu', 'America/Puerto_Rico',
+      ];
+      if (!VALID_TIMEZONES.includes(tz)) {
+        return res.status(400).json({ error: 'Invalid timezone' });
+      }
+      sets.push(`timezone = $${idx++}`);
+      vals.push(tz);
+    }
+
+    if (req.body?.email_redirect !== undefined) {
+      const raw = String(req.body.email_redirect || '').trim().toLowerCase();
+      if (raw && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+        return res.status(400).json({ error: 'email_redirect must be a valid email address or empty' });
+      }
+      sets.push(`email_redirect = $${idx++}`);
       vals.push(raw || null);
     }
 
@@ -192,7 +215,7 @@ const FEATURE_KEYS = [
   'feature_live_scoring', 'feature_pitch_tracking', 'feature_officials',
   'feature_stats', 'feature_documents', 'feature_financials',
   'feature_registration', 'feature_public_site', 'feature_push_notifications',
-  'feature_game_delete',
+  'feature_game_delete', 'feature_chat',
 ];
 
 router.get('/features', async (req, res) => {

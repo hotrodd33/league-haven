@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
+import BoxScoreView from './BoxScoreView.jsx';
 import { Button, Input, Select } from './ui/index.js';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
 import { GameForm } from './GameSchedule.jsx';
@@ -31,7 +32,7 @@ function formatTime(timeStr) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImport }) {
+export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImport, onViewPlayer }) {
   const { isAdmin, canEditTeam, canScoreGame } = useAuth();
   const [game, setGame] = useState(null);
   useGameHeartbeat(gameId, game?.status === 'in_progress');
@@ -449,6 +450,18 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       )}
 
       {error && <div className="lh-alert lh-alert-error mb-4">{error}</div>}
+
+      {/* Box Score (only renders if a GameChanger box score has been imported) */}
+      {game.is_gamechanger_imported && (
+      <div className="mb-4">
+        <BoxScoreView
+          gameId={game.id}
+          awayTeamName={game.away_team_name}
+          homeTeamName={game.home_team_name}
+          onViewPlayer={onViewPlayer}
+        />
+      </div>
+      )}
 
       {/* Pitch Counts — Home */}
       <PitchCountSection

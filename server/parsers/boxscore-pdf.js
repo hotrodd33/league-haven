@@ -93,11 +93,17 @@ function parseBoxScoreText(text) {
   const homePitching = parsePitchingSection(pitchingSubs[1] || []);
 
   // ── 6. Extract P-S (pitch-strike) counts ──
-  //   These appear as separate lines after the pitching tables:
-  //   "P-S: F Larson 68-31, P Hein 52-26, WP: ..."
-  const psLines = findPSLines(pitchingIdx >= 0 ? lines.slice(pitchingIdx) : lines);
-  if (psLines.length >= 1) mergePitchCounts(awayPitching, psLines[0]);
-  if (psLines.length >= 2) mergePitchCounts(homePitching, psLines[1]);
+  //   These appear after the pitching tables. They may be:
+  //   - Prefixed: "L: M Vette, P-S: F Larson 68-31, P Hein 52-26, WP: ..."
+  //   - Wrapped across multiple lines if the PDF re-flowed the text.
+  //   Strategy: concatenate all post-pitching text, isolate the P-S region
+  //   (between any "P-S:" markers and the next end-marker like BF/WP/HBP/E),
+  //   then extract every "Name N-N" pair and match to whichever pitcher it is
+  //   on either team. This avoids assumptions about line splitting or team order.
+  mergePitchCountsGlobal(
+    [...awayPitching, ...homePitching],
+    pitchingIdx >= 0 ? lines.slice(pitchingIdx) : lines
+  );
 
   // ── 7. If no final score from header, derive from linescore ──
   if (!gameInfo.finalScore && linescore.length >= 2) {
@@ -107,10 +113,20 @@ function parseBoxScoreText(text) {
     };
   }
 
+  // ── 8. Extract per-player extra stats (2B, 3B, SB, HR) from summary lines ──
+  //   These appear after both teams' "Totals" rows in the batting section.
+  const lastTotalsIdx = battingLines.reduceRight(
+    (found, line, i) => (found !== -1 ? found : /^Totals?\b/i.test(line) ? i : -1), -1
+  );
+  const extrasLines = lastTotalsIdx >= 0
+    ? battingLines.slice(lastTotalsIdx + 1).filter(l => !/^Scorekeeping/i.test(l))
+    : [];
+  const battingExtras = parseExtrasLines(extrasLines);
+
   const result = {
     gameInfo,
     linescore,
-    batting: { away: awayBatting, home: homeBatting },
+    batting: { away: awayBatting, home: homeBatting, extras: battingExtras },
     pitching: { away: awayPitching, home: homePitching },
     raw: text,
   };
@@ -129,7 +145,7 @@ function parseBoxScoreText(text) {
       lines: (s || []).length,
       sample: (s || []).slice(0, 3),
     })),
-    psLines,
+    psLines: findPSLines(pitchingIdx >= 0 ? lines.slice(pitchingIdx) : lines),
     awayPitchersFound: awayPitching.map(p => p.name + ' #' + p.jersey + ' ' + (p.pitches ?? '?') + 'P'),
     homePitchersFound: homePitching.map(p => p.name + ' #' + p.jersey + ' ' + (p.pitches ?? '?') + 'P'),
     first15Lines: lines.slice(0, 15),
@@ -371,8 +387,11 @@ function parsePlayerRow(line, statCols) {
 function findPSLines(lines) {
   const results = [];
   for (const line of lines) {
-    if (/^P-S:/i.test(line)) {
-      results.push(line);
+    // Match either a line starting with "P-S:" OR a decision line
+    // containing "P-S:" (e.g. "W: S Benedict, P-S: S Benedict 20-14, ...")
+    const idx = line.search(/P-S:/i);
+    if (idx >= 0) {
+      results.push(line.slice(idx));
     }
   }
   return results;
@@ -414,6 +433,71 @@ function mergePitchCounts(pitchers, psLine) {
   }
 }
 
+/**
+ * Scan all post-pitching text for "Name N-N" pairs and merge into whichever
+ * pitcher (across both teams) the name matches. Tolerant to:
+ *   - P-S lists wrapped across multiple lines after PDF re-flow
+ *   - Decision prefixes like "L:" / "W:" before "P-S:"
+ *   - Truncated table-row names (e.g. "S Benedic" matched to "S Benedict")
+ */
+function mergePitchCountsGlobal(allPitchers, postPitchingLines) {
+  if (!allPitchers.length || !postPitchingLines.length) return;
+
+  const joined = postPitchingLines.join(' ');
+  // Split on every "P-S:" marker; each chunk = one team's P-S section
+  // (possibly followed by BF:/E:/WP:/HBP: sub-sections we need to strip).
+  const chunks = joined.split(/P-S:/i).slice(1);
+  if (!chunks.length) return;
+
+  const seen = new Set();
+  for (const rawChunk of chunks) {
+    // Strip from BF:/E: onward — those reference the same pitcher names with
+    // a single number which would confuse the "Name N-N" regex.
+    let chunk = rawChunk.replace(/\b(BF|E):[\s\S]*$/i, '');
+
+    const re = /([A-Za-z][A-Za-z'\u2018\u2019.-]*(?:\s+[A-Za-z][A-Za-z'\u2018\u2019.-]*)+)\s+(\d+)-(\d+)/g;
+    let m;
+    while ((m = re.exec(chunk)) !== null) {
+      const rawName = m[1].trim();
+      const pitches = parseInt(m[2]);
+      const strikes = parseInt(m[3]);
+
+      // Strip stray prefix words (decision indicators, WP/HBP, etc.)
+      const cleanedName = rawName.replace(/^(WP|HBP|W|L|SV|HLD)\s+/i, '').trim();
+      const nameLower = cleanedName.toLowerCase();
+      if (seen.has(nameLower)) continue;
+      seen.add(nameLower);
+
+      const pitcher = allPitchers.find(p => {
+        const pn = (p.name || '').toLowerCase();
+        if (!pn) return false;
+        // Strip ellipsis characters used by GC to indicate truncation,
+        // e.g. "G Berkt…" should match "G Berktold".
+        const pnTrim = pn.replace(/[…\.]+$/g, '').trim();
+        const nameTrim = nameLower.replace(/[…\.]+$/g, '').trim();
+        if (!pnTrim || !nameTrim) return false;
+        return pnTrim === nameTrim ||
+          pnTrim.includes(nameTrim) ||
+          nameTrim.includes(pnTrim);
+      });
+
+      if (pitcher) {
+        pitcher.pitches = pitches;
+        pitcher.strikes = strikes;
+        // Pitcher table names in the PDF are sometimes truncated (e.g.
+        // "S Benedic", "G Berkto"). The P-S list usually has the full name —
+        // prefer the longer form so downstream roster matching works.
+        if (cleanedName.length > (pitcher.name || '').length) {
+          pitcher.name = cleanedName;
+          const parts = cleanedName.split(/\s+/);
+          pitcher.firstName = parts[0] || pitcher.firstName;
+          pitcher.lastName = parts.slice(1).join(' ') || pitcher.lastName;
+        }
+      }
+    }
+  }
+}
+
 /* ══════════════════════════════════════════════════════════
    Utilities
    ══════════════════════════════════════════════════════════ */
@@ -438,6 +522,56 @@ function normalizeTime(str) {
     if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
   }
   return String(h).padStart(2, '0') + ':' + m;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Extras Parser
+   Handles the summary lines between batting tables and PITCHING:
+     "HR: G Berktold, TB: B Skoug, T Corey, G Berktold 4, SB: B Skoug, H Finley 3, ..."
+   Returns: { 'HR': { 'G Berktold': 1 }, 'SB': { 'H Finley': 3, ... }, '2B': {...}, '3B': {...} }
+   Only extracts stats that map to player_game_stats definitions (HR/SB/2B/3B).
+   TB and LOB are skipped (derived or team-level).
+   ══════════════════════════════════════════════════════════ */
+function parseExtrasLines(lines) {
+  if (!lines || !lines.length) return {};
+  const WANTED = new Set(['HR', 'SB', '2B', '3B']);
+  const result = {};
+
+  // Join all lines — handles PDF re-flow that splits a single logical extras line
+  const text = lines.join(' ');
+  if (!/\b(HR|SB|2B|3B|TB|LOB):/i.test(text)) return result;
+
+  // Find all KEY: segment boundaries
+  const keyRe = /\b(HR|SB|2B|3B|TB|LOB|CS|HBP|SAC):/gi;
+  const segments = [];
+  let m;
+  while ((m = keyRe.exec(text)) !== null) {
+    segments.push({ key: m[1].toUpperCase(), valueStart: keyRe.lastIndex, matchStart: m.index });
+  }
+
+  for (let i = 0; i < segments.length; i++) {
+    const { key, valueStart } = segments[i];
+    const valueEnd = i + 1 < segments.length ? segments[i + 1].matchStart : text.length;
+    const raw = text.slice(valueStart, valueEnd).trim().replace(/,\s*$/, '');
+
+    if (!WANTED.has(key) || !raw) continue;
+    if (!result[key]) result[key] = {};
+
+    // Each entry is "Player Name" or "Player Name N" (N = count, default 1)
+    for (const part of raw.split(',').map(s => s.trim()).filter(Boolean)) {
+      const tokens = part.split(/\s+/);
+      let count = 1;
+      let nameParts = tokens;
+      if (tokens.length > 1 && /^\d+$/.test(tokens[tokens.length - 1])) {
+        count = parseInt(tokens[tokens.length - 1]);
+        nameParts = tokens.slice(0, -1);
+      }
+      const name = nameParts.join(' ').trim();
+      if (name) result[key][name] = (result[key][name] || 0) + count;
+    }
+  }
+
+  return result;
 }
 
 module.exports = { parseBoxScorePDF, parseBoxScoreText };

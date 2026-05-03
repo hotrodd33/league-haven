@@ -15,10 +15,12 @@ export default function Sidebar({
   isAccountant = false,
   isOrgAdmin = false,
   isTeamManager = false,
+  isGuardian = false,
   branding,
   features = {},
   pendingApprovalCount = 0,
   unreadAnnouncementCount = 0,
+  chatUnreadCount = 0,
   collapsed = false,
   onToggleCollapse,
   mobileOpen = false,
@@ -27,7 +29,9 @@ export default function Sidebar({
   const ft = (key) => features[key] !== false;
 
   // Standalone home — no group
-  const homeItem = { key: 'dashboard', label: 'Dashboard', icon: HomeIcon };
+  const homeItem = isGuardian
+    ? { key: 'guardian-home', label: 'My Players', icon: HomeIcon }
+    : { key: 'dashboard', label: 'Dashboard', icon: HomeIcon };
 
   // ACTIVITY — day-to-day operational destinations
   const activityItems = [
@@ -36,6 +40,7 @@ export default function Sidebar({
     { key: 'fields',    label: 'Fields',    icon: MapPinIcon },
     { key: 'travel',    label: 'Travel',    icon: ArrowTrendingUpIcon },
   ];
+  if (ft('feature_chat')) activityItems.push({ key: 'chat', label: 'Chat', icon: MegaphoneIcon, badge: chatUnreadCount });
 
   // ROSTER — teams + every people directory in one place
   const rosterItems = [
@@ -44,6 +49,8 @@ export default function Sidebar({
   ];
   if (isAdmin || isOrgAdmin) {
     rosterItems.push({ key: 'coaches', label: 'Coaches', icon: AcademicCapIcon });
+  }
+  if (isAdmin || isOrgAdmin || isTeamManager) {
     rosterItems.push({ key: 'guardians', label: 'Guardians', icon: UserGroupIcon });
   }
   if ((isAdmin || isOrgAdmin || isAccountant) && ft('feature_officials')) {

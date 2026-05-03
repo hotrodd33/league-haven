@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useGameHeartbeat } from '../hooks/useGameHeartbeat.js';
 import {
   fetchGame, updateGame,
   fetchPitchCounts, createPitchCount, updatePitchCount, deletePitchCount,
   fetchPlayersByTeam, createPlayer,
+  claimGameScoring, releaseGameScoring,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
@@ -19,7 +20,7 @@ function teamAbbr(name, fallback = '') {
 
 export default function PitchTracker({ gameId, onBack }) {
   useGameHeartbeat(gameId);
-  const { isAdmin, canEditTeam } = useAuth();
+  const { user, isAdmin, isSuperAdmin, permissions } = useAuth();
   const [game, setGame] = useState(null);
   const [pitchCounts, setPitchCounts] = useState([]); // server-saved records
   const [localCounts, setLocalCounts] = useState({}); // { `${side}-${playerId}`: count }
@@ -93,6 +94,59 @@ export default function PitchTracker({ gameId, onBack }) {
   }, [gameId]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Determine which side(s) of this game the current user has authority over.
+  // 'home' | 'away' | 'both' | null. Drives pitch-count side-scoping and
+  // visibility of claim controls.
+  const userSide = useMemo(() => {
+    if (!game || !user) return null;
+    if (isSuperAdmin) return 'both';
+    const teamIds = (permissions?.team_ids || []).map(Number);
+    const orgIds = (permissions?.org_ids || []).map(Number);
+    const ownsHome =
+      teamIds.includes(Number(game.home_team_id)) ||
+      (game.home_org_id && orgIds.includes(Number(game.home_org_id)));
+    const ownsAway =
+      teamIds.includes(Number(game.away_team_id)) ||
+      (game.away_org_id && orgIds.includes(Number(game.away_org_id)));
+    if (ownsHome && ownsAway) return 'both';
+    if (ownsHome) return 'home';
+    if (ownsAway) return 'away';
+    return null;
+  }, [game, user, isSuperAdmin, permissions]);
+
+  const canScore = !!userSide;
+  const claimerId = game?.scoring_user_id ?? null;
+  const isClaimer = claimerId && Number(claimerId) === Number(user?.id);
+  const isClaimedByOther = claimerId && !isClaimer;
+  const canEditScore = canScore && (isClaimer || !claimerId || isSuperAdmin);
+
+  async function handleClaimScoring(force = false) {
+    setSaving(true); setError(null);
+    try {
+      const updated = await claimGameScoring(gameId, { force });
+      setGame(updated);
+      setHomeScore(updated.home_score ?? 0);
+      setAwayScore(updated.away_score ?? 0);
+      setInning(updated.innings_played ?? 1);
+    } catch (err) {
+      setError(err.message);
+    } finally { setSaving(false); }
+  }
+
+  async function handleReleaseScoring() {
+    setSaving(true); setError(null);
+    try {
+      await releaseGameScoring(gameId);
+      const g = await fetchGame(gameId);
+      setGame(g);
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  function ownsSide(side) {
+    return userSide === 'both' || userSide === side;
+  }
 
   function getCount(side, playerId) {
     return localCounts[`${side}-${playerId}`] || 0;
@@ -175,8 +229,9 @@ export default function PitchTracker({ gameId, onBack }) {
     if (!confirm('Finalize this game? This will save all pitch counts, score, and mark the game as completed.')) return;
     setSaving(true); setError(null);
     try {
-      // 1. Save/update pitch counts
+      // 1. Save/update pitch counts — only for sides this user owns.
       for (const pitcher of activePitchers) {
+        if (!ownsSide(pitcher.side)) continue;
         const count = getCount(pitcher.side, pitcher.playerId);
         const teamId = pitcher.side === 'home' ? game.home_team_id : game.away_team_id;
         if (pitcher.pcId) {
@@ -189,20 +244,25 @@ export default function PitchTracker({ gameId, onBack }) {
           });
         }
       }
-      // 2. Delete pitch counts for pitchers that were removed
+      // 2. Delete pitch counts that the user removed — only for our own side.
+      //    Never touch the opposing team's pitch counts here.
       for (const pc of pitchCounts) {
         const side = pc.team_id === game.home_team_id ? 'home' : 'away';
+        if (!ownsSide(side)) continue;
         if (!activePitchers.some(p => p.pcId === pc.id || (p.side === side && p.playerId === pc.player_id))) {
           await deletePitchCount(gameId, pc.id);
         }
       }
-      // 3. Update game score, innings, status
-      await updateGame(gameId, {
-        home_score: homeScore,
-        away_score: awayScore,
-        innings_played: inning,
-        status: 'completed',
-      });
+      // 3. Update game score, innings, status — only the live-scoring claimer
+      //    (or super_admin) may change these. Otherwise we leave them as-is.
+      if (canEditScore) {
+        await updateGame(gameId, {
+          home_score: homeScore,
+          away_score: awayScore,
+          innings_played: inning,
+          status: 'completed',
+        });
+      }
       setFinalized(true);
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -211,8 +271,9 @@ export default function PitchTracker({ gameId, onBack }) {
   async function handleSaveProgress() {
     setSaving(true); setError(null);
     try {
-      // Save pitch counts
+      // Save pitch counts — only for sides this user owns.
       for (const pitcher of activePitchers) {
+        if (!ownsSide(pitcher.side)) continue;
         const count = getCount(pitcher.side, pitcher.playerId);
         const teamId = pitcher.side === 'home' ? game.home_team_id : game.away_team_id;
         if (pitcher.pcId) {
@@ -227,21 +288,69 @@ export default function PitchTracker({ gameId, onBack }) {
           pitcher.pcId = pcs.id;
         }
       }
-      // Update game as in_progress with current score/innings
-      await updateGame(gameId, {
-        home_score: homeScore || null,
-        away_score: awayScore || null,
-        innings_played: inning,
-        status: 'in_progress',
-      });
-      // Refresh pitch counts to get IDs
-      const pcs = await fetchPitchCounts(gameId);
+      // Update game as in_progress with current score/innings — only the
+      // live-scoring claimer (or super_admin) may update these.
+      if (canEditScore) {
+        await updateGame(gameId, {
+          home_score: homeScore || null,
+          away_score: awayScore || null,
+          innings_played: inning,
+          status: 'in_progress',
+        });
+      }
+      // Refresh game + pitch counts so the other team's edits show up.
+      const [g, pcs] = await Promise.all([
+        fetchGame(gameId),
+        fetchPitchCounts(gameId),
+      ]);
+      setGame(g);
       setPitchCounts(pcs);
-      // Update pcIds
-      setActivePitchers(prev => prev.map(p => {
-        const match = pcs.find(pc => pc.player_id === p.playerId && pc.team_id === (p.side === 'home' ? game.home_team_id : game.away_team_id));
-        return match ? { ...p, pcId: match.id } : p;
-      }));
+      // If the claimer pushed a newer score, sync our editor unless we're
+      // actively editing (we're the claimer).
+      if (!isClaimer) {
+        setHomeScore(g.home_score ?? 0);
+        setAwayScore(g.away_score ?? 0);
+        setInning(g.innings_played ?? 1);
+      }
+      // Re-key our pcIds + merge in opposing-side rows so we don't blow
+      // them away on the next save.
+      setActivePitchers(prev => {
+        const ourKeys = new Set(
+          prev.filter(p => ownsSide(p.side)).map(p => `${p.side}-${p.playerId}`)
+        );
+        const ours = prev
+          .filter(p => ownsSide(p.side))
+          .map(p => {
+            const match = pcs.find(pc => pc.player_id === p.playerId &&
+              pc.team_id === (p.side === 'home' ? g.home_team_id : g.away_team_id));
+            return match ? { ...p, pcId: match.id } : p;
+          });
+        const theirs = pcs
+          .filter(pc => {
+            const side = pc.team_id === g.home_team_id ? 'home' : 'away';
+            return !ownsSide(side) && !ourKeys.has(`${side}-${pc.player_id}`);
+          })
+          .map(pc => ({
+            side: pc.team_id === g.home_team_id ? 'home' : 'away',
+            playerId: pc.player_id,
+            playerName: `${pc.first_name} ${pc.last_name}`,
+            jerseyNumber: pc.jersey_number,
+            pcId: pc.id,
+          }));
+        return [...ours, ...theirs];
+      });
+      // Mirror the latest opposing-side counts into localCounts so the UI
+      // shows the freshest numbers from the other tracker.
+      setLocalCounts(prev => {
+        const next = { ...prev };
+        for (const pc of pcs) {
+          const side = pc.team_id === g.home_team_id ? 'home' : 'away';
+          if (!ownsSide(side)) {
+            next[`${side}-${pc.player_id}`] = pc.pitch_count;
+          }
+        }
+        return next;
+      });
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   }
@@ -284,13 +393,59 @@ export default function PitchTracker({ gameId, onBack }) {
           <span className="text-xs text-gray-400">Tap + / - to update</span>
         </div>
 
+        {/* Live-scoring claim banner */}
+        {canScore && (
+          <div className={`rounded-lg px-3 py-2 mb-3 text-xs flex items-center justify-between gap-2 ${
+            isClaimer ? 'bg-action-900/40 border border-action-700 text-action-200'
+              : isClaimedByOther ? 'bg-amber-900/40 border border-amber-700 text-amber-100'
+              : 'bg-gray-800 border border-gray-700 text-gray-300'
+          }`}>
+            <span className="truncate">
+              {isClaimer && <>You are the official scorer. Score, inning, and status updates are saved by you.</>}
+              {isClaimedByOther && (
+                <>
+                  <span className="font-semibold">{game.scoring_user_name || 'Another user'}</span>
+                  {' '}is the official scorer. Score is read-only — you can still track your own pitchers.
+                </>
+              )}
+              {!claimerId && <>No one is officially scoring this game yet. Claim live scoring to update score/inning/status.</>}
+            </span>
+            {!claimerId && (
+              <button
+                onClick={() => handleClaimScoring(false)}
+                disabled={saving}
+                className="shrink-0 px-2 py-1 rounded bg-action-700 text-white font-semibold hover:bg-action-600 disabled:opacity-60"
+              >Start Scoring</button>
+            )}
+            {isClaimer && (
+              <button
+                onClick={handleReleaseScoring}
+                disabled={saving}
+                className="shrink-0 px-2 py-1 rounded bg-gray-700 text-white font-semibold hover:bg-gray-600 disabled:opacity-60"
+              >Release</button>
+            )}
+            {isClaimedByOther && (
+              <button
+                onClick={() => {
+                  if (confirm(`Take over live scoring from ${game.scoring_user_name || 'the current scorer'}?`)) {
+                    handleClaimScoring(true);
+                  }
+                }}
+                disabled={saving}
+                className="shrink-0 px-2 py-1 rounded bg-amber-700 text-white font-semibold hover:bg-amber-600 disabled:opacity-60"
+              >Take Over</button>
+            )}
+          </div>
+        )}
+
         {/* Inn row */}
         <div className="grid grid-cols-[64px_1fr_auto_auto_auto] items-center gap-2 mb-2">
           <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold">Inn</div>
           <div className="text-sm font-semibold text-gray-300">Current Inning</div>
           <button
             onClick={() => setInning((i) => Math.max(1, i - 1))}
-            className="h-11 w-11 rounded-lg bg-gray-700 text-white text-2xl font-bold leading-none active:scale-95 hover:bg-gray-600"
+            disabled={!canEditScore}
+            className="h-11 w-11 rounded-lg bg-gray-700 text-white text-2xl font-bold leading-none active:scale-95 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Decrease inning"
           >
             −
@@ -300,7 +455,8 @@ export default function PitchTracker({ gameId, onBack }) {
           </div>
           <button
             onClick={() => setInning((i) => i + 1)}
-            className="h-11 w-11 rounded-lg bg-gray-700 text-white text-2xl font-bold leading-none active:scale-95 hover:bg-gray-600"
+            disabled={!canEditScore}
+            className="h-11 w-11 rounded-lg bg-gray-700 text-white text-2xl font-bold leading-none active:scale-95 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Increase inning"
           >
             +
@@ -327,7 +483,8 @@ export default function PitchTracker({ gameId, onBack }) {
           </div>
           <button
             onClick={() => setHomeScore((s) => Math.max(0, s - 1))}
-            className="h-11 w-11 rounded-lg bg-signal-900/35 text-signal-300 text-2xl font-bold leading-none active:scale-95 hover:bg-signal-800/60"
+            disabled={!canEditScore}
+            className="h-11 w-11 rounded-lg bg-signal-900/35 text-signal-300 text-2xl font-bold leading-none active:scale-95 hover:bg-signal-800/60 disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Decrease home score"
           >
             −
@@ -337,7 +494,8 @@ export default function PitchTracker({ gameId, onBack }) {
           </div>
           <button
             onClick={() => setHomeScore((s) => s + 1)}
-            className="h-11 w-11 rounded-lg bg-action-900/35 text-action-300 text-2xl font-bold leading-none active:scale-95 hover:bg-action-800/60"
+            disabled={!canEditScore}
+            className="h-11 w-11 rounded-lg bg-action-900/35 text-action-300 text-2xl font-bold leading-none active:scale-95 hover:bg-action-800/60 disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Increase home score"
           >
             +
@@ -364,7 +522,8 @@ export default function PitchTracker({ gameId, onBack }) {
           </div>
           <button
             onClick={() => setAwayScore((s) => Math.max(0, s - 1))}
-            className="h-11 w-11 rounded-lg bg-signal-900/35 text-signal-300 text-2xl font-bold leading-none active:scale-95 hover:bg-signal-800/60"
+            disabled={!canEditScore}
+            className="h-11 w-11 rounded-lg bg-signal-900/35 text-signal-300 text-2xl font-bold leading-none active:scale-95 hover:bg-signal-800/60 disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Decrease away score"
           >
             −
@@ -374,7 +533,8 @@ export default function PitchTracker({ gameId, onBack }) {
           </div>
           <button
             onClick={() => setAwayScore((s) => s + 1)}
-            className="h-11 w-11 rounded-lg bg-action-900/35 text-action-300 text-2xl font-bold leading-none active:scale-95 hover:bg-action-800/60"
+            disabled={!canEditScore}
+            className="h-11 w-11 rounded-lg bg-action-900/35 text-action-300 text-2xl font-bold leading-none active:scale-95 hover:bg-action-800/60 disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Increase away score"
           >
             +
@@ -392,6 +552,7 @@ export default function PitchTracker({ gameId, onBack }) {
         removePitcher={removePitcher}
         onAddPitcher={() => { setAddingSide('home'); setSelectedPlayerId(''); setAddingNewPlayer(false); }}
         teamColor={game.home_primary_color}
+        readOnly={!ownsSide('home')}
       />
 
       <PitcherSection
@@ -403,6 +564,7 @@ export default function PitchTracker({ gameId, onBack }) {
         removePitcher={removePitcher}
         onAddPitcher={() => { setAddingSide('away'); setSelectedPlayerId(''); setAddingNewPlayer(false); }}
         teamColor={game.away_primary_color}
+        readOnly={!ownsSide('away')}
       />
 
       {/* Add pitcher modal */}
@@ -466,19 +628,21 @@ export default function PitchTracker({ gameId, onBack }) {
 }
 
 /* ── Pitcher Section ── */
-function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePitcher, onAddPitcher, teamColor }) {
+function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePitcher, onAddPitcher, teamColor, readOnly = false }) {
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-display font-bold uppercase tracking-wide" style={{ color: teamColor || '#9ca3af' }}>{label}</h3>
-        <button onClick={onAddPitcher} className="text-xs font-semibold text-chrome-400 hover:text-chrome-200">
-          + Add Pitcher
-        </button>
+        <h3 className="text-sm font-display font-bold uppercase tracking-wide" style={{ color: teamColor || '#9ca3af' }}>{label}{readOnly && <span className="ml-2 text-[10px] font-normal text-gray-500">(read-only)</span>}</h3>
+        {!readOnly && (
+          <button onClick={onAddPitcher} className="text-xs font-semibold text-chrome-400 hover:text-chrome-200">
+            + Add Pitcher
+          </button>
+        )}
       </div>
 
       {pitchers.length === 0 ? (
         <div className="bg-gray-900 rounded-lg p-4 text-center text-sm text-gray-400">
-          No pitchers tracked yet. Tap "+ Add Pitcher" to start.
+          {readOnly ? 'No pitchers tracked yet by the other team.' : 'No pitchers tracked yet. Tap "+ Add Pitcher" to start.'}
         </div>
       ) : (
         <div className="space-y-2">
@@ -486,7 +650,7 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
             const count = getCount(p.side, p.playerId);
             return (
               <div key={`${p.side}-${p.playerId}`}
-                className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3">
+                className={`bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 ${readOnly ? 'opacity-75' : ''}`}>
                 {/* Player info */}
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm truncate">
@@ -499,7 +663,8 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                 <div className="flex items-center gap-0 shrink-0">
                   <button
                     onClick={() => adjustCount(p.side, p.playerId, -1)}
-                    className="w-12 h-12 rounded-l-lg bg-signal-900/35 text-signal-300 text-2xl font-bold leading-none hover:bg-signal-800/60 active:scale-95 transition-colors select-none"
+                    disabled={readOnly}
+                    className="w-12 h-12 rounded-l-lg bg-signal-900/35 text-signal-300 text-2xl font-bold leading-none hover:bg-signal-800/60 active:scale-95 transition-colors select-none disabled:opacity-40 disabled:cursor-not-allowed"
                     aria-label="Decrease pitch count"
                   >
                     −
@@ -509,7 +674,8 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                   </div>
                   <button
                     onClick={() => adjustCount(p.side, p.playerId, 1)}
-                    className="w-12 h-12 rounded-r-lg bg-action-900/35 text-action-300 text-2xl font-bold leading-none hover:bg-action-800/60 active:scale-95 transition-colors select-none"
+                    disabled={readOnly}
+                    className="w-12 h-12 rounded-r-lg bg-action-900/35 text-action-300 text-2xl font-bold leading-none hover:bg-action-800/60 active:scale-95 transition-colors select-none disabled:opacity-40 disabled:cursor-not-allowed"
                     aria-label="Increase pitch count"
                   >
                     +
@@ -517,15 +683,17 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
                 </div>
 
                 {/* Remove */}
-                <button
-                  onClick={() => removePitcher(p.side, p.playerId)}
-                  className="p-2.5 text-gray-300 hover:text-signal-400 transition-colors shrink-0"
-                  title="Remove pitcher"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => removePitcher(p.side, p.playerId)}
+                    className="p-2.5 text-gray-300 hover:text-signal-400 transition-colors shrink-0"
+                    title="Remove pitcher"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             );
           })}

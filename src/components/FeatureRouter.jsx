@@ -1,5 +1,7 @@
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { useRef } from 'react';
+import GuardianHome from './GuardianHome.jsx';
+import Chat from './Chat.jsx';
 import Dashboard from './Dashboard.jsx';
 import OrgManager from './OrgManager.jsx';
 import UserManager from './UserManager.jsx';
@@ -33,7 +35,7 @@ export default function FeatureRouter(props) {
 
 function PageContent({
     page, setPage,
-    isUmpire, isAdmin, isOrgAdmin, isTeamManager, isAccountant,
+    isUmpire, isAdmin, isOrgAdmin, isTeamManager, isAccountant, isGuardian,
     features,
     selectedTeam, selectedTeamOrgId, setSelectedTeam, setSelectedTeamOrgId,
     navigateToTeam, navigateToGame,
@@ -50,8 +52,17 @@ function PageContent({
     if (isUmpire && page === 'dashboard') {
         return <UmpireDashboard onBack={() => setPage('dashboard')} />;
     }
+    if (isGuardian && (page === 'dashboard' || page === 'guardian-home')) {
+        return <GuardianHome onViewPlayer={onViewPlayer} />;
+    }
 
     switch (page) {
+        case 'guardian-home':
+            return <GuardianHome onViewPlayer={onViewPlayer} />;
+
+        case 'chat':
+            return features.feature_chat !== false ? <Chat /> : null;
+
         case 'dashboard':
             return <Dashboard onNavigate={setPage} onViewPlayer={onViewPlayer} onNavigateToGame={navigateToGame} />;
 
@@ -73,7 +84,7 @@ function PageContent({
             return isAdmin ? <LeagueConfig onBack={() => setPage('dashboard')} /> : null;
 
         case 'schedule':
-            return <GameSchedule onBack={() => setPage('dashboard')} onNavigateToTeam={navigateToTeam} initialGameId={pendingGameId} onGameIdConsumed={clearPendingGame} onOpenImport={openImportWizard} />;
+            return <GameSchedule onBack={() => setPage('dashboard')} onNavigateToTeam={navigateToTeam} initialGameId={pendingGameId} onGameIdConsumed={clearPendingGame} onOpenImport={openImportWizard} onViewPlayer={onViewPlayer} />;
 
         case 'standings':
             return <Standings onBack={() => setPage('dashboard')} onNavigateToTeam={navigateToTeam} />;
@@ -98,7 +109,7 @@ function PageContent({
             return <PlayersPage onSelectPlayer={onViewPlayer} />;
 
         case 'guardians':
-            return (isAdmin || isOrgAdmin)
+            return (isAdmin || isOrgAdmin || isTeamManager)
                 ? <GuardiansPage onViewPlayer={onViewPlayer} />
                 : null;
 

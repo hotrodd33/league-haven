@@ -37,6 +37,8 @@ const announcementsRoutes = require('./routes/announcements');
 const weatherRoutes = require('./routes/weather');
 const travelRoutes = require('./routes/travel');
 const bugReportRoutes = require('./routes/bug-report');
+const guardianClaimsRoutes = require('./routes/guardian-claims');
+const chatRoutes = require('./routes/chat');
 
 const helmet = require('helmet');
 const compression = require('compression');
@@ -59,7 +61,8 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.text({ limit: '10mb' }));
 
 // Default Cache-Control for all GET responses — aligns with React Query staleTime.
 // Browser HTTP cache intercepts re-requests within the TTL so Vercel Functions
@@ -112,6 +115,8 @@ app.use('/api/announcements', announcementsRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/travel', travelRoutes);
 app.use('/api/bug-report', bugReportRoutes);
+app.use('/api/guardian-claims', guardianClaimsRoutes);
+app.use('/api/chat', chatRoutes);
 
 // ── Serve React build in local dev only (Vercel serves static files itself) ──
 if (!process.env.VERCEL) {

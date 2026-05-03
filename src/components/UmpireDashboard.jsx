@@ -170,6 +170,12 @@ export default function UmpireDashboard({ onBack }) {
       </div>
 
       {/* Profile Card */}
+      {!profile && (
+        <div className="lh-alert mb-4 bg-yellow-900/30 border border-yellow-700 text-yellow-200">
+          Your umpire profile hasn't been set up yet. An administrator can create your
+          official profile from the Officials page so you can be assigned to games.
+        </div>
+      )}
       {profile && (
         <Card variant="bordered" className="mb-4">
           <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-3">Your Profile</h3>

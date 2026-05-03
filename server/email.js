@@ -8,13 +8,34 @@ const FROM_EMAIL = process.env.FROM_EMAIL || 'LeagueHaven <noreply@leaguehaven.c
 const APP_URL = process.env.APP_URL || 'https://leaguehaven.com';
 
 async function sendEmail({ to, bcc, subject, html, replyTo }) {
+  // Email redirect: check BEFORE SendGrid guard so logs always show effective recipient.
+  // When configured, all emails go to the override address instead of real recipients.
+  let effectiveTo = to;
+  let effectiveBcc;
+  try {
+    const { pool } = require('./db');
+    const { rows } = await pool.query('SELECT email_redirect FROM app_branding WHERE id = 1');
+    const redirect = rows[0]?.email_redirect?.trim();
+    if (redirect) {
+      console.warn(`[EMAIL] Redirecting email to ${redirect} (original: ${to}, subject: ${subject})`);
+      effectiveTo = redirect;
+      effectiveBcc = undefined; // suppress BCC when redirecting
+      subject = `[REDIRECT from ${Array.isArray(to) ? to.join(', ') : to}] ${subject}`;
+    } else {
+      effectiveBcc = bcc;
+    }
+  } catch {
+    effectiveBcc = bcc;
+  }
+
   if (!process.env.SENDGRID_API_KEY) {
-    console.warn('[EMAIL] SENDGRID_API_KEY not set — email not sent:', { to, subject });
+    console.warn('[EMAIL] SENDGRID_API_KEY not set — email not sent:', { to: effectiveTo, subject });
     return null;
   }
+
   try {
-    const msg = { from: FROM_EMAIL, to, subject, html };
-    if (bcc) msg.bcc = bcc;
+    const msg = { from: FROM_EMAIL, to: effectiveTo, subject, html };
+    if (effectiveBcc) msg.bcc = effectiveBcc;
     if (replyTo) msg.replyTo = replyTo;
     const result = await sgMail.send(msg);
     return result;
@@ -280,8 +301,40 @@ function sendRejectionEmail(to, name, { replyTo } = {}) {
   });
 }
 
+function sendGuardianClaimApprovedEmail(to, guardianName, playerName) {
+  return sendEmail({
+    to,
+    subject: 'LeagueHaven — Your player claim was approved!',
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+        <h2 style="color:#15803d;">✅ Claim Approved</h2>
+        <p>Hi ${esc(guardianName)},</p>
+        <p>Your request to be linked as a guardian of <strong>${esc(playerName)}</strong> has been <strong>approved</strong>.</p>
+        <p>You can now sign in to LeagueHaven to view and manage ${esc(playerName)}'s profile.</p>
+        <p style="margin-top:16px;"><a href="${APP_URL}" style="display:inline-block;padding:10px 24px;background:#1e3a5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Open LeagueHaven</a></p>
+      </div>
+    `,
+  });
+}
+
+function sendGuardianClaimDeniedEmail(to, guardianName, playerName, adminNotes) {
+  return sendEmail({
+    to,
+    subject: 'LeagueHaven — Update on your player claim',
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+        <h2 style="color:#b91c1c;">Player Claim Not Approved</h2>
+        <p>Hi ${esc(guardianName)},</p>
+        <p>Your request to be linked as a guardian of <strong>${esc(playerName)}</strong> was not approved at this time.</p>
+        ${adminNotes ? `<div style="background:#fef2f2;border-left:4px solid #b91c1c;padding:10px 14px;border-radius:4px;margin:12px 0;"><p style="margin:0;font-size:14px;color:#7f1d1d;"><strong>Reason:</strong> ${esc(adminNotes)}</p></div>` : ''}
+        <p style="font-size:13px;color:#888;">If you believe this is an error, please contact your league administrator.</p>
+        <p style="margin-top:12px;"><a href="${APP_URL}" style="color:#1d4ed8;">Visit LeagueHaven</a></p>
+      </div>
+    `,
+  });
+}
+
 module.exports = {
-  sendEmail,
   sendWelcomeEmail,
   sendInviteEmail,
   sendCoachInviteEmail,
@@ -292,4 +345,6 @@ module.exports = {
   sendApprovalRequestEmail,
   sendApprovalEmail,
   sendRejectionEmail,
+  sendGuardianClaimApprovedEmail,
+  sendGuardianClaimDeniedEmail,
 };

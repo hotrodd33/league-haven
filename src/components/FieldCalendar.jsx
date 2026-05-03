@@ -22,6 +22,16 @@ const EVENT_LABELS = {
   maintenance: 'Maintenance',
 };
 
+const DURATION_OPTIONS = (() => {
+  const opts = [];
+  for (let m = 60; m <= 720; m += 15) {
+    const h = Math.floor(m / 60), min = m % 60;
+    const label = min === 0 ? `${h} hr${h > 1 ? 's' : ''}` : `${h}:${String(min).padStart(2, '0')}`;
+    opts.push({ value: m, label });
+  }
+  return opts;
+})();
+
 function formatTime(t) {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
@@ -382,7 +392,12 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
     event_type: reservation?.event_type || 'practice',
     event_date: reservation?.event_date?.slice?.(0, 10) || defaultDate || todayStr,
     start_time: reservation?.start_time?.slice?.(0, 5) || '17:00',
-    end_time: reservation?.end_time?.slice?.(0, 5) || '19:00',
+    duration_minutes: (() => {
+      if (!reservation?.start_time || !reservation?.end_time) return 120;
+      const [sh, sm] = reservation.start_time.slice(0, 5).split(':').map(Number);
+      const [eh, em] = reservation.end_time.slice(0, 5).split(':').map(Number);
+      return (eh * 60 + em) - (sh * 60 + sm) || 120;
+    })(),
     team_id: reservation?.team_id || '',
     notes: reservation?.notes || '',
   });
@@ -393,6 +408,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
     home_team_id: '',
     away_team_id: '',
     game_time: '',
+    game_duration_minutes: 150,
     status: 'scheduled',
   });
   const [seasons, setSeasons] = useState([]);
@@ -472,6 +488,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
         location_id: field.id,
         game_date: form.event_date,
         game_time: gameForm.game_time || null,
+        game_duration_minutes: Number(gameForm.game_duration_minutes) || 150,
         status: gameForm.status,
         home_score: null,
         away_score: null,
@@ -483,8 +500,8 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
       // Check for field conflicts
       if (data.game_time && !confirmSave) {
         try {
-          const result = await checkGameConflicts(field.id, data.game_date, data.game_time);
-          if (result.has_conflicts) {
+          const result = await checkGameConflicts(field.id, data.game_date, data.game_time, data.game_duration_minutes);
+          if (result.has_conflicts || result.has_warnings) {
             setFieldConflicts(result);
             setSaving(false);
             return;
@@ -504,8 +521,13 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
 
     // Reservation flow
     if (!form.title.trim()) { setSaving(false); setError('Title is required.'); return; }
-    if (!form.start_time || !form.end_time) { setSaving(false); setError('Start and end times are required.'); return; }
-    if (form.start_time >= form.end_time) { setSaving(false); setError('End time must be after start time.'); return; }
+    if (!form.start_time) { setSaving(false); setError('Start time is required.'); return; }
+    if (!form.duration_minutes) { setSaving(false); setError('Duration is required.'); return; }
+
+    // Compute end_time from start + duration
+    const [sh, sm] = form.start_time.split(':').map(Number);
+    const endMin = sh * 60 + sm + Number(form.duration_minutes);
+    const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
 
     const data = {
       location_id: field.id,
@@ -514,7 +536,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
       event_type: form.event_type,
       event_date: form.event_date,
       start_time: form.start_time,
-      end_time: form.end_time,
+      end_time: endTime,
       notes: form.notes.trim() || null,
     };
 
@@ -625,12 +647,20 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
               <div className="grid grid-cols-2 gap-3">
                 <Input label="Date *" id="fc-date" name="event_date" type="date" value={form.event_date} onChange={handleChange} required />
                 <div>
-                  <label htmlFor="fc-time" className="lh-eyebrow">Time</label>
+                  <label htmlFor="fc-time" className="lh-eyebrow">Start Time</label>
                   <select id="fc-time" name="game_time" value={gameForm.game_time} onChange={handleGameChange} className="lh-select">
                     <option value="">— Select —</option>
                     {gameTimeSlots.map(slot => (
                       <option key={slot} value={slot}>{formatTime(slot)}</option>
                     ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="fc-duration" className="lh-eyebrow">Duration</label>
+                  <select id="fc-duration" name="game_duration_minutes" value={gameForm.game_duration_minutes} onChange={handleGameChange} className="lh-select">
+                    {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -666,10 +696,12 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
                     <option value="">— Select —</option>
                     {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </Select>
-                <Select label="End Time *" id="res-end" name="end_time" value={form.end_time} onChange={handleChange} required>
-                    <option value="">— Select —</option>
-                    {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </Select>
+                <div>
+                  <label htmlFor="res-duration" className="lh-eyebrow block mb-1">Duration *</label>
+                  <select id="res-duration" name="duration_minutes" value={form.duration_minutes} onChange={handleChange} required className="lh-select">
+                    {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
               </div>
             </>
           )}
@@ -702,33 +734,61 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
                 </div>
               ))}
               {(conflictDetails.game_conflicts || []).length > 0 && (
-                <div className="text-xs text-signal-300 font-semibold">A scheduled game (including 3-hr prep) blocks this time. Games always have priority.</div>
+                <div className="text-xs text-signal-300 font-semibold">A scheduled game blocks this time. Games always have priority.</div>
               )}
             </div>
           )}
 
           {fieldConflicts && (
             <div className="bg-amber-900/30 border border-amber-600 text-amber-200 text-sm px-4 py-3 rounded-lg space-y-2">
-              <div className="font-bold text-amber-100">Field Conflict Detected</div>
-              <p className="text-xs text-amber-300">
-                This game will reserve the field from {formatTime(fieldConflicts.hold_start)} to {formatTime(fieldConflicts.hold_end)} (includes 3-hr prep). The following existing reservations conflict:
-              </p>
-              {fieldConflicts.conflicts.map((c, i) => (
-                <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
-                  <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
-                  <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
-                </div>
-              ))}
-              <div className="flex gap-2 pt-1">
-                <button type="button" onClick={handleConfirmGameSave}
-                  className="px-3 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded hover:bg-amber-700">
-                  Schedule Anyway
-                </button>
-                <button type="button" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}
-                  className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">
-                  Cancel
-                </button>
-              </div>
+              {fieldConflicts.has_conflicts ? (
+                <>
+                  <div className="font-bold text-amber-100">Field Conflict Detected</div>
+                  <p className="text-xs text-amber-300">
+                    This game runs from {formatTime(fieldConflicts.game_start)} to {formatTime(fieldConflicts.game_end)}. The following existing reservations overlap:
+                  </p>
+                  {fieldConflicts.conflicts.map((c, i) => (
+                    <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
+                      <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
+                      <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
+                    </div>
+                  ))}
+                  <p className="text-xs text-amber-400">Games always have priority.</p>
+                  <div className="flex gap-2 pt-1">
+                    <button type="button" onClick={handleConfirmGameSave}
+                      className="px-3 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded hover:bg-amber-700">
+                      Schedule Anyway
+                    </button>
+                    <button type="button" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}
+                      className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="font-bold text-amber-100">⚠ Nearby Reservations</div>
+                  <p className="text-xs text-amber-300">
+                    The following reservations are within 3 hours of this game ({formatTime(fieldConflicts.game_start)}). They don't overlap but may want a heads-up:
+                  </p>
+                  {(fieldConflicts.warnings || []).map((c, i) => (
+                    <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
+                      <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
+                      <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-1">
+                    <button type="button" onClick={handleConfirmGameSave}
+                      className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-semibold rounded hover:bg-emerald-600">
+                      Save Game
+                    </button>
+                    <button type="button" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}
+                      className="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-semibold rounded hover:bg-gray-600">
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

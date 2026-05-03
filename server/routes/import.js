@@ -6,9 +6,10 @@
 const express = require('express');
 const multer = require('multer');
 const { pool } = require('../db');
-const { authMiddleware, requireAdmin } = require('../auth');
+const { authMiddleware, requireAdmin, canScoreGame, getUserPermissions } = require('../auth');
 const { parseBoxScorePDF, parseBoxScoreText } = require('../parsers/boxscore-pdf');
 const { normalizeDOB } = require('../utils/dob');
+const { findBestMatches, similarity } = require('../utils/fuzzyMatch');
 
 const router = express.Router();
 const importDebugLoggingEnabled = process.env.IMPORT_DEBUG === 'true';
@@ -66,6 +67,59 @@ async function getTeamsList() {
      ORDER BY t.name`
   );
   return rows;
+}
+
+/**
+ * Find-or-create the catch-all 'External Opponents' org used when an
+ * unknown opponent is created on the fly during a GameChanger import.
+ */
+async function ensureExternalOpponentsOrg() {
+  const { rows } = await pool.query(
+    `SELECT id FROM organizations WHERE name = $1 LIMIT 1`,
+    ['External Opponents']
+  );
+  if (rows.length) return rows[0].id;
+  const { rows: created } = await pool.query(
+    `INSERT INTO organizations (name, notes)
+     VALUES ($1, $2) RETURNING id`,
+    ['External Opponents', 'Auto-created to host opponent teams imported from GameChanger.']
+  );
+  return created[0].id;
+}
+
+/**
+ * Create a new team from an external (GameChanger) name.
+ * Returns the newly-created team id.
+ */
+async function createTeamFromExternalName(externalName) {
+  const orgId = await ensureExternalOpponentsOrg();
+  const { rows } = await pool.query(
+    `INSERT INTO teams (org_id, name) VALUES ($1, $2) RETURNING id`,
+    [orgId, externalName]
+  );
+  return rows[0].id;
+}
+
+/**
+ * Create a player and attach them to a team's roster.
+ * Returns { id, jersey } of the new player. Idempotent on (team, player).
+ */
+async function createPlayerForTeam(teamId, displayName, jersey, firstName, lastName) {
+  const fn = firstName || (displayName || '').split(' ')[0] || 'Unknown';
+  const ln = lastName || (displayName || '').split(' ').slice(1).join(' ') || '';
+  const { rows } = await pool.query(
+    `INSERT INTO players (first_name, last_name) VALUES ($1, $2) RETURNING id`,
+    [fn, ln]
+  );
+  const playerId = rows[0].id;
+  const jerseyNum = jersey ? parseInt(jersey) : null;
+  await pool.query(
+    `INSERT INTO team_players (team_id, player_id, jersey_number)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (team_id, player_id) DO UPDATE SET jersey_number = $3`,
+    [teamId, playerId, isNaN(jerseyNum) ? null : jerseyNum]
+  );
+  return { id: playerId, jersey: jerseyNum };
 }
 
 async function buildPlayerLookup(teamId) {
@@ -186,7 +240,7 @@ async function parseBoxScoreInput(req) {
 /**
  * Build preview response from parsed box score data.
  */
-async function buildBoxScorePreview(parsed) {
+async function buildBoxScorePreview(parsed, { userId } = {}) {
   const { gameInfo, batting, pitching } = parsed;
 
   // Check which teams match our database
@@ -294,6 +348,47 @@ async function buildBoxScorePreview(parsed) {
 
   const teamsListForMapping = unmatchedTeams.length > 0 ? await getTeamsList() : [];
 
+  // ── Fuzzy team suggestions for unmatched names ──
+  const teamSuggestions = {};
+  if (unmatchedTeams.length > 0) {
+    const candidates = await getTeamsList();
+    for (const name of unmatchedTeams) {
+      const matches = findBestMatches(name, candidates, {
+        keyFn: (t) => [t.name, t.abbreviation, t.org_name ? `${t.name} (${t.org_name})` : null].filter(Boolean),
+        threshold: 0.6,
+        limit: 5,
+      });
+      teamSuggestions[name] = matches.map(m => ({
+        teamId: m.candidate.id,
+        name: m.candidate.name,
+        abbreviation: m.candidate.abbreviation,
+        ageGroup: m.candidate.age_group,
+        orgName: m.candidate.org_name,
+        score: Number(m.score.toFixed(3)),
+        autoApply: m.score >= 0.85,
+      }));
+    }
+  }
+
+  // ── Game suggestions: find existing games matching parsed date + teams ──
+  const gameSuggestions = await suggestGames({
+    gameDate: gameInfo.date,
+    awayTeamId: matchedTeamMap[gameInfo.awayTeam] || null,
+    homeTeamId: matchedTeamMap[gameInfo.homeTeam] || null,
+    awayTeamName: gameInfo.awayTeam || null,
+    homeTeamName: gameInfo.homeTeam || null,
+    userId: userId || null,
+  });
+
+  // ── Annotate pitcher mappings with confidence scores ──
+  for (const pm of pitcherMappings) {
+    if (pm.suggestedPlayerId && pm.suggestedPlayerName) {
+      pm.confidence = Number(similarity(pm.gcName, pm.suggestedPlayerName).toFixed(3));
+    } else {
+      pm.confidence = 0;
+    }
+  }
+
   return {
     headers,
     rows,
@@ -302,12 +397,117 @@ async function buildBoxScorePreview(parsed) {
     teams: { away: gameInfo.awayTeam, home: gameInfo.homeTeam },
     unmatchedTeams,
     matchedTeams: matchedTeamMap,
+    teamSuggestions,
     teamsList: teamsListForMapping,
     pitcherMappings,
     playersByTeam,
+    gameSuggestions,
     _debug: parsed._debug || null,
     _rawText: (parsed.raw || '').slice(0, 5000),
   };
+}
+
+/**
+ * Find existing games that look like a match for the parsed box score.
+ * Returns ranked candidates within ±1 day, scored by date proximity + team match.
+ * When userId is provided, results are scoped to games the user can score.
+ */
+async function suggestGames({ gameDate, awayTeamId, homeTeamId, awayTeamName, homeTeamName, userId }) {
+  if (!gameDate) return [];
+
+  // Pull a window of games around the parsed date so date typos still surface candidates.
+  const { rows: games } = await pool.query(
+    `SELECT g.id, g.game_date::text AS game_date, g.game_time, g.status,
+            g.home_team_id, g.away_team_id, g.home_score, g.away_score,
+            ht.name AS home_team_name, at.name AS away_team_name,
+            ht.org_id AS home_org_id, at.org_id AS away_org_id
+     FROM games g
+     LEFT JOIN teams ht ON ht.id = g.home_team_id
+     LEFT JOIN teams at ON at.id = g.away_team_id
+     WHERE g.game_date BETWEEN ($1::date - INTERVAL '2 days') AND ($1::date + INTERVAL '2 days')
+       AND g.deleted_at IS NULL
+     ORDER BY g.game_date, g.game_time NULLS LAST
+     LIMIT 50`,
+    [gameDate]
+  );
+
+  if (!games.length) return [];
+
+  // If userId given, scope to games user can score.
+  let allowedTeamIds = null;
+  let allowedOrgIds = null;
+  let isSuperAdmin = false;
+  if (userId) {
+    const { rows: userRows } = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+    isSuperAdmin = userRows[0]?.role === 'super_admin';
+    if (!isSuperAdmin) {
+      const perms = await getUserPermissions(userId);
+      allowedTeamIds = new Set(perms.team_ids.map(Number));
+      allowedOrgIds = new Set(perms.org_ids.map(Number));
+    }
+  }
+
+  const target = new Date(gameDate + 'T00:00:00').getTime();
+  const scored = [];
+  for (const g of games) {
+    // Permission filter
+    if (!isSuperAdmin && allowedTeamIds) {
+      const tHome = Number(g.home_team_id);
+      const tAway = Number(g.away_team_id);
+      const oHome = Number(g.home_org_id);
+      const oAway = Number(g.away_org_id);
+      const allowed = allowedTeamIds.has(tHome) || allowedTeamIds.has(tAway)
+        || (oHome && allowedOrgIds.has(oHome))
+        || (oAway && allowedOrgIds.has(oAway));
+      if (!allowed) continue;
+    }
+
+    // Score: date proximity (max 0.4) + team match (max 0.6)
+    const gDate = new Date(g.game_date + 'T00:00:00').getTime();
+    const dayDiff = Math.abs(target - gDate) / (24 * 3600 * 1000);
+    const dateScore = Math.max(0, 0.4 - dayDiff * 0.15); // 0.4 same day, 0.25 ±1d, 0.10 ±2d
+
+    let teamScore = 0;
+    if (awayTeamId && homeTeamId) {
+      // Both directions: parsed away might match either DB side
+      const exact = (g.away_team_id === awayTeamId && g.home_team_id === homeTeamId)
+        || (g.away_team_id === homeTeamId && g.home_team_id === awayTeamId);
+      if (exact) teamScore = 0.6;
+      else if (g.away_team_id === awayTeamId || g.home_team_id === homeTeamId
+            || g.away_team_id === homeTeamId || g.home_team_id === awayTeamId) {
+        teamScore = 0.3;
+      }
+    } else if (awayTeamName || homeTeamName) {
+      // Fall back to fuzzy name comparison when team IDs not yet resolved
+      const sAwayDbAway = similarity(awayTeamName || '', g.away_team_name || '');
+      const sHomeDbHome = similarity(homeTeamName || '', g.home_team_name || '');
+      const sAwayDbHome = similarity(awayTeamName || '', g.home_team_name || '');
+      const sHomeDbAway = similarity(homeTeamName || '', g.away_team_name || '');
+      const best = Math.max(sAwayDbAway + sHomeDbHome, sAwayDbHome + sHomeDbAway) / 2;
+      teamScore = Math.min(0.6, best * 0.6);
+    }
+
+    const score = dateScore + teamScore;
+    if (score < 0.2) continue;
+
+    scored.push({
+      gameId: g.id,
+      gameDate: g.game_date,
+      gameTime: g.game_time,
+      status: g.status,
+      homeTeamId: g.home_team_id,
+      awayTeamId: g.away_team_id,
+      homeTeamName: g.home_team_name,
+      awayTeamName: g.away_team_name,
+      homeScore: g.home_score,
+      awayScore: g.away_score,
+      score: Number(score.toFixed(3)),
+      confidence: score >= 0.85 ? 'high' : score >= 0.55 ? 'medium' : 'low',
+      label: `${g.away_team_name || '?'} @ ${g.home_team_name || '?'} — ${g.game_date}`,
+    });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 8);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -330,7 +530,7 @@ router.post(
 
       if (importType === 'boxscore') {
         const parsed = await parseBoxScoreInput(req);
-        const preview = await buildBoxScorePreview(parsed);
+        const preview = await buildBoxScorePreview(parsed, { userId: req.user?.id });
         return res.json(preview);
       }
 
@@ -421,30 +621,26 @@ router.post(
       const gameId = req.body.gameId ? parseInt(req.body.gameId) : null;
       const teamId = req.body.teamId ? parseInt(req.body.teamId) : null;
       const seasonId = req.body.seasonId ? parseInt(req.body.seasonId) : null;
-      const overwrite = req.body.overwrite === 'true';
+      const overwrite = req.body.overwrite === 'true' || req.body.overwrite === true;
       const pastedText = req.body.pastedText;
 
       if (!req.file && (!pastedText || pastedText.trim().length < 10)) {
         return res.status(400).json({ error: 'Upload a file or paste box score text' });
       }
 
-      // Parse team mappings from frontend (JSON string: { "GC Name": teamId, ... })
-      let teamMappings = {};
-      if (req.body.teamMappings) {
-        try { teamMappings = JSON.parse(req.body.teamMappings); } catch { /* ignore */ }
-      }
-
-      // Parse player mappings from frontend (JSON string: { "GC Name": playerId|"__new__", ... })
-      let playerMappings = {};
-      if (req.body.playerMappings) {
-        try { playerMappings = JSON.parse(req.body.playerMappings); } catch { /* ignore */ }
-      }
-
-      // Parse column mappings from frontend (JSON string: { fieldKey: "CSV Header Name", ... })
-      let columnMappings = {};
-      if (req.body.columnMappings) {
-        try { columnMappings = JSON.parse(req.body.columnMappings); } catch { /* ignore */ }
-      }
+      // Parse team mappings from frontend (JSON string OR already-parsed object)
+      // When using pasted-text (JSON body), Express parses the body first, so these
+      // arrive as objects rather than strings. Both cases must be handled.
+      const parseBodyMapping = (raw) => {
+        if (!raw) return {};
+        if (typeof raw === 'object') return raw;
+        try { return JSON.parse(raw); } catch { return {}; }
+      };
+      const teamMappings = parseBodyMapping(req.body.teamMappings);
+      const playerMappings = parseBodyMapping(req.body.playerMappings);
+      const columnMappings = parseBodyMapping(req.body.columnMappings);
+      const createMissingBatters = req.body.createMissingBatters === 'true'
+        || req.body.createMissingBatters === true;
 
       if (importType === 'boxscore') {
         const parsed = await parseBoxScoreInput(req);
@@ -456,6 +652,7 @@ router.post(
           overwrite,
           teamMappings,
           playerMappings,
+          createMissingBatters,
         });
       }
 
@@ -483,7 +680,8 @@ router.post(
 
 /* ── Box Score Import Logic ── */
 async function importBoxScore(req, res, opts) {
-  let { parsed, targetGameId, teamId, seasonId, overwrite, teamMappings, playerMappings } = opts;
+  let { parsed, targetGameId, teamId, seasonId, overwrite,
+        teamMappings, playerMappings, createMissingBatters } = opts;
   const { gameInfo, linescore, batting, pitching } = parsed;
 
   // Auto-detect active season if none provided
@@ -508,21 +706,49 @@ async function importBoxScore(req, res, opts) {
     message: '',
   };
 
-  // ── Save any new team mappings as aliases for future imports ──
+  // ── Resolve & save team mappings as aliases for future imports.
+  //    Sentinel '__new__' means "create a new team from this external name". ──
+  const newlyCreatedTeamIds = new Set();
   if (teamMappings && typeof teamMappings === 'object') {
     for (const [externalName, mappedTeamId] of Object.entries(teamMappings)) {
-      if (externalName && mappedTeamId) {
-        try {
-          await pool.query(
-            `INSERT INTO team_name_aliases (external_name, team_id, source)
-             VALUES ($1, $2, 'gamechanger')
-             ON CONFLICT (external_name, source) DO UPDATE SET team_id = $2`,
-            [externalName, parseInt(mappedTeamId)]
-          );
-        } catch (err) {
-          results.errors.push(`Could not save alias for "${externalName}": ${err.message}`);
+      if (!externalName || !mappedTeamId) continue;
+      try {
+        let resolvedId;
+        if (mappedTeamId === '__new__' || mappedTeamId === 'new') {
+          resolvedId = await createTeamFromExternalName(externalName);
+          newlyCreatedTeamIds.add(resolvedId);
+          results.created++;
+          // Replace sentinel in the working copy so downstream lookups work.
+          teamMappings[externalName] = resolvedId;
+        } else {
+          resolvedId = parseInt(mappedTeamId);
+          if (isNaN(resolvedId)) continue;
         }
+        await pool.query(
+          `INSERT INTO team_name_aliases (external_name, team_id, source)
+           VALUES ($1, $2, 'gamechanger')
+           ON CONFLICT (external_name, source) DO UPDATE SET team_id = $2`,
+          [externalName, resolvedId]
+        );
+      } catch (err) {
+        results.errors.push(`Could not save alias for "${externalName}": ${err.message}`);
       }
+    }
+  }
+
+  // ── Permission gate: when attaching to an existing game, verify the user
+  //    can score it BEFORE we mutate any data. ──
+  if (targetGameId && req.user) {
+    const { rows: gameRows } = await pool.query(
+      'SELECT home_team_id, away_team_id FROM games WHERE id = $1 AND deleted_at IS NULL',
+      [targetGameId]
+    );
+    if (!gameRows.length) {
+      return res.status(404).json({ error: 'Target game not found' });
+    }
+    const allowed = await canScoreGame(req.user, gameRows[0].home_team_id, gameRows[0].away_team_id);
+    if (!allowed) {
+      return res.status(403).json({ error: 'You do not have permission to import a box score for this game' });
     }
   }
 
@@ -570,7 +796,12 @@ async function importBoxScore(req, res, opts) {
 
   if (targetGameId) {
     const { rows: targetGameRows } = await pool.query(
-      'SELECT id, home_team_id, away_team_id FROM games WHERE id = $1 LIMIT 1',
+      `SELECT g.id, g.home_team_id, g.away_team_id,
+              ht.name AS home_team_name, awt.name AS away_team_name
+       FROM games g
+       LEFT JOIN teams ht ON ht.id = g.home_team_id
+       LEFT JOIN teams awt ON awt.id = g.away_team_id
+       WHERE g.id = $1 AND g.deleted_at IS NULL LIMIT 1`,
       [targetGameId]
     );
     if (!targetGameRows.length) {
@@ -578,15 +809,58 @@ async function importBoxScore(req, res, opts) {
     }
 
     const targetGame = targetGameRows[0];
-    homeTeamId = homeTeamId || targetGame.home_team_id;
-    awayTeamId = awayTeamId || targetGame.away_team_id;
 
-    await pool.query(
-      `UPDATE games SET home_score = $1, away_score = $2, innings_played = $3,
-       status = 'completed', game_time = COALESCE($4, game_time), season_id = COALESCE($6, season_id)
-       WHERE id = $5`,
-      [homeScore, awayScore, inningsPlayed, gameInfo.time, targetGameId, seasonId]
-    );
+    // ── When attaching to an existing game, the target game's teams are the
+    //    source of truth — NOT the parsed PDF team names. The team mapper
+    //    may have resolved "MBL - Red Wing 12AA" to a stale external-opponent
+    //    team, but the user's selection of this game tells us exactly which
+    //    two teams these pitchers/batters belong to.
+    //    Use name similarity to figure out which side of the PDF is which.
+    const parsedHome = (gameInfo.homeTeam || '').toLowerCase();
+    const parsedAway = (gameInfo.awayTeam || '').toLowerCase();
+    const targetHome = (targetGame.home_team_name || '').toLowerCase();
+    const targetAway = (targetGame.away_team_name || '').toLowerCase();
+
+    // similarity is imported from utils/fuzzyMatch
+    const sHomeHome = similarity(parsedHome, targetHome);
+    const sHomeAway = similarity(parsedHome, targetAway);
+    const sAwayHome = similarity(parsedAway, targetHome);
+    const sAwayAway = similarity(parsedAway, targetAway);
+
+    // If parsed home matches target away better than target home, the PDF
+    // and target game have flipped home/away orientations.
+    const flipped = (sHomeAway + sAwayHome) > (sHomeHome + sAwayAway);
+
+    if (flipped) {
+      homeTeamId = targetGame.away_team_id;
+      awayTeamId = targetGame.home_team_id;
+    } else {
+      homeTeamId = targetGame.home_team_id;
+      awayTeamId = targetGame.away_team_id;
+    }
+
+    if (overwrite) {
+      // Full replace: scores, time, season, status
+      await pool.query(
+        `UPDATE games SET home_score = $1, away_score = $2, innings_played = $3,
+         status = 'completed', game_time = COALESCE($4, game_time), season_id = COALESCE($6, season_id)
+         WHERE id = $5`,
+        [homeScore, awayScore, inningsPlayed, gameInfo.time, targetGameId, seasonId]
+      );
+    } else {
+      // Non-destructive: only fill in missing values, mark completed
+      await pool.query(
+        `UPDATE games SET
+           status = 'completed',
+           game_time = COALESCE(game_time, $4),
+           season_id = COALESCE(season_id, $6),
+           home_score = COALESCE(home_score, $1),
+           away_score = COALESCE(away_score, $2),
+           innings_played = COALESCE(innings_played, $3)
+         WHERE id = $5`,
+        [homeScore, awayScore, inningsPlayed, gameInfo.time, targetGameId, seasonId]
+      );
+    }
 
     gameId = targetGameId;
     wasExisting = true;
@@ -595,12 +869,14 @@ async function importBoxScore(req, res, opts) {
   }
 
   if (!gameId && gameDate) {
-    // Check for existing game on same date with same teams
+    // Check for existing game on same date with same teams.
+    // Exclude soft-deleted rows so a re-import after delete creates a fresh game.
     let existingGameId = null;
     if (awayTeamId && homeTeamId) {
       const { rows: existingGames } = await pool.query(
         `SELECT id FROM games
          WHERE game_date = $1 AND home_team_id = $2 AND away_team_id = $3
+           AND deleted_at IS NULL
          LIMIT 1`,
         [gameDate, homeTeamId, awayTeamId]
       );
@@ -651,6 +927,42 @@ async function importBoxScore(req, res, opts) {
     results.games = 1;
   } else if (!gameId) {
     results.errors.push('Could not determine game date from box score');
+  }
+
+  // ── Optionally seed roster from box score for newly-created opponent teams
+  //    OR when the user opted in to "auto-create unmatched batters". ──
+  const sidesForRoster = [
+    { teamId: awayTeamId, batters: batting.away, pitchers: pitching.away, label: 'Away' },
+    { teamId: homeTeamId, batters: batting.home, pitchers: pitching.home, label: 'Home' },
+  ];
+  for (const side of sidesForRoster) {
+    if (!side.teamId) continue;
+    const isNewTeam = newlyCreatedTeamIds.has(side.teamId);
+    // Always seed the roster of brand-new teams; otherwise honor opt-in flag.
+    if (!isNewTeam && !createMissingBatters) continue;
+
+    const { lookup } = await buildPlayerLookup(side.teamId);
+    // Walk batters first, then pitchers (pitcher loop later will skip dupes).
+    const candidates = [
+      ...(side.batters || []).map(p => ({ ...p, _src: 'batting' })),
+      ...(side.pitchers || []).map(p => ({ ...p, _src: 'pitching' })),
+    ];
+    const seen = new Set();
+    for (const p of candidates) {
+      if (!p.name) continue;
+      const key = `${(p.name || '').toLowerCase()}|${p.jersey || ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      // Skip if already on roster
+      if (matchPlayer(p.name, p.jersey, lookup)) continue;
+      try {
+        await createPlayerForTeam(side.teamId, p.name, p.jersey, p.firstName, p.lastName);
+        results.created++;
+        results.players++;
+      } catch (err) {
+        results.errors.push(`Could not auto-create ${side.label} player "${p.name}": ${err.message}`);
+      }
+    }
   }
 
   // ── Match and import pitching data (pitch counts) ──
@@ -732,9 +1044,15 @@ async function importBoxScore(req, res, opts) {
   // ── Warning for duplicate imports ──
   if (wasExisting) {
     results.warnings = results.warnings || [];
-    results.warnings.push(
-      'This game was already imported. Scores were kept from the original import. Pitch counts for your team\'s pitchers have been added.'
-    );
+    if (overwrite) {
+      results.warnings.push(
+        'This game was already imported — scores, pitch counts, and box score were replaced with the new data.'
+      );
+    } else {
+      results.warnings.push(
+        'This game was already imported. Existing scores and pitch counts were kept. Re-run with "Overwrite existing data" turned ON to replace them.'
+      );
+    }
   }
 
   // ── Audit log ──
@@ -772,6 +1090,172 @@ async function importBoxScore(req, res, opts) {
     }
   }
 
+  // ── Persist parsed box score for in-game viewing ──
+  // One row per game; re-import replaces it via UNIQUE(game_id) upsert.
+  // For multi-team scenarios: a re-import only replaces the existing snapshot
+  // when "Overwrite" is on. Otherwise the first import wins.
+  if (gameId) {
+    // Enrich batting/pitching rows with resolved player_id + canonical
+    // first/last name from the roster, so the BoxScore UI can display the
+    // proper player profile name and link to it.
+    const enrichSide = async (rows, teamId) => {
+      if (!Array.isArray(rows) || !rows.length || !teamId) return rows;
+      const { lookup } = await buildPlayerLookup(teamId);
+      return rows.map(r => {
+        const m = matchPlayer(r.name, r.jersey, lookup);
+        if (!m) return r;
+        return {
+          ...r,
+          player_id: m.id,
+          player_first_name: m.first_name,
+          player_last_name: m.last_name,
+          player_jersey: m.jersey,
+        };
+      });
+    };
+    if (batting) {
+      batting.away = await enrichSide(batting.away, awayTeamId);
+      batting.home = await enrichSide(batting.home, homeTeamId);
+    }
+    if (pitching) {
+      pitching.away = await enrichSide(pitching.away, awayTeamId);
+      pitching.home = await enrichSide(pitching.home, homeTeamId);
+    }
+
+    // ── Merge extras (HR, SB, 2B, 3B) from summary lines into batter records ──
+    //   extras = { 'HR': { 'G Berktold': 1 }, 'SB': { 'H Finley': 3, ... }, ... }
+    //   Match by player name (case-insensitive substring) since GC uses initials.
+    const extras = (batting && batting.extras) || {};
+    if (Object.keys(extras).length > 0) {
+      const EXTRAS_FIELD_MAP = { 'HR': 'hr', 'SB': 'sb', '2B': 'doubles', '3B': 'triples' };
+      const mergeExtras = (batters) => {
+        for (const batter of batters) {
+          const bn = (batter.name || '').toLowerCase().trim();
+          for (const [key, playerMap] of Object.entries(extras)) {
+            const field = EXTRAS_FIELD_MAP[key];
+            if (!field) continue;
+            for (const [ename, count] of Object.entries(playerMap)) {
+              const en = ename.toLowerCase().trim();
+              if (en === bn || bn.includes(en) || en.includes(bn)) {
+                batter[field] = count;
+                break;
+              }
+            }
+          }
+        }
+      };
+      mergeExtras(batting.away || []);
+      mergeExtras(batting.home || []);
+    }
+
+    // ── Roll per-player batting + pitching stats up into player_game_stats so
+    //    the PlayerDetail page can aggregate season/career totals from imports.
+    //    Uses stat_definitions abbreviations: AB/H/R/RBI/HR/BB/K (batting) and
+    //    IP/HA/RA/ER/BB/K/HR/PC (pitching). Honors the `overwrite` flag.
+    try {
+      const { rows: defs } = await pool.query(
+        `SELECT id, abbreviation, category FROM stat_definitions WHERE is_active = TRUE`
+      );
+      const defByKey = {};
+      for (const d of defs) {
+        defByKey[`${d.category}:${d.abbreviation.toUpperCase()}`] = d.id;
+      }
+
+      // Parser-field → stat-definition-abbreviation per category.
+      const battingMap = {
+        ab: 'AB', h: 'H', r: 'R', rbi: 'RBI', hr: 'HR', bb: 'BB', so: 'K',
+        doubles: '2B', triples: '3B', sb: 'SB',
+      };
+      const pitchingMap = {
+        ip: 'IP', h: 'HA', r: 'RA', er: 'ER', bb: 'BB',
+        so: 'K', k: 'K', hr: 'HR', pitches: 'PC', strikes: 'STK',
+      };
+
+      const writeStat = async (playerId, teamId, defId, value) => {
+        if (value == null || Number.isNaN(value)) return;
+        const sql = overwrite
+          ? `INSERT INTO player_game_stats (player_id, game_id, team_id, stat_definition_id, value)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (player_id, game_id, stat_definition_id)
+             DO UPDATE SET value = EXCLUDED.value, team_id = EXCLUDED.team_id`
+          : `INSERT INTO player_game_stats (player_id, game_id, team_id, stat_definition_id, value)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (player_id, game_id, stat_definition_id) DO NOTHING`;
+        await pool.query(sql, [playerId, gameId, teamId, defId, String(value)]);
+      };
+
+      const sidesForStats = [
+        { batters: batting.away || [], pitchers: pitching.away || [], teamId: awayTeamId },
+        { batters: batting.home || [], pitchers: pitching.home || [], teamId: homeTeamId },
+      ];
+      for (const side of sidesForStats) {
+        if (!side.teamId) continue;
+        for (const b of side.batters) {
+          if (!b.player_id) continue;
+          for (const [field, abbr] of Object.entries(battingMap)) {
+            const defId = defByKey[`batting:${abbr}`];
+            if (!defId) continue;
+            await writeStat(b.player_id, side.teamId, defId, b[field]);
+          }
+        }
+        for (const p of side.pitchers) {
+          if (!p.player_id) continue;
+          for (const [field, abbr] of Object.entries(pitchingMap)) {
+            const defId = defByKey[`pitching:${abbr}`];
+            if (!defId) continue;
+            await writeStat(p.player_id, side.teamId, defId, p[field]);
+          }
+        }
+      }
+    } catch (err) {
+      // Non-fatal — log but don't fail the import
+      console.error('Failed to write player_game_stats:', err.message);
+      results.errors.push(`Could not save per-player stats: ${err.message}`);
+    }
+
+    const teamResolution = {
+      away_team_id: awayTeamId || null,
+      home_team_id: homeTeamId || null,
+      away_external_name: gameInfo.awayTeam || null,
+      home_external_name: gameInfo.homeTeam || null,
+    };
+    try {
+      const conflictClause = overwrite
+        ? `ON CONFLICT (game_id) DO UPDATE SET
+             source = EXCLUDED.source,
+             linescore = EXCLUDED.linescore,
+             batting = EXCLUDED.batting,
+             pitching = EXCLUDED.pitching,
+             team_resolution = EXCLUDED.team_resolution,
+             player_resolution = EXCLUDED.player_resolution,
+             raw_text = EXCLUDED.raw_text,
+             imported_by = EXCLUDED.imported_by,
+             updated_at = NOW()`
+        : `ON CONFLICT (game_id) DO NOTHING`;
+      await pool.query(
+        `INSERT INTO game_box_scores
+           (game_id, source, linescore, batting, pitching,
+            team_resolution, player_resolution, raw_text, imported_by, updated_at)
+         VALUES ($1, 'gamechanger', $2, $3, $4, $5, $6, $7, $8, NOW())
+         ${conflictClause}`,
+        [
+          gameId,
+          JSON.stringify(linescore || []),
+          JSON.stringify(batting || { away: [], home: [] }),
+          JSON.stringify(pitching || { away: [], home: [] }),
+          JSON.stringify(teamResolution),
+          JSON.stringify(playerMappings || {}),
+          (parsed.raw || '').slice(0, 10000),
+          req.user?.id || null,
+        ]
+      );
+    } catch (err) {
+      // Non-fatal — log but don't fail the import
+      console.error('Failed to write game_box_scores:', err.message);
+      results.errors.push(`Could not save box score snapshot: ${err.message}`);
+    }
+  }
+
   // ── Summary message ──
   const parts = [];
   if (results.games) parts.push(`${results.games} game`);
@@ -783,6 +1267,9 @@ async function importBoxScore(req, res, opts) {
 
   // Remove success flag if there were fatal issues
   if (!gameId && !results.stats) results.success = false;
+
+  // Expose the resolved game id so the client can offer a "View imported game" link.
+  results.gameId = gameId || null;
 
   res.json(results);
 }

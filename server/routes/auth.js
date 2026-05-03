@@ -152,6 +152,60 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// POST /api/auth/register-guardian — guardian self-registration (approved immediately, no team access)
+router.post('/register-guardian', async (req, res) => {
+  if (rateLimit(req, res, { key: 'register-guardian', max: 5, windowMs: 300_000 })) return;
+  try {
+    const { username, password, name, email: rawEmail } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
+    if (!username || !password || !name || !email) {
+      return res.status(400).json({ error: 'Username, password, name, and email are required' });
+    }
+    const pwErr = validatePassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
+
+    const { rows: existingUser } = await pool.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [username]);
+    if (existingUser.length) return res.status(409).json({ error: 'Username already taken' });
+    const { rows: existingEmail } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+    if (existingEmail.length) return res.status(409).json({ error: 'Email already registered' });
+
+    const hash = await bcrypt.hash(password, 10);
+    const { rows } = await pool.query(
+      `INSERT INTO users (username, password_hash, name, email, role, approval_status, email_confirmed)
+       VALUES ($1, $2, $3, $4, 'guardian', 'approved', TRUE) RETURNING id, username, name, email, role`,
+      [username, hash, name, email]
+    );
+    const user = rows[0];
+
+    // ── Auto-link existing guardian records that match this email ──
+    // If coaches/admins have already entered this person as a guardian on player records,
+    // link those records to the new account and create approved claims so they can see the players immediately.
+    const { rows: linkedGuardians } = await pool.query(
+      `UPDATE guardians SET user_id = $1 WHERE LOWER(email) = LOWER($2) AND user_id IS NULL RETURNING id`,
+      [user.id, email]
+    );
+    if (linkedGuardians.length) {
+      const guardianIds = linkedGuardians.map(g => g.id);
+      // Insert approved guardian_claims for every player linked to these guardian records
+      await pool.query(
+        `INSERT INTO guardian_claims (user_id, player_id, status, notes, reviewed_at)
+         SELECT $1, pg.player_id, 'approved', 'Auto-approved: matched existing guardian record', NOW()
+         FROM player_guardians pg
+         WHERE pg.guardian_id = ANY($2)
+         ON CONFLICT (user_id, player_id) DO NOTHING`,
+        [user.id, guardianIds]
+      );
+    }
+
+    const permissions = await getUserPermissions(user.id);
+    const token = jwt.sign({ id: user.id, username: user.username, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+    res.status(201).json({ token, user, permissions });
+  } catch (err) {
+    console.error('Register guardian error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/auth/register-umpire — umpire self-registration with profile creation (pending approval)
 router.post('/register-umpire', async (req, res) => {
   if (rateLimit(req, res, { key: 'register-umpire', max: 5, windowMs: 300_000 })) return;

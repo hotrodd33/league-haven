@@ -1,54 +1,176 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, canEditTeam } = require('../auth');
+const { authMiddleware, canEditTeam, getUserPermissions } = require('../auth');
+const { canEditPlayer } = require('./players');
 
 const router = express.Router();
 
-// Helper: check if user can edit a player (must have access to at least one of
-// the player's teams, or be super_admin)
-async function canEditPlayer(user, playerId) {
-  if (user.role === 'super_admin') return true;
-  const { rows } = await pool.query('SELECT team_id FROM team_players WHERE player_id = $1', [playerId]);
-  for (const r of rows) {
-    if (await canEditTeam(user, r.team_id)) return true;
+// ── Roles permitted to see guardian contact details at all ──
+const CONTACT_VIEWER_ROLES = new Set(['super_admin', 'org_admin', 'team_manager', 'guardian']);
+
+/**
+ * Determine if `user` may view guardian contacts for `playerId`.
+ * Returns { allowed: false } or { allowed: true, full: boolean, guardianUserId? }.
+ * full=false means the caller is a guardian — strip other guardians' email/phone.
+ */
+async function resolveContactAccess(user, playerId) {
+  if (!CONTACT_VIEWER_ROLES.has(user.role)) return { allowed: false };
+  if (user.role === 'super_admin') return { allowed: true, full: true };
+
+  if (user.role === 'org_admin' || user.role === 'team_manager') {
+    // Must manage at least one team the player is on
+    const { rows } = await pool.query(
+      `SELECT 1
+       FROM team_players tp
+       JOIN user_permissions up ON up.is_active = TRUE AND up.user_id = $1
+         AND (up.team_id = tp.team_id
+              OR up.org_id IN (SELECT org_id FROM teams WHERE id = tp.team_id AND org_id IS NOT NULL))
+       WHERE tp.player_id = $2
+       LIMIT 1`,
+      [user.id, playerId]
+    );
+    return { allowed: rows.length > 0, full: true };
   }
-  return false;
+
+  if (user.role === 'guardian') {
+    const { rows } = await pool.query(
+      `SELECT 1 FROM guardian_claims
+       WHERE user_id = $1 AND player_id = $2 AND status = 'approved' LIMIT 1`,
+      [user.id, playerId]
+    );
+    if (!rows.length) return { allowed: false };
+    return { allowed: true, full: false, guardianUserId: user.id };
+  }
+
+  return { allowed: false };
 }
 
-// ── All Guardians List (for Guardians page) ──
+/**
+ * Determine if `user` may manage volunteer data for a guardian identified by guardianId.
+ * Only coaches-and-up who have a player in common with this guardian.
+ */
+async function canManageGuardianVolunteers(user, guardianId) {
+  if (user.role === 'super_admin') return true;
+  // Guardians may manage their own volunteer record (matched by user_id OR by email)
+  if (user.role === 'guardian') {
+    const { rows } = await pool.query(
+      `SELECT g.id, g.user_id FROM guardians g
+       JOIN users u ON u.id = $2
+       WHERE g.id = $1 AND (g.user_id = $2 OR LOWER(g.email) = LOWER(u.email))
+       LIMIT 1`,
+      [guardianId, user.id]
+    );
+    if (!rows.length) return false;
+    // Lazily link user_id if it wasn't set yet
+    if (rows[0].user_id == null) {
+      await pool.query('UPDATE guardians SET user_id = $1 WHERE id = $2', [user.id, guardianId]);
+    }
+    return true;
+  }
+  if (!['org_admin', 'team_manager'].includes(user.role)) return false;
+  const { rows } = await pool.query(
+    `SELECT 1
+     FROM player_guardians pg
+     JOIN team_players tp ON tp.player_id = pg.player_id
+     JOIN user_permissions up ON up.is_active = TRUE AND up.user_id = $1
+       AND (up.team_id = tp.team_id
+            OR up.org_id IN (SELECT org_id FROM teams WHERE id = tp.team_id AND org_id IS NOT NULL))
+     WHERE pg.guardian_id = $2
+     LIMIT 1`,
+    [user.id, guardianId]
+  );
+  return rows.length > 0;
+}
+
+
 // MUST be defined before /:playerId to avoid route conflict
 
 // GET /player-contacts/all-guardians — list all guardians with players + volunteer roles
+// Only coaches-and-up. Guardians, umpires, score_reporters, accountants are denied.
 router.get('/all-guardians', authMiddleware, async (req, res) => {
   try {
-    const { rows: guardians } = await pool.query(`
-      SELECT g.id, g.first_name, g.last_name, g.email, g.phone,
-             COALESCE(
-               json_agg(
-                 DISTINCT jsonb_build_object(
-                   'player_id', p.id, 'player_name', p.first_name || ' ' || p.last_name,
-                   'relationship', pg.relationship, 'team_names',
-                   (SELECT string_agg(DISTINCT t.name, ', ')
-                    FROM team_players tp JOIN teams t ON t.id = tp.team_id
-                    WHERE tp.player_id = p.id),
-                   'team_ids',
-                   (SELECT COALESCE(array_agg(DISTINCT tp.team_id), '{}')
-                    FROM team_players tp
-                    WHERE tp.player_id = p.id)
-                 )
-               ) FILTER (WHERE p.id IS NOT NULL), '[]'
-             ) AS players,
-             COALESCE(
-               array_agg(DISTINCT gv.role_id) FILTER (WHERE gv.role_id IS NOT NULL), '{}'
-             ) AS volunteer_role_ids
-      FROM guardians g
-      LEFT JOIN player_guardians pg ON pg.guardian_id = g.id
-      LEFT JOIN players p ON p.id = pg.player_id
-      LEFT JOIN guardian_volunteers gv ON gv.guardian_id = g.id
-      GROUP BY g.id
-      ORDER BY g.last_name, g.first_name
-      LIMIT 500
-    `);
+    const ALLOWED = ['super_admin', 'org_admin', 'team_manager'];
+    if (!ALLOWED.includes(req.user.role)) return res.status(403).json({ error: 'Access denied' });
+
+    const isBroadAdmin = req.user.role === 'super_admin' || req.user.role === 'org_admin';
+    let teamFilter = null;
+
+    if (!isBroadAdmin) {
+      const perms = await getUserPermissions(req.user.id);
+      // If user has org-level permissions treat them as broad admin for this query
+      if (perms.org_ids.length > 0) {
+        // org-level access — no team restriction needed
+      } else if (perms.team_ids.length > 0) {
+        teamFilter = perms.team_ids;
+      } else {
+        return res.json([]); // no permissions — return empty
+      }
+    }
+
+    let sql;
+    let params = [];
+
+    if (teamFilter) {
+      params = [teamFilter];
+      sql = `
+        SELECT g.id, g.first_name, g.last_name, g.email, g.phone,
+               COALESCE(
+                 json_agg(
+                   DISTINCT jsonb_build_object(
+                     'player_id', p.id, 'player_name', p.first_name || ' ' || p.last_name,
+                     'relationship', pg.relationship, 'team_names',
+                     (SELECT string_agg(DISTINCT t.name, ', ')
+                      FROM team_players tp JOIN teams t ON t.id = tp.team_id
+                      WHERE tp.player_id = p.id),
+                     'team_ids',
+                     (SELECT COALESCE(array_agg(DISTINCT tp.team_id), '{}')
+                      FROM team_players tp
+                      WHERE tp.player_id = p.id)
+                   )
+                 ) FILTER (WHERE p.id IS NOT NULL), '[]'
+               ) AS players,
+               COALESCE(
+                 array_agg(DISTINCT gv.role_id) FILTER (WHERE gv.role_id IS NOT NULL), '{}'
+               ) AS volunteer_role_ids
+        FROM guardians g
+        INNER JOIN player_guardians pg ON pg.guardian_id = g.id
+        INNER JOIN players p ON p.id = pg.player_id
+        INNER JOIN team_players tp2 ON tp2.player_id = p.id AND tp2.team_id = ANY($1)
+        LEFT JOIN guardian_volunteers gv ON gv.guardian_id = g.id
+        GROUP BY g.id
+        ORDER BY g.last_name, g.first_name
+        LIMIT 500`;
+    } else {
+      sql = `
+        SELECT g.id, g.first_name, g.last_name, g.email, g.phone,
+               COALESCE(
+                 json_agg(
+                   DISTINCT jsonb_build_object(
+                     'player_id', p.id, 'player_name', p.first_name || ' ' || p.last_name,
+                     'relationship', pg.relationship, 'team_names',
+                     (SELECT string_agg(DISTINCT t.name, ', ')
+                      FROM team_players tp JOIN teams t ON t.id = tp.team_id
+                      WHERE tp.player_id = p.id),
+                     'team_ids',
+                     (SELECT COALESCE(array_agg(DISTINCT tp.team_id), '{}')
+                      FROM team_players tp
+                      WHERE tp.player_id = p.id)
+                   )
+                 ) FILTER (WHERE p.id IS NOT NULL), '[]'
+               ) AS players,
+               COALESCE(
+                 array_agg(DISTINCT gv.role_id) FILTER (WHERE gv.role_id IS NOT NULL), '{}'
+               ) AS volunteer_role_ids
+        FROM guardians g
+        LEFT JOIN player_guardians pg ON pg.guardian_id = g.id
+        LEFT JOIN players p ON p.id = pg.player_id
+        LEFT JOIN guardian_volunteers gv ON gv.guardian_id = g.id
+        GROUP BY g.id
+        ORDER BY g.last_name, g.first_name
+        LIMIT 500`;
+    }
+
+    const { rows: guardians } = await pool.query(sql, params);
     res.json(guardians);
   } catch (err) {
     console.error(err);
@@ -61,6 +183,9 @@ router.get('/all-guardians', authMiddleware, async (req, res) => {
 // GET /player-contacts/guardian/:guardianId/volunteers — volunteer role IDs for a guardian
 router.get('/guardian/:guardianId/volunteers', authMiddleware, async (req, res) => {
   try {
+    if (!(await canManageGuardianVolunteers(req.user, req.params.guardianId))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     const { rows } = await pool.query(
       'SELECT role_id FROM guardian_volunteers WHERE guardian_id = $1',
       [req.params.guardianId]
@@ -76,6 +201,9 @@ router.get('/guardian/:guardianId/volunteers', authMiddleware, async (req, res) 
 router.put('/guardian/:guardianId/volunteers', authMiddleware, async (req, res) => {
   try {
     const { guardianId } = req.params;
+    if (!(await canManageGuardianVolunteers(req.user, guardianId))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     const { role_ids } = req.body;
     if (!Array.isArray(role_ids)) return res.status(400).json({ error: 'role_ids must be an array' });
 
@@ -94,8 +222,13 @@ router.put('/guardian/:guardianId/volunteers', authMiddleware, async (req, res) 
 });
 
 // GET /player-contacts/:playerId — list guardians for a player
-router.get('/:playerId', async (req, res) => {
+// Requires authentication. Guardians see names+relationship for others but NOT their email/phone.
+// Score reporters, umpires, accountants are denied entirely.
+router.get('/:playerId', authMiddleware, async (req, res) => {
   try {
+    const access = await resolveContactAccess(req.user, req.params.playerId);
+    if (!access.allowed) return res.status(403).json({ error: 'Access denied' });
+
     const { rows } = await pool.query(
       `SELECT g.id, g.first_name, g.last_name, g.email, g.phone, g.user_id,
               pg.relationship, pg.is_primary, pg.notes, pg.id AS link_id
@@ -105,6 +238,16 @@ router.get('/:playerId', async (req, res) => {
        ORDER BY pg.is_primary DESC, g.last_name, g.first_name`,
       [req.params.playerId]
     );
+
+    // Guardians: redact email/phone of contacts that aren't their own record
+    if (!access.full) {
+      return res.json(rows.map(c =>
+        c.user_id === access.guardianUserId
+          ? c
+          : { ...c, email: null, phone: null }
+      ));
+    }
+
     res.json(rows);
   } catch (err) {
     console.error(err);

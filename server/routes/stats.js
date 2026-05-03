@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware } = require('../auth');
+const { authMiddleware, optionalAuth } = require('../auth');
 const cache = require('../cache');
 
 const router = express.Router();
@@ -94,16 +94,70 @@ router.delete('/definitions/:id', authMiddleware, async (req, res) => {
 // ── Player Game Stats ──
 
 // GET /stats/player/:playerId — all stats for a player, optionally filtered by game_id
-router.get('/player/:playerId', async (req, res) => {
+router.get('/player/:playerId', optionalAuth, async (req, res) => {
   try {
+    const playerId = req.params.playerId;
+    const user = req.user;
+
+    // ── Access control ──
+    // Get the player's teams and their stats_visibility settings
+    const { rows: teamRows } = await pool.query(
+      `SELECT t.id, COALESCE(t.stats_visibility, 'own') AS stats_visibility
+       FROM team_players tp
+       JOIN teams t ON t.id = tp.team_id
+       WHERE tp.player_id = $1`,
+      [playerId]
+    );
+
+    const hasPublicTeam = teamRows.some(t => t.stats_visibility === 'all');
+
+    if (!hasPublicTeam) {
+      // Auth required from here on
+      if (!user) return res.status(403).json({ error: 'Access denied' });
+
+      const STAFF_ROLES = ['super_admin', 'org_admin', 'team_manager', 'score_reporter', 'accountant', 'umpire'];
+      if (!STAFF_ROLES.includes(user.role)) {
+        if (user.role === 'guardian') {
+          // Check if this is their own claimed player
+          const { rows: ownClaim } = await pool.query(
+            `SELECT 1 FROM guardian_claims WHERE user_id = $1 AND player_id = $2 AND status = 'approved' LIMIT 1`,
+            [user.id, playerId]
+          );
+          if (!ownClaim.length) {
+            // Not their player — check for team-level access
+            const teamIds = teamRows
+              .filter(t => t.stats_visibility === 'team')
+              .map(t => t.id);
+            if (teamIds.length) {
+              const { rows: teamClaim } = await pool.query(
+                `SELECT 1 FROM guardian_claims gc
+                 JOIN team_players tp ON tp.player_id = gc.player_id
+                 WHERE gc.user_id = $1 AND gc.status = 'approved'
+                 AND tp.team_id = ANY($2) LIMIT 1`,
+                [user.id, teamIds]
+              );
+              if (!teamClaim.length) return res.status(403).json({ error: 'Access denied' });
+            } else {
+              return res.status(403).json({ error: 'Access denied' });
+            }
+          }
+        } else {
+          return res.status(403).json({ error: 'Access denied' });
+        }
+      }
+    }
+
+    // ── Fetch stats ──
     const { game_id } = req.query;
     let sql = `
       SELECT pgs.*, sd.name AS stat_name, sd.abbreviation, sd.category,
-             g.game_date, g.home_team_id, g.away_team_id,
+             g.game_date, g.home_team_id, g.away_team_id, g.season_id,
+             ls.name AS season_name, ls.year AS season_year,
              ht.name AS home_team_name, at.name AS away_team_name
       FROM player_game_stats pgs
       JOIN stat_definitions sd ON sd.id = pgs.stat_definition_id
       JOIN games g ON g.id = pgs.game_id AND g.deleted_at IS NULL
+      LEFT JOIN league_seasons ls ON ls.id = g.season_id
       LEFT JOIN teams ht ON ht.id = g.home_team_id
       LEFT JOIN teams at ON at.id = g.away_team_id
       WHERE pgs.player_id = $1`;
