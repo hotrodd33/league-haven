@@ -86,9 +86,9 @@ export default function Chat() {
         // Mobile: absolute, full-width panel that slides out to the left
         'absolute inset-y-0 left-0 w-full z-10',
         'transition-transform duration-300 ease-in-out',
-        // Desktop: normal flow, fixed width, always visible
-        'sm:relative sm:inset-auto sm:w-60 sm:z-auto sm:!translate-x-0',
-        mobileView === 'messages' ? '-translate-x-full' : 'translate-x-0',
+        // Desktop: normal flow, fixed width, always visible — transform-none resets any mobile translate
+        'sm:relative sm:inset-auto sm:w-60 sm:z-auto sm:transform-none sm:pointer-events-auto',
+        mobileView === 'messages' ? '-translate-x-full pointer-events-none' : 'translate-x-0',
       ].join(' ')}>
         <div className="px-4 py-3 flex items-center justify-between border-b border-gray-700">
           <h2 className="text-sm font-bold text-chrome-300">
@@ -124,12 +124,12 @@ export default function Chat() {
       {/* ── Main pane ── */}
       <div className={[
         'flex-1 flex flex-col min-w-0 bg-gray-900',
-        // Mobile: absolute full-width panel that slides in from the right
-        'absolute inset-y-0 left-0 w-full',
+        // Mobile: absolute full-width panel, z-20 ensures it sits above sidebar (z-10)
+        'absolute inset-y-0 left-0 w-full z-20',
         'transition-transform duration-300 ease-in-out',
-        // Desktop: normal flow, always visible
-        'sm:relative sm:inset-auto sm:!translate-x-0',
-        mobileView === 'messages' ? 'translate-x-0' : 'translate-x-full',
+        // Desktop: normal flow — transform-none resets any mobile translate
+        'sm:relative sm:inset-auto sm:z-auto sm:transform-none sm:pointer-events-auto',
+        mobileView === 'messages' ? 'translate-x-0' : 'translate-x-full pointer-events-none',
       ].join(' ')}>
         {showNewDM ? (
           <NewDMPane
