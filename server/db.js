@@ -1020,11 +1020,14 @@ async function migrate() {
   `);
 }
 
-// Lazy migration: retries on each request until it succeeds
+// Lazy migration: retries on each request until it succeeds.
+// In production, all schema is applied via explicit migration scripts —
+// running ~100 sequential DDL queries on every cold start wastes time and memory.
 let migrated = false;
 let migrating = null;
 
 async function ensureReady() {
+  if (process.env.NODE_ENV === 'production') return; // schema managed by migration scripts
   if (migrated) return;
   if (!migrating) {
     migrating = migrate()
