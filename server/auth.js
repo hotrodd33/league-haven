@@ -62,10 +62,20 @@ async function getUserPermissions(userId) {
     teamOrgIds = teamOrgs.map(r => r.org_id);
   }
 
+  // Guardian: approved claims give access to specific players
+  const { rows: claimRows } = await pool.query(
+    `SELECT gc.player_id FROM guardian_claims gc
+     JOIN users u ON u.id = gc.user_id
+     WHERE gc.user_id = $1 AND gc.status = 'approved'`,
+    [userId]
+  );
+  const claimedPlayerIds = claimRows.map(r => r.player_id);
+
   return {
     org_ids: orgIds,
     team_ids: teamIds,
     team_org_ids: teamOrgIds,
+    claimed_player_ids: claimedPlayerIds,
   };
 }
 
@@ -124,4 +134,20 @@ function validatePassword(pw) {
   return null;
 }
 
-module.exports = { authMiddleware, requireAdmin, requireRole, getUserPermissions, canEditOrg, canEditTeam, canScoreGame, validatePassword, JWT_SECRET, ROLES };
+/** Like authMiddleware but doesn't reject unauthenticated requests — sets req.user to null instead. */
+function optionalAuth(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    req.user = null;
+    return next();
+  }
+  const token = header.slice(7);
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+  } catch {
+    req.user = null;
+  }
+  next();
+}
+
+module.exports = { authMiddleware, optionalAuth, requireAdmin, requireRole, getUserPermissions, canEditOrg, canEditTeam, canScoreGame, validatePassword, JWT_SECRET, ROLES };

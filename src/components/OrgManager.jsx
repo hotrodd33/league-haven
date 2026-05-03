@@ -510,6 +510,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
     primary_color: '#003366',
     secondary_color: '#CC0000',
     division_ids: [],
+    stats_visibility: 'own',
   });
 
   const orgTeams = org.teams || [];
@@ -592,6 +593,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
       primary_color: '#003366',
       secondary_color: '#CC0000',
       division_ids: [],
+      stats_visibility: 'own',
     });
     setLogoFile(null);
     setLogoPreview(null);
@@ -611,6 +613,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
       primary_color: team.primary_color || '#003366',
       secondary_color: team.secondary_color || '#CC0000',
       division_ids: team.divisions ? team.divisions.map((d) => d.id) : [],
+      stats_visibility: team.stats_visibility || 'own',
     });
     setLogoFile(null);
     setLogoPreview(team.logo_url || null);
@@ -659,6 +662,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
         secondary_color: newTeam.secondary_color || null,
         division_ids: newTeam.division_ids,
         org_id: org.id,
+        stats_visibility: newTeam.stats_visibility || 'own',
       };
 
       let savedTeam;
@@ -682,6 +686,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
         primary_color: '#003366',
         secondary_color: '#CC0000',
         division_ids: [],
+        stats_visibility: 'own',
       });
       setLogoFile(null);
       setLogoPreview(null);
@@ -904,6 +909,22 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                     {newTeam.division_ids.length} selected: {divisions.filter((d) => newTeam.division_ids.includes(d.id)).map((d) => d.path || d.name).join(', ')}
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label htmlFor="new-team-stats-vis" className="lh-eyebrow block mb-1">Stats Visibility</label>
+                <select
+                  id="new-team-stats-vis"
+                  name="stats_visibility"
+                  value={newTeam.stats_visibility}
+                  onChange={handleCreateChange}
+                  className="lh-select"
+                >
+                  <option value="own">Own player only (parents see their child only)</option>
+                  <option value="team">Team members &amp; parents (team guardians see all)</option>
+                  <option value="all">Everyone (public — no restrictions)</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Controls which stats parents/guardians can view on player profiles.</p>
               </div>
 
               {createError && <div className="lh-alert lh-alert-error">{createError}</div>}
