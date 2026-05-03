@@ -36,3 +36,14 @@ CREATE INDEX IF NOT EXISTS idx_team_divisions_team
 -- LATERAL JOIN: staff/coach lookups
 CREATE INDEX IF NOT EXISTS idx_team_staff_team_role
   ON team_staff_assignments (team_id, role);
+
+CREATE INDEX IF NOT EXISTS idx_team_staff_scheduling_contact
+  ON team_staff_assignments (team_id, is_scheduling_contact) WHERE is_scheduling_contact = true;
+
+-- Partial index for the deleted_at IS NULL filter (covers unfiltered / large scans)
+CREATE INDEX IF NOT EXISTS idx_games_active
+  ON games (game_date, game_time NULLS LAST) WHERE deleted_at IS NULL;
+
+-- Multi-team filter: ANY(array) lookup
+CREATE INDEX IF NOT EXISTS idx_games_home_team_id ON games (home_team_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_games_away_team_id ON games (away_team_id) WHERE deleted_at IS NULL;

@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { fetchAllGuardians, fetchVolunteerRoles, fetchTeams } from '../api/index.js';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchAllGuardians, fetchVolunteerRoles, fetchTeams, fetchAllGuardianClaims, fetchPendingClaimCount, reviewGuardianClaim } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { MagnifyingGlassIcon } from './ui/icons.jsx';
-import { Input, Select, Badge } from './ui';
+import { Input, Select, Badge, Button } from './ui';
 
 function Spinner() {
   return <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-action-500 border-t-transparent rounded-full animate-spin" /></div>;
@@ -11,6 +12,193 @@ function Spinner() {
 export default function GuardiansPage({ onViewPlayer }) {
   const { isAdmin, isOrgAdmin, permissions } = useAuth();
   const isCoachOnly = !isAdmin && !isOrgAdmin;
+  const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'claims'
+
+  // Pending claim count for badge
+  const { data: claimCountData } = useQuery({
+    queryKey: ['pending-claim-count'],
+    queryFn: fetchPendingClaimCount,
+    refetchInterval: 60_000,
+    enabled: isAdmin || isOrgAdmin,
+  });
+  const pendingCount = claimCountData?.count || 0;
+
+  return (
+    <div>
+      <h2 className="text-xl font-display font-bold text-white mb-4">Guardians</h2>
+
+      {(isAdmin || isOrgAdmin) && (
+        <div className="flex gap-1 border-b border-gray-700 mb-4">
+          <TabButton active={activeTab === 'directory'} onClick={() => setActiveTab('directory')}>
+            Directory
+          </TabButton>
+          <TabButton active={activeTab === 'claims'} onClick={() => setActiveTab('claims')}>
+            Pending Claims {pendingCount > 0 && (
+              <span className="ml-1.5 bg-yellow-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                {pendingCount}
+              </span>
+            )}
+          </TabButton>
+        </div>
+      )}
+
+      {activeTab === 'directory' && <GuardianDirectory onViewPlayer={onViewPlayer} isCoachOnly={isCoachOnly} permissions={permissions} />}
+      {activeTab === 'claims' && (isAdmin || isOrgAdmin) && <GuardianClaimsTab />}
+    </div>
+  );
+}
+
+function TabButton({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+        active
+          ? 'text-chrome-300 border-b-2 border-chrome-400 -mb-px'
+          : 'text-gray-400 hover:text-gray-200'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ── Pending Claims Tab ───────────────────────────────────────────
+
+function GuardianClaimsTab() {
+  const queryClient = useQueryClient();
+  const [reviewNotes, setReviewNotes] = useState({});
+  const [expandedId, setExpandedId] = useState(null);
+
+  const { data: claims = [], isLoading } = useQuery({
+    queryKey: ['all-guardian-claims'],
+    queryFn: () => fetchAllGuardianClaims(),
+    staleTime: 15_000,
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: ({ id, action, notes }) => reviewGuardianClaim(id, action, notes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-guardian-claims'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-claim-count'] });
+    },
+  });
+
+  const pending = claims.filter(c => c.status === 'pending');
+  const reviewed = claims.filter(c => c.status !== 'pending');
+
+  if (isLoading) return <div className="py-8 text-center text-gray-400 text-sm">Loading claims…</div>;
+
+  return (
+    <div className="space-y-6">
+      {pending.length === 0 && (
+        <div className="py-8 text-center text-gray-400 text-sm">No pending claims — all caught up!</div>
+      )}
+
+      {pending.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Pending ({pending.length})</h3>
+          {pending.map(claim => (
+            <ClaimRow
+              key={claim.id}
+              claim={claim}
+              expanded={expandedId === claim.id}
+              onToggle={() => setExpandedId(id => id === claim.id ? null : claim.id)}
+              notes={reviewNotes[claim.id] || ''}
+              onNotesChange={v => setReviewNotes(n => ({ ...n, [claim.id]: v }))}
+              onApprove={() => reviewMutation.mutate({ id: claim.id, action: 'approve', notes: reviewNotes[claim.id] })}
+              onDeny={() => reviewMutation.mutate({ id: claim.id, action: 'deny', notes: reviewNotes[claim.id] })}
+              isPending={reviewMutation.isPending && reviewMutation.variables?.id === claim.id}
+            />
+          ))}
+        </div>
+      )}
+
+      {reviewed.length > 0 && (
+        <details className="group">
+          <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-300 select-none list-none flex items-center gap-1">
+            <span className="group-open:hidden">▶</span>
+            <span className="hidden group-open:inline">▼</span>
+            Reviewed ({reviewed.length})
+          </summary>
+          <div className="mt-2 space-y-2 opacity-70">
+            {reviewed.map(claim => (
+              <div key={claim.id} className="flex items-center justify-between rounded border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm">
+                <span className="text-gray-300">
+                  <strong>{claim.guardian_name}</strong> → {claim.player_first_name} {claim.player_last_name}
+                </span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  claim.status === 'approved' ? 'bg-green-700/60 text-green-200' : 'bg-red-700/60 text-red-200'
+                }`}>
+                  {claim.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function ClaimRow({ claim, expanded, onToggle, notes, onNotesChange, onApprove, onDeny, isPending }) {
+  return (
+    <div className="rounded border border-gray-700 bg-gray-800/50 overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-700/40 transition-colors"
+      >
+        <div>
+          <p className="font-medium text-gray-100">
+            {claim.guardian_name}
+            <span className="text-gray-400 font-normal"> claims </span>
+            {claim.player_first_name} {claim.player_last_name}
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {claim.guardian_email} · Submitted {new Date(claim.created_at).toLocaleDateString()}
+            {claim.player_teams && ` · ${claim.player_teams}`}
+          </p>
+        </div>
+        <span className="text-gray-500 text-sm ml-4">{expanded ? '▲' : '▼'}</span>
+      </button>
+      {expanded && (
+        <div className="border-t border-gray-700 px-4 py-3 space-y-3">
+          <textarea
+            value={notes}
+            onChange={e => onNotesChange(e.target.value)}
+            placeholder="Optional notes (shown to guardian on denial)"
+            className="lh-input w-full h-16 resize-none text-sm"
+          />
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              loading={isPending}
+              onClick={onApprove}
+              className="bg-green-700 hover:bg-green-600 text-white border-0"
+            >
+              ✓ Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={isPending}
+              onClick={onDeny}
+              className="text-red-300 border-red-700 hover:bg-red-800/40"
+            >
+              ✗ Deny
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Guardian Directory (existing code extracted to sub-component) ────────────
+
+function GuardianDirectory({ onViewPlayer, isCoachOnly, permissions }) {
   const [guardians, setGuardians] = useState([]);
   const [volunteerRoles, setVolunteerRoles] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -157,8 +345,6 @@ export default function GuardiansPage({ onViewPlayer }) {
 
   return (
     <div>
-      <h2 className="text-xl font-display font-bold text-white mb-4">Guardians</h2>
-
       {/* Filters */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
         <div className="relative">

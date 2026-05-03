@@ -71,9 +71,10 @@ function BrandingConfig() {
   const [savingName, setSavingName] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);
   const [savingTimezone, setSavingTimezone] = useState(false);
+  const [savingEmailRedirect, setSavingEmailRedirect] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [removingLogo, setRemovingLogo] = useState(false);
-  const [form, setForm] = useState({ app_name: 'LeagueHaven', logo_url: null, public_site_url: '', timezone: 'America/Chicago' });
+  const [form, setForm] = useState({ app_name: 'LeagueHaven', logo_url: null, public_site_url: '', timezone: 'America/Chicago', email_redirect: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,6 +86,7 @@ function BrandingConfig() {
         logo_url: data?.logo_url || null,
         public_site_url: data?.public_site_url || '',
         timezone: data?.timezone || 'America/Chicago',
+        email_redirect: data?.email_redirect || '',
       });
     } catch (err) {
       setError(err.message);
@@ -148,6 +150,20 @@ function BrandingConfig() {
       setError(err.message);
     } finally {
       setSavingTimezone(false);
+    }
+  }
+
+  async function handleSaveEmailRedirect(e) {
+    e.preventDefault();
+    setSavingEmailRedirect(true);
+    setError(null);
+    try {
+      const updated = await updateBranding({ email_redirect: (form.email_redirect || '').trim() });
+      setForm((prev) => ({ ...prev, email_redirect: updated?.email_redirect || '' }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingEmailRedirect(false);
     }
   }
 
@@ -252,6 +268,25 @@ function BrandingConfig() {
         </Button>
       </form>
 
+      <form onSubmit={handleSaveEmailRedirect} className="bg-gray-900 border border-yellow-700/50 rounded-lg p-4 space-y-3">
+        <div>
+          <label className="lh-eyebrow block mb-1">Email Redirect <span className="text-yellow-400 font-normal normal-case">(Staging / Testing)</span></label>
+          <input
+            type="email"
+            value={form.email_redirect}
+            onChange={(e) => setForm((prev) => ({ ...prev, email_redirect: e.target.value }))}
+            className="lh-input"
+            placeholder="admin@example.com"
+          />
+          <p className="text-xs text-yellow-500/80 mt-1">
+            When set, <strong>all outbound emails</strong> are redirected to this address instead of the real recipient — subject is prefixed with the original recipient. Leave blank to send emails normally.
+          </p>
+        </div>
+        <Button type="submit" disabled={savingEmailRedirect} variant="secondary">
+          {savingEmailRedirect ? 'Saving…' : 'Save Email Redirect'}
+        </Button>
+      </form>
+
       <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
         <label className="lh-eyebrow block mb-1">Application Logo</label>
         <div className="flex items-center gap-3">
@@ -291,6 +326,7 @@ const FEATURE_DEFS = [
   { key: 'feature_public_site',       label: 'Public Site',         desc: 'Public-facing schedule, standings, and scores' },
   { key: 'feature_push_notifications', label: 'Push Notifications', desc: 'Browser push notifications for schedule changes and announcements' },
   { key: 'feature_game_delete',       label: 'Allow Game Deletion', desc: 'When off, only super-admins can delete games. Turn on to let org-admins and team managers delete games for their own teams.' },
+  { key: 'feature_chat',              label: 'Team Chat',            desc: 'In-app messaging for team channels and direct messages between members.' },
 ];
 
 function FeatureTogglesConfig() {

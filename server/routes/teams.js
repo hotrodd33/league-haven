@@ -131,7 +131,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { team_city, team_color, team_mascot, age_group, level, division, division_ids, org_id, primary_color, secondary_color } = req.body;
+    const { team_city, team_color, team_mascot, age_group, level, division, division_ids, org_id, primary_color, secondary_color, stats_visibility } = req.body;
     // Admin or org permission required
     // Allow org_admins and team_managers to create opponent teams (no org_id)
     if (req.user.role !== 'super_admin') {
@@ -156,8 +156,8 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      'INSERT INTO teams (name, abbreviation, team_city, team_color, team_mascot, age_group, level, division, org_id, primary_color, secondary_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id',
-      [name, abbr, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id || null, primary_color || null, secondary_color || null]
+      'INSERT INTO teams (name, abbreviation, team_city, team_color, team_mascot, age_group, level, division, org_id, primary_color, secondary_color, stats_visibility) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id',
+      [name, abbr, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id || null, primary_color || null, secondary_color || null, stats_visibility || 'own']
     );
     const teamId = rows[0].id;
     if (division_ids && division_ids.length) {
@@ -178,7 +178,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { team_city, team_color, team_mascot, age_group, level, division, division_ids, org_id, primary_color, secondary_color } = req.body;
+    const { team_city, team_color, team_mascot, age_group, level, division, division_ids, org_id, primary_color, secondary_color, stats_visibility } = req.body;
     const { id } = req.params;
     // Admin or team/org permission required
     if (req.user.role !== 'super_admin' && !(await canEditTeam(req.user, id))) {
@@ -200,8 +200,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 
     await pool.query(
-      'UPDATE teams SET name = $1, abbreviation = $2, team_city = $3, team_color = $4, team_mascot = $5, age_group = $6, level = $7, division = $8, org_id = $9, primary_color = $10, secondary_color = $11 WHERE id = $12',
-      [name, abbr, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id ?? null, primary_color || null, secondary_color || null, id]
+      'UPDATE teams SET name = $1, abbreviation = $2, team_city = $3, team_color = $4, team_mascot = $5, age_group = $6, level = $7, division = $8, org_id = $9, primary_color = $10, secondary_color = $11, stats_visibility = $12 WHERE id = $13',
+      [name, abbr, team_city || null, team_color || null, team_mascot || null, age_group || null, level || null, division || null, org_id ?? null, primary_color || null, secondary_color || null, stats_visibility || 'own', id]
     );
     if (division_ids !== undefined) {
       await syncDivisions(id, division_ids || []);

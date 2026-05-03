@@ -5,6 +5,23 @@ const { normalizeDOB } = require('../utils/dob');
 
 const router = express.Router();
 
+// ── canEditPlayer: team access OR approved guardian claim ──
+async function canEditPlayer(user, playerId) {
+  if (user.role === 'super_admin') return true;
+  // Guardian: check approved claim
+  const { rows: claimRows } = await pool.query(
+    `SELECT 1 FROM guardian_claims WHERE user_id = $1 AND player_id = $2 AND status = 'approved' LIMIT 1`,
+    [user.id, playerId]
+  );
+  if (claimRows.length) return true;
+  // Team access
+  const { rows } = await pool.query('SELECT team_id FROM team_players WHERE player_id = $1', [playerId]);
+  for (const r of rows) {
+    if (await canEditTeam(user, r.team_id)) return true;
+  }
+  return false;
+}
+
 async function withPositions(player) {
   if (!player) return null;
   const { rows: positions } = await pool.query(
@@ -33,6 +50,39 @@ async function withPositionsBulk(players) {
   }
   return players.map(p => ({ ...p, positions: map[p.id] || [] }));
 }
+
+// ── GET /players/search — limited-field player search for guardian claim flow ──
+// Returns only name, dob year, and team names — no PII (no DOB, email, phone).
+// Any authenticated user can call this to find players to claim.
+router.get('/search', authMiddleware, async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (q.length < 2) return res.json([]);
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id,
+              p.first_name,
+              p.last_name,
+              EXTRACT(YEAR FROM p.date_of_birth::date)::int AS dob_year,
+              COALESCE(
+                (SELECT string_agg(t.name, ', ')
+                 FROM team_players tp JOIN teams t ON t.id = tp.team_id
+                 WHERE tp.player_id = p.id),
+                ''
+              ) AS teams
+       FROM players p
+       WHERE (p.first_name || ' ' || p.last_name) ILIKE $1
+          OR p.last_name ILIKE $1
+          OR p.first_name ILIKE $1
+       ORDER BY p.last_name, p.first_name
+       LIMIT 20`,
+      [`%${q}%`]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // GET players, optionally filtered by team_id (via team_players junction)
 // Unfiltered requests support ?page= and ?limit= (default 200, max 500)
@@ -405,3 +455,4 @@ router.post('/unassign', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.canEditPlayer = canEditPlayer;

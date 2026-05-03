@@ -313,6 +313,9 @@ async function migrate() {
   await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS primary_color TEXT;`);
   await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS secondary_color TEXT;`);
 
+  // Guardian stats visibility: 'own' = only their claimed player, 'team' = all players on shared team, 'all' = public
+  await pool.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS stats_visibility TEXT NOT NULL DEFAULT 'own';`);
+
   // Enforce globally unique team names (case-insensitive). Skipped with a warning
   // if duplicates already exist so the migration doesn't crash existing leagues.
   try {
@@ -388,6 +391,12 @@ async function migrate() {
 
   // Add game_duration_minutes to games (default 150 min = 2h 30m)
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS game_duration_minutes INTEGER NOT NULL DEFAULT 150;`);
+
+  // Live scoring claim — tracks which user is the official live-scorer for a
+  // game so two users from opposing teams can't stomp each other's score
+  // updates. Pitch counts remain side-scoped (each team manages their own).
+  await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS scoring_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;`);
+  await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS scoring_started_at TIMESTAMPTZ;`);
 
   // Fix: Change games team FKs from CASCADE to SET NULL so deleting a team
   // doesn't wipe out all its games (and cascading pitch counts).
@@ -672,6 +681,28 @@ async function migrate() {
     );
   `);
 
+  // ── Game box scores (full parsed box score JSON, one row per game) ──
+  // Stores the full parsed output from external sources (currently GameChanger).
+  // One row per game; re-import replaces the row via UNIQUE(game_id) upsert.
+  // Renders the in-game "Box Score" tab without re-parsing the original PDF.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS game_box_scores (
+      id SERIAL PRIMARY KEY,
+      game_id INTEGER NOT NULL UNIQUE REFERENCES games(id) ON DELETE CASCADE,
+      source TEXT NOT NULL DEFAULT 'gamechanger',
+      linescore JSONB,
+      batting JSONB,
+      pitching JSONB,
+      team_resolution JSONB,
+      player_resolution JSONB,
+      raw_text TEXT,
+      imported_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_game_box_scores_game ON game_box_scores(game_id);`);
+
   // ── No-show tracking for umpire assignments ──
   await pool.query(`ALTER TABLE game_official_assignments ADD COLUMN IF NOT EXISTS no_show BOOLEAN NOT NULL DEFAULT FALSE;`);
 
@@ -792,6 +823,7 @@ async function migrate() {
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_live_scoring BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_pitch_tracking BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_officials BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_chat BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_stats BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_documents BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_financials BOOLEAN NOT NULL DEFAULT TRUE;`);
@@ -916,8 +948,76 @@ async function migrate() {
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS driving_distance_enabled BOOLEAN NOT NULL DEFAULT FALSE;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS driving_distance_api_key TEXT;`);
 
+  // Email redirect — when set, all outbound emails go to this address instead of the real recipient
+  // Use in staging to prevent accidental emails to real users
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS email_redirect TEXT;`);
+
   // ── Force-password-change flag (set for admin-created / invited accounts) ──
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;`);
+
+  // ── Guardian claim workflow ──
+  // Guardians self-register, search for their player, submit a claim, and an
+  // admin approves or denies it. On approval the guardian record is linked to
+  // the user account and the user gains full edit access for that player.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS guardian_claims (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','denied')),
+      notes TEXT,
+      reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      reviewed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, player_id)
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_guardian_claims_user ON guardian_claims(user_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_guardian_claims_status ON guardian_claims(status);`);
+
+  // ── Chat tables ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chat_channels (
+      id SERIAL PRIMARY KEY,
+      type TEXT NOT NULL CHECK(type IN ('team','org','direct')),
+      team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_channels_team ON chat_channels(team_id) WHERE team_id IS NOT NULL;`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_channels_org ON chat_channels(org_id) WHERE org_id IS NOT NULL AND type = 'org';`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chat_channel_members (
+      channel_id INTEGER NOT NULL REFERENCES chat_channels(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      last_read_at TIMESTAMPTZ,
+      PRIMARY KEY (channel_id, user_id)
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_channel_members(user_id);`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id SERIAL PRIMARY KEY,
+      channel_id INTEGER NOT NULL REFERENCES chat_channels(id) ON DELETE CASCADE,
+      sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      body TEXT NOT NULL CHECK(char_length(body) <= 4000),
+      reply_to_id INTEGER REFERENCES chat_messages(id) ON DELETE SET NULL,
+      edited_at TIMESTAMPTZ,
+      deleted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_messages_channel ON chat_messages(channel_id, created_at DESC);`);
+
+  // ── Chat notification preference ──
+  await pool.query(`
+    UPDATE users SET notification_prefs = notification_prefs || '{"chat_message":true}'::jsonb
+    WHERE notification_prefs IS NOT NULL AND NOT (notification_prefs ? 'chat_message')
+  `);
 }
 
 // Lazy migration: retries on each request until it succeeds

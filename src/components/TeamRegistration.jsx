@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { fetchRegistrationConfig, registerDirector, registerCoach, register, registerAsUmpire, resendConfirmation } from '../api/index.js';
 import { formatDOB } from '../utils/dob.js';
 import { Button, Input } from './ui/index.js';
+import GuardianRegister from './GuardianRegister.jsx';
 
 const EMPTY_TEAM = {
   team_city: '', team_mascot: '', team_color: '', age_group: '', level: '',
@@ -14,6 +15,7 @@ const ROLE_OPTIONS = [
   { key: 'director', label: 'Travel Director / Org Admin', desc: 'I manage an organization with multiple teams', icon: '★', accent: 'amber' },
   { key: 'scorekeeper', label: 'Scorekeeper', desc: 'I report game scores for my assigned teams', icon: '✎', accent: 'green' },
   { key: 'umpire', label: 'Umpire', desc: 'I officiate games and manage my availability', icon: '⚖', accent: 'purple' },
+  { key: 'guardian', label: 'Parent / Guardian', desc: 'I want to view my child\'s player profile and stats', icon: '👪', accent: 'rose' },
 ];
 
 const STEP_MAP = {
@@ -21,6 +23,7 @@ const STEP_MAP = {
   coach:       ['role', 'info', 'coach-team', 'review'],
   scorekeeper: ['role', 'info', 'scorekeeper-teams', 'review'],
   umpire:      ['role', 'info', 'umpire-details', 'review'],
+  guardian:    ['role'],
 };
 
 const STEP_LABELS = {
@@ -28,6 +31,7 @@ const STEP_LABELS = {
   coach:       ['Role', 'Your Info', 'Your Team', 'Review'],
   scorekeeper: ['Role', 'Your Info', 'Teams', 'Review'],
   umpire:      ['Role', 'Your Info', 'Details', 'Review'],
+  guardian:    ['Role'],
 };
 
 export default function TeamRegistration({ onDone }) {
@@ -175,8 +179,8 @@ export default function TeamRegistration({ onDone }) {
   function selectRole(r) {
     setRole(r);
     setError(null);
-    // Auto-advance to step 2 (info)
-    setStep(2);
+    // Guardian: stay on step 1 — GuardianRegister renders inline, no multi-step needed
+    if (r !== 'guardian') setStep(2);
   }
 
   // ── Team helpers ──
@@ -445,8 +449,13 @@ export default function TeamRegistration({ onDone }) {
           {!role ? 'What best describes your role?' : 'Create your account'}
         </p>
 
-        {/* Progress steps (only show after role is selected) */}
-        {role && (
+        {/* ─── Guardian: bypass multi-step, render GuardianRegister inline ─── */}
+        {role === 'guardian' && (
+          <GuardianRegister onBack={() => { setRole(null); setStep(1); setError(null); }} />
+        )}
+
+        {/* Progress steps (only show after role is selected, not guardian) */}
+        {role && role !== 'guardian' && (
           <div className="flex items-center gap-1 mb-6">
             {stepLabels.map((label, i) => (
               <div key={label} className="flex-1 flex flex-col items-center">
@@ -465,12 +474,12 @@ export default function TeamRegistration({ onDone }) {
           </div>
         )}
 
-        {error && (
+        {error && role !== 'guardian' && (
           <div className="lh-alert lh-alert-error mb-4">{error}</div>
         )}
 
         {/* ─── Role Selection ─── */}
-        {currentStepKey === 'role' && (
+        {currentStepKey === 'role' && role !== 'guardian' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {ROLE_OPTIONS.map(r => {
               const accents = {
@@ -478,6 +487,7 @@ export default function TeamRegistration({ onDone }) {
                 amber:  { border: 'border-amber-500', bg: 'bg-amber-900/20', text: 'text-amber-300' },
                 green:  { border: 'border-action-500', bg: 'bg-action-900/20', text: 'text-action-300' },
                 purple: { border: 'border-purple-500', bg: 'bg-purple-900/20', text: 'text-purple-300' },
+                rose:   { border: 'border-rose-500', bg: 'bg-rose-900/20', text: 'text-rose-300' },
               };
               const a = accents[r.accent];
               return (

@@ -54,7 +54,7 @@ const PRACTICE_COLORS = {
   maintenance: { bg: 'bg-amber-900/40', border: 'border-amber-500', text: 'text-amber-300', dot: 'bg-amber-500', badge: 'bg-amber-900/60 text-amber-300' },
 };
 
-export default function TeamSchedule({ teamId, onNavigateToTeam }) {
+export default function TeamSchedule({ teamId, onNavigateToTeam, onViewPlayer }) {
   const { isAdmin, canScoreGame, canScheduleGames } = useAuth();
   const canManageGames = isAdmin || canScheduleGames;
   const queryClient = useQueryClient();
@@ -97,7 +97,20 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   );
   const loading = gamesLoading || practicesLoading;
 
-  const loadGames = useCallback(() => {
+  const loadGames = useCallback((savedGame) => {
+    // Optimistically patch the updated game immediately, then background-refetch
+    if (savedGame?.id) {
+      queryClient.setQueriesData({ queryKey: ['games'] }, (old) => {
+        if (!Array.isArray(old)) return old;
+        const idx = old.findIndex(g => g.id === savedGame.id);
+        if (idx >= 0) {
+          const next = [...old];
+          next[idx] = { ...old[idx], ...savedGame };
+          return next;
+        }
+        return [...old, savedGame];
+      });
+    }
     queryClient.invalidateQueries({ queryKey: ['games'] });
     queryClient.invalidateQueries({ queryKey: ['practices'] });
   }, [queryClient]);
@@ -209,7 +222,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
   if (selectedGameId) {
     return (
       <div className="mt-6">
-        <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} onNavigateToTeam={onNavigateToTeam} />
+        <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); loadGames(); }} onNavigateToTeam={onNavigateToTeam} onViewPlayer={onViewPlayer} />
       </div>
     );
   }
@@ -269,7 +282,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam }) {
             seasons={seasons}
             defaultSeasonId={defaultSeasonId}
             defaultHomeTeamId={editingGame ? undefined : teamId}
-            onDone={() => { setShowForm(false); setEditingGame(null); loadGames(); }}
+            onDone={(saved) => { setShowForm(false); setEditingGame(null); loadGames(saved); }}
             onCancel={() => { setShowForm(false); setEditingGame(null); }}
           />
         </div>

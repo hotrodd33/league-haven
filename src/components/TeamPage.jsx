@@ -154,7 +154,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
       {/* Tab content */}
       <div className="pt-4">
         {activeTab === 'overview' && selectedGameId && (
-          <GameDetail gameId={selectedGameId} onBack={() => setSelectedGameId(null)} onNavigateToTeam={onNavigateToTeam} />
+          <GameDetail gameId={selectedGameId} onBack={() => setSelectedGameId(null)} onNavigateToTeam={onNavigateToTeam} onViewPlayer={onViewPlayer} />
         )}
         {activeTab === 'overview' && !selectedGameId && (
           <OverviewTab
@@ -168,7 +168,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
           />
         )}
         {activeTab === 'schedule' && (
-          <TeamSchedule teamId={teamId} onNavigateToTeam={onNavigateToTeam} />
+          <TeamSchedule teamId={teamId} onNavigateToTeam={onNavigateToTeam} onViewPlayer={onViewPlayer} />
         )}
         {activeTab === 'pitching' && (
           <div className="space-y-4">

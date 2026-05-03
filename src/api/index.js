@@ -80,6 +80,13 @@ export async function register(username, password, name, email, team_ids) {
   });
 }
 
+export async function registerGuardian(username, password, name, email) {
+  return apiFetch('/auth/register-guardian', {
+    method: 'POST',
+    body: JSON.stringify({ username, password, name, email }),
+  });
+}
+
 export async function forgotPassword(email) {
   return apiFetch('/auth/forgot-password', {
     method: 'POST',
@@ -418,6 +425,10 @@ export async function fetchGames(filters = {}) {
   return apiFetch(`/games${qs ? '?' + qs : ''}`);
 }
 
+export async function fetchGameOrgStats() {
+  return apiFetch('/games/org-stats');
+}
+
 export async function fetchGame(gameId) {
   return apiFetch(`/games/${gameId}`);
 }
@@ -466,6 +477,29 @@ export async function fetchPitchCounts(gameId) {
   return apiFetch(`/games/${gameId}/pitch-counts`);
 }
 
+// ── Live scoring claim ──
+
+export async function claimGameScoring(gameId, { force = false } = {}) {
+  return apiFetch(`/games/${gameId}/scoring-claim`, {
+    method: 'POST',
+    body: JSON.stringify({ force }),
+  });
+}
+
+export async function releaseGameScoring(gameId) {
+  return apiFetch(`/games/${gameId}/scoring-claim`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchGameBoxScore(gameId) {
+  // 404 is expected for games without an imported box score — return null instead of throwing
+  const response = await fetch(`${API_BASE}/games/${gameId}/box-score`, { headers: authHeaders() });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
 export async function createPitchCount(gameId, data) {
   return apiFetch(`/games/${gameId}/pitch-counts`, {
     method: 'POST',
@@ -489,6 +523,7 @@ export async function deletePitchCount(gameId, id) {
 // ── Pitch Rules ──
 
 export async function fetchPitchEligibility(teamId, gameDate, gameId) {
+  if (!gameDate || gameDate === 'null') return null;
   const params = new URLSearchParams({ team_id: teamId, game_date: gameDate });
   if (gameId) params.set('game_id', gameId);
   return apiFetch(`/pitch-rules/eligibility?${params}`);
@@ -711,6 +746,7 @@ export async function fetchTeamPractices(teamId) {
 export async function fetchAllPractices(filters = {}) {
   const params = new URLSearchParams();
   if (filters.team_id) params.append('team_id', filters.team_id);
+  if (filters.team_ids) params.append('team_ids', filters.team_ids);
   if (filters.event_type) params.append('event_type', filters.event_type);
   const qs = params.toString();
   return apiFetch(`/reservations/all${qs ? '?' + qs : ''}`);
@@ -968,6 +1004,7 @@ export async function importGameChanger(fileOrText, importType, options = {}) {
         teamMappings: options.teamMappings || undefined,
         playerMappings: options.playerMappings || undefined,
         columnMappings: options.columnMappings || undefined,
+        createMissingBatters: options.createMissingBatters ? true : undefined,
       }),
     });
   }
@@ -982,6 +1019,7 @@ export async function importGameChanger(fileOrText, importType, options = {}) {
   if (options.teamMappings) fd.append('teamMappings', JSON.stringify(options.teamMappings));
   if (options.playerMappings) fd.append('playerMappings', JSON.stringify(options.playerMappings));
   if (options.columnMappings) fd.append('columnMappings', JSON.stringify(options.columnMappings));
+  if (options.createMissingBatters) fd.append('createMissingBatters', 'true');
   return apiFetch('/import/gamechanger', { method: 'POST', body: fd });
 }
 
@@ -1282,4 +1320,90 @@ export async function reportBug(data) {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+// ── Guardian Claims ──
+
+export async function searchPlayersForClaim(q) {
+  return apiFetch(`/players/search?q=${encodeURIComponent(q)}`);
+}
+
+export async function submitGuardianClaim(playerId) {
+  return apiFetch('/guardian-claims', {
+    method: 'POST',
+    body: JSON.stringify({ player_id: playerId }),
+  });
+}
+
+export async function fetchMyClaims() {
+  return apiFetch('/guardian-claims/mine');
+}
+
+export async function fetchAllGuardianClaims(status) {
+  const qs = status ? `?status=${status}` : '';
+  return apiFetch(`/guardian-claims${qs}`);
+}
+
+export async function fetchPendingClaimCount() {
+  return apiFetch('/guardian-claims/pending-count');
+}
+
+export async function reviewGuardianClaim(id, action, notes) {
+  return apiFetch(`/guardian-claims/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action, notes }),
+  });
+}
+
+export async function withdrawGuardianClaim(id) {
+  return apiFetch(`/guardian-claims/${id}`, { method: 'DELETE' });
+}
+
+// ── Chat ──
+
+export async function fetchChatChannels() {
+  return apiFetch('/chat/channels');
+}
+
+export async function fetchChatMessages(channelId, before) {
+  const params = new URLSearchParams({ limit: '50' });
+  if (before) params.set('before', before);
+  return apiFetch(`/chat/channels/${channelId}/messages?${params}`);
+}
+
+export async function sendChatMessage(channelId, body, replyToId) {
+  return apiFetch(`/chat/channels/${channelId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ body, reply_to_id: replyToId || null }),
+  });
+}
+
+export async function editChatMessage(messageId, body) {
+  return apiFetch(`/chat/messages/${messageId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ body }),
+  });
+}
+
+export async function deleteChatMessage(messageId) {
+  return apiFetch(`/chat/messages/${messageId}`, { method: 'DELETE' });
+}
+
+export async function markChatRead(channelId) {
+  return apiFetch(`/chat/channels/${channelId}/read`, { method: 'POST' });
+}
+
+export async function findOrCreateDM(otherUserId) {
+  return apiFetch('/chat/dm', {
+    method: 'POST',
+    body: JSON.stringify({ other_user_id: otherUserId }),
+  });
+}
+
+export async function fetchDMUsers() {
+  return apiFetch('/chat/dm-users');
+}
+
+export async function fetchChatUnreadCount() {
+  return apiFetch('/chat/unread-count');
 }

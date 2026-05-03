@@ -44,7 +44,8 @@ const BASE_SELECT = `
     goa.official_ids, goa.official_names, goa.officials,
     gua.interested_official_ids, gua.interested_umpire_names, gua.interested_umpires,
     hsc.name AS home_sched_name, hsc.email AS home_sched_email, hsc.phone AS home_sched_phone, hsc.role AS home_sched_role,
-    asched.name AS away_sched_name, asched.email AS away_sched_email, asched.phone AS away_sched_phone, asched.role AS away_sched_role
+    asched.name AS away_sched_name, asched.email AS away_sched_email, asched.phone AS away_sched_phone, asched.role AS away_sched_role,
+    scu.name AS scoring_user_name
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
@@ -52,6 +53,7 @@ const BASE_SELECT = `
   LEFT JOIN organizations ao ON ao.id = at.org_id
   LEFT JOIN field_locations fl ON fl.id = g.location_id
   LEFT JOIN league_seasons ls ON ls.id = g.season_id
+  LEFT JOIN users scu ON scu.id = g.scoring_user_id
   LEFT JOIN LATERAL (
     SELECT ld.id AS division_id, ld.name AS division_name, ld.sort_order AS division_sort
     FROM team_divisions htd
@@ -307,13 +309,58 @@ async function canAssignOfficialsForTeam(client, teamId) {
   return !!rows[0]?.officials_enabled;
 }
 
-// GET games — supports filters: ?team_id=, ?season_id=, ?status=, ?from=, ?to=, ?slim=true
+// GET /games/org-stats — per-org game summary counts (avoids loading all rows into memory)
+router.get('/org-stats', async (req, res) => {
+  try {
+    const cacheKey = 'games:org-stats';
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
+    const { rows } = await pool.query(`
+      WITH game_orgs AS (
+        SELECT DISTINCT g.id AS game_id, t.org_id, g.status, g.game_date
+        FROM games g
+        JOIN teams t ON (t.id = g.home_team_id OR t.id = g.away_team_id)
+        WHERE g.deleted_at IS NULL AND t.org_id IS NOT NULL
+      )
+      SELECT
+        org_id,
+        COUNT(*) FILTER (WHERE status = 'completed') AS played,
+        COUNT(*) FILTER (WHERE game_date >= CURRENT_DATE AND status IN ('scheduled', 'in_progress', 'postponed')) AS scheduled,
+        COUNT(*) FILTER (WHERE game_date < CURRENT_DATE AND status NOT IN ('cancelled', 'completed')) AS missing_scores
+      FROM game_orgs
+      GROUP BY org_id
+    `);
+
+    // Convert bigint strings to numbers
+    const result = {};
+    for (const row of rows) {
+      result[row.org_id] = {
+        played: Number(row.played),
+        scheduled: Number(row.scheduled),
+        missingScores: Number(row.missing_scores),
+      };
+    }
+    cache.set(cacheKey, result, GAMES_TTL);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET games — supports filters: ?team_id=, ?team_ids=1,2,3, ?season_id=, ?status=, ?from=, ?to=, ?slim=true
 router.get('/', async (req, res) => {
   try {
-    const { team_id, season_id, status, from, to, slim } = req.query;
+    const { team_id, team_ids, season_id, status, from, to, slim } = req.query;
     const isSlim = slim === 'true';
 
-    const cacheKey = `games:${isSlim ? 'slim' : 'full'}:${team_id||''}:${season_id||''}:${status||''}:${from||''}:${to||''}`;
+    // Parse team_ids (comma-separated list for multi-team queries like "my teams")
+    const teamIdList = team_ids
+      ? team_ids.split(',').map(Number).filter(Number.isFinite)
+      : null;
+
+    const cacheKey = `games:${isSlim ? 'slim' : 'full'}:${team_id||''}:${teamIdList ? teamIdList.sort().join('_') : ''}:${season_id||''}:${status||''}:${from||''}:${to||''}`;
     const cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 
@@ -323,7 +370,11 @@ router.get('/', async (req, res) => {
 
     if (team_id) {
       conditions.push(`(g.home_team_id = $${idx} OR g.away_team_id = $${idx})`);
-      params.push(team_id);
+      params.push(Number(team_id));
+      idx++;
+    } else if (teamIdList && teamIdList.length > 0) {
+      conditions.push(`(g.home_team_id = ANY($${idx}::int[]) OR g.away_team_id = ANY($${idx}::int[]))`);
+      params.push(teamIdList);
       idx++;
     }
     if (season_id) {
@@ -646,6 +697,32 @@ router.put('/:id', authMiddleware, async (req, res) => {
     let { status } = req.body;
     const hasGameDate = Object.prototype.hasOwnProperty.call(req.body, 'game_date');
 
+    // Live-scoring claim enforcement: if someone else has claimed this game
+    // for live scoring, only that user (or super_admin) may push score /
+    // innings / status updates here. Other fields (date/time/notes/officials)
+    // remain editable by anyone with canScoreGame.
+    const touchesLiveScore =
+      Object.prototype.hasOwnProperty.call(req.body, 'home_score') ||
+      Object.prototype.hasOwnProperty.call(req.body, 'away_score') ||
+      Object.prototype.hasOwnProperty.call(req.body, 'innings_played') ||
+      Object.prototype.hasOwnProperty.call(req.body, 'status');
+    if (touchesLiveScore) {
+      const { rows: scRows } = await client.query(
+        'SELECT scoring_user_id FROM games WHERE id = $1', [id]
+      );
+      const claimer = scRows[0]?.scoring_user_id;
+      if (
+        claimer &&
+        Number(claimer) !== Number(req.user.id) &&
+        req.user.role !== 'super_admin'
+      ) {
+        return res.status(409).json({
+          error: 'Another user is currently scoring this game. Take over scoring to change the score.',
+          scoring_user_id: claimer,
+        });
+      }
+    }
+
     // Auto-promote: if date + time + location are all set and status is unscheduled, promote to scheduled
     const effectiveDate = game_date || game.game_date;
     const effectiveTime = game_time || game.game_time;
@@ -894,6 +971,99 @@ router.patch('/:id/restore', authMiddleware, requireAdmin, async (req, res) => {
 
 // ─── Pitch Counts ───────────────────────────────
 
+// Determine which side(s) of a game a user has authority over.
+// Returns 'home' | 'away' | 'both' | null.
+async function getUserGameSide(user, game) {
+  if (!user) return null;
+  if (user.role === 'super_admin') return 'both';
+  const perms = await getUserPermissions(user.id);
+  const homeId = Number(game.home_team_id);
+  const awayId = Number(game.away_team_id);
+  let home = perms.team_ids.includes(homeId);
+  let away = perms.team_ids.includes(awayId);
+  if (!home || !away) {
+    // Org-level access promotes the matching side(s).
+    const { rows } = await pool.query(
+      'SELECT id, org_id FROM teams WHERE id = ANY($1)',
+      [[homeId, awayId]]
+    );
+    for (const t of rows) {
+      if (t.org_id && perms.org_ids.includes(t.org_id)) {
+        if (Number(t.id) === homeId) home = true;
+        if (Number(t.id) === awayId) away = true;
+      }
+    }
+  }
+  if (home && away) return 'both';
+  if (home) return 'home';
+  if (away) return 'away';
+  return null;
+}
+
+// ─── Live Scoring Claim ──────────────────────────
+// One user at a time owns the live scoreboard (score / innings / status).
+// Pitch counts remain editable by either side for their own pitchers.
+
+// POST /api/games/:id/scoring-claim — claim or take over live scoring.
+router.post('/:id/scoring-claim', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const force = req.body?.force === true || req.body?.force === 'true';
+    const { rows } = await pool.query(
+      'SELECT id, home_team_id, away_team_id, scoring_user_id FROM games WHERE id = $1',
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Game not found' });
+    const game = rows[0];
+    const allowed = await canScoreGame(req.user, game.home_team_id, game.away_team_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized to score this game' });
+
+    // If already claimed by someone else, require force=true.
+    if (
+      game.scoring_user_id &&
+      Number(game.scoring_user_id) !== Number(req.user.id) &&
+      !force
+    ) {
+      return res.status(409).json({ error: 'Game is already being scored', scoring_user_id: game.scoring_user_id });
+    }
+
+    await pool.query(
+      'UPDATE games SET scoring_user_id = $1, scoring_started_at = NOW() WHERE id = $2',
+      [req.user.id, id]
+    );
+    const { rows: out } = await pool.query(BASE_SELECT + ' WHERE g.id = $1', [id]);
+    res.json(enrichGame(out[0]));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/games/:id/scoring-claim — release the claim (current claimer or admin).
+router.delete('/:id/scoring-claim', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      'SELECT scoring_user_id FROM games WHERE id = $1', [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Game not found' });
+    const claimer = rows[0].scoring_user_id;
+    if (req.user.role !== 'super_admin' && claimer && Number(claimer) !== Number(req.user.id)) {
+      return res.status(403).json({ error: 'Only the current scorer can release the claim' });
+    }
+    await pool.query(
+      'UPDATE games SET scoring_user_id = NULL, scoring_started_at = NULL WHERE id = $1',
+      [id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── Pitch Counts ───────────────────────────────
+
 // GET pitch counts for a game
 router.get('/:gameId/pitch-counts', async (req, res) => {
   try {
@@ -932,6 +1102,21 @@ router.post('/:gameId/pitch-counts', authMiddleware, async (req, res) => {
     if (!player_id || !team_id || pitch_count == null) {
       return res.status(400).json({ error: 'player_id, team_id, and pitch_count are required' });
     }
+    // Side-scope: a user may only add pitch counts for a team they have
+    // authority over. Prevents the home tracker from creating pitch counts
+    // attributed to away pitchers and vice versa.
+    const { rows: gameRows } = await pool.query(
+      'SELECT home_team_id, away_team_id FROM games WHERE id = $1', [gameId]
+    );
+    const side = await getUserGameSide(req.user, gameRows[0]);
+    const isHome = Number(team_id) === Number(gameRows[0].home_team_id);
+    const isAway = Number(team_id) === Number(gameRows[0].away_team_id);
+    if (!isHome && !isAway) {
+      return res.status(400).json({ error: 'team_id must be one of the teams in this game' });
+    }
+    if (side !== 'both' && ((isHome && side !== 'home') || (isAway && side !== 'away'))) {
+      return res.status(403).json({ error: "You can only track pitch counts for your own team's pitchers" });
+    }
     const { rows } = await pool.query(
       `INSERT INTO game_pitch_counts (game_id, player_id, team_id, pitch_count)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -950,6 +1135,19 @@ router.put('/:gameId/pitch-counts/:id', authMiddleware, async (req, res) => {
     const { gameId, id } = req.params;
     if (!(await canEditGame(req.user, gameId))) {
       return res.status(403).json({ error: 'Not authorized' });
+    }
+    // Side-scope: a user can only edit pitch counts for their own team(s).
+    const { rows: pcRows } = await pool.query(
+      `SELECT gpc.team_id, g.home_team_id, g.away_team_id
+       FROM game_pitch_counts gpc JOIN games g ON g.id = gpc.game_id
+       WHERE gpc.id = $1 AND gpc.game_id = $2`,
+      [id, gameId]
+    );
+    if (!pcRows.length) return res.status(404).json({ error: 'Pitch count entry not found' });
+    const side = await getUserGameSide(req.user, pcRows[0]);
+    const isHome = Number(pcRows[0].team_id) === Number(pcRows[0].home_team_id);
+    if (side !== 'both' && ((isHome && side !== 'home') || (!isHome && side !== 'away'))) {
+      return res.status(403).json({ error: "You can only edit pitch counts for your own team's pitchers" });
     }
     const { pitch_count } = req.body;
     const { rows } = await pool.query(
@@ -971,6 +1169,19 @@ router.delete('/:gameId/pitch-counts/:id', authMiddleware, async (req, res) => {
     if (!(await canEditGame(req.user, gameId))) {
       return res.status(403).json({ error: 'Not authorized' });
     }
+    // Side-scope: only the team that owns the pitcher can remove the row.
+    const { rows: pcRows } = await pool.query(
+      `SELECT gpc.team_id, g.home_team_id, g.away_team_id
+       FROM game_pitch_counts gpc JOIN games g ON g.id = gpc.game_id
+       WHERE gpc.id = $1 AND gpc.game_id = $2`,
+      [id, gameId]
+    );
+    if (!pcRows.length) return res.status(404).json({ error: 'Pitch count entry not found' });
+    const side = await getUserGameSide(req.user, pcRows[0]);
+    const isHome = Number(pcRows[0].team_id) === Number(pcRows[0].home_team_id);
+    if (side !== 'both' && ((isHome && side !== 'home') || (!isHome && side !== 'away'))) {
+      return res.status(403).json({ error: "You can only delete pitch counts for your own team's pitchers" });
+    }
     const { rows } = await pool.query(
       'DELETE FROM game_pitch_counts WHERE id = $1 AND game_id = $2 RETURNING id', [id, gameId]
     );
@@ -978,6 +1189,28 @@ router.delete('/:gameId/pitch-counts/:id', authMiddleware, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /api/games/:id/box-score — return saved GC box score snapshot ──
+router.get('/:id/box-score', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `SELECT bs.id, bs.game_id, bs.source, bs.linescore, bs.batting, bs.pitching,
+              bs.team_resolution, bs.player_resolution, bs.imported_at, bs.updated_at,
+              u.username AS imported_by_username
+       FROM game_box_scores bs
+       LEFT JOIN users u ON u.id = bs.imported_by
+       WHERE bs.game_id = $1
+       LIMIT 1`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'No box score for this game' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('GET box-score error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

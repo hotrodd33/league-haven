@@ -1,19 +1,11 @@
 const express = require('express');
 const multer = require('multer');
 const { pool } = require('../db');
-const { authMiddleware, canEditTeam } = require('../auth');
+const { authMiddleware } = require('../auth');
+const { canEditPlayer } = require('./players');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB
-
-async function canEditPlayer(user, playerId) {
-  if (user.role === 'super_admin') return true;
-  const { rows } = await pool.query('SELECT team_id FROM team_players WHERE player_id = $1', [playerId]);
-  for (const r of rows) {
-    if (await canEditTeam(user, r.team_id)) return true;
-  }
-  return false;
-}
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf'];
 

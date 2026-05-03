@@ -8,6 +8,7 @@ import {
 import ImportTypeSelector, { IMPORT_TYPES } from './ImportTypeSelector.jsx';
 import FileUpload from './FileUpload.jsx';
 import PreviewTable from './PreviewTable.jsx';
+import GameSelector from './GameSelector.jsx';
 import TeamMapper from './TeamMapper.jsx';
 import PlayerMapper from './PlayerMapper.jsx';
 import ColumnMapper, { autoMapColumns } from './ColumnMapper.jsx';
@@ -54,7 +55,7 @@ const STEPS = [
   { key: 'success',  label: 'Done' },
 ];
 
-export default function GameChangerImportWizard({ open, onClose, onNavigate, gameId }) {
+export default function GameChangerImportWizard({ open, onClose, onNavigate, onNavigateToGame, gameId }) {
   const overlayRef = useRef(null);
 
   /* ── State ── */
@@ -91,6 +92,12 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
   const [pitcherMappings, setPitcherMappings] = useState([]);
   const [playersByTeam, setPlayersByTeam] = useState({});
   const [playerMappings, setPlayerMappings] = useState({});
+  const [createMissingBatters, setCreateMissingBatters] = useState(false);
+
+  // Game selection (box score → existing scheduled game)
+  const [gameSuggestions, setGameSuggestions] = useState([]);
+  const [selectedGameId, setSelectedGameId] = useState(null);
+  const [parsedGameDate, setParsedGameDate] = useState(null);
 
   // Import progress
   const [progress, setProgress] = useState(0);
@@ -131,6 +138,10 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
       setPitcherMappings([]);
       setPlayersByTeam({});
       setPlayerMappings({});
+      setCreateMissingBatters(false);
+      setGameSuggestions([]);
+      setSelectedGameId(null);
+      setParsedGameDate(null);
       setProgress(0);
       setProgressStatus('uploading');
       setImportResult(null);
@@ -180,6 +191,10 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
           // Capture pitcher mapping info from the preview
           if (serverResult.pitcherMappings) setPitcherMappings(serverResult.pitcherMappings);
           if (serverResult.playersByTeam) setPlayersByTeam(serverResult.playersByTeam);
+
+          // Capture game suggestions (only relevant when no gameId was passed)
+          if (serverResult.gameSuggestions) setGameSuggestions(serverResult.gameSuggestions);
+          if (serverResult.gameInfo?.date) setParsedGameDate(serverResult.gameInfo.date);
 
           // Match players if applicable
           if ((importType === 'stats' || importType === 'roster') && serverResult.rows?.length > 0) {
@@ -257,7 +272,15 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
     switch (step) {
       case 0: return !!importType;
       case 1: return !!file || (pastedText && pastedText.trim().length > 20);
-      case 2: return previewRows.length > 0;
+      case 2: {
+        if (previewRows.length === 0) return false;
+        // Box score with no pre-set gameId must explicitly pick a game
+        // (or '__new__'). Suggestions list may be empty — user can browse.
+        if (importType === 'boxscore' && !gameId && !selectedGameId) {
+          return false;
+        }
+        return true;
+      }
       case 3: { // Map Columns — need at least first+last OR full name
         const m = columnMappings;
         return (m.first_name && m.last_name) || m.full_name;
@@ -319,6 +342,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
       const updatedPlayersByTeam = { ...playersByTeam };
       const updatedPitcherMappings = [...pitcherMappings];
 
+      let playerFetchFailed = false;
       for (const tid of resolvedTeamIds) {
         if (!updatedPlayersByTeam[tid]) {
           try {
@@ -329,8 +353,15 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
               last_name: p.last_name,
               jersey_number: p.jersey_number,
             }));
-          } catch { /* ignore */ }
+          } catch (err) {
+            console.error('Failed to fetch players for team', tid, err);
+            playerFetchFailed = true;
+            updatedPlayersByTeam[tid] = [];
+          }
         }
+      }
+      if (playerFetchFailed) {
+        setImportError('Could not load the roster for one or more teams. You can still map pitchers manually or choose "Create new player".');
       }
 
       // Update pitcher mappings with resolved team IDs from team mappings
@@ -354,7 +385,9 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
     }
 
     setStep(next);
-  }, [step, parseFile, unmatchedTeams, pitcherMappings]);
+  }, [step, parseFile, unmatchedTeams, pitcherMappings, teamMappings, playersByTeam,
+      settings, selectedGameId, gameId, importType, pastedText, file,
+      playerMappings, columnMappings, createMissingBatters]);
 
   const prevStep = useCallback(() => {
     if (step > 0 && step < 7) {
@@ -418,8 +451,12 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
       }
 
       const input = pastedText?.trim() ? pastedText.trim() : file;
+      // Resolve effective gameId: prop wins, then user pick (ignore the
+      // sentinel '__new__' which means "create a new game")
+      const effectiveGameId = gameId
+        || (selectedGameId && selectedGameId !== '__new__' ? selectedGameId : undefined);
       const result = await importGameChanger(input, importType, {
-        gameId: gameId || undefined,
+        gameId: effectiveGameId,
         teamId: settings.teamId,
         seasonId: settings.seasonId,
         overwrite: settings.overwrite,
@@ -427,9 +464,17 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
         teamMappings: Object.keys(teamMappings).length > 0 ? teamMappings : undefined,
         playerMappings: Object.keys(resolvedPlayerMappings).length > 0 ? resolvedPlayerMappings : undefined,
         columnMappings: Object.values(columnMappings).some(Boolean) ? columnMappings : undefined,
+        createMissingBatters,
       });
 
       clearInterval(progressInterval);
+
+      if (result.success === false) {
+        setImportError(result.message || 'No data was imported.');
+        setProgress(0);
+        return;
+      }
+
       setProgress(100);
       setProgressStatus('finalizing');
 
@@ -465,6 +510,10 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
     setPitcherMappings([]);
     setPlayersByTeam({});
     setPlayerMappings({});
+    setCreateMissingBatters(false);
+    setGameSuggestions([]);
+    setSelectedGameId(null);
+    setParsedGameDate(null);
     setProgress(0);
     setProgressStatus('uploading');
     setImportResult(null);
@@ -524,13 +573,23 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
           );
         }
         return (
-          <PreviewTable
-            headers={previewHeaders}
-            rows={previewRows}
-            importType={importType}
-            matchedRows={matchedRows}
-            onAcceptAll={handleAcceptAll}
-          />
+          <div className="space-y-4">
+            <PreviewTable
+              headers={previewHeaders}
+              rows={previewRows}
+              importType={importType}
+              matchedRows={matchedRows}
+              onAcceptAll={handleAcceptAll}
+            />
+            {importType === 'boxscore' && !gameId && (
+              <GameSelector
+                suggestions={gameSuggestions}
+                selectedGameId={selectedGameId}
+                onSelect={setSelectedGameId}
+                gameDate={parsedGameDate}
+              />
+            )}
+          </div>
         );
 
       case 3:
@@ -560,6 +619,8 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
             playersByTeam={playersByTeam}
             mappings={playerMappings}
             onChange={setPlayerMappings}
+            createMissingBatters={createMissingBatters}
+            onCreateMissingBattersChange={setCreateMissingBatters}
           />
         );
 
@@ -597,6 +658,7 @@ export default function GameChangerImportWizard({ open, onClose, onNavigate, gam
           <SuccessScreen
             result={importResult}
             onNavigate={onNavigate}
+            onNavigateToGame={onNavigateToGame}
             onImportAnother={handleImportAnother}
             onClose={onClose}
           />

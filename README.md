@@ -17,16 +17,22 @@ A full-featured baseball league management application. Manage organizations, te
 - **Players Directory** — League-wide searchable player list with org/team filters, sortable columns (name, age, grade, B/T, team, org), and pitch rest status badges
 - **Positions** — Many-to-many player ↔ position assignments
 - **Coaches & Staff** — Standalone staff profiles (head coach, assistant coach, scorekeeper, org admin) that can be assigned to multiple teams independently; any staff member can be flagged as the team's **Scheduling Contact** via a checkbox in the Coaches tab
+- **Guardians** — Standalone guardian/parent profiles linked to one or more players; guardians can self-register, submit a player claim for admin approval, and get a dedicated **Guardian Home** screen showing their player's schedule, roster info, and stats (based on visibility settings)
 
 ### Scheduling & Field Reservations
 - **Unified Scheduling** — Both the Game Schedule and Field Calendar support scheduling games, practices, events, and maintenance via an event type toggle
 - **Game Schedule** — Create games with home/away teams, location, date/time, season, and notes; list and monthly calendar views; filter by team, season, status, date range
-- **Field Conflict Detection** — Automatic checking for overlapping field reservations (including 3-hour prep windows) when scheduling games, with contact links to reservation owners
+- **Doubleheader Support** — Mark a game as a doubleheader from the game form; the away team's fields appear in the location dropdown for quick back-to-back scheduling
+- **Game Duration** — Configurable game duration (in minutes) per game/reservation; defaults to 2h 30m; used for field conflict detection and calendar exports
+- **Practice & Event Scheduling** — Create practices or events with recurrence support (daily, weekly, bi-weekly) and clone existing events; consolidated into the main game form
+- **Field Conflict Detection** — Automatic checking for overlapping field reservations (based on game duration) when scheduling games, with contact links to reservation owners
 - **iCal Subscription** — Subscribe to game/practice schedules via webcal:// URL from any calendar app (Google, Apple, Outlook); filterable by team, season, location, org
 - **Status Workflow** — `unscheduled` → `scheduled` → `in_progress` → `completed` / `cancelled` / `postponed`; games can be created without dates and promoted via "Schedule It!" button
 - **Unscheduled Games** — Import or create games without dates/times; they appear with a warning badge and "Schedule It!" CTA; once date, time, and location are set, promote to scheduled
 - **Scheduling Contact on Game Cards** — Unscheduled game cards display a priority contact for scheduling coordination: whoever is flagged as the team's Scheduling Contact appears first (labeled "Scheduler"), falling back to Head Coach then Org Admin
+- **Soft Delete & Restore** — Deleted games are soft-deleted (hidden from all views) and can be restored by super admins; deletions from non-super-admins require the `feature_game_delete` toggle
 - **Live Scoring** — In-game score entry with pitch count tracking per pitcher per inning
+- **Home Game Indicator** — Team schedule highlights home games with a green left border
 - **Game Change Notifications** — Automatic email and push notifications to staff when game date/time changes or games are cancelled/postponed
 - **Standings** — Auto-calculated W/L/T standings with points system (W=3, T=2, L=1), win %, runs for/against; grouped by hierarchical division paths via recursive CTE
 
@@ -69,7 +75,23 @@ A full-featured baseball league management application. Manage organizations, te
 - **Dashboard Display** — Active announcements shown prominently on the dashboard with priority-based styling and badges
 - **Push Integration** — Announcements can trigger push notifications to subscribers
 
-### GameChanger Import
+### Team Chat
+- **Real-Time Messaging** — In-app chat channels for each team and each organization; messages are scoped so team members only see their team's channel
+- **Direct Messages** — Private 1-to-1 direct message channels between any two users
+- **Message Threads** — Reply to specific messages with thread context
+- **Unread Badges** — Sidebar badge shows unread message count per channel
+- **Message Editing & Deletion** — Users can edit or delete their own messages
+- **Feature-Gated** — Chat is enabled/disabled via the `feature_chat` feature toggle in League Config
+
+### Guardian Portal
+- **Self-Registration** — Parents/guardians register with a dedicated "Guardian" role and search for their player by name
+- **Player Claims** — Guardians submit a claim linking their account to a player; super admins approve or deny claims
+- **Guardian Home Screen** — After approval, guardians see a dedicated home page with their player's upcoming schedule, roster info, and stats
+- **Contact Privacy** — Guardian contact info is visible to coaches and admins but not to other guardians
+- **Volunteer Tracking** — Guardians can indicate interest in volunteer roles (team parent, concessions, etc.)
+- **Stats Visibility Controls** — Per-team toggle controls whether guardians can see player stats for that team
+- **Coaches Access** — Coaches can view the Guardians page scoped to their team
+
 - **Multi-Input Parsing** — Upload box score PDFs, paste text, or provide a URL
 - **Box Score Import** — Batting stats, pitching stats, pitch counts, and final scores
 - **Smart Matching** — Auto-matches teams via name, abbreviation, or saved aliases; auto-matches players by full name, jersey number, or partial formats
@@ -109,7 +131,8 @@ A full-featured baseball league management application. Manage organizations, te
 - **My Teams** — See teams you have access to with age group, level, and org name
 
 ### Auth & Permissions
-- **6-tier role system** — `super_admin`, `org_admin`, `team_manager`, `score_reporter`, `accountant`, `umpire`
+- **6-tier role system** — `super_admin`, `org_admin`, `team_manager`, `score_reporter`, `accountant`, `umpire`, `guardian`
+- **Guardian Role** — Self-registration flow for parents/guardians; submit a player claim; after admin approval, access a dedicated Guardian Home screen scoped to their player(s)
 - **Multi-Role Self-Registration** — Step-by-step wizard for coaches, directors/org admins, scorekeepers, and umpires with role-specific flows
 - **Email Confirmation** — Token-based email verification required before login; resend support
 - **Password reset** — Secure token (SHA-256 hashed, 1-hour expiry) via email
@@ -120,8 +143,11 @@ A full-featured baseball league management application. Manage organizations, te
 
 ### League Configuration
 - **App Branding** — Configurable app name and logo
+- **Timezone** — Configurable league timezone used for ICS calendar exports
 - **Scheduling Settings** — Game start/end time window, time increment (5–120 min)
-- **Feature Toggles** — Enable/disable 9 features: Live Scoring, Pitch Tracking, Officials, Player Stats, Player Documents, Financials, Team Registration, Public Site, Push Notifications
+- **Feature Toggles** — Enable/disable 11 features: Live Scoring, Pitch Tracking, Officials, Player Stats, Player Documents, Financials, Team Registration, Public Site, Push Notifications, Allow Game Deletion, Team Chat
+- **Staging Email Redirect** — When set, all outbound emails are redirected to a single address (e.g., an admin) instead of real recipients; subject is prefixed with the original recipient for traceability. Ideal for staging/testing environments.
+- **Driving Distance Integration** — Optional integration with a driving distance API (configurable API key); when enabled, org-to-org distances reflect actual driving time instead of straight-line Haversine
 - **Age Groups** — CRUD with sort order, umpire rate, league fee, and `ump_required` toggle
 - **Levels** — CRUD (Recreational, Competitive, Elite, etc.) with sort order
 - **Seasons** — CRUD with year, name, `is_active` flag (one active at a time)
@@ -351,7 +377,17 @@ Tables are auto-created/migrated on first request via `server/db.js`. No manual 
 | `league_divisions` | Hierarchical division tree with parent_id |
 | `team_divisions` | Team ↔ division junction |
 | `team_registrations` | Per-team season registrations with fee/payment tracking |
+| `guardians` | Guardian/parent profiles linkable to one or more players |
+| `player_guardians` | Player ↔ guardian junction with relationship type and primary flag |
+| `guardian_claims` | Guardian self-registration claims pending admin approval |
+| `volunteer_roles` | Configurable volunteer role types |
+| `guardian_volunteers` | Guardian ↔ volunteer role interest junction |
+| `chat_channels` | Chat channels (team, org, or direct message) |
+| `chat_channel_members` | Channel membership with last-read tracking |
+| `chat_messages` | Chat messages with reply threading, edit, and soft delete |
+| `game_box_scores` | Full parsed box score JSON per game (from GameChanger) |
+| `announcement_reads` | Per-user read tracking for announcements |
 | `team_name_aliases` | External name → team mapping for imports |
-| `app_branding` | App name, logo, scheduling settings, feature toggles |
+| `app_branding` | App name, logo, scheduling settings, feature toggles, email redirect, driving distance config |
 | `push_subscriptions` | Push notification subscriptions per user/device |
 | `announcements` | Admin announcements with priority and expiration |

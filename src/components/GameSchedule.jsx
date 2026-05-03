@@ -161,7 +161,7 @@ function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCou
   return dates;
 }
 
-export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport }) {
+export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport, onViewPlayer }) {
   const { isAdmin, isSuperAdmin, isAuthenticated, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
   const { features } = useBranding(isAuthenticated);
   const queryClient = useQueryClient();
@@ -263,7 +263,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const isInMyTeamsMode = !isAdmin && myTeamIds.length > 0 &&
     (filterTeam === '__my_teams__' || myTeamIds.some(id => String(id) === filterTeam));
   const gamesFilters = {
-    ...(filterTeam && !isMyTeams ? { team_id: filterTeam } : {}),
+    // For multi-team mode pass the full id list so the server filters in SQL (avoids fetching all games)
+    ...(isMyTeams && myTeamIds.length > 0 ? { team_ids: myTeamIds.join(',') } : {}),
+    ...(!isMyTeams && filterTeam ? { team_id: filterTeam } : {}),
     ...(filterSeason ? { season_id: filterSeason } : {}),
     ...(filterStatus ? { status: filterStatus } : {}),
     slim: 'true',
@@ -280,7 +282,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     enabled: filterTeamReady && (!!filterSeason || (!seasonsLoading && !seasons.some(s => s.is_active))),
   });
 
-  const practicesFilters = filterTeam && !isMyTeams ? { team_id: filterTeam } : {};
+  const practicesFilters = isMyTeams && myTeamIds.length > 0
+    ? { team_ids: myTeamIds.join(',') }
+    : filterTeam && !isMyTeams ? { team_id: filterTeam } : {};
   const { data: rawPractices = [] } = useQuery({
     queryKey: ['practices', practicesFilters],
     queryFn: () => fetchAllPractices(practicesFilters),
@@ -296,17 +300,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   });
   const interestGameIds = (interestRows || []).map((g) => Number(g.id)).filter(Number.isFinite);
 
-  const mySet = useMemo(() => isMyTeams ? new Set(myTeamIds.map(Number)) : null, [isMyTeams, myTeamIds]);
-
-  const games = useMemo(() => {
-    if (!isMyTeams || !mySet) return rawGames;
-    return rawGames.filter(g => mySet.has(Number(g.home_team_id)) || mySet.has(Number(g.away_team_id)));
-  }, [rawGames, isMyTeams, mySet]);
-
-  const practices = useMemo(() => {
-    if (!isMyTeams || !mySet) return rawPractices;
-    return rawPractices.filter(p => mySet.has(Number(p.team_id)));
-  }, [rawPractices, isMyTeams, mySet]);
+  // Server now filters by team_ids directly — no client-side re-filtering needed
+  const games = rawGames;
+  const practices = rawPractices;
 
   const loading = seasonsLoading || gamesLoading || !filterTeamReady;
   const error = gamesError?.message || null;
@@ -368,13 +364,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     if (!window.confirm(`Delete game: ${label}?`)) return;
     setDeleting(game.id);
     // Optimistic removal — strip the game from every cached games query immediately
-    // so the list updates before the server round-trip completes.
     queryClient.setQueriesData({ queryKey: ['games'] }, (old) =>
       Array.isArray(old) ? old.filter(g => g.id !== game.id) : old
     );
     try {
       await deleteGame(game.id);
-      queryClient.invalidateQueries({ queryKey: ['games'] });
+      // Mark stale so next navigation/focus refetches, but don't trigger an immediate
+      // background refetch here — that would cause keepPreviousData to flash the old list.
+      queryClient.invalidateQueries({ queryKey: ['games'], refetchType: 'none' });
     } catch (err) {
       // Server rejected — pull fresh data back to restore the game
       queryClient.invalidateQueries({ queryKey: ['games'] });
@@ -387,9 +384,23 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     setShowForm(true);
   }
 
-  function handleFormDone() {
+  function handleFormDone(savedGame) {
     setShowForm(false);
     setEditing(null);
+    // Optimistically patch the saved/new game in every cached games query so the
+    // list updates immediately, then do a background refetch to confirm.
+    if (savedGame?.id) {
+      queryClient.setQueriesData({ queryKey: ['games'] }, (old) => {
+        if (!Array.isArray(old)) return old;
+        const idx = old.findIndex(g => g.id === savedGame.id);
+        if (idx >= 0) {
+          const next = [...old];
+          next[idx] = { ...old[idx], ...savedGame };
+          return next;
+        }
+        return [...old, savedGame]; // new game — append
+      });
+    }
     queryClient.invalidateQueries({ queryKey: ['games'] });
     queryClient.invalidateQueries({ queryKey: ['practices'] });
   }
@@ -492,7 +503,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   }
 
   if (selectedGameId) {
-    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); queryClient.invalidateQueries({ queryKey: ['games'] }); }} onNavigateToTeam={onNavigateToTeam} onOpenImport={onOpenImport} />;
+    return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); queryClient.invalidateQueries({ queryKey: ['games'] }); }} onNavigateToTeam={onNavigateToTeam} onOpenImport={onOpenImport} onViewPlayer={onViewPlayer} />;
   }
 
   return (
@@ -1482,11 +1493,10 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     }
 
     try {
-      if (isEditing) await updateGame(game.id, data);
-      else await createGame(data);
+      const saved = isEditing ? await updateGame(game.id, data) : await createGame(data);
       setConfirmSave(false);
       setFieldConflicts(null);
-      onDone();
+      onDone(saved);
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchOrganizations, createOrganization, updateOrganization, deleteOrganization,
-  fetchTeams, fetchGames, createTeam, updateTeam, uploadOrgLogo, removeOrgLogo,
+  fetchTeams, fetchGameOrgStats, createTeam, updateTeam, uploadOrgLogo, removeOrgLogo,
   fetchAgeGroups, fetchLevels, fetchSeasons, fetchDivisions, uploadTeamLogo, removeTeamLogo,
   fetchRegistrations,
 } from '../api/index.js';
@@ -44,35 +44,12 @@ export default function OrgManager({ onBack, onNavigateToTeam }) {
   const loadOrgs = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [orgData, games, regData] = await Promise.all([fetchOrganizations(), fetchGames({ slim: true }), fetchRegistrations().catch(() => ({ registrations: [] }))]);    
+      const [orgData, orgStatsData, regData] = await Promise.all([fetchOrganizations(), fetchGameOrgStats().catch(() => ({})), fetchRegistrations().catch(() => ({ registrations: [] }))]);
       setOrgs(orgData);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().slice(0, 10);
-      // Build team → org map
-      const teamToOrg = {};
-      for (const org of orgData) {
-        for (const team of org.teams || []) teamToOrg[team.id] = org.id;
-      }
-      // Build per-org game stats
+      // Build per-org game stats from pre-aggregated server response
       const stats = {};
-      for (const org of orgData) stats[org.id] = { scheduled: 0, played: 0, missingScores: 0 };
-      for (const g of games || []) {
-        if (!g?.game_date) continue;
-        const involvedOrgs = new Set();
-        for (const teamId of [g.home_team_id, g.away_team_id]) {
-          if (teamId && teamToOrg[teamId]) involvedOrgs.add(teamToOrg[teamId]);
-        }
-        for (const orgId of involvedOrgs) {
-          if (!stats[orgId]) continue;
-          if (g.status === 'completed') {
-            stats[orgId].played += 1;
-          } else if (g.game_date < todayStr && !['cancelled', 'completed'].includes(g.status)) {
-            stats[orgId].missingScores += 1;
-          } else if (g.game_date >= todayStr && ['scheduled', 'in_progress', 'postponed'].includes(g.status)) {
-            stats[orgId].scheduled += 1;
-          }
-        }
+      for (const org of orgData) {
+        stats[org.id] = orgStatsData[org.id] || { scheduled: 0, played: 0, missingScores: 0 };
       }
       setOrgStats(stats);
 
@@ -510,6 +487,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
     primary_color: '#003366',
     secondary_color: '#CC0000',
     division_ids: [],
+    stats_visibility: 'own',
   });
 
   const orgTeams = org.teams || [];
@@ -592,6 +570,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
       primary_color: '#003366',
       secondary_color: '#CC0000',
       division_ids: [],
+      stats_visibility: 'own',
     });
     setLogoFile(null);
     setLogoPreview(null);
@@ -611,6 +590,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
       primary_color: team.primary_color || '#003366',
       secondary_color: team.secondary_color || '#CC0000',
       division_ids: team.divisions ? team.divisions.map((d) => d.id) : [],
+      stats_visibility: team.stats_visibility || 'own',
     });
     setLogoFile(null);
     setLogoPreview(team.logo_url || null);
@@ -659,6 +639,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
         secondary_color: newTeam.secondary_color || null,
         division_ids: newTeam.division_ids,
         org_id: org.id,
+        stats_visibility: newTeam.stats_visibility || 'own',
       };
 
       let savedTeam;
@@ -682,6 +663,7 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
         primary_color: '#003366',
         secondary_color: '#CC0000',
         division_ids: [],
+        stats_visibility: 'own',
       });
       setLogoFile(null);
       setLogoPreview(null);
@@ -904,6 +886,22 @@ function OrgTeams({ org, allTeams, onChanged, onNavigateToTeam, teamPayments = {
                     {newTeam.division_ids.length} selected: {divisions.filter((d) => newTeam.division_ids.includes(d.id)).map((d) => d.path || d.name).join(', ')}
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label htmlFor="new-team-stats-vis" className="lh-eyebrow block mb-1">Stats Visibility</label>
+                <select
+                  id="new-team-stats-vis"
+                  name="stats_visibility"
+                  value={newTeam.stats_visibility}
+                  onChange={handleCreateChange}
+                  className="lh-select"
+                >
+                  <option value="own">Own player only (parents see their child only)</option>
+                  <option value="team">Team members &amp; parents (team guardians see all)</option>
+                  <option value="all">Everyone (public — no restrictions)</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Controls which stats parents/guardians can view on player profiles.</p>
               </div>
 
               {createError && <div className="lh-alert lh-alert-error">{createError}</div>}

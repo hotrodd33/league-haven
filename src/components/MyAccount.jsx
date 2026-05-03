@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { fetchMe, fetchNotificationPrefs, updateNotificationPrefs, sendTestPush } from '../api/index.js';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchMe, fetchNotificationPrefs, updateNotificationPrefs, sendTestPush, fetchMyClaims, submitGuardianClaim, withdrawGuardianClaim } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { UserIcon, UsersIcon, BuildingIcon, CogIcon, BellIcon } from './ui/icons.jsx';
 import { usePushNotifications } from '../hooks/usePushNotifications.js';
 import { Button, Card, CardBody, CardHeader, Badge } from './ui';
+import GuardianClaimFlow from './GuardianClaimFlow.jsx';
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin',
@@ -29,7 +31,7 @@ function formatDate(d) {
 }
 
 export default function MyAccount({ onChangePassword }) {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, isGuardian } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const push = usePushNotifications();
@@ -281,7 +283,95 @@ export default function MyAccount({ onChangePassword }) {
           Super Admins have access to all organizations and teams.
         </p>
       )}
+
+      {/* Guardian Claims section */}
+      {isGuardian && <GuardianClaimsSection />}
     </div>
+  );
+}
+
+function GuardianClaimsSection() {
+  const queryClient = useQueryClient();
+  const [showFlow, setShowFlow] = useState(false);
+
+  const { data: claims = [], isLoading } = useQuery({
+    queryKey: ['my-guardian-claims'],
+    queryFn: fetchMyClaims,
+    staleTime: 30_000,
+  });
+
+  const withdrawMutation = useMutation({
+    mutationFn: withdrawGuardianClaim,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-guardian-claims'] }),
+  });
+
+  if (showFlow) {
+    return (
+      <Card variant="bordered">
+        <CardBody>
+          <button
+            type="button"
+            onClick={() => setShowFlow(false)}
+            className="text-sm text-gray-400 hover:text-gray-200 mb-3 flex items-center gap-1"
+          >
+            ← Back
+          </button>
+          <GuardianClaimFlow onDone={() => setShowFlow(false)} />
+        </CardBody>
+      </Card>
+    );
+  }
+
+  const statusBadge = (status) => {
+    if (status === 'approved') return <span className="text-xs bg-green-700/60 text-green-200 px-2 py-0.5 rounded-full">Approved</span>;
+    if (status === 'denied') return <span className="text-xs bg-red-700/60 text-red-200 px-2 py-0.5 rounded-full">Denied</span>;
+    return <span className="text-xs bg-yellow-700/60 text-yellow-200 px-2 py-0.5 rounded-full">Pending</span>;
+  };
+
+  return (
+    <Card variant="bordered">
+      <CardBody>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-bold text-gray-100">My Player Claims</h3>
+          <Button size="xs" onClick={() => setShowFlow(true)}>+ Claim a Player</Button>
+        </div>
+
+        {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+
+        {!isLoading && claims.length === 0 && (
+          <p className="text-sm text-gray-500 italic">No claims submitted yet.</p>
+        )}
+
+        {claims.map((claim) => (
+          <div key={claim.id} className="flex items-start justify-between py-2 border-t border-gray-700/50 first:border-0 gap-3">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium text-gray-100">
+                {claim.player_name || `${claim.player_first_name || ''} ${claim.player_last_name || ''}`.trim()}
+              </p>
+              {claim.player_teams && (
+                <p className="text-xs text-gray-400">{claim.player_teams}</p>
+              )}
+              {claim.status === 'denied' && claim.notes && (
+                <p className="text-xs text-red-300 italic">Admin note: "{claim.notes}"</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {statusBadge(claim.status)}
+              {claim.status === 'pending' && (
+                <button
+                  type="button"
+                  onClick={() => withdrawMutation.mutate(claim.id)}
+                  className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+                  title="Withdraw claim"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </CardBody>
+    </Card>
   );
 }
 
