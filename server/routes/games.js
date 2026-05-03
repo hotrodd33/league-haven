@@ -176,9 +176,7 @@ const SLIM_SELECT = `
     fl.city AS location_city, fl.state AS location_state,
     fl.latitude AS location_lat, fl.longitude AS location_lon,
     ls.name AS season_name, ls.year AS season_year,
-    gd.division_id, gd.division_name, gd.division_sort,
-    hsc.name AS home_sched_name, hsc.email AS home_sched_email, hsc.phone AS home_sched_phone, hsc.role AS home_sched_role,
-    asched.name AS away_sched_name, asched.email AS away_sched_email, asched.phone AS away_sched_phone, asched.role AS away_sched_role
+    gd.division_id, gd.division_name, gd.division_sort
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
@@ -195,42 +193,6 @@ const SLIM_SELECT = `
     ORDER BY ld.sort_order
     LIMIT 1
   ) gd ON true
-  LEFT JOIN LATERAL (
-    SELECT sm.name, sm.email, sm.phone,
-      CASE WHEN tsa.is_scheduling_contact THEN 'scheduling_contact' ELSE tsa.role END AS role,
-      CASE WHEN tsa.is_scheduling_contact THEN 0
-           WHEN tsa.role = 'head_coach' THEN 2
-           WHEN tsa.role = 'org_admin' THEN 3
-           ELSE 4 END AS prio
-    FROM team_staff_assignments tsa
-    JOIN staff_members sm ON sm.id = tsa.staff_id
-    WHERE tsa.team_id = g.home_team_id
-      AND (tsa.is_scheduling_contact = true OR tsa.role IN ('head_coach', 'org_admin'))
-    UNION ALL
-    SELECT o.contact_name, o.contact_email, o.contact_phone, 'org_scheduler' AS role, 1 AS prio
-    FROM organizations o
-    WHERE o.id = ht.org_id AND o.scheduling_contact_is_org_contact = true
-    ORDER BY prio
-    LIMIT 1
-  ) hsc ON true
-  LEFT JOIN LATERAL (
-    SELECT sm.name, sm.email, sm.phone,
-      CASE WHEN tsa.is_scheduling_contact THEN 'scheduling_contact' ELSE tsa.role END AS role,
-      CASE WHEN tsa.is_scheduling_contact THEN 0
-           WHEN tsa.role = 'head_coach' THEN 2
-           WHEN tsa.role = 'org_admin' THEN 3
-           ELSE 4 END AS prio
-    FROM team_staff_assignments tsa
-    JOIN staff_members sm ON sm.id = tsa.staff_id
-    WHERE tsa.team_id = g.away_team_id
-      AND (tsa.is_scheduling_contact = true OR tsa.role IN ('head_coach', 'org_admin'))
-    UNION ALL
-    SELECT ao2.contact_name, ao2.contact_email, ao2.contact_phone, 'org_scheduler' AS role, 1 AS prio
-    FROM organizations ao2
-    WHERE ao2.id = at.org_id AND ao2.scheduling_contact_is_org_contact = true
-    ORDER BY prio
-    LIMIT 1
-  ) asched ON true
 `;
 
 function enrichGame(row) {
