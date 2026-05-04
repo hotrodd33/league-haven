@@ -77,6 +77,15 @@ export default function App() {
         }
     }, [nav.page]);
 
+    // On initial load or popstate to /players/:id, load that player
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        if (nav.page === 'players' && nav.pendingPlayerId && !selectedPlayerData) {
+            handleViewPlayer(nav.pendingPlayerId).then(() => nav.clearPendingPlayer?.());
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthenticated, nav.page, nav.pendingPlayerId]);
+
     // URL param handling — must come after all hook calls
     const params = new URLSearchParams(window.location.search);
     const resetToken = params.get('reset');
@@ -125,6 +134,8 @@ export default function App() {
                 staleTime: STALE.TWO_MIN,
             });
             setSelectedPlayerData(p);
+            // Push /players/:id to URL so back button works
+            window.history.pushState({}, '', `/players/${playerId}`);
             nav.setPage('players');
         } catch (err) { console.error(err); }
     }
