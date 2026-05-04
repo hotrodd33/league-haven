@@ -78,7 +78,7 @@ export default function Chat() {
   const totalUnread = channels.reduce((sum, ch) => sum + (Number(ch.unread_count) || 0), 0);
 
   return (
-    <div className="relative flex h-[calc(100vh-6rem)] max-h-200 rounded-xl border border-gray-700 overflow-hidden bg-gray-900">
+    <div className="relative flex h-[calc(100dvh-6rem)] max-h-200 rounded-xl border border-gray-700 overflow-hidden bg-gray-900">
 
       {/*
         Desktop: normal flex row — sidebar w-60, message pane flex-1. No tricks.
