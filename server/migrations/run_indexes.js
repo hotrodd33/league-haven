@@ -11,7 +11,8 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-const SQL = fs.readFileSync(path.join(__dirname, 'add_games_performance_indexes.sql'), 'utf8');
+const sqlFile = process.env.SQL_FILE || 'add_games_performance_indexes.sql';
+const SQL = fs.readFileSync(path.join(__dirname, sqlFile), 'utf8');
 
 const DB_MAP = {
   default: process.env.DATABASE_URL,
