@@ -11,6 +11,7 @@ import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import BoxScoreView from './BoxScoreView.jsx';
 import { Button, Input, Select } from './ui/index.js';
+import { PencilIcon, BaseballIcon, PlusIcon, ArrowPathIcon, MapPinIcon, ExclamationTriangleIcon } from './ui/icons.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
 import { GameForm } from './GameSchedule.jsx';
 import { fetchTeams, fetchSeasons } from '../api/index.js';
@@ -252,12 +253,12 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
             setEditTeams(t || []); setEditSeasons(s || []);
             setShowEditForm(true);
           }}>
-            ✏️ Edit Game
+            <PencilIcon className="w-4 h-4 mr-1.5" />Edit Game
           </Button>
         )}
         {userCanScore && game.status !== 'completed' && (
           <Button variant="warn" onClick={() => setShowTracker(true)}>
-            ⚾ Pitch Tracker
+            <BaseballIcon className="w-4 h-4 mr-1.5" />Pitch Tracker
           </Button>
         )}
       </div>
@@ -313,7 +314,23 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
         </div>
 
         {game.location_name && (
-          <div className="text-xs text-gray-400 text-center">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
+          <div className="text-center">
+            <div className="text-xs text-gray-400 mb-1">{game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
+            <a
+              href={
+                game.location_lat && game.location_lon
+                  ? `https://www.google.com/maps/dir/?api=1&destination=${game.location_lat},${game.location_lon}`
+                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([game.location_name, game.location_address, game.location_city, game.location_state].filter(Boolean).join(', '))}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg bg-action-600 hover:bg-action-500 text-white shadow transition-colors"
+            >
+              <MapPinIcon className="w-4 h-4" />
+              Get Directions
+            </a>
+          </div>
         )}
 
         {!!game.official_names?.length && (
@@ -393,8 +410,9 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
           </div>
 
           {weather.playability?.reasons?.length > 0 && (
-            <div className="mt-3 text-xs text-gray-400">
-              ⚠️ {weather.playability.reasons.join(' · ')}
+            <div className="mt-3 text-xs text-gray-400 flex items-center gap-1">
+              <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0 text-orange-400" />
+              {weather.playability.reasons.join(' · ')}
             </div>
           )}
 
@@ -413,7 +431,18 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
             <h3 className="text-base font-display font-bold uppercase tracking-wide text-white">Report Score</h3>
             <div className="flex items-center gap-3">
               {!editingScore && (
-                <button onClick={() => setEditingScore(true)} className="text-xs text-chrome-400 font-semibold hover:underline">Edit</button>
+                <button
+                  onClick={() => setEditingScore(true)}
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg bg-action-600 hover:bg-action-500 text-white shadow transition-colors"
+                >
+                  {game.home_score != null && game.away_score != null ? (
+                    <><PencilIcon className="w-4 h-4" />Edit Score</>
+                  ) : game.status === 'in_progress' ? (
+                    <><ArrowPathIcon className="w-4 h-4" />Update Score</>
+                  ) : (
+                    <><PlusIcon className="w-4 h-4" />Add Score</>
+                  )}
+                </button>
               )}
             </div>
           </div>
@@ -579,7 +608,12 @@ function PitchCountSection({
           {dailyLimit && <span className="text-xs text-gray-400 shrink-0">Limit: {dailyLimit}/day</span>}
         </div>
         {canEdit && !isAdding && !editingPc && (
-          <Button size="xs" variant="chrome" onClick={onStartAdd}>+ Add Pitcher</Button>
+          <button
+            onClick={onStartAdd}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg bg-action-600 hover:bg-action-500 text-white shadow transition-colors"
+          >
+            <PlusIcon className="w-4 h-4" />Add Pitcher
+          </button>
         )}
       </div>
 

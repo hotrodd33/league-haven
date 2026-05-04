@@ -344,3 +344,44 @@ export function ArrowTopRightOnSquareIcon({ className = 'w-5 h-5' }) {
     </svg>
   );
 }
+
+export function ArrowPathIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" {...s}>
+      <path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+    </svg>
+  );
+}
+
+export function BaseballIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M6.34 6.34C7.6 8 8.25 10 8.25 12s-.65 4-1.91 5.66M17.66 6.34C16.4 8 15.75 10 15.75 12s.65 4 1.91 5.66" />
+    </svg>
+  );
+}
+
+export function ExclamationTriangleIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" {...s}>
+      <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+    </svg>
+  );
+}
+
+export function PhoneIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" {...s}>
+      <path d="M2.25 6.338c0 12.64 10.312 22.951 22.95 22.951M2.25 6.338c0-1.87.384-3.656 1.082-5.28a.75.75 0 01.672-.475h2.9c.373 0 .698.256.782.62l1.268 5.07a.75.75 0 01-.266.802l-1.718 1.29a.75.75 0 00-.228.93 13.593 13.593 0 006.036 6.036.75.75 0 00.93-.228l1.29-1.718a.75.75 0 01.802-.267l5.07 1.269a.75.75 0 01.62.782v2.9a.75.75 0 01-.475.672A20.454 20.454 0 0118.2 18.95" />
+    </svg>
+  );
+}
+
+export function EnvelopeIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" {...s}>
+      <path d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+    </svg>
+  );
+}

@@ -20,6 +20,7 @@ import { PracticeCard, PracticeEditModal } from './TeamSchedule.jsx';
 import { FieldForm } from './FieldsPage.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 import { Button, Input, Modal } from './ui/index.js';
+import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon } from './ui/icons.jsx';
 
 const STATUS_OPTIONS = [
   { value: 'unscheduled', label: 'Unscheduled' },
@@ -61,8 +62,8 @@ function CoachContact({ name, email, phone, label }) {
     <div className="flex items-center gap-2 text-xs text-gray-400">
       {label && <span className="text-gray-500">{label}:</span>}
       <span className="text-gray-300">{name || '—'}</span>
-      {email && <a href={`mailto:${email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={email}>✉️</a>}
-      {phone && <a href={`tel:${phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={formatPhone(phone)}>📞 {formatPhone(phone)}</a>}
+      {email && <a href={`mailto:${email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={email}><EnvelopeIcon className="w-3.5 h-3.5" /></a>}
+      {phone && <a href={`tel:${phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer flex items-center gap-1" title={formatPhone(phone)}><PhoneIcon className="w-3.5 h-3.5" />{formatPhone(phone)}</a>}
     </div>
   );
 }
@@ -729,7 +730,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                             </span>
                           )}
                           {(game.status === 'scheduled' || game.status === 'in_progress') && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                            <Button size="xs" variant={game.status === 'in_progress' ? 'primary' : 'warn'} onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}>{game.status === 'in_progress' ? '⚾ Live' : '⚾ Track'}</Button>
+                            <Button size="xs" variant={game.status === 'in_progress' ? 'primary' : 'warn'} onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}><BaseballIcon className="w-3.5 h-3.5 mr-1" />{game.status === 'in_progress' ? 'Live' : 'Track'}</Button>
                           )}
                           {canEditThisGame && (
                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -814,7 +815,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                         )}
                       </div>
                       {game.location_name && (
-                        <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
+                        <div className="text-xs text-gray-400 mb-1 flex items-center gap-1"><MapPinIcon className="w-3.5 h-3.5 shrink-0" />{game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
                       )}
                       {gameWeather[String(game.id)] && (() => {
                         const w = gameWeather[String(game.id)];
@@ -851,7 +852,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
                       <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
                         {(game.status === 'scheduled' || game.status === 'in_progress') && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                          <Button size="xs" variant={game.status === 'in_progress' ? 'primary' : 'warn'} onClick={() => setTrackingGameId(game.id)}>{game.status === 'in_progress' ? '⚾ Live' : '⚾ Track'}</Button>
+                          <Button size="xs" variant={game.status === 'in_progress' ? 'primary' : 'warn'} onClick={() => setTrackingGameId(game.id)}><BaseballIcon className="w-3.5 h-3.5 mr-1" />{game.status === 'in_progress' ? 'Live' : 'Track'}</Button>
                         )}
                         {canEditThisGame && (
                           <>

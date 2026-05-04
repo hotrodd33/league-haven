@@ -9,6 +9,7 @@ import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { GameForm } from './GameSchedule.jsx';
 import { Button, Input, Select, Modal } from './ui/index.js';
+import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, UserIcon } from './ui/icons.jsx';
 import { DARK_STATUS_COLORS, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
@@ -260,7 +261,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam, onViewPlayer })
               Calendar
             </button>
             <Button size="xs" variant="secondary" onClick={() => setShowSubscribe(true)} title="Subscribe to calendar feed">
-              📅
+              <CalendarIcon className="w-4 h-4" />
             </Button>
           </div>
           <Button size="xs" variant="secondary" onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')} title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
@@ -410,9 +411,9 @@ function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canSco
             )}
             {(game.status === 'scheduled' || game.status === 'in_progress') && canScore && (
               <button onClick={(e) => { e.stopPropagation(); onTrack(); }}
-                className={`text-xs font-semibold px-2 py-1 rounded transition-colors ${DARK_TRACK_BUTTON_TONE}`}
+                className={`text-xs font-semibold px-2 py-1 rounded transition-colors flex items-center gap-1 ${DARK_TRACK_BUTTON_TONE}`}
                 title="Live pitch tracker">
-                {game.status === 'in_progress' ? '⚾ Live' : '⚾ Track'}
+                <BaseballIcon className="w-3.5 h-3.5" />{game.status === 'in_progress' ? 'Live' : 'Track'}
               </button>
             )}
             <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
@@ -422,8 +423,8 @@ function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canSco
         )}
       </div>
       {!!game.official_names?.length && (
-        <div className="hidden lg:block text-xs text-gray-400 truncate max-w-[220px]">
-          👤 {game.official_names.join(', ')}
+        <div className="hidden lg:flex items-center gap-1 text-xs text-gray-400 truncate max-w-[220px]">
+          <UserIcon className="w-3.5 h-3.5 shrink-0" />{game.official_names.join(', ')}
         </div>
       )}
       </div>
@@ -431,7 +432,7 @@ function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canSco
       {(game.location_name || weather) && game.status !== 'unscheduled' && (
         <div className="flex items-center gap-3 mt-1 ml-[76px] text-xs text-gray-400">
           {game.location_name && (
-            <span className="truncate max-w-[200px]">📍 {game.location_name}</span>
+            <span className="truncate max-w-[200px] flex items-center gap-1"><MapPinIcon className="w-3.5 h-3.5 shrink-0" />{game.location_name}</span>
           )}
           {weather && (
             <span className="inline-flex items-center gap-1 shrink-0" title={`${weather.description}${weather.isForecast ? ' (forecast)' : ''}`}>
@@ -456,15 +457,15 @@ function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canSco
           {game.home_sched_name && (
             <span className="flex items-center gap-1">
               <span className="text-gray-500">Home:</span> {game.home_sched_name}
-              {game.home_sched_email && <a href={`mailto:${game.home_sched_email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={game.home_sched_email}>✉️</a>}
-              {game.home_sched_phone && <a href={`tel:${game.home_sched_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer">📞 {formatPhone(game.home_sched_phone)}</a>}
+              {game.home_sched_email && <a href={`mailto:${game.home_sched_email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={game.home_sched_email}><EnvelopeIcon className="w-3.5 h-3.5" /></a>}
+              {game.home_sched_phone && <a href={`tel:${game.home_sched_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{formatPhone(game.home_sched_phone)}</a>}
             </span>
           )}
           {game.away_sched_name && (
             <span className="flex items-center gap-1">
               <span className="text-gray-500">Away:</span> {game.away_sched_name}
-              {game.away_sched_email && <a href={`mailto:${game.away_sched_email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={game.away_sched_email}>✉️</a>}
-              {game.away_sched_phone && <a href={`tel:${game.away_sched_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer">📞 {formatPhone(game.away_sched_phone)}</a>}
+              {game.away_sched_email && <a href={`mailto:${game.away_sched_email}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer" title={game.away_sched_email}><EnvelopeIcon className="w-3.5 h-3.5" /></a>}
+              {game.away_sched_phone && <a href={`tel:${game.away_sched_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{formatPhone(game.away_sched_phone)}</a>}
             </span>
           )}
         </div>
@@ -492,7 +493,7 @@ export function PracticeCard({ practice, editable, onEdit, onDelete, onClone, de
       </div>
       <div className="shrink-0 flex items-center gap-2">
         {practice.location_name && (
-          <span className="text-xs text-gray-400 hidden sm:inline">📍 {practice.location_name}</span>
+          <span className="text-xs text-gray-400 hidden sm:inline-flex items-center gap-1"><MapPinIcon className="w-3.5 h-3.5 shrink-0" />{practice.location_name}</span>
         )}
         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${colors.badge}`}>
           {typeLabel}
@@ -651,7 +652,7 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {item.location_name && (
-                            <span className="text-xs text-gray-400 hidden sm:inline">📍 {item.location_name}</span>
+                            <span className="text-xs text-gray-400 hidden sm:inline-flex items-center gap-1"><MapPinIcon className="w-3.5 h-3.5 shrink-0" />{item.location_name}</span>
                           )}
                           {isCompleted ? (
                             <span className="font-extrabold text-white">{teamScore ?? '—'} – {oppScore ?? '—'}</span>
@@ -707,9 +708,9 @@ function TeamSubscribeModal({ teamId, onClose }) {
           Subscribe to this team's schedule in your calendar app. Games and practices will sync automatically.
         </p>
 
-        <a href={webcalUrl}
+          <a href={webcalUrl}
           className="btn btn-md btn-primary w-full flex items-center justify-center gap-2 mb-4">
-          📅 Open in Calendar App
+          <CalendarIcon className="w-4 h-4" /> Open in Calendar App
         </a>
 
         <div className="mb-4">

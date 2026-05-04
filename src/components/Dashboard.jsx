@@ -9,7 +9,7 @@ import {
   UsersIcon, CalendarIcon, TrophyIcon, BuildingIcon,
   PlusIcon, MegaphoneIcon, BellIcon, ClipboardIcon,
   ClockIcon, ChartBarIcon, SparklesIcon, EyeIcon, MapPinIcon,
-  DatabaseIcon,
+  DatabaseIcon, UserIcon, BaseballIcon, ArrowDownTrayIcon,
 } from './ui/icons.jsx';
 
 /* ═══════════════════════════════════════════════════════
@@ -56,12 +56,12 @@ function timeAgo(timestamp) {
   return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-const ACTIVITY_ICONS = {
-  player: '👤',
-  game: '⚾',
-  team: '👥',
-  registration: '📋',
-  import: '📥',
+const ACTIVITY_ICON_COMPONENTS = {
+  player:       <UserIcon className="w-3.5 h-3.5" />,
+  game:         <BaseballIcon className="w-3.5 h-3.5" />,
+  team:         <UsersIcon className="w-3.5 h-3.5" />,
+  registration: <ClipboardIcon className="w-3.5 h-3.5" />,
+  import:       <ArrowDownTrayIcon className="w-3.5 h-3.5" />,
 };
 
 function getWeatherForGame(game, weatherMap) {
@@ -285,8 +285,12 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
                     {!a.read && (
                       <button
                         onClick={async () => {
-                          await markAnnouncementRead(a.id);
-                          queryClient.invalidateQueries({ queryKey: ['announcements'] });
+                          queryClient.setQueryData(['announcements'], (old = []) => old.filter(x => x.id !== a.id));
+                          try {
+                            await markAnnouncementRead(a.id);
+                          } catch {
+                            queryClient.invalidateQueries({ queryKey: ['announcements'] });
+                          }
                         }}
                         className="text-[10px] text-chrome-400 hover:text-chrome-300 font-semibold transition-colors cursor-pointer"
                       >
@@ -775,15 +779,41 @@ export default function Dashboard({ onNavigate, onViewPlayer, onNavigateToGame }
                 </h3>
               </CardHeader>
               <CardBody className="space-y-0 divide-y divide-gray-700/50">
-                {activity.slice(0, 8).map((item, i) => (
-                  <div key={i} className="flex items-start gap-2.5 py-2 first:pt-0 last:pb-0">
-                    <span className="text-sm mt-0.5 shrink-0">{ACTIVITY_ICONS[item.icon] || '📌'}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-gray-300 leading-snug truncate">{item.message}</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">{timeAgo(item.timestamp)}</p>
+                {activity.slice(0, 8).map((item, i) => {
+                  const isGameLink = item.type === 'game_updated' && item.entity_id;
+                  const isPlayerLink = item.type === 'player_added' && item.entity_id;
+                  const icon = ACTIVITY_ICON_COMPONENTS[item.icon] || <ClipboardIcon className="w-3.5 h-3.5" />;
+                  const content = (
+                    <>
+                      <span className="text-gray-400 shrink-0 mt-0.5">{icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-gray-300 leading-snug truncate">{item.message}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">{timeAgo(item.timestamp)}</p>
+                      </div>
+                    </>
+                  );
+                  if (isGameLink) {
+                    return (
+                      <button key={i} onClick={() => onNavigateToGame?.(item.entity_id)}
+                        className="flex items-start gap-2.5 py-2 first:pt-0 last:pb-0 w-full text-left hover:bg-gray-700/30 rounded px-1 -mx-1 transition-colors">
+                        {content}
+                      </button>
+                    );
+                  }
+                  if (isPlayerLink) {
+                    return (
+                      <button key={i} onClick={() => onViewPlayer?.(item.entity_id)}
+                        className="flex items-start gap-2.5 py-2 first:pt-0 last:pb-0 w-full text-left hover:bg-gray-700/30 rounded px-1 -mx-1 transition-colors">
+                        {content}
+                      </button>
+                    );
+                  }
+                  return (
+                    <div key={i} className="flex items-start gap-2.5 py-2 first:pt-0 last:pb-0">
+                      {content}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardBody>
             </Card>
           )}

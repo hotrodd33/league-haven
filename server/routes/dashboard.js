@@ -86,121 +86,116 @@ function enrichSlimGame(row) {
 }
 
 // GET /api/dashboard/activity
-// Returns recent activity aggregated from existing tables
+// Returns recent activity scoped to the user's teams (admins see all)
 router.get('/activity', authMiddleware, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 15, 50);
-    const cacheKey = `dashboard:activity:${limit}`;
+    const userId = req.user.id;
+    const role = req.user.role;
+    const isSuperAdmin = role === 'super_admin';
+
+    // super_admin sees everything; all other roles are scoped to their permitted teams
+    let teamIds = null;
+    if (!isSuperAdmin) {
+      const perms = await getUserPermissions(userId);
+      // org_admin: use teams from their orgs; team_manager: direct team_ids
+      const allTeamIds = [
+        ...perms.team_ids,
+        ...(perms.team_org_ids?.length ? [] : []), // team_org_ids are org-level, resolve below
+      ];
+      // Resolve all teams belonging to the user's orgs
+      const orgIds = [...(perms.org_ids || []), ...(perms.team_org_ids || [])];
+      let orgTeamIds = [];
+      if (orgIds.length) {
+        const { rows } = await pool.query(
+          'SELECT id FROM teams WHERE org_id = ANY($1)',
+          [orgIds]
+        );
+        orgTeamIds = rows.map(r => r.id);
+      }
+      teamIds = [...new Set([...allTeamIds, ...orgTeamIds])];
+      if (!teamIds.length) return res.json([]);
+    }
+
+    const cacheKey = isSuperAdmin
+      ? `dashboard:activity:super:${limit}`
+      : `dashboard:activity:user:${userId}:${limit}`;
     const cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 
-    // Run all queries in parallel
-    const [newPlayers, updatedGames, newTeams, newRegistrations, recentImports] = await Promise.all([
-      // Recently added players
-      pool.query(
-        `SELECT p.id, p.first_name, p.last_name, p.created_at,
-                'player_added' AS type
-         FROM players p
-         ORDER BY p.created_at DESC
-         LIMIT $1`, [limit]
-      ),
-      // Recently scored/updated games
+    // Build scoped queries
+    const teamFilter = teamIds ? 'AND (g.home_team_id = ANY($2) OR g.away_team_id = ANY($2))' : '';
+    const teamRegFilter = teamIds ? 'AND tr.team_id = ANY($2)' : '';
+    const playerTeamFilter = teamIds
+      ? 'JOIN team_players tp ON tp.player_id = p.id AND tp.team_id = ANY($2)'
+      : '';
+
+    const queryArgs = teamIds ? [limit, teamIds] : [limit];
+
+    const [updatedGames, newPlayers, newRegistrations, recentImports] = await Promise.all([
+      // Recently scored/updated games — scoped to user's teams
       pool.query(
         `SELECT g.id, g.updated_at, g.status,
                 ht.name AS home_team_name, at.name AS away_team_name,
-                g.home_score, g.away_score,
-                'game_updated' AS type
+                g.home_score, g.away_score
          FROM games g
          LEFT JOIN teams ht ON ht.id = g.home_team_id
          LEFT JOIN teams at ON at.id = g.away_team_id
          WHERE g.updated_at IS NOT NULL AND g.deleted_at IS NULL
+         ${teamFilter}
          ORDER BY g.updated_at DESC
-         LIMIT $1`, [limit]
+         LIMIT $1`, queryArgs
       ),
-      // Recently created teams
+      // Recently added players — scoped to user's teams
       pool.query(
-        `SELECT t.id, t.name, t.created_at,
-                o.name AS org_name,
-                'team_added' AS type
-         FROM teams t
-         LEFT JOIN organizations o ON o.id = t.org_id
-         ORDER BY t.created_at DESC
-         LIMIT $1`, [limit]
+        `SELECT DISTINCT p.id, p.first_name, p.last_name, p.created_at
+         FROM players p
+         ${playerTeamFilter}
+         ORDER BY p.created_at DESC
+         LIMIT $1`, queryArgs
       ),
-      // Recent team registrations
+      // Recent registrations — scoped to user's teams
       pool.query(
         `SELECT tr.id, tr.registered_at, tr.status,
-                t.name AS team_name,
-                'registration' AS type
+                t.id AS team_id, t.name AS team_name
          FROM team_registrations tr
          JOIN teams t ON t.id = tr.team_id
+         WHERE TRUE ${teamRegFilter}
          ORDER BY tr.registered_at DESC
-         LIMIT $1`, [limit]
+         LIMIT $1`, queryArgs
       ),
-      // Recent imports (grouped by source + timestamp batch)
-      pool.query(
-        `SELECT source, COUNT(*) AS games_imported, MAX(created_at) AS created_at,
-                'import' AS type
+      // Recent imports — only shown to super admins
+      isSuperAdmin ? pool.query(
+        `SELECT source, COUNT(*) AS games_imported, MAX(created_at) AS created_at
          FROM game_import_log
          GROUP BY source, DATE_TRUNC('minute', created_at)
          ORDER BY created_at DESC
          LIMIT $1`, [limit]
-      ),
+      ) : Promise.resolve({ rows: [] }),
     ]);
 
-    // Merge and sort all activity items by timestamp
     const items = [];
-
-    for (const row of newPlayers.rows) {
-      items.push({
-        type: 'player_added',
-        message: `${row.first_name} ${row.last_name} was added`,
-        timestamp: row.created_at,
-        icon: 'player',
-      });
-    }
 
     for (const row of updatedGames.rows) {
       const label = row.status === 'final'
         ? `${row.away_team_name} @ ${row.home_team_name} — Final ${row.away_score}-${row.home_score}`
         : `${row.away_team_name} @ ${row.home_team_name} updated`;
-      items.push({
-        type: 'game_updated',
-        message: label,
-        timestamp: row.updated_at,
-        icon: 'game',
-      });
+      items.push({ type: 'game_updated', message: label, timestamp: row.updated_at, icon: 'game', entity_id: row.id });
     }
 
-    for (const row of newTeams.rows) {
-      items.push({
-        type: 'team_added',
-        message: `${row.name}${row.org_name ? ` (${row.org_name})` : ''} was created`,
-        timestamp: row.created_at,
-        icon: 'team',
-      });
+    for (const row of newPlayers.rows) {
+      items.push({ type: 'player_added', message: `${row.first_name} ${row.last_name} was added`, timestamp: row.created_at, icon: 'player', entity_id: row.id });
     }
 
     for (const row of newRegistrations.rows) {
-      items.push({
-        type: 'registration',
-        message: `${row.team_name} registration ${row.status}`,
-        timestamp: row.registered_at,
-        icon: 'registration',
-      });
+      items.push({ type: 'registration', message: `${row.team_name} registration ${row.status}`, timestamp: row.registered_at, icon: 'registration', entity_id: row.team_id });
     }
 
     for (const row of recentImports.rows) {
       const count = parseInt(row.games_imported, 10);
-      items.push({
-        type: 'import',
-        message: `${row.source} import — ${count} game${count !== 1 ? 's' : ''}`,
-        timestamp: row.created_at,
-        icon: 'import',
-      });
+      items.push({ type: 'import', message: `${row.source} import — ${count} game${count !== 1 ? 's' : ''}`, timestamp: row.created_at, icon: 'import', entity_id: null });
     }
 
-    // Sort descending by timestamp, take top N
     items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     const result = items.slice(0, limit);
