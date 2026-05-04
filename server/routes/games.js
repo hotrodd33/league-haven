@@ -177,6 +177,7 @@ const SLIM_SELECT = `
     at.abbreviation AS away_team_abbr,
     ao.logo_url AS away_org_logo,
     fl.name AS location_name,
+    fl.address AS location_address, fl.city AS location_city,
     fl.latitude AS location_lat, fl.longitude AS location_lon,
     gd.division_name, gd.division_sort
   FROM games g
@@ -292,6 +293,8 @@ function enrichGameSlim(row) {
     home_team_abbr: row.home_team_abbr || null,
     away_team_abbr: row.away_team_abbr || null,
     location_name: row.location_name || null,
+    location_address: row.location_address || null,
+    location_city: row.location_city || null,
     location_lat: row.location_lat || null,
     location_lon: row.location_lon || null,
     division_name: row.division_name || null,
