@@ -3,136 +3,160 @@ import { useQuery } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
 import { fetchTeamStats } from '../api/index.js';
 import { cn } from '../lib/cn.js';
-import { TrophyIcon, ChartBarIcon } from './ui/icons.jsx';
+import { ChartBarIcon } from './ui/icons.jsx';
 
-function fmt(value, abbreviation, dataType) {
-  if (value === null || value === undefined) return '—';
-  const RATE_STATS = ['AVG', 'OBP', 'SLG', 'OPS', 'ERA', 'WHIP', 'BA'];
-  if (RATE_STATS.includes(abbreviation?.toUpperCase()) || dataType === 'decimal') {
-    return value.toFixed(3).replace(/^0\./, '.');
-  }
-  return Math.round(value);
+// ── Column definitions (mirror PlayerDetail.jsx exactly) ──
+const BATTING_COLUMNS = [
+  { key: 'G',   label: 'G' },
+  { key: 'AB',  label: 'AB' },
+  { key: 'R',   label: 'R' },
+  { key: 'H',   label: 'H' },
+  { key: '2B',  label: '2B' },
+  { key: '3B',  label: '3B' },
+  { key: 'HR',  label: 'HR' },
+  { key: 'RBI', label: 'RBI' },
+  { key: 'BB',  label: 'BB' },
+  { key: 'K',   label: 'SO' },
+  { key: 'SB',  label: 'SB' },
+  { key: 'AVG', label: 'AVG', rate: true },
+  { key: 'OBP', label: 'OBP', rate: true },
+  { key: 'SLG', label: 'SLG', rate: true },
+  { key: 'OPS', label: 'OPS', rate: true },
+];
+
+const PITCHING_COLUMNS = [
+  { key: 'G',    label: 'G' },
+  { key: 'W',    label: 'W' },
+  { key: 'L',    label: 'L' },
+  { key: 'SV',   label: 'SV' },
+  { key: 'IP',   label: 'IP', display: formatIP },
+  { key: 'HA',   label: 'H' },
+  { key: 'RA',   label: 'R' },
+  { key: 'ER',   label: 'ER' },
+  { key: 'BB',   label: 'BB' },
+  { key: 'K',    label: 'SO' },
+  { key: 'PC',   label: 'PC' },
+  { key: 'STK',  label: 'S' },
+  { key: 'SPCT', label: 'S%', rate: true, decimals: 1, suffix: '%' },
+  { key: 'ERA',  label: 'ERA', rate: true, decimals: 2 },
+  { key: 'WHIP', label: 'WHIP', rate: true, decimals: 2 },
+];
+
+// ── Rate calculations (mirror PlayerDetail.jsx) ──
+function battingRates(b) {
+  const ab = +b.AB || 0, h = +b.H || 0, bb = +b.BB || 0;
+  const dbl = +b['2B'] || 0, tpl = +b['3B'] || 0, hr = +b.HR || 0;
+  const avg = ab > 0 ? h / ab : 0;
+  const obp = (ab + bb) > 0 ? (h + bb) / (ab + bb) : 0;
+  const tb = h + dbl + 2 * tpl + 3 * hr;
+  const slg = ab > 0 ? tb / ab : 0;
+  return { AVG: avg, OBP: obp, SLG: slg, OPS: obp + slg };
 }
 
-function computeDerived(playerRow, abbrev) {
-  const v = playerRow;
-  switch (abbrev.toUpperCase()) {
-    case 'AVG': {
-      const h = v['H'], ab = v['AB'];
-      if (ab > 0) return h / ab;
-      return null;
-    }
-    case 'OBP': {
-      const h = v['H'] || 0, bb = v['BB'] || 0, hbp = v['HBP'] || 0;
-      const ab = v['AB'] || 0, sf = v['SF'] || 0;
-      const denom = ab + bb + hbp + sf;
-      return denom > 0 ? (h + bb + hbp) / denom : null;
-    }
-    case 'SLG': {
-      const ab = v['AB'] || 0;
-      if (!ab) return null;
-      const h = v['H'] || 0, d = v['2B'] || 0, t = v['3B'] || 0, hr = v['HR'] || 0;
-      const singles = h - d - t - hr;
-      return (singles + 2 * d + 3 * t + 4 * hr) / ab;
-    }
-    case 'ERA': {
-      const er = v['ER'] || 0, outs = v['OUTS'] || 0, ip = v['IP'] || 0;
-      const innings = ip || outs / 3;
-      return innings > 0 ? (er * 7) / innings : null;
-    }
-    case 'WHIP': {
-      const bb = v['BB'] || 0, h = v['H'] || 0, outs = v['OUTS'] || 0, ip = v['IP'] || 0;
-      const innings = ip || outs / 3;
-      return innings > 0 ? (bb + h) / innings : null;
-    }
-    default:
-      return null;
-  }
+function ipToOuts(ip) {
+  const whole = Math.floor(ip);
+  const frac = Math.round((ip - whole) * 10);
+  return whole * 3 + (frac === 1 ? 1 : frac === 2 ? 2 : 0);
 }
 
-function StatTable({ title, players, statDefs, category }) {
-  const catDefs = statDefs
-    .filter(d => d.category === category)
-    .sort((a, b) => a.sort_order - b.sort_order);
+function pitchingRates(p) {
+  const outs = ipToOuts(+p.IP || 0);
+  const innings = outs / 3;
+  const er = +p.ER || 0, ha = +p.HA || 0, bb = +p.BB || 0;
+  const pc = +p.PC || 0, stk = +p.STK || 0;
+  return {
+    ERA:  innings > 0 ? (er * 9) / innings : 0,
+    WHIP: innings > 0 ? (ha + bb) / innings : 0,
+    SPCT: pc > 0 ? (stk / pc) * 100 : null,
+  };
+}
 
-  if (!catDefs.length || !players.length) return null;
+function formatIP(ip) {
+  if (ip == null || ip === '') return '—';
+  const n = Number(ip);
+  return isNaN(n) ? ip : n.toFixed(1);
+}
 
-  // Build a lookup: player_id → { abbrev: total }
-  const playerStatMap = {};
-  for (const p of players) {
-    if (!playerStatMap[p.player_id]) {
-      playerStatMap[p.player_id] = { name: p.player_name, last_name: p.last_name, games: p.games };
-    }
-    playerStatMap[p.player_id][p.abbreviation] = p.total;
+function formatRate(v, decimals = 3) {
+  if (v == null || isNaN(v)) return '—';
+  if (decimals === 3) {
+    const s = v.toFixed(3);
+    return v < 1 ? s.replace(/^0/, '') : s;
   }
+  return v.toFixed(decimals);
+}
 
-  const rows = Object.values(playerStatMap).sort((a, b) =>
-    a.last_name.localeCompare(b.last_name)
-  );
+function renderCell(value, col) {
+  if (col.rate) {
+    const f = formatRate(value, col.decimals ?? 3);
+    return (f !== '—' && col.suffix) ? f + col.suffix : f;
+  }
+  if (col.display) return col.display(value);
+  if (value == null || value === '') return '—';
+  return value;
+}
+
+// ── Build per-player stat map from flat server rows ──
+function buildPlayerMap(stats) {
+  const map = {};
+  for (const r of stats) {
+    if (!map[r.player_id]) {
+      map[r.player_id] = { name: r.player_name, last_name: r.last_name };
+    }
+    map[r.player_id][r.abbreviation.toUpperCase()] = r.total;
+    map[r.player_id]['__games_' + r.category] = r.games;
+  }
+  return map;
+}
+
+function StatTable({ title, columns, rows, totalRow }) {
+  // Only show columns that have at least one non-zero value (excluding rate cols)
+  const activeColumns = columns.filter(col => {
+    if (col.rate || col.display) return true; // always show computed columns
+    return rows.some(r => r[col.key] != null && r[col.key] !== 0 && r[col.key] !== '');
+  });
 
   if (!rows.length) return null;
 
-  // Compute team totals
-  const totals = {};
-  for (const def of catDefs) {
-    const ab = def.abbreviation;
-    const isDerived = ['AVG', 'OBP', 'SLG', 'ERA', 'WHIP'].includes(ab.toUpperCase());
-    if (isDerived) {
-      // compute from totals
-      const totalMap = {};
-      for (const def2 of catDefs) {
-        totalMap[def2.abbreviation] = rows.reduce((s, r) => s + (r[def2.abbreviation] || 0), 0);
-      }
-      const v = computeDerived(totalMap, ab);
-      totals[ab] = v;
-    } else {
-      totals[ab] = rows.reduce((s, r) => s + (r[ab] || 0), 0);
-    }
-  }
-
   return (
-    <div>
-      <h4 className="text-sm font-display font-bold uppercase tracking-wide text-gray-300 mb-2">{title}</h4>
-      <div className="overflow-x-auto rounded-xl border border-gray-700">
-        <table className="w-full text-xs">
+    <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-gray-700 bg-gray-900/40">
+        <h3 className="text-sm font-bold text-white uppercase tracking-wider">{title}</h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-800/80 text-gray-400 uppercase tracking-wide">
-              <th className="text-left px-3 py-2 font-semibold sticky left-0 bg-gray-800/80">Player</th>
-              <th className="text-center px-2 py-2 font-semibold">G</th>
-              {catDefs.map(d => (
-                <th key={d.id} className="text-center px-2 py-2 font-semibold" title={d.name}>{d.abbreviation}</th>
+            <tr className="bg-gray-900/30 border-b border-gray-700">
+              <th className="text-left px-3 py-2 text-xs font-semibold text-gray-300 uppercase tracking-wider sticky left-0 bg-gray-900/30">Player</th>
+              {activeColumns.map(c => (
+                <th key={c.key} className="text-right px-2 py-2 text-xs font-semibold text-gray-300 uppercase tracking-wider tabular-nums">{c.label}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-700/50">
+          <tbody>
             {rows.map((row, i) => (
-              <tr key={i} className="hover:bg-gray-700/30 transition-colors">
-                <td className="px-3 py-2 font-medium text-gray-200 whitespace-nowrap sticky left-0 bg-gray-800/90">{row.name}</td>
-                <td className="text-center px-2 py-2 text-gray-400">{row.games}</td>
-                {catDefs.map(d => {
-                  const ab = d.abbreviation;
-                  const isDerived = ['AVG', 'OBP', 'SLG', 'ERA', 'WHIP'].includes(ab.toUpperCase());
-                  const val = isDerived ? computeDerived(row, ab) : (row[ab] ?? null);
-                  return (
-                    <td key={d.id} className="text-center px-2 py-2 text-gray-300 tabular-nums">
-                      {val != null ? fmt(val, ab, d.data_type) : '—'}
-                    </td>
-                  );
-                })}
+              <tr key={i} className="border-b border-gray-700/50 hover:bg-gray-700/20">
+                <td className="px-3 py-2 text-gray-100 whitespace-nowrap sticky left-0 bg-gray-800/80">{row.__name}</td>
+                {activeColumns.map(c => (
+                  <td key={c.key} className="text-right px-2 py-2 text-gray-100 tabular-nums">
+                    {renderCell(row[c.key], c)}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            <tr className="bg-gray-800/60 border-t border-gray-600 font-semibold text-gray-200">
-              <td className="px-3 py-2 sticky left-0 bg-gray-800/60">Team</td>
-              <td className="text-center px-2 py-2 text-gray-400">—</td>
-              {catDefs.map(d => (
-                <td key={d.id} className="text-center px-2 py-2 tabular-nums">
-                  {totals[d.abbreviation] != null ? fmt(totals[d.abbreviation], d.abbreviation, d.data_type) : '—'}
-                </td>
-              ))}
-            </tr>
-          </tfoot>
+          {totalRow && (
+            <tfoot>
+              <tr className="bg-gray-900/40 font-bold border-t border-gray-600">
+                <td className="px-3 py-2 text-white sticky left-0 bg-gray-900/40">Team</td>
+                {activeColumns.map(c => (
+                  <td key={c.key} className="text-right px-2 py-2 text-white tabular-nums">
+                    {renderCell(totalRow[c.key], c)}
+                  </td>
+                ))}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>
@@ -168,14 +192,52 @@ export default function TeamStats({ teamId }) {
   const { record, seasons, stats } = data;
   const hasStats = stats.length > 0;
 
-  // Unique stat definitions from returned data
-  const statDefs = [...new Map(
-    stats.map(s => [s.stat_def_id, { id: s.stat_def_id, abbreviation: s.abbreviation, category: s.category, data_type: s.data_type, sort_order: s.sort_order, name: s.abbreviation }])
-  ).values()];
+  // Build per-player stat maps
+  const playerMap = buildPlayerMap(stats);
 
-  const battingPlayers = stats.filter(s => s.category === 'batting');
-  const pitchingPlayers = stats.filter(s => s.category === 'pitching');
-  const fieldingPlayers = stats.filter(s => s.category === 'fielding');
+  // Batting rows
+  const battingRows = Object.entries(playerMap)
+    .filter(([, p]) => p['__games_batting'] > 0)
+    .sort(([, a], [, b]) => a.last_name.localeCompare(b.last_name))
+    .map(([, p]) => {
+      const b = { ...p, G: p['__games_batting'] };
+      return { __name: p.name, ...b, ...battingRates(b) };
+    });
+
+  // Batting team totals
+  const battingTotal = battingRows.reduce((acc, r) => {
+    for (const c of BATTING_COLUMNS) {
+      if (!c.rate) acc[c.key] = (acc[c.key] || 0) + (Number(r[c.key]) || 0);
+    }
+    return acc;
+  }, {});
+  Object.assign(battingTotal, battingRates(battingTotal));
+
+  // Pitching rows
+  const pitchingRows = Object.entries(playerMap)
+    .filter(([, p]) => p['__games_pitching'] > 0)
+    .sort(([, a], [, b]) => a.last_name.localeCompare(b.last_name))
+    .map(([, p]) => {
+      const pt = { ...p, G: p['__games_pitching'] };
+      return { __name: p.name, ...pt, ...pitchingRates(pt) };
+    });
+
+  // Pitching team totals (count rates from summed raw stats)
+  const pitchingTotal = pitchingRows.reduce((acc, r) => {
+    for (const c of PITCHING_COLUMNS) {
+      if (!c.rate && !c.display) acc[c.key] = (acc[c.key] || 0) + (Number(r[c.key]) || 0);
+      // IP needs special summing via outs
+      if (c.key === 'IP') {
+        acc['__outs'] = (acc['__outs'] || 0) + ipToOuts(Number(r.IP) || 0);
+      }
+    }
+    return acc;
+  }, {});
+  if (pitchingTotal['__outs'] != null) {
+    const outs = pitchingTotal['__outs'];
+    pitchingTotal.IP = Math.floor(outs / 3) + (outs % 3) / 10;
+  }
+  Object.assign(pitchingTotal, pitchingRates(pitchingTotal));
 
   const runDiff = record.runs_scored - record.runs_allowed;
 
@@ -192,7 +254,7 @@ export default function TeamStats({ teamId }) {
           >
             <option value="">All Seasons</option>
             {seasons.map(s => (
-              <option key={s.id} value={s.id}>{s.name} {s.year ? `(${s.year})` : ''}</option>
+              <option key={s.id} value={s.id}>{s.name}{s.year ? ` (${s.year})` : ''}</option>
             ))}
           </select>
         </div>
@@ -201,11 +263,11 @@ export default function TeamStats({ teamId }) {
       {/* Team record banner */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { label: 'W', value: record.wins, color: 'text-green-400' },
-          { label: 'L', value: record.losses, color: 'text-signal-400' },
-          { label: 'T', value: record.ties, color: 'text-gray-400' },
-          { label: 'RS', value: record.runs_scored, color: 'text-action-400' },
-          { label: 'RA', value: record.runs_allowed, color: 'text-orange-400' },
+          { label: 'W',  value: record.wins,         color: 'text-green-400' },
+          { label: 'L',  value: record.losses,        color: 'text-signal-400' },
+          { label: 'T',  value: record.ties,          color: 'text-gray-400' },
+          { label: 'RS', value: record.runs_scored,   color: 'text-action-400' },
+          { label: 'RA', value: record.runs_allowed,  color: 'text-orange-400' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-3 text-center">
             <div className={cn('text-2xl font-display font-bold tabular-nums', color)}>{value}</div>
@@ -214,7 +276,6 @@ export default function TeamStats({ teamId }) {
         ))}
       </div>
 
-      {/* Run differential */}
       <div className={cn(
         'text-center text-sm font-semibold',
         runDiff > 0 ? 'text-green-400' : runDiff < 0 ? 'text-signal-400' : 'text-gray-400'
@@ -225,9 +286,18 @@ export default function TeamStats({ teamId }) {
       {/* Stats tables */}
       {hasStats ? (
         <div className="space-y-6">
-          <StatTable title="Batting" players={battingPlayers} statDefs={statDefs} category="batting" />
-          <StatTable title="Pitching" players={pitchingPlayers} statDefs={statDefs} category="pitching" />
-          <StatTable title="Fielding" players={fieldingPlayers} statDefs={statDefs} category="fielding" />
+          <StatTable
+            title="Hitting"
+            columns={BATTING_COLUMNS}
+            rows={battingRows}
+            totalRow={battingRows.length > 1 ? battingTotal : null}
+          />
+          <StatTable
+            title="Pitching"
+            columns={PITCHING_COLUMNS}
+            rows={pitchingRows}
+            totalRow={pitchingRows.length > 1 ? pitchingTotal : null}
+          />
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
