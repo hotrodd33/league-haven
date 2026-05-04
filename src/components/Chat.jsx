@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tansta
 import {
   fetchChatChannels, fetchChatMessages, sendChatMessage,
   editChatMessage, deleteChatMessage, markChatRead,
-  findOrCreateDM, fetchDMUsers,
+  findOrCreateDM, fetchDMUsers, fetchChatTeams, findOrCreateTeamChannel,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Button, Input } from './ui';
@@ -35,7 +35,7 @@ export default function Chat() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeChannelId, setActiveChannelId] = useState(null);
-  const [showNewDM, setShowNewDM] = useState(false);
+  const [showNewChat, setShowNewChat] = useState(false);
   // Mobile navigation: 'list' shows channel list, 'messages' shows message pane
   const [mobileView, setMobileView] = useState('list');
 
@@ -58,13 +58,13 @@ export default function Chat() {
 
   function handleSelectChannel(id) {
     setActiveChannelId(id);
-    setShowNewDM(false);
+    setShowNewChat(false);
     setMobileView('messages');
     queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
   }
 
-  function handleDMCreated(channelId) {
-    setShowNewDM(false);
+  function handleChannelReady(channelId) {
+    setShowNewChat(false);
     setActiveChannelId(channelId);
     setMobileView('messages');
     queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
@@ -108,7 +108,7 @@ export default function Chat() {
           <button
             type="button"
             title="New Direct Message"
-            onClick={() => { setShowNewDM(true); setMobileView('messages'); }}
+            onClick={() => { setShowNewChat(true); setMobileView('messages'); }}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-chrome-300 hover:bg-gray-700 text-lg leading-none transition-colors"
           >
             +
@@ -132,10 +132,10 @@ export default function Chat() {
 
       {/* ── Message pane — always a normal flex child, never transforms ── */}
       <div className="flex-1 flex flex-col min-w-0 bg-gray-900">
-        {showNewDM ? (
-          <NewDMPane
-            onDMCreated={handleDMCreated}
-            onCancel={() => { setShowNewDM(false); setMobileView('list'); }}
+        {showNewChat ? (
+          <NewChatPane
+            onChannelReady={handleChannelReady}
+            onCancel={() => { setShowNewChat(false); setMobileView('list'); }}
           />
         ) : activeChannelId ? (
           <MessagePane
@@ -430,30 +430,51 @@ function MessageRow({ msg, isOwn, editing, editBody, onEditStart, onEditChange, 
   );
 }
 
-// ── New DM pane ──────────────────────────────────────────────────
-function NewDMPane({ onDMCreated, onCancel }) {
+// ── New chat pane (individual DM or team channel) ────────────────
+function NewChatPane({ onChannelReady, onCancel }) {
+  const [tab, setTab] = useState('individual'); // 'individual' | 'team'
   const [search, setSearch] = useState('');
 
+  // Individual DM users
   const { data: users = [] } = useQuery({
     queryKey: ['dm-users'],
     queryFn: fetchDMUsers,
     staleTime: 60_000,
   });
 
-  const filtered = users.filter(u =>
+  // Teams
+  const { data: teams = [] } = useQuery({
+    queryKey: ['chat-teams'],
+    queryFn: fetchChatTeams,
+    staleTime: 60_000,
+  });
+
+  const filteredUsers = users.filter(u =>
     !search.trim() ||
     (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
     (u.username || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const createMutation = useMutation({
+  const filteredTeams = teams.filter(t =>
+    !search.trim() || (t.name || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const dmMutation = useMutation({
     mutationFn: (userId) => findOrCreateDM(userId),
-    onSuccess: (data) => onDMCreated(data.channel_id),
+    onSuccess: (data) => onChannelReady(data.channel_id),
   });
+
+  const teamMutation = useMutation({
+    mutationFn: (teamId) => findOrCreateTeamChannel(teamId),
+    onSuccess: (data) => onChannelReady(data.channel_id),
+  });
+
+  const isPending = dmMutation.isPending || teamMutation.isPending;
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-3 py-2.5 border-b border-gray-700 flex items-center gap-2">
+      {/* Header */}
+      <div className="px-3 py-2.5 border-b border-gray-700 flex items-center gap-2 shrink-0">
         <button
           type="button"
           onClick={onCancel}
@@ -464,37 +485,87 @@ function NewDMPane({ onDMCreated, onCancel }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
         </button>
-        <span className="text-sm font-semibold text-gray-200">New Direct Message</span>
+        <span className="text-sm font-semibold text-gray-200">New Chat</span>
         <button type="button" onClick={onCancel} className="hidden sm:block ml-auto text-gray-500 hover:text-gray-300">✕</button>
       </div>
-      <div className="px-4 py-3">
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-700 shrink-0">
+        <button
+          type="button"
+          onClick={() => { setTab('individual'); setSearch(''); }}
+          className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+            tab === 'individual'
+              ? 'text-chrome-300 border-b-2 border-chrome-400 -mb-px'
+              : 'text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          Individual
+        </button>
+        <button
+          type="button"
+          onClick={() => { setTab('team'); setSearch(''); }}
+          className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+            tab === 'team'
+              ? 'text-chrome-300 border-b-2 border-chrome-400 -mb-px'
+              : 'text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          Team
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="px-4 py-3 shrink-0">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search teammates…"
+          placeholder={tab === 'individual' ? 'Search teammates…' : 'Search teams…'}
           className="lh-input w-full text-sm"
           autoFocus
         />
       </div>
-      <ul className="flex-1 overflow-y-auto divide-y divide-gray-700/50">
-        {filtered.length === 0 && (
-          <li className="px-4 py-3 text-sm text-gray-500 italic">No teammates found.</li>
-        )}
-        {filtered.map((u) => (
-          <li key={u.id}>
-            <button
-              type="button"
-              onClick={() => createMutation.mutate(u.id)}
-              disabled={createMutation.isPending}
-              className="w-full text-left px-4 py-3 hover:bg-gray-700/50 transition-colors"
-            >
-              <p className="text-sm font-medium text-gray-200">{u.name || u.username}</p>
-              <p className="text-xs text-gray-500">{u.username} · {u.role}</p>
-            </button>
-          </li>
-        ))}
-      </ul>
+
+      {/* List */}
+      {tab === 'individual' ? (
+        <ul className="flex-1 overflow-y-auto divide-y divide-gray-700/50">
+          {filteredUsers.length === 0 && (
+            <li className="px-4 py-3 text-sm text-gray-500 italic">No teammates found.</li>
+          )}
+          {filteredUsers.map((u) => (
+            <li key={u.id}>
+              <button
+                type="button"
+                onClick={() => dmMutation.mutate(u.id)}
+                disabled={isPending}
+                className="w-full text-left px-4 py-3 hover:bg-gray-700/50 transition-colors"
+              >
+                <p className="text-sm font-medium text-gray-200">{u.name || u.username}</p>
+                <p className="text-xs text-gray-500">{u.username} · {u.role}</p>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="flex-1 overflow-y-auto divide-y divide-gray-700/50">
+          {filteredTeams.length === 0 && (
+            <li className="px-4 py-3 text-sm text-gray-500 italic">No teams found.</li>
+          )}
+          {filteredTeams.map((t) => (
+            <li key={t.id}>
+              <button
+                type="button"
+                onClick={() => teamMutation.mutate(t.id)}
+                disabled={isPending}
+                className="w-full text-left px-4 py-3 hover:bg-gray-700/50 transition-colors"
+              >
+                <p className="text-sm font-medium text-gray-200">⚾ {t.name}</p>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
