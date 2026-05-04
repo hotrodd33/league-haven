@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, optionalAuth } = require('../auth');
+const { authMiddleware, optionalAuth, getUserPermissions } = require('../auth');
 const cache = require('../cache');
 
 const router = express.Router();
@@ -255,6 +255,44 @@ router.get('/team/:teamId', optionalAuth, async (req, res) => {
   try {
     const { teamId } = req.params;
     const { season_id } = req.query;
+    const user = req.user;
+
+    // ── Access control ──
+    // Respect the team's stats_visibility setting (same model as player stats)
+    const { rows: teamRows } = await pool.query(
+      `SELECT COALESCE(stats_visibility, 'own') AS stats_visibility, org_id FROM teams WHERE id = $1`,
+      [teamId]
+    );
+    if (!teamRows.length) return res.status(404).json({ error: 'Team not found' });
+
+    const { stats_visibility, org_id } = teamRows[0];
+
+    if (stats_visibility !== 'all') {
+      // Auth required
+      if (!user) return res.status(403).json({ error: 'Access denied' });
+
+      const STAFF_ROLES = ['super_admin', 'org_admin', 'team_manager', 'score_reporter', 'accountant', 'umpire'];
+      if (!STAFF_ROLES.includes(user.role)) {
+        // Guardians: must have an approved claim for a player on this team
+        if (user.role === 'guardian') {
+          const { rows: claimRows } = await pool.query(
+            `SELECT 1 FROM guardian_claims gc
+             JOIN team_players tp ON tp.player_id = gc.player_id
+             WHERE gc.user_id = $1 AND gc.status = 'approved' AND tp.team_id = $2 LIMIT 1`,
+            [user.id, teamId]
+          );
+          if (!claimRows.length) return res.status(403).json({ error: 'Access denied' });
+        } else {
+          return res.status(403).json({ error: 'Access denied' });
+        }
+      } else if (!['super_admin'].includes(user.role)) {
+        // Staff roles other than super_admin: must have a permission entry for this team or org
+        const perms = await getUserPermissions(user.id);
+        const hasTeam = perms.team_ids.includes(Number(teamId));
+        const hasOrg = org_id && (perms.org_ids.includes(Number(org_id)) || perms.team_org_ids.includes(Number(org_id)));
+        if (!hasTeam && !hasOrg) return res.status(403).json({ error: 'Access denied' });
+      }
+    }
 
     const cacheKey = `stats:team:${teamId}:${season_id || 'all'}`;
     const cached = cache.get(cacheKey);
