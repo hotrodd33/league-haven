@@ -88,6 +88,10 @@ router.get('/channels', async (req, res) => {
            ) END AS other_user_name
          FROM chat_channels cc
          LEFT JOIN chat_channel_members ccm ON ccm.channel_id = cc.id AND ccm.user_id = $1
+         WHERE cc.type = 'direct'
+            OR EXISTS (
+              SELECT 1 FROM chat_messages WHERE channel_id = cc.id AND deleted_at IS NULL
+            )
          ORDER BY last_message_at DESC NULLS LAST`,
         [req.user.id]
       );
@@ -231,6 +235,48 @@ router.get('/dm-users', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('GET /chat/dm-users error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /api/chat/teams — teams the current user can start a team chat with ──
+router.get('/teams', async (req, res) => {
+  try {
+    let rows;
+    if (req.user.role === 'super_admin') {
+      ({ rows } = await pool.query(`SELECT id, name FROM teams ORDER BY name`));
+    } else {
+      ({ rows } = await pool.query(
+        `SELECT DISTINCT t.id, t.name
+         FROM teams t
+         JOIN user_permissions up ON up.team_id = t.id
+         WHERE up.user_id = $1 AND up.is_active = TRUE
+         ORDER BY t.name`,
+        [req.user.id]
+      ));
+    }
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /chat/teams error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /api/chat/team-channel — find or create a team channel ──
+router.post('/team-channel', async (req, res) => {
+  const { team_id } = req.body;
+  if (!team_id) return res.status(400).json({ error: 'team_id required' });
+  try {
+    const channelId = await ensureTeamChannel(Number(team_id));
+    if (!channelId) return res.status(404).json({ error: 'Team not found' });
+    // Ensure the requesting user is a member (super_admin may not be in user_permissions)
+    await pool.query(
+      `INSERT INTO chat_channel_members (channel_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [channelId, req.user.id]
+    );
+    res.json({ channel_id: channelId });
+  } catch (err) {
+    console.error('POST /chat/team-channel error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1404,6 +1404,17 @@ export async function fetchDMUsers() {
   return apiFetch('/chat/dm-users');
 }
 
+export async function fetchChatTeams() {
+  return apiFetch('/chat/teams');
+}
+
+export async function findOrCreateTeamChannel(teamId) {
+  return apiFetch('/chat/team-channel', {
+    method: 'POST',
+    body: JSON.stringify({ team_id: teamId }),
+  });
+}
+
 export async function fetchChatUnreadCount() {
   return apiFetch('/chat/unread-count');
 }
