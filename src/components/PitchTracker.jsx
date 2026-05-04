@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { Button, Input, Select, Modal } from './ui';
+import { PlusIcon } from './ui/icons.jsx';
 
 function teamAbbr(name, fallback = '') {
   if (fallback && String(fallback).trim()) return String(fallback).trim().slice(0, 4).toUpperCase();
@@ -634,8 +635,11 @@ function PitcherSection({ label, side, pitchers, getCount, adjustCount, removePi
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-display font-bold uppercase tracking-wide" style={{ color: teamColor || '#9ca3af' }}>{label}{readOnly && <span className="ml-2 text-[10px] font-normal text-gray-500">(read-only)</span>}</h3>
         {!readOnly && (
-          <button onClick={onAddPitcher} className="text-xs font-semibold text-chrome-400 hover:text-chrome-200">
-            + Add Pitcher
+          <button
+            onClick={onAddPitcher}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg bg-action-600 hover:bg-action-500 text-white shadow transition-colors"
+          >
+            <PlusIcon className="w-4 h-4" />Add Pitcher
           </button>
         )}
       </div>

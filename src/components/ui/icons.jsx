@@ -358,7 +358,6 @@ export function BaseballIcon({ className = 'w-5 h-5' }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="9" />
       <path d="M6.34 6.34C7.6 8 8.25 10 8.25 12s-.65 4-1.91 5.66M17.66 6.34C16.4 8 15.75 10 15.75 12s.65 4 1.91 5.66" />
-      <path d="M9 8.5c1 .33 2 .5 3 .5s2-.17 3-.5M9 15.5c1-.33 2-.5 3-.5s2 .17 3 .5" />
     </svg>
   );
 }

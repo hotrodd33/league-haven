@@ -608,7 +608,12 @@ function PitchCountSection({
           {dailyLimit && <span className="text-xs text-gray-400 shrink-0">Limit: {dailyLimit}/day</span>}
         </div>
         {canEdit && !isAdding && !editingPc && (
-          <Button size="xs" variant="chrome" onClick={onStartAdd}>+ Add Pitcher</Button>
+          <button
+            onClick={onStartAdd}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg bg-action-600 hover:bg-action-500 text-white shadow transition-colors"
+          >
+            <PlusIcon className="w-4 h-4" />Add Pitcher
+          </button>
         )}
       </div>
 
