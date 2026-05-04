@@ -6,6 +6,21 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 minutes for current weather
 const FORECAST_CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours for forecasts
 const cache = require('../cache');
 
+// In-flight deduplication: if the same cache key is already being fetched,
+// all concurrent callers share the same promise instead of hammering Open-Meteo.
+const inFlight = new Map();
+
+function dedupFetch(key, ttl, fetcher) {
+  const cached = cache.get(key);
+  if (cached) return Promise.resolve(cached);
+  if (inFlight.has(key)) return inFlight.get(key);
+  const promise = fetcher()
+    .then(result => { cache.set(key, result, ttl); return result; })
+    .finally(() => inFlight.delete(key));
+  inFlight.set(key, promise);
+  return promise;
+}
+
 // Playability score for baseball based on weather conditions
 function computePlayability(weather) {
   let score = 100;
@@ -65,42 +80,38 @@ router.get('/', authMiddleware, async (req, res) => {
     if (!lat || !lon) return res.status(400).json({ error: 'lat and lon are required' });
 
     const cacheKey = `current:${parseFloat(lat).toFixed(2)},${parseFloat(lon).toFixed(2)}`;
-    const cached = cache.get(cacheKey);
-    if (cached) return res.json(cached);
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,relative_humidity_2m&hourly=precipitation_probability&forecast_days=1&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto`;
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error('[WEATHER] Open-Meteo error:', response.status);
-      return res.status(502).json({ error: 'Weather service unavailable' });
-    }
-
-    const data = await response.json();
-    const c = data.current;
-
-    // Get current hour's precipitation probability
-    const currentHour = new Date().getHours();
-    const precipProb = data.hourly?.precipitation_probability?.[currentHour] ?? null;
-
-    const result = {
-      temp: Math.round(c.temperature_2m),
-      feelsLike: Math.round(c.apparent_temperature),
-      humidity: c.relative_humidity_2m,
-      windSpeed: Math.round(c.wind_speed_10m),
-      windDirection: degreesToCompass(c.wind_direction_10m),
-      windDirectionDeg: c.wind_direction_10m,
-      windGusts: Math.round(c.wind_gusts_10m),
-      precipitation: c.precipitation,
-      precipitationProbability: precipProb,
-      weatherCode: c.weather_code,
-      description: weatherCodeToDescription(c.weather_code),
-      icon: weatherCodeToIcon(c.weather_code),
-      isForecast: false,
-    };
-    result.playability = computePlayability(result);
-
-    cache.set(cacheKey, result, CACHE_TTL);
+    const result = await dedupFetch(cacheKey, CACHE_TTL, async () => {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,relative_humidity_2m&hourly=precipitation_probability&forecast_days=1&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error('[WEATHER] Open-Meteo error:', response.status);
+        const err = new Error('Weather service unavailable');
+        err.status = response.status;
+        throw err;
+      }
+      const data = await response.json();
+      const c = data.current;
+      const currentHour = new Date().getHours();
+      const precipProb = data.hourly?.precipitation_probability?.[currentHour] ?? null;
+      const r = {
+        temp: Math.round(c.temperature_2m),
+        feelsLike: Math.round(c.apparent_temperature),
+        humidity: c.relative_humidity_2m,
+        windSpeed: Math.round(c.wind_speed_10m),
+        windDirection: degreesToCompass(c.wind_direction_10m),
+        windDirectionDeg: c.wind_direction_10m,
+        windGusts: Math.round(c.wind_gusts_10m),
+        precipitation: c.precipitation,
+        precipitationProbability: precipProb,
+        weatherCode: c.weather_code,
+        description: weatherCodeToDescription(c.weather_code),
+        icon: weatherCodeToIcon(c.weather_code),
+        isForecast: false,
+      };
+      r.playability = computePlayability(r);
+      return r;
+    });
 
     res.json(result);
   } catch (err) {
@@ -128,80 +139,75 @@ router.get('/forecast', authMiddleware, async (req, res) => {
     }
 
     const cacheKey = `forecast:${parseFloat(lat).toFixed(2)},${parseFloat(lon).toFixed(2)}:${date}:${time || ''}`;
-    const cached = cache.get(cacheKey);
-    if (cached) return res.json(cached);
 
-    // Request hourly data for the target date
-    const params = new URLSearchParams({
-      latitude: lat,
-      longitude: lon,
-      hourly: 'temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,precipitation_probability,relative_humidity_2m,uv_index',
-      daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,uv_index_max',
-      start_date: date,
-      end_date: date,
-      temperature_unit: 'fahrenheit',
-      wind_speed_unit: 'mph',
-      precipitation_unit: 'inch',
-      timezone: 'auto',
+    const result = await dedupFetch(cacheKey, FORECAST_CACHE_TTL, async () => {
+      const params = new URLSearchParams({
+        latitude: lat,
+        longitude: lon,
+        hourly: 'temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,precipitation_probability,relative_humidity_2m,uv_index',
+        daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,uv_index_max',
+        start_date: date,
+        end_date: date,
+        temperature_unit: 'fahrenheit',
+        wind_speed_unit: 'mph',
+        precipitation_unit: 'inch',
+        timezone: 'auto',
+      });
+      const url = `https://api.open-meteo.com/v1/forecast?${params}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error('[WEATHER] Open-Meteo forecast error:', response.status);
+        const err = new Error('Weather service unavailable');
+        err.status = response.status;
+        throw err;
+      }
+      const data = await response.json();
+      let r;
+      if (time && data.hourly?.time) {
+        // Find the closest hour to the requested game time
+        const targetHour = parseInt(time.split(':')[0], 10);
+        const idx = Math.min(targetHour, data.hourly.time.length - 1);
+        const h = data.hourly;
+        r = {
+          temp: Math.round(h.temperature_2m[idx]),
+          feelsLike: Math.round(h.apparent_temperature[idx]),
+          humidity: h.relative_humidity_2m[idx],
+          windSpeed: Math.round(h.wind_speed_10m[idx]),
+          windDirection: degreesToCompass(h.wind_direction_10m[idx]),
+          windDirectionDeg: h.wind_direction_10m[idx],
+          windGusts: Math.round(h.wind_gusts_10m[idx]),
+          precipitation: h.precipitation[idx],
+          precipitationProbability: h.precipitation_probability[idx],
+          uvIndex: h.uv_index?.[idx] ?? null,
+          weatherCode: h.weather_code[idx],
+          description: weatherCodeToDescription(h.weather_code[idx]),
+          icon: weatherCodeToIcon(h.weather_code[idx]),
+          isForecast: true,
+          forecastDate: date,
+          forecastTime: time,
+        };
+      } else {
+        // No specific time — use daily summary
+        const d = data.daily;
+        r = {
+          tempHigh: Math.round(d.temperature_2m_max[0]),
+          tempLow: Math.round(d.temperature_2m_min[0]),
+          temp: Math.round((d.temperature_2m_max[0] + d.temperature_2m_min[0]) / 2),
+          windSpeed: Math.round(d.wind_speed_10m_max[0]),
+          windGusts: Math.round(d.wind_gusts_10m_max[0]),
+          precipitationProbability: d.precipitation_probability_max[0],
+          uvIndex: d.uv_index_max?.[0] ?? null,
+          weatherCode: d.weather_code[0],
+          description: weatherCodeToDescription(d.weather_code[0]),
+          icon: weatherCodeToIcon(d.weather_code[0]),
+          isForecast: true,
+          forecastDate: date,
+          isDailySummary: true,
+        };
+      }
+      r.playability = computePlayability(r);
+      return r;
     });
-
-    const url = `https://api.open-meteo.com/v1/forecast?${params}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error('[WEATHER] Open-Meteo forecast error:', response.status);
-      return res.status(502).json({ error: 'Weather service unavailable' });
-    }
-
-    const data = await response.json();
-    let result;
-
-    if (time && data.hourly?.time) {
-      // Find the closest hour to the requested game time
-      const targetHour = parseInt(time.split(':')[0], 10);
-      const idx = Math.min(targetHour, data.hourly.time.length - 1);
-      const h = data.hourly;
-
-      result = {
-        temp: Math.round(h.temperature_2m[idx]),
-        feelsLike: Math.round(h.apparent_temperature[idx]),
-        humidity: h.relative_humidity_2m[idx],
-        windSpeed: Math.round(h.wind_speed_10m[idx]),
-        windDirection: degreesToCompass(h.wind_direction_10m[idx]),
-        windDirectionDeg: h.wind_direction_10m[idx],
-        windGusts: Math.round(h.wind_gusts_10m[idx]),
-        precipitation: h.precipitation[idx],
-        precipitationProbability: h.precipitation_probability[idx],
-        uvIndex: h.uv_index?.[idx] ?? null,
-        weatherCode: h.weather_code[idx],
-        description: weatherCodeToDescription(h.weather_code[idx]),
-        icon: weatherCodeToIcon(h.weather_code[idx]),
-        isForecast: true,
-        forecastDate: date,
-        forecastTime: time,
-      };
-    } else {
-      // No specific time — use daily summary
-      const d = data.daily;
-      result = {
-        tempHigh: Math.round(d.temperature_2m_max[0]),
-        tempLow: Math.round(d.temperature_2m_min[0]),
-        temp: Math.round((d.temperature_2m_max[0] + d.temperature_2m_min[0]) / 2),
-        windSpeed: Math.round(d.wind_speed_10m_max[0]),
-        windGusts: Math.round(d.wind_gusts_10m_max[0]),
-        precipitationProbability: d.precipitation_probability_max[0],
-        uvIndex: d.uv_index_max?.[0] ?? null,
-        weatherCode: d.weather_code[0],
-        description: weatherCodeToDescription(d.weather_code[0]),
-        icon: weatherCodeToIcon(d.weather_code[0]),
-        isForecast: true,
-        forecastDate: date,
-        isDailySummary: true,
-      };
-    }
-
-    result.playability = computePlayability(result);
-
-    cache.set(cacheKey, result, FORECAST_CACHE_TTL);
 
     res.json(result);
   } catch (err) {

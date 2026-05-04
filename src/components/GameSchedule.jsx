@@ -329,20 +329,26 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
 
     for (const g of weatherableGames) weatherFetchedRef.current.add(String(g.id));
 
-    const promises = weatherableGames.map(g => {
-      const fetcher = (g.game_date === todayStr && !g.game_time)
-        ? fetchWeather(g.location_lat, g.location_lon)
-        : fetchWeatherForecast(g.location_lat, g.location_lon, g.game_date, g.game_time || null);
-      return fetcher
-        .then(w => (w && !w.unavailable) ? { key: String(g.id), weather: w } : null)
-        .catch(() => null);
-    });
-
-    Promise.all(promises).then(results => {
-      const map = {};
-      for (const r of results) if (r) map[r.key] = r.weather;
-      setGameWeather(prev => ({ ...prev, ...map }));
-    });
+    // Send in batches of 5 with 400ms between batches to avoid 429s
+    const BATCH = 5;
+    const DELAY = 400;
+    (async () => {
+      for (let i = 0; i < weatherableGames.length; i += BATCH) {
+        const batch = weatherableGames.slice(i, i + BATCH);
+        const results = await Promise.allSettled(batch.map(g => {
+          const fetcher = (g.game_date === todayStr && !g.game_time)
+            ? fetchWeather(g.location_lat, g.location_lon)
+            : fetchWeatherForecast(g.location_lat, g.location_lon, g.game_date, g.game_time || null);
+          return fetcher
+            .then(w => (w && !w.unavailable) ? { key: String(g.id), weather: w } : null)
+            .catch(() => null);
+        }));
+        const map = {};
+        for (const r of results) if (r.status === 'fulfilled' && r.value) map[r.value.key] = r.value.weather;
+        if (Object.keys(map).length) setGameWeather(prev => ({ ...prev, ...map }));
+        if (i + BATCH < weatherableGames.length) await new Promise(r => setTimeout(r, DELAY));
+      }
+    })();
   }, [games]);
 
   async function handleToggleInterest(gameId, currentlyInterested) {
