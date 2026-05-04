@@ -78,76 +78,78 @@ export default function Chat() {
   const totalUnread = channels.reduce((sum, ch) => sum + (Number(ch.unread_count) || 0), 0);
 
   return (
-    <div className="overflow-hidden flex h-[calc(100vh-6rem)] max-h-200 rounded-xl border border-gray-700 bg-gray-900">
+    <div className="relative flex h-[calc(100vh-6rem)] max-h-200 rounded-xl border border-gray-700 overflow-hidden bg-gray-900">
 
       {/*
-        ── Slide track ──
-        On mobile: double-width (200%) so each child panel fills the viewport.
-        Slides left by 50% (= one panel width) when in messages view.
-        On desktop (sm+): full width, no translation — normal flex layout.
+        Desktop: normal flex row — sidebar w-60, message pane flex-1. No tricks.
+        Mobile:  sidebar becomes absolute (full-screen overlay), slides off to the
+                 left when a channel is selected. Message pane stays in flow always.
       */}
-      <div
+
+      {/* ── Sidebar ── */}
+      <aside
         className={[
-          'flex h-full shrink-0',
-          'w-[200%] transition-transform duration-300 ease-in-out',
-          'sm:w-full sm:transform-none',
-          mobileView === 'messages' ? '-translate-x-1/2' : 'translate-x-0',
+          'shrink-0 bg-gray-800 border-r border-gray-700 flex flex-col',
+          // Desktop: static, fixed width — nothing else needed
+          'sm:w-60',
+          // Mobile only: absolute overlay so it sits on top of the message pane
+          'max-sm:absolute max-sm:inset-0 max-sm:w-full max-sm:z-10',
+          // Slide transition (no-op on desktop since no transform is ever applied there)
+          'transition-transform duration-300 ease-in-out',
+          mobileView === 'messages' ? 'max-sm:-translate-x-full' : '',
         ].join(' ')}
       >
-        {/* ── Sidebar ── */}
-        <aside className="w-1/2 sm:w-60 shrink-0 bg-gray-800 border-r border-gray-700 flex flex-col">
-          <div className="px-4 py-3 flex items-center justify-between border-b border-gray-700 shrink-0">
-            <h2 className="text-sm font-bold text-chrome-300">
-              Chat {totalUnread > 0 && (
-                <span className="ml-1 text-[10px] bg-chrome-600 text-white px-1.5 py-0.5 rounded-full">{totalUnread}</span>
-              )}
-            </h2>
-            <button
-              type="button"
-              title="New Direct Message"
-              onClick={() => { setShowNewDM(true); setMobileView('messages'); }}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-chrome-300 hover:bg-gray-700 text-lg leading-none transition-colors"
-            >
-              +
-            </button>
-          </div>
-
-          <nav className="flex-1 overflow-y-auto py-1">
-            {channels.length === 0 && (
-              <p className="px-4 py-3 text-xs text-gray-500">No channels yet.</p>
+        <div className="px-4 py-3 flex items-center justify-between border-b border-gray-700 shrink-0">
+          <h2 className="text-sm font-bold text-chrome-300">
+            Chat {totalUnread > 0 && (
+              <span className="ml-1 text-[10px] bg-chrome-600 text-white px-1.5 py-0.5 rounded-full">{totalUnread}</span>
             )}
-            {channels.map((ch) => (
-              <ChannelItem
-                key={ch.id}
-                channel={ch}
-                active={ch.id === activeChannelId}
-                onClick={() => handleSelectChannel(ch.id)}
-              />
-            ))}
-          </nav>
-        </aside>
-
-        {/* ── Main pane ── */}
-        <div className="w-1/2 sm:flex-1 flex flex-col min-w-0 bg-gray-900">
-          {showNewDM ? (
-            <NewDMPane
-              onDMCreated={handleDMCreated}
-              onCancel={() => { setShowNewDM(false); setMobileView('list'); }}
-            />
-          ) : activeChannelId ? (
-            <MessagePane
-              channelId={activeChannelId}
-              currentUserId={user?.id}
-              channelName={activeChannel ? channelLabel(activeChannel) : 'Chat'}
-              channelType={activeChannel?.type}
-              onBack={handleBack}
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
-              Select a channel to start chatting
-            </div>
-          )}
+          </h2>
+          <button
+            type="button"
+            title="New Direct Message"
+            onClick={() => { setShowNewDM(true); setMobileView('messages'); }}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-chrome-300 hover:bg-gray-700 text-lg leading-none transition-colors"
+          >
+            +
+          </button>
         </div>
+
+        <nav className="flex-1 overflow-y-auto py-1">
+          {channels.length === 0 && (
+            <p className="px-4 py-3 text-xs text-gray-500">No channels yet.</p>
+          )}
+          {channels.map((ch) => (
+            <ChannelItem
+              key={ch.id}
+              channel={ch}
+              active={ch.id === activeChannelId}
+              onClick={() => handleSelectChannel(ch.id)}
+            />
+          ))}
+        </nav>
+      </aside>
+
+      {/* ── Message pane — always a normal flex child, never transforms ── */}
+      <div className="flex-1 flex flex-col min-w-0 bg-gray-900">
+        {showNewDM ? (
+          <NewDMPane
+            onDMCreated={handleDMCreated}
+            onCancel={() => { setShowNewDM(false); setMobileView('list'); }}
+          />
+        ) : activeChannelId ? (
+          <MessagePane
+            channelId={activeChannelId}
+            currentUserId={user?.id}
+            channelName={activeChannel ? channelLabel(activeChannel) : 'Chat'}
+            channelType={activeChannel?.type}
+            onBack={handleBack}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
+            Select a channel to start chatting
+          </div>
+        )}
       </div>
     </div>
   );
@@ -276,11 +278,11 @@ function MessagePane({ channelId, currentUserId, channelName, channelType, onBac
     <>
       {/* Header */}
       <div className="px-3 py-2.5 border-b border-gray-700 bg-gray-850 flex items-center gap-2 shrink-0">
-        {/* Back button — mobile only */}
+        {/* Back button — mobile only (hidden on desktop via sm:hidden) */}
         <button
           type="button"
           onClick={onBack}
-          className="sm:hidden flex items-center justify-center w-8 h-8 -ml-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-700 transition-colors shrink-0"
+          className="sm:hidden flex items-center justify-center w-8 h-8 -ml-1 rounded-lg text-gray-400 active:text-gray-200 active:bg-gray-700 transition-colors shrink-0"
           aria-label="Back to channels"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
@@ -455,7 +457,7 @@ function NewDMPane({ onDMCreated, onCancel }) {
         <button
           type="button"
           onClick={onCancel}
-          className="sm:hidden flex items-center justify-center w-8 h-8 -ml-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-700 transition-colors shrink-0"
+          className="sm:hidden flex items-center justify-center w-8 h-8 -ml-1 rounded-lg text-gray-400 active:text-gray-200 active:bg-gray-700 transition-colors shrink-0"
           aria-label="Back to channels"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
