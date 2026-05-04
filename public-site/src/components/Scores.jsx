@@ -55,17 +55,23 @@ export default function Scores({ onNavigateToTeam }) {
     if (!seasonId) { setGames([]); return; }
     setLoading(true); setError(null);
     try {
-      const params = { season_id: seasonId };
-      if (filter === 'completed') params.status = 'completed';
-      if (filter === 'upcoming')  params.status = 'scheduled';
-      setGames(await fetchGames(params));
+      // Fetch ALL games for the season — status filter applied client-side
+      // so the team dropdown always shows every team regardless of status filter
+      setGames(await fetchGames({ season_id: seasonId }));
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
-  }, [seasonId, filter]);
+  }, [seasonId]);
 
   useEffect(() => { loadGames(); }, [loadGames]);
 
-  // Build unique team list from all loaded games for the filter dropdown
+  // Client-side status filter
+  const statusFiltered = useMemo(() => {
+    if (filter === 'completed') return games.filter(g => g.status === 'completed');
+    if (filter === 'upcoming')  return games.filter(g => g.status === 'scheduled' || g.status === 'in_progress');
+    return games;
+  }, [games, filter]);
+
+  // Build unique team list from ALL games (not status-filtered) so every team appears
   const teamOptions = useMemo(() => {
     const map = new Map();
     for (const g of games) {
@@ -78,10 +84,10 @@ export default function Scores({ onNavigateToTeam }) {
   }, [games]);
 
   const filteredGames = useMemo(() => {
-    if (!teamFilter) return games;
+    if (!teamFilter) return statusFiltered;
     const tid = parseInt(teamFilter, 10);
-    return games.filter(g => g.home_team_id === tid || g.away_team_id === tid);
-  }, [games, teamFilter]);
+    return statusFiltered.filter(g => g.home_team_id === tid || g.away_team_id === tid);
+  }, [statusFiltered, teamFilter]);
 
   const byDivision = {};
   for (const g of filteredGames) {
