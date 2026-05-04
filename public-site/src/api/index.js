@@ -57,3 +57,11 @@ export function fetchTeamStaff(teamId) {
 export function fetchTravelMatrix() {
   return apiFetch('/travel');
 }
+
+export function fetchGame(gameId) {
+  return apiFetch(`/games/${gameId}`);
+}
+
+export function fetchPitchCounts(gameId) {
+  return apiFetch(`/games/${gameId}/pitch-counts`);
+}

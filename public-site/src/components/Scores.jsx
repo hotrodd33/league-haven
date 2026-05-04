@@ -31,7 +31,7 @@ const STATUS_LABELS = {
   postponed:   'Postponed',
 };
 
-export default function Scores({ onNavigateToTeam }) {
+export default function Scores({ onNavigateToTeam, onNavigateToGame }) {
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
   const [filter, setFilter] = useState('all');
@@ -179,14 +179,18 @@ export default function Scores({ onNavigateToTeam }) {
                     const awayWin  = isScored && (g.away_score ?? 0) > (g.home_score ?? 0);
                     const homeWin  = isScored && (g.home_score ?? 0) > (g.away_score ?? 0);
                     return (
-                      <div key={g.id} className="bg-gray-800 border border-gray-700 rounded-card-sm p-4 hover:border-gray-600 transition-colors">
+                      <div
+                        key={g.id}
+                        onClick={() => onNavigateToGame?.(g.id)}
+                        className="bg-gray-800 border border-gray-700 rounded-card-sm p-4 hover:border-action-600 hover:bg-gray-700/50 transition-colors cursor-pointer"
+                      >
                         <div className="flex items-center justify-between gap-4">
                           {/* Away team */}
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <TeamLogo src={g.away_logo} name={g.away_team_name} ageGroup={g.away_age_group} level={g.away_level} cityAbbr={g.away_city_abbr} primaryColor={g.away_primary_color} secondaryColor={g.away_secondary_color} />
                             <div className="min-w-0">
                               <button
-                                onClick={() => g.away_team_id && onNavigateToTeam?.(g.away_team_id)}
+                                onClick={e => { e.stopPropagation(); g.away_team_id && onNavigateToTeam?.(g.away_team_id); }}
                                 disabled={!g.away_team_id}
                                 className={`font-semibold text-sm truncate block text-left hover:underline ${awayWin ? 'text-action-300 hover:text-action-100' : isScored ? 'text-gray-400 hover:text-gray-200' : 'text-gray-200 hover:text-action-300'} disabled:pointer-events-none`}
                               >
@@ -223,7 +227,7 @@ export default function Scores({ onNavigateToTeam }) {
                           <div className="flex items-center gap-3 flex-1 min-w-0 justify-end text-right">
                             <div className="min-w-0">
                               <button
-                                onClick={() => g.home_team_id && onNavigateToTeam?.(g.home_team_id)}
+                                onClick={e => { e.stopPropagation(); g.home_team_id && onNavigateToTeam?.(g.home_team_id); }}
                                 disabled={!g.home_team_id}
                                 className={`font-semibold text-sm truncate block text-right w-full hover:underline ${homeWin ? 'text-action-300 hover:text-action-100' : isScored ? 'text-gray-400 hover:text-gray-200' : 'text-gray-200 hover:text-action-300'} disabled:pointer-events-none`}
                               >
@@ -252,6 +256,7 @@ export default function Scores({ onNavigateToTeam }) {
                                     href={mapsUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={e => e.stopPropagation()}
                                     className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-gray-700 text-action-300 hover:bg-gray-600 hover:text-action-100 transition-colors"
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
