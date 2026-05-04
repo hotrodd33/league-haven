@@ -303,10 +303,9 @@ router.get('/team/:teamId', optionalAuth, async (req, res) => {
     );
 
     // Aggregated player stats
+    // Join through games (team was home or away) + team_players to avoid relying on pgs.team_id
+    const seasonCond = season_id ? 'AND g2.season_id = $2' : '';
     const statsArgs = season_id ? [teamId, season_id] : [teamId];
-    const statsSeasonJoin = season_id
-      ? 'JOIN games g2 ON g2.id = pgs.game_id AND g2.season_id = $2 AND g2.deleted_at IS NULL'
-      : 'JOIN games g2 ON g2.id = pgs.game_id AND g2.deleted_at IS NULL';
 
     const { rows: statRows } = await pool.query(
       `SELECT
@@ -324,21 +323,25 @@ router.get('/team/:teamId', optionalAuth, async (req, res) => {
        FROM player_game_stats pgs
        JOIN players p ON p.id = pgs.player_id
        JOIN stat_definitions sd ON sd.id = pgs.stat_definition_id
-       ${statsSeasonJoin}
-       WHERE pgs.team_id = $1
-         AND sd.is_active = TRUE
+       JOIN games g2 ON g2.id = pgs.game_id AND g2.deleted_at IS NULL
+         AND (g2.home_team_id = $1::int OR g2.away_team_id = $1::int)
+         ${seasonCond}
+       JOIN team_players tp ON tp.player_id = pgs.player_id AND tp.team_id = $1::int
+       WHERE sd.is_active = TRUE
          AND pgs.value ~ '^[0-9]+(\\.[0-9]+)?$'
        GROUP BY p.id, p.first_name, p.last_name, sd.id, sd.abbreviation, sd.category, sd.data_type, sd.sort_order
        ORDER BY p.last_name, p.first_name, sd.category, sd.sort_order`,
       statsArgs
     );
 
-    // Also count distinct games per player (for G column)
+    // Count distinct games per player
     const { rows: gamesPerPlayer } = await pool.query(
       `SELECT pgs.player_id, COUNT(DISTINCT pgs.game_id) AS games
        FROM player_game_stats pgs
-       ${statsSeasonJoin.replace('pgs.game_id', 'pgs.game_id')}
-       WHERE pgs.team_id = $1
+       JOIN games g2 ON g2.id = pgs.game_id AND g2.deleted_at IS NULL
+         AND (g2.home_team_id = $1::int OR g2.away_team_id = $1::int)
+         ${seasonCond}
+       JOIN team_players tp ON tp.player_id = pgs.player_id AND tp.team_id = $1::int
        GROUP BY pgs.player_id`,
       statsArgs
     );
