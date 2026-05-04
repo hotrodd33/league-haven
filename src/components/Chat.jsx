@@ -72,18 +72,24 @@ export default function Chat({ initialChannelId = null }) {
     }
   }, [channels, activeChannelId]);
 
+  function zeroUnread(id) {
+    queryClient.setQueryData(['chat-channels'], (old = []) =>
+      old.map(ch => ch.id === id ? { ...ch, unread_count: 0 } : ch)
+    );
+  }
+
   function handleSelectChannel(id) {
     setActiveChannelId(id);
     setShowNewChat(false);
     setMobileView('messages');
-    queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
+    zeroUnread(id);
   }
 
   function handleChannelReady(channelId) {
     setShowNewChat(false);
     setActiveChannelId(channelId);
     setMobileView('messages');
-    queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
+    zeroUnread(channelId);
   }
 
   function handleBack() {
@@ -244,10 +250,13 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
     retry: false,
   });
 
-  // Mark read when channel becomes active
+  // Mark read when channel becomes active and immediately zero the badge in local cache
+  // (don't wait for the next channel list poll to reflect it)
   useEffect(() => {
     markChatRead(channelId).catch(() => {});
-    queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
+    queryClient.setQueryData(['chat-channels'], (old = []) =>
+      old.map(ch => ch.id === channelId ? { ...ch, unread_count: 0 } : ch)
+    );
   }, [channelId, queryClient]);
 
   // ── Incremental poll ──────────────────────────────────────────
@@ -274,6 +283,14 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
         newestAtRef.current = newMsgs[newMsgs.length - 1].created_at;
         return [...prev, ...realNew];
       });
+
+      // We just received + displayed these messages — clear unread badge immediately
+      // and update last_read_at in DB. This prevents the channel list from showing
+      // a badge for messages the user is actively watching arrive.
+      markChatRead(channelId).catch(() => {});
+      queryClient.setQueryData(['chat-channels'], (old = []) =>
+        old.map(ch => ch.id === channelId ? { ...ch, unread_count: 0 } : ch)
+      );
 
       if (wasNearBottom) {
         requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
