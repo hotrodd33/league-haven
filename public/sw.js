@@ -38,15 +38,21 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
-// Notification click: open the app or focus existing window
+// Notification click: navigate the app to the target URL (deep-links to the right chat channel)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url || '/';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      // If there's an existing app window, navigate it to the deep-link URL.
+      // client.navigate() causes a page load to the new URL, which picks up the
+      // ?page=chat&channelId=N params and opens the right channel.
       for (const client of clients) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
+        if (client.url.startsWith(self.location.origin) && 'navigate' in client) {
+          return client.navigate(url).then(c => c?.focus?.()).catch(() => self.clients.openWindow(url));
+        }
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
           return client.focus();
         }
       }
