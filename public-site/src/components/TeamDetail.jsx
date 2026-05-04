@@ -300,8 +300,8 @@ function RosterTab({ players, teamId }) {
           </thead>
           <tbody className="divide-y divide-gray-700/50 bg-gray-800/40">
             {sorted.map(p => {
-              const jersey = p.teams?.find(t => t.id === teamId || t.team_id === teamId)?.jersey_number;
-              const positions = p.positions?.map(pos => pos.position || pos).filter(Boolean).join(', ');
+              const jersey = p.jersey_number ?? p.teams?.find(t => t.id === teamId || t.team_id === teamId)?.jersey_number;
+              const positions = p.positions?.map(pos => pos.abbreviation || pos.name || pos).filter(Boolean).join(', ');
               return (
                 <tr key={p.id} className="hover:bg-gray-700/30 transition-colors">
                   <td className="px-3 py-2.5 text-center font-mono text-gray-400">
@@ -324,8 +324,8 @@ function RosterTab({ players, teamId }) {
       {/* Mobile list */}
       <div className="sm:hidden space-y-2">
         {sorted.map(p => {
-          const jersey = p.teams?.find(t => t.id === teamId || t.team_id === teamId)?.jersey_number;
-          const positions = p.positions?.map(pos => pos.position || pos).filter(Boolean).join(', ');
+          const jersey = p.jersey_number ?? p.teams?.find(t => t.id === teamId || t.team_id === teamId)?.jersey_number;
+          const positions = p.positions?.map(pos => pos.abbreviation || pos.name || pos).filter(Boolean).join(', ');
           return (
             <div key={p.id} className="bg-gray-800 border border-gray-700 rounded-card-sm p-3 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-mono font-bold text-gray-300 text-sm shrink-0">

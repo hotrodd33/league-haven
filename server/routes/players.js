@@ -85,7 +85,7 @@ router.get('/search', authMiddleware, async (req, res) => {
 });
 
 // Fields safe to return to unauthenticated public viewers
-const PUBLIC_FIELDS = ['id', 'first_name', 'last_name', 'jersey_number', 'positions', 'teams'];
+const PUBLIC_FIELDS = ['id', 'first_name', 'last_name', 'jersey_number', 'grade', 'batting_hand', 'throwing_hand', 'positions', 'teams'];
 function toPublic(player) {
   const out = {};
   for (const k of PUBLIC_FIELDS) if (player[k] !== undefined) out[k] = player[k];
