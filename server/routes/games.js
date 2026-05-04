@@ -157,7 +157,13 @@ const BASE_SELECT = `
 // Lightweight SELECT for list views — omits officials, interested umpires, coach contacts,
 // and gamechanger import log. GameDetail uses BASE_SELECT; GameSchedule/Dashboard use SLIM_SELECT.
 const SLIM_SELECT = `
-  SELECT g.*,
+  SELECT
+    g.id, g.season_id, g.home_team_id, g.away_team_id, g.location_id,
+    g.game_date, g.game_time, g.status,
+    g.home_score, g.away_score,
+    g.innings_played, g.game_duration_minutes,
+    g.scoring_user_id, g.scoring_started_at,
+    g.deleted_at, g.created_at, g.updated_at,
     ht.name AS home_team_name, ht.logo_url AS home_team_logo,
     ht.org_id AS home_org_id,
     ht.team_city AS home_team_city, ht.team_mascot AS home_team_mascot,
