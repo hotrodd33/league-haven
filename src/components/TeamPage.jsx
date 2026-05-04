@@ -11,12 +11,14 @@ import PitcherRest from './PitcherRest.jsx';
 import PitchLog from './PitchLog.jsx';
 import TeamSchedule from './TeamSchedule.jsx';
 import GameDetail from './GameDetail.jsx';
-import { CalendarIcon, ClipboardIcon, UsersIcon, UserGroupIcon } from './ui/icons.jsx';
+import TeamStats from './TeamStats.jsx';
+import { CalendarIcon, ClipboardIcon, UsersIcon, UserGroupIcon, ChartBarIcon } from './ui/icons.jsx';
 import ContactModal from './ContactModal.jsx';
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: null },
   { key: 'schedule', label: 'Schedule', icon: CalendarIcon },
+  { key: 'stats', label: 'Stats', icon: ChartBarIcon },
   { key: 'pitching', label: 'Pitching', icon: ClipboardIcon },
   { key: 'roster', label: 'Roster', icon: UsersIcon },
   { key: 'coaches', label: 'Coaches', icon: UserGroupIcon },
@@ -169,6 +171,9 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
         )}
         {activeTab === 'schedule' && (
           <TeamSchedule teamId={teamId} onNavigateToTeam={onNavigateToTeam} onViewPlayer={onViewPlayer} />
+        )}
+        {activeTab === 'stats' && (
+          <TeamStats teamId={teamId} />
         )}
         {activeTab === 'pitching' && (
           <div className="space-y-4">

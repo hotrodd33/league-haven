@@ -250,4 +250,131 @@ router.delete('/player/:playerId/game/:gameId', authMiddleware, async (req, res)
   }
 });
 
+// GET /stats/team/:teamId — aggregated season stats for all players on a team
+router.get('/team/:teamId', optionalAuth, async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { season_id } = req.query;
+
+    const cacheKey = `stats:team:${teamId}:${season_id || 'all'}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
+    // Team W/L record from games
+    const seasonFilter = season_id ? 'AND g.season_id = $2' : '';
+    const recordArgs = season_id ? [teamId, season_id] : [teamId];
+    const { rows: recordRows } = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE g.status IN ('completed','final') AND (
+           (g.home_team_id = $1::int AND g.home_score > g.away_score) OR
+           (g.away_team_id = $1::int AND g.away_score > g.home_score)
+         )) AS wins,
+         COUNT(*) FILTER (WHERE g.status IN ('completed','final') AND (
+           (g.home_team_id = $1::int AND g.home_score < g.away_score) OR
+           (g.away_team_id = $1::int AND g.away_score < g.home_score)
+         )) AS losses,
+         COUNT(*) FILTER (WHERE g.status IN ('completed','final') AND (
+           (g.home_team_id = $1::int OR g.away_team_id = $1::int) AND
+           g.home_score = g.away_score AND g.home_score IS NOT NULL
+         )) AS ties,
+         COALESCE(SUM(CASE WHEN g.home_team_id = $1::int THEN g.home_score
+                           WHEN g.away_team_id = $1::int THEN g.away_score END)
+                  FILTER (WHERE g.status IN ('completed','final')), 0) AS runs_scored,
+         COALESCE(SUM(CASE WHEN g.home_team_id = $1::int THEN g.away_score
+                           WHEN g.away_team_id = $1::int THEN g.home_score END)
+                  FILTER (WHERE g.status IN ('completed','final')), 0) AS runs_allowed
+       FROM games g
+       WHERE (g.home_team_id = $1::int OR g.away_team_id = $1::int)
+         AND g.deleted_at IS NULL
+         ${seasonFilter}`,
+      recordArgs
+    );
+
+    // Available seasons for this team
+    const { rows: seasonRows } = await pool.query(
+      `SELECT DISTINCT ls.id, ls.name, ls.year
+       FROM games g
+       JOIN league_seasons ls ON ls.id = g.season_id
+       WHERE (g.home_team_id = $1 OR g.away_team_id = $1)
+         AND g.deleted_at IS NULL
+         AND g.season_id IS NOT NULL
+       ORDER BY ls.year DESC, ls.name`,
+      [teamId]
+    );
+
+    // Aggregated player stats
+    const statsArgs = season_id ? [teamId, season_id] : [teamId];
+    const statsSeasonJoin = season_id
+      ? 'JOIN games g2 ON g2.id = pgs.game_id AND g2.season_id = $2 AND g2.deleted_at IS NULL'
+      : 'JOIN games g2 ON g2.id = pgs.game_id AND g2.deleted_at IS NULL';
+
+    const { rows: statRows } = await pool.query(
+      `SELECT
+         p.id AS player_id,
+         p.first_name,
+         p.last_name,
+         sd.id AS stat_def_id,
+         sd.abbreviation,
+         sd.category,
+         sd.data_type,
+         sd.sort_order,
+         COUNT(DISTINCT pgs.game_id) AS games_played,
+         SUM(pgs.value::numeric) AS total_value,
+         AVG(pgs.value::numeric) AS avg_value
+       FROM player_game_stats pgs
+       JOIN players p ON p.id = pgs.player_id
+       JOIN stat_definitions sd ON sd.id = pgs.stat_definition_id
+       ${statsSeasonJoin}
+       WHERE pgs.team_id = $1
+         AND sd.is_active = TRUE
+         AND pgs.value ~ '^[0-9]+(\\.[0-9]+)?$'
+       GROUP BY p.id, p.first_name, p.last_name, sd.id, sd.abbreviation, sd.category, sd.data_type, sd.sort_order
+       ORDER BY p.last_name, p.first_name, sd.category, sd.sort_order`,
+      statsArgs
+    );
+
+    // Also count distinct games per player (for G column)
+    const { rows: gamesPerPlayer } = await pool.query(
+      `SELECT pgs.player_id, COUNT(DISTINCT pgs.game_id) AS games
+       FROM player_game_stats pgs
+       ${statsSeasonJoin.replace('pgs.game_id', 'pgs.game_id')}
+       WHERE pgs.team_id = $1
+       GROUP BY pgs.player_id`,
+      statsArgs
+    );
+    const gamesMap = Object.fromEntries(gamesPerPlayer.map(r => [r.player_id, parseInt(r.games, 10)]));
+
+    const record = recordRows[0] || {};
+    const result = {
+      record: {
+        wins: parseInt(record.wins, 10) || 0,
+        losses: parseInt(record.losses, 10) || 0,
+        ties: parseInt(record.ties, 10) || 0,
+        runs_scored: parseInt(record.runs_scored, 10) || 0,
+        runs_allowed: parseInt(record.runs_allowed, 10) || 0,
+      },
+      seasons: seasonRows,
+      stats: statRows.map(r => ({
+        player_id: r.player_id,
+        player_name: `${r.first_name} ${r.last_name}`,
+        last_name: r.last_name,
+        stat_def_id: r.stat_def_id,
+        abbreviation: r.abbreviation,
+        category: r.category,
+        data_type: r.data_type,
+        sort_order: parseInt(r.sort_order, 10),
+        games: gamesMap[r.player_id] || 0,
+        total: parseFloat(r.total_value) || 0,
+        avg: parseFloat(r.avg_value) || 0,
+      })),
+    };
+
+    cache.set(cacheKey, result, 60_000); // 1 min cache
+    res.json(result);
+  } catch (err) {
+    console.error('Team stats error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

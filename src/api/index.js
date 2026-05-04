@@ -363,6 +363,11 @@ export async function clearPlayerGameStats(playerId, gameId) {
   return apiFetch(`/stats/player/${playerId}/game/${gameId}`, { method: 'DELETE' });
 }
 
+export async function fetchTeamStats(teamId, seasonId) {
+  const qs = seasonId ? `?season_id=${seasonId}` : '';
+  return apiFetch(`/stats/team/${teamId}${qs}`);
+}
+
 // ── Staff ──
 
 export async function fetchStaffByTeam(teamId) {
