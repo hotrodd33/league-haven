@@ -209,8 +209,10 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
   const queryClient = useQueryClient();
   const bottomRef = useRef(null);
   const containerRef = useRef(null);
-  // Ref (not state) so poll queryFn always reads the freshest value without re-subscribing
-  const newestAtRef = useRef(null);
+  // Ref (not state) so poll queryFn always reads the freshest value without re-subscribing.
+  // Initialize to mount time so empty channels still poll — initial load covers existing messages,
+  // poll only needs to find anything newer than when we opened the channel.
+  const newestAtRef = useRef(new Date().toISOString());
   const [initialized, setInitialized] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editBody, setEditBody] = useState('');
@@ -254,7 +256,6 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
     queryKey: ['chat-messages-poll', channelId],
     queryFn: async () => {
       const after = newestAtRef.current;
-      if (!after) return [];
       const newMsgs = await fetchChatMessages(channelId, undefined, after);
       if (!newMsgs.length) return [];
 
