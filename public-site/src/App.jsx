@@ -1,10 +1,10 @@
-import { Component, useEffect, useState } from 'react';
+import { Component, useEffect, useState, useMemo } from 'react';
 import Teams from './components/Teams.jsx';
 import Standings from './components/Standings.jsx';
 import Scores from './components/Scores.jsx';
 import TeamDetail from './components/TeamDetail.jsx';
 import TravelMatrix from './components/TravelMatrix.jsx';
-import { fetchBranding } from './api/index.js';
+import { fetchBranding, fetchTeams } from './api/index.js';
 
 class SiteErrorBoundary extends Component {
   constructor(props) {
@@ -40,22 +40,29 @@ const TABS = [
   { key: 'travel',    label: 'Travel'    },
 ];
 
-function parseHash(hash) {
-  const m = hash.match(/^#\/team\/(\d+)$/);
-  if (m) return { view: 'team', teamId: parseInt(m[1], 10) };
-  const tab = hash.replace(/^#\//, '') || 'standings';
+function toSlug(name) {
+  return (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function parsePath(pathname) {
+  const path = pathname.replace(/^\/site/, '') || '/';
+  const m = path.match(/^\/team\/(.+)$/);
+  if (m) return { view: 'team', teamSlug: m[1] };
+  const tab = (path.replace(/^\//, '').split('/')[0]) || 'standings';
   return { view: 'tab', tab: TABS.some(t => t.key === tab) ? tab : 'standings' };
 }
 
 export default function App() {
-  const [nav, setNav]           = useState(() => parseHash(window.location.hash));
+  const [nav, setNav]           = useState(() => parsePath(window.location.pathname));
   const [menuOpen, setMenuOpen] = useState(false);
   const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null });
+  const [allTeams, setAllTeams] = useState([]);
 
   useEffect(() => {
     fetchBranding()
       .then(data => setBranding({ app_name: data?.app_name || 'LeagueHaven', logo_url: data?.logo_url || null }))
       .catch(() => {});
+    fetchTeams().then(setAllTeams).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -65,17 +72,41 @@ export default function App() {
 
   // Sync nav with browser back/forward
   useEffect(() => {
-    const onHashChange = () => setNav(parseHash(window.location.hash));
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    const onPopState = () => setNav(parsePath(window.location.pathname));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
+  // Resolve slug → numeric teamId from cached teams list
+  const resolvedTeamId = useMemo(() => {
+    if (nav.view !== 'team') return null;
+    if (nav.teamId) return nav.teamId; // already resolved (programmatic navigation)
+    if (!nav.teamSlug || !allTeams.length) return null;
+    return allTeams.find(t => toSlug(t.long_name || t.name) === nav.teamSlug)?.id ?? null;
+  }, [nav, allTeams]);
+
+  // Update page title for SEO
+  useEffect(() => {
+    const appName = branding.app_name || 'LeagueHaven';
+    if (nav.view === 'team' && resolvedTeamId && allTeams.length) {
+      const team = allTeams.find(t => t.id === resolvedTeamId);
+      document.title = team ? `${team.long_name || team.name} — ${appName}` : appName;
+    } else {
+      document.title = appName;
+    }
+  }, [nav, resolvedTeamId, allTeams, branding.app_name]);
+
   function navigateToTeam(teamId) {
-    window.location.hash = `#/team/${teamId}`;
+    const team = allTeams.find(t => t.id === teamId);
+    const slug = team ? toSlug(team.long_name || team.name) : String(teamId);
+    window.history.pushState({}, '', `/site/team/${slug}`);
+    setNav({ view: 'team', teamSlug: slug, teamId });
   }
 
   function navigateToTab(tab) {
-    window.location.hash = `#/${tab}`;
+    const path = tab === 'standings' ? '/site/' : `/site/${tab}`;
+    window.history.pushState({}, '', path);
+    setNav({ view: 'tab', tab });
     setMenuOpen(false);
   }
 
@@ -157,11 +188,13 @@ export default function App() {
       {/* Content */}
       <main className="p-4 max-w-6xl mx-auto">
         {nav.view === 'team' ? (
-          <TeamDetail
-            teamId={nav.teamId}
-            onNavigateToTeam={navigateToTeam}
-            onBack={() => window.history.back()}
-          />
+          resolvedTeamId
+            ? <TeamDetail
+                teamId={resolvedTeamId}
+                onNavigateToTeam={navigateToTeam}
+                onBack={() => window.history.back()}
+              />
+            : <div className="py-16 text-center text-gray-400">Loading team…</div>
         ) : (
           <SiteErrorBoundary>
             {nav.tab === 'standings' && <Standings onNavigateToTeam={navigateToTeam} />}
