@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Pusher from 'pusher-js';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import {
   fetchChatChannels, fetchChatMessages, sendChatMessage,
@@ -7,6 +8,20 @@ import {
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Button, Input } from './ui';
+
+// Module-level Pusher singleton — one persistent WebSocket for the entire session.
+// Creating a new Pusher() per channel mount causes a 200–500ms reconnect delay,
+// which makes the first message in a channel appear only on the next poll.
+// With a singleton the connection is already live; channel switches just subscribe/unsubscribe.
+let _pusherSingleton = null;
+function getPusherClient() {
+  if (!_pusherSingleton) {
+    _pusherSingleton = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
+      cluster: import.meta.env.VITE_PUSHER_CLUSTER,
+    });
+  }
+  return _pusherSingleton;
+}
 
 // Adaptive polling for the channel LIST only (less time-sensitive).
 // Message poll always runs at 2s — it's cheap (?after= returns [] on no activity)
@@ -229,66 +244,33 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
   const [messages, setMessages] = useState([]);
   const pollMs = usePollInterval();
 
-  // ── SSE real-time push ────────────────────────────────────────
-  // Opens a persistent HTTP stream to the server. Server writes a message the instant
-  // it's saved — zero poll delay. The poll below is purely a safety net for
-  // missed messages after a connection drop while reconnecting.
+  // ── Pusher real-time push ─────────────────────────────────────
+  // Reuses the module-level singleton — no reconnect cost on channel switch.
   useEffect(() => {
-    const token = (() => {
-      try { return JSON.parse(localStorage.getItem('zvbl_roster_auth') || '{}').token; } catch { return null; }
-    })();
-    if (!token) return;
+    const client = getPusherClient();
+    const pChannel = client.subscribe(`chat-channel-${channelId}`);
 
-    let active = true;
-    const controller = new AbortController();
-
-    async function connect() {
-      try {
-        const resp = await fetch(`/api/chat/channels/${channelId}/events`, {
-          headers: { Authorization: `Bearer ${token}` },
-          signal: controller.signal,
-        });
-        if (!resp.ok || !resp.body) return;
-
-        const reader = resp.body.getReader();
-        const dec = new TextDecoder();
-        let buf = '';
-
-        while (active) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += dec.decode(value, { stream: true });
-          const lines = buf.split('\n');
-          buf = lines.pop(); // keep incomplete last line
-          for (const line of lines) {
-            if (!line.startsWith('data:')) continue;
-            try {
-              const sseMsg = JSON.parse(line.slice(5).trim());
-              const el = containerRef.current;
-              const wasNearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 120);
-              setMessages(prev => {
-                if (prev.some(m => m.id === sseMsg.id)) return prev; // dedup with optimistic
-                newestAtRef.current = sseMsg.created_at;
-                return [...prev, sseMsg];
-              });
-              markChatRead(channelId).catch(() => {});
-              queryClient.setQueryData(['chat-channels'], (old = []) =>
-                old.map(ch => ch.id === channelId ? { ...ch, unread_count: 0 } : ch)
-              );
-              if (wasNearBottom) requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
-            } catch { /* malformed line */ }
-          }
-        }
-      } catch (e) {
-        if (!active) return; // aborted on unmount — do not reconnect
-        // Reconnect after 3s on unexpected disconnect (Vercel idle timeout, network blip, etc.)
-        await new Promise(r => setTimeout(r, 3_000));
-        if (active) connect();
-      }
+    function handleNewMessage(msg) {
+      const el = containerRef.current;
+      const wasNearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 120);
+      setMessages(prev => {
+        if (prev.some(m => m.id === msg.id)) return prev; // dedup with optimistic
+        newestAtRef.current = msg.created_at;
+        return [...prev, msg];
+      });
+      markChatRead(channelId).catch(() => {});
+      queryClient.setQueryData(['chat-channels'], (old = []) =>
+        old.map(ch => ch.id === channelId ? { ...ch, unread_count: 0 } : ch)
+      );
+      if (wasNearBottom) requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
     }
 
-    connect();
-    return () => { active = false; controller.abort(); };
+    pChannel.bind('new-message', handleNewMessage);
+
+    return () => {
+      pChannel.unbind('new-message', handleNewMessage);
+      client.unsubscribe(`chat-channel-${channelId}`);
+    };
   }, [channelId, queryClient]);
 
   // ── Initial load ──────────────────────────────────────────────
