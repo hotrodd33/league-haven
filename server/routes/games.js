@@ -158,12 +158,10 @@ const BASE_SELECT = `
 // and gamechanger import log. GameDetail uses BASE_SELECT; GameSchedule/Dashboard use SLIM_SELECT.
 const SLIM_SELECT = `
   SELECT
-    g.id, g.season_id, g.home_team_id, g.away_team_id, g.location_id,
+    g.id, g.season_id, g.home_team_id, g.away_team_id,
     g.game_date, g.game_time, g.status,
     g.home_score, g.away_score,
-    g.innings_played, g.game_duration_minutes,
-    g.scoring_user_id, g.scoring_started_at,
-    g.deleted_at, g.created_at, g.updated_at,
+    g.deleted_at,
     ht.name AS home_team_name, ht.logo_url AS home_team_logo,
     ht.org_id AS home_org_id,
     ht.team_city AS home_team_city, ht.team_mascot AS home_team_mascot,
@@ -178,18 +176,15 @@ const SLIM_SELECT = `
     at.primary_color AS away_primary_color, at.secondary_color AS away_secondary_color,
     at.abbreviation AS away_team_abbr,
     ao.logo_url AS away_org_logo,
-    fl.name AS location_name, fl.address AS location_address,
-    fl.city AS location_city, fl.state AS location_state,
+    fl.name AS location_name,
     fl.latitude AS location_lat, fl.longitude AS location_lon,
-    ls.name AS season_name, ls.year AS season_year,
-    gd.division_id, gd.division_name, gd.division_sort
+    gd.division_name, gd.division_sort
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
   LEFT JOIN teams at ON at.id = g.away_team_id
   LEFT JOIN organizations ao ON ao.id = at.org_id
   LEFT JOIN field_locations fl ON fl.id = g.location_id
-  LEFT JOIN league_seasons ls ON ls.id = g.season_id
   LEFT JOIN LATERAL (
     SELECT ld.id AS division_id, ld.name AS division_name, ld.sort_order AS division_sort
     FROM team_divisions htd
@@ -215,7 +210,6 @@ function enrichGame(row) {
   const awayLong = row.away_team_city
     ? [row.away_team_city, row.away_team_mascot, row.away_team_color, row.away_age_group, row.away_level].filter(Boolean).join(' ')
     : null;
-  // City abbreviation for fallback logos
   function cityAbbr(city) {
     if (!city) return '?';
     const words = city.trim().split(/\s+/);
@@ -244,6 +238,71 @@ function enrichGame(row) {
     interested_official_ids: row.interested_official_ids || [],
     interested_umpire_names: row.interested_umpire_names || [],
     interested_umpires: row.interested_umpires || [],
+  };
+}
+
+// Slim version for schedule list tiles — only the fields tiles actually render.
+// Avoids shipping raw source columns (city, mascot, logos) after computing the
+// enriched values, and drops fields that are only needed in GameDetail.
+function enrichGameSlim(row) {
+  let gameDate = row.game_date;
+  if (gameDate instanceof Date) {
+    gameDate = gameDate.toISOString().slice(0, 10);
+  } else if (typeof gameDate === 'string' && gameDate.length > 10) {
+    gameDate = gameDate.slice(0, 10);
+  }
+  const homeLong = row.home_team_city
+    ? [row.home_team_city, row.home_team_mascot, row.home_team_color, row.home_age_group, row.home_level].filter(Boolean).join(' ')
+    : null;
+  const awayLong = row.away_team_city
+    ? [row.away_team_city, row.away_team_mascot, row.away_team_color, row.away_age_group, row.away_level].filter(Boolean).join(' ')
+    : null;
+  function cityAbbr(city) {
+    if (!city) return '?';
+    const words = city.trim().split(/\s+/);
+    return (words.length > 1 ? words.map(w => w[0]).join('') : city.substring(0, 3)).toUpperCase();
+  }
+  return {
+    id: row.id,
+    season_id: row.season_id,
+    home_team_id: row.home_team_id,
+    away_team_id: row.away_team_id,
+    home_org_id: row.home_org_id,
+    away_org_id: row.away_org_id,
+    game_date: gameDate,
+    game_time: row.game_time || null,
+    status: row.status,
+    status_label: STATUS_LABELS[row.status] || row.status,
+    home_score: row.home_score ?? null,
+    away_score: row.away_score ?? null,
+    home_team_name: homeLong || row.home_team_name || '(Deleted Team)',
+    away_team_name: awayLong || row.away_team_name || '(Deleted Team)',
+    home_logo: row.home_team_logo || row.home_org_logo || null,
+    away_logo: row.away_team_logo || row.away_org_logo || null,
+    home_age_group: row.home_age_group || null,
+    away_age_group: row.away_age_group || null,
+    home_level: row.home_level || null,
+    away_level: row.away_level || null,
+    home_primary_color: row.home_primary_color || null,
+    home_secondary_color: row.home_secondary_color || null,
+    away_primary_color: row.away_primary_color || null,
+    away_secondary_color: row.away_secondary_color || null,
+    home_city_abbr: cityAbbr(row.home_team_city),
+    away_city_abbr: cityAbbr(row.away_team_city),
+    home_team_abbr: row.home_team_abbr || null,
+    away_team_abbr: row.away_team_abbr || null,
+    location_name: row.location_name || null,
+    location_lat: row.location_lat || null,
+    location_lon: row.location_lon || null,
+    division_name: row.division_name || null,
+    is_gamechanger_imported: false, // not in SLIM_SELECT — omitted intentionally
+    // Fields used by umpire interest & official assignment display
+    official_ids: [],
+    official_names: [],
+    officials: [],
+    interested_official_ids: [],
+    interested_umpire_names: [],
+    interested_umpires: [],
   };
 }
 
@@ -370,7 +429,7 @@ router.get('/', async (req, res) => {
     const selectBase = isSlim ? SLIM_SELECT : BASE_SELECT;
     const sql = selectBase + where + ' ORDER BY gd.division_sort NULLS LAST, gd.division_name NULLS LAST, g.game_date, g.game_time NULLS LAST';
     const { rows } = await pool.query(sql, params);
-    const result = rows.map(enrichGame);
+    const result = rows.map(isSlim ? enrichGameSlim : enrichGame);
     cache.set(cacheKey, result, GAMES_TTL);
     res.json(result);
   } catch (err) {
