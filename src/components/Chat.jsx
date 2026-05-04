@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Pusher from 'pusher-js';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import {
   fetchChatChannels, fetchChatMessages, sendChatMessage,
@@ -8,13 +9,28 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import { Button, Input } from './ui';
 
-// Adaptive polling: faster when tab is visible, backs off when backgrounded.
-const POLL_ACTIVE_MS     = 2_000;
-const POLL_BACKGROUND_MS = 15_000;
-const CHAN_POLL_ACTIVE_MS = 4_000;  // channel list needs less precision
-const CHAN_POLL_BG_MS     = 30_000;
+// Module-level Pusher singleton — one persistent WebSocket for the entire session.
+// Creating a new Pusher() per channel mount causes a 200–500ms reconnect delay,
+// which makes the first message in a channel appear only on the next poll.
+// With a singleton the connection is already live; channel switches just subscribe/unsubscribe.
+let _pusherSingleton = null;
+function getPusherClient() {
+  if (!_pusherSingleton) {
+    _pusherSingleton = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
+      cluster: import.meta.env.VITE_PUSHER_CLUSTER,
+    });
+  }
+  return _pusherSingleton;
+}
 
-function usePollInterval(active = POLL_ACTIVE_MS, background = POLL_BACKGROUND_MS) {
+// Adaptive polling for the channel LIST only (less time-sensitive).
+// Message poll always runs at 2s — it's cheap (?after= returns [] on no activity)
+// and chat must feel real-time even when the tab is not focused.
+const CHAN_POLL_ACTIVE_MS = 4_000;
+const CHAN_POLL_BG_MS     = 30_000;
+const MSG_POLL_MS = 5_000;  // safety-net only — SSE handles real-time delivery
+
+function usePollInterval(active = CHAN_POLL_ACTIVE_MS, background = CHAN_POLL_BG_MS) {
   const [visible, setVisible] = useState(!document.hidden);
   useEffect(() => {
     const handler = () => setVisible(!document.hidden);
@@ -53,13 +69,13 @@ export default function Chat({ initialChannelId = null }) {
   // Mobile navigation: 'list' shows channel list, 'messages' shows message pane
   const [mobileView, setMobileView] = useState(initialChannelId ? 'messages' : 'list');
 
-  const chanPollMs = usePollInterval(CHAN_POLL_ACTIVE_MS, CHAN_POLL_BG_MS);
+  const pollMs = usePollInterval(); // channel list only
 
   // Channel list — polled
   const { data: channels = [] } = useQuery({
     queryKey: ['chat-channels'],
     queryFn: fetchChatChannels,
-    refetchInterval: chanPollMs,
+    refetchInterval: pollMs,
     staleTime: 0,
     retry: false,
   });
@@ -71,18 +87,24 @@ export default function Chat({ initialChannelId = null }) {
     }
   }, [channels, activeChannelId]);
 
+  function zeroUnread(id) {
+    queryClient.setQueryData(['chat-channels'], (old = []) =>
+      old.map(ch => ch.id === id ? { ...ch, unread_count: 0 } : ch)
+    );
+  }
+
   function handleSelectChannel(id) {
     setActiveChannelId(id);
     setShowNewChat(false);
     setMobileView('messages');
-    queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
+    zeroUnread(id);
   }
 
   function handleChannelReady(channelId) {
     setShowNewChat(false);
     setActiveChannelId(channelId);
     setMobileView('messages');
-    queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
+    zeroUnread(channelId);
   }
 
   function handleBack() {
@@ -209,8 +231,10 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
   const queryClient = useQueryClient();
   const bottomRef = useRef(null);
   const containerRef = useRef(null);
-  // Ref (not state) so poll queryFn always reads the freshest value without re-subscribing
-  const newestAtRef = useRef(null);
+  // Ref (not state) so poll queryFn always reads the freshest value without re-subscribing.
+  // Initialize to mount time so empty channels still poll — initial load covers existing messages,
+  // poll only needs to find anything newer than when we opened the channel.
+  const newestAtRef = useRef(new Date().toISOString());
   const [initialized, setInitialized] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editBody, setEditBody] = useState('');
@@ -219,6 +243,35 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
   const [loadedAll, setLoadedAll] = useState(false);
   const [messages, setMessages] = useState([]);
   const pollMs = usePollInterval();
+
+  // ── Pusher real-time push ─────────────────────────────────────
+  // Reuses the module-level singleton — no reconnect cost on channel switch.
+  useEffect(() => {
+    const client = getPusherClient();
+    const pChannel = client.subscribe(`chat-channel-${channelId}`);
+
+    function handleNewMessage(msg) {
+      const el = containerRef.current;
+      const wasNearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 120);
+      setMessages(prev => {
+        if (prev.some(m => m.id === msg.id)) return prev; // dedup with optimistic
+        newestAtRef.current = msg.created_at;
+        return [...prev, msg];
+      });
+      markChatRead(channelId).catch(() => {});
+      queryClient.setQueryData(['chat-channels'], (old = []) =>
+        old.map(ch => ch.id === channelId ? { ...ch, unread_count: 0 } : ch)
+      );
+      if (wasNearBottom) requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
+    }
+
+    pChannel.bind('new-message', handleNewMessage);
+
+    return () => {
+      pChannel.unbind('new-message', handleNewMessage);
+      client.unsubscribe(`chat-channel-${channelId}`);
+    };
+  }, [channelId, queryClient]);
 
   // ── Initial load ──────────────────────────────────────────────
   // key={channelId} on this component guarantees a fresh mount on channel switch,
@@ -241,20 +294,24 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
     retry: false,
   });
 
-  // Mark read when channel becomes active
+  // Mark read when channel becomes active and immediately zero the badge in local cache
+  // (don't wait for the next channel list poll to reflect it)
   useEffect(() => {
     markChatRead(channelId).catch(() => {});
-    queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
+    queryClient.setQueryData(['chat-channels'], (old = []) =>
+      old.map(ch => ch.id === channelId ? { ...ch, unread_count: 0 } : ch)
+    );
   }, [channelId, queryClient]);
 
   // ── Incremental poll ──────────────────────────────────────────
   // Only fetches messages newer than the last seen timestamp → returns [] most of the time
   // → minimal payload, minimal DB work, ~70–140x less data than full refetch per poll.
+  // refetchIntervalInBackground:true keeps polling even when the tab loses focus —
+  // critical for chat so messages arrive without needing to switch back to the tab.
   useQuery({
     queryKey: ['chat-messages-poll', channelId],
     queryFn: async () => {
       const after = newestAtRef.current;
-      if (!after) return [];
       const newMsgs = await fetchChatMessages(channelId, undefined, after);
       if (!newMsgs.length) return [];
 
@@ -271,14 +328,21 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
         return [...prev, ...realNew];
       });
 
+      // We just received + displayed these messages — clear unread badge immediately
+      // and update last_read_at in DB. This prevents the channel list from showing
+      // a badge for messages the user is actively watching arrive.
+      markChatRead(channelId).catch(() => {});
+      queryClient.setQueryData(['chat-channels'], (old = []) =>
+        old.map(ch => ch.id === channelId ? { ...ch, unread_count: 0 } : ch)
+      );
+
       if (wasNearBottom) {
         requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
       }
       return newMsgs;
     },
-    refetchInterval: pollMs,
-    staleTime: 0,
-    retry: false,
+    refetchInterval: MSG_POLL_MS,
+    refetchIntervalInBackground: true,   // ← keep polling even when tab is not focused
     enabled: initialized,
   });
 

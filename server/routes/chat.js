@@ -3,7 +3,27 @@ const { pool } = require('../db');
 const { authMiddleware } = require('../auth');
 const { notifyUser } = require('../push');
 
+const Pusher = require('pusher');
+
 const router = express.Router();
+
+// ── Pusher pub/sub ────────────────────────────────────────────────
+// Replaces the in-memory SSE channelSubs map. Works across multiple
+// Vercel instances (stateless) and is not subject to function timeouts.
+const pusher = new Pusher({
+  appId:   process.env.PUSHER_APP_ID,
+  key:     process.env.PUSHER_KEY,
+  secret:  process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS:  true,
+});
+
+function publishToChannel(channelId, data) {
+  // Fire-and-forget — don't block the HTTP response
+  pusher.trigger(`chat-channel-${channelId}`, 'new-message', data).catch(err => {
+    console.error('Pusher trigger error:', err.message);
+  });
+}
 
 // All chat routes require authentication
 router.use(authMiddleware);
@@ -257,6 +277,8 @@ router.post('/team-channel', async (req, res) => {
   }
 });
 
+// SSE endpoint removed — replaced by Pusher (see publishToChannel above)
+
 // ── GET /api/chat/channels/:id/messages — paginated message history ──
 router.get('/channels/:id/messages', async (req, res) => {
   const channelId = Number(req.params.id);
@@ -368,11 +390,15 @@ router.post('/channels/:id/messages', async (req, res) => {
       [channelId, req.user.id, body.trim(), reply_to_id || null]
     );
     // Add sender name for immediate use by client
-    res.status(201).json({
+    const fullMsg = {
       ...msg,
       sender_name: req.user.name,
       sender_username: req.user.username,
-    });
+    };
+    res.status(201).json(fullMsg);
+
+    // Push to any open SSE connections for this channel instantly (no poll wait)
+    publishToChannel(channelId, fullMsg);
 
     // Fire-and-forget push notifications.
     // Combines explicit chat_channel_members AND user_permissions for team channels
