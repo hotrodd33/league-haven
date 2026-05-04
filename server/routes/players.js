@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, canEditTeam } = require('../auth');
+const { authMiddleware, optionalAuth, canEditTeam } = require('../auth');
 const { normalizeDOB } = require('../utils/dob');
 
 const router = express.Router();
@@ -84,11 +84,25 @@ router.get('/search', authMiddleware, async (req, res) => {
   }
 });
 
+// Fields safe to return to unauthenticated public viewers
+const PUBLIC_FIELDS = ['id', 'first_name', 'last_name', 'jersey_number', 'positions', 'teams'];
+function toPublic(player) {
+  const out = {};
+  for (const k of PUBLIC_FIELDS) if (player[k] !== undefined) out[k] = player[k];
+  return out;
+}
+
 // GET players, optionally filtered by team_id (via team_players junction)
 // Unfiltered requests support ?page= and ?limit= (default 200, max 500)
-router.get('/', authMiddleware, async (req, res) => {
+// Public (unauthenticated) callers may fetch a team roster but receive only safe fields.
+router.get('/', optionalAuth, async (req, res) => {
   try {
+    const user = req.user;
     const { team_id, org_id, search, with_teams } = req.query;
+
+    // Unauthenticated callers may only fetch a specific team's roster
+    if (!user && !team_id) return res.status(401).json({ error: 'Authentication required' });
+
     const page = Math.max(0, parseInt(req.query.page || '0', 10));
     const limit = Math.min(500, Math.max(1, parseInt(req.query.limit || '200', 10)));
     let result;
@@ -170,6 +184,9 @@ router.get('/', authMiddleware, async (req, res) => {
         players = players.map(p => ({ ...p, teams: [] }));
       }
     }
+
+    // Strip PII for unauthenticated (public site) callers
+    if (!user) players = players.map(toPublic);
 
     res.json(players);
   } catch (err) {
