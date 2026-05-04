@@ -13,7 +13,7 @@ import { Button, Input } from './ui';
 // and chat must feel real-time even when the tab is not focused.
 const CHAN_POLL_ACTIVE_MS = 4_000;
 const CHAN_POLL_BG_MS     = 30_000;
-const MSG_POLL_MS        = 2_000;
+const MSG_POLL_MS = 5_000;  // safety-net only — SSE handles real-time delivery
 
 function usePollInterval(active = CHAN_POLL_ACTIVE_MS, background = CHAN_POLL_BG_MS) {
   const [visible, setVisible] = useState(!document.hidden);
@@ -55,6 +55,70 @@ export default function Chat({ initialChannelId = null }) {
   const [mobileView, setMobileView] = useState(initialChannelId ? 'messages' : 'list');
 
   const pollMs = usePollInterval(); // channel list only
+
+  // ── SSE real-time push ────────────────────────────────────────
+  // Opens a persistent HTTP stream to the server. When a new message arrives the server
+  // writes it immediately — no poll delay. The 2s poll below is a fallback safety net
+  // (e.g. after a connection drop during reconnect). If SSE is working, the poll will
+  // always see nothing new and return [].
+  useEffect(() => {
+    if (!channelId) return;
+    const token = (() => {
+      try { return JSON.parse(localStorage.getItem('zvbl_roster_auth') || '{}').token; } catch { return null; }
+    })();
+    if (!token) return;
+
+    let active = true;
+    const controller = new AbortController();
+
+    async function connect() {
+      try {
+        const resp = await fetch(`/api/chat/channels/${channelId}/events`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!resp.ok || !resp.body) return;
+
+        const reader = resp.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+
+        while (active) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop(); // keep incomplete last line
+          for (const line of lines) {
+            if (!line.startsWith('data:')) continue;
+            try {
+              const sseMsg = JSON.parse(line.slice(5).trim());
+              const el = containerRef.current;
+              const wasNearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 120);
+              setMessages(prev => {
+                if (prev.some(m => m.id === sseMsg.id)) return prev; // dedup with optimistic
+                newestAtRef.current = sseMsg.created_at;
+                return [...prev, sseMsg];
+              });
+              markChatRead(channelId).catch(() => {});
+              queryClient.setQueryData(['chat-channels'], (old = []) =>
+                old.map(ch => ch.id === channelId ? { ...ch, unread_count: 0 } : ch)
+              );
+              if (wasNearBottom) requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
+            } catch { /* malformed line */ }
+          }
+        }
+      } catch (e) {
+        if (!active) return; // aborted intentionally
+        // Reconnect after 3s on unexpected error (e.g. Vercel function timeout)
+        await new Promise(r => setTimeout(r, 3_000));
+        if (active) connect();
+      }
+    }
+
+    connect();
+    return () => { active = false; controller.abort(); };
+  }, [channelId, queryClient]);
 
   // Channel list — polled
   const { data: channels = [] } = useQuery({
@@ -228,6 +292,68 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
   const [loadedAll, setLoadedAll] = useState(false);
   const [messages, setMessages] = useState([]);
   const pollMs = usePollInterval();
+
+  // ── SSE real-time push ────────────────────────────────────────
+  // Opens a persistent HTTP stream to the server. Server writes a message the instant
+  // it's saved — zero poll delay. The poll below is purely a safety net for
+  // missed messages after a connection drop while reconnecting.
+  useEffect(() => {
+    const token = (() => {
+      try { return JSON.parse(localStorage.getItem('zvbl_roster_auth') || '{}').token; } catch { return null; }
+    })();
+    if (!token) return;
+
+    let active = true;
+    const controller = new AbortController();
+
+    async function connect() {
+      try {
+        const resp = await fetch(`/api/chat/channels/${channelId}/events`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!resp.ok || !resp.body) return;
+
+        const reader = resp.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+
+        while (active) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop(); // keep incomplete last line
+          for (const line of lines) {
+            if (!line.startsWith('data:')) continue;
+            try {
+              const sseMsg = JSON.parse(line.slice(5).trim());
+              const el = containerRef.current;
+              const wasNearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 120);
+              setMessages(prev => {
+                if (prev.some(m => m.id === sseMsg.id)) return prev; // dedup with optimistic
+                newestAtRef.current = sseMsg.created_at;
+                return [...prev, sseMsg];
+              });
+              markChatRead(channelId).catch(() => {});
+              queryClient.setQueryData(['chat-channels'], (old = []) =>
+                old.map(ch => ch.id === channelId ? { ...ch, unread_count: 0 } : ch)
+              );
+              if (wasNearBottom) requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
+            } catch { /* malformed line */ }
+          }
+        }
+      } catch (e) {
+        if (!active) return; // aborted on unmount — do not reconnect
+        // Reconnect after 3s on unexpected disconnect (Vercel idle timeout, network blip, etc.)
+        await new Promise(r => setTimeout(r, 3_000));
+        if (active) connect();
+      }
+    }
+
+    connect();
+    return () => { active = false; controller.abort(); };
+  }, [channelId, queryClient]);
 
   // ── Initial load ──────────────────────────────────────────────
   // key={channelId} on this component guarantees a fresh mount on channel switch,

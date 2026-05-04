@@ -5,6 +5,21 @@ const { notifyUser } = require('../push');
 
 const router = express.Router();
 
+// ── SSE pub/sub ───────────────────────────────────────────────────
+// In-memory map: channelId (number) → Set of response objects.
+// Works for a single-server or single Vercel instance. If you scale to multiple instances,
+// swap this out for a Redis pub/sub (e.g. ioredis .subscribe / .publish).
+const channelSubs = new Map();
+
+function publishToChannel(channelId, data) {
+  const subs = channelSubs.get(channelId);
+  if (!subs || subs.size === 0) return;
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  for (const res of subs) {
+    try { res.write(payload); } catch { /* client disconnected */ }
+  }
+}
+
 // All chat routes require authentication
 router.use(authMiddleware);
 
@@ -257,6 +272,54 @@ router.post('/team-channel', async (req, res) => {
   }
 });
 
+// ── GET /api/chat/channels/:id/events — SSE push stream ──
+// Client opens this once per channel; server writes a 'data:' line every time a new
+// message is saved. Falls back gracefully if the connection drops (client reopens it).
+// Note: EventSource API does not support custom headers, so we accept the JWT token
+// as a ?token= query param for this endpoint only.
+router.get('/channels/:id/events', (req, res) => {
+  // authMiddleware already ran via router.use, so req.user is set.
+  const channelId = Number(req.params.id);
+  if (!Number.isFinite(channelId)) return res.status(400).end();
+
+  // Check access synchronously via role, else async.
+  // We do a lightweight non-blocking check inline.
+  const userId = req.user.id;
+  const role   = req.user.role;
+
+  const openSSE = () => {
+    res.setHeader('Content-Type',  'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection',    'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // disable nginx buffering
+    res.flushHeaders();
+
+    // Heartbeat keeps the connection alive through proxies / Vercel's 10s idle timeout
+    const heartbeat = setInterval(() => {
+      try { res.write(': heartbeat\n\n'); } catch { clearInterval(heartbeat); }
+    }, 8_000);
+
+    if (!channelSubs.has(channelId)) channelSubs.set(channelId, new Set());
+    channelSubs.get(channelId).add(res);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      channelSubs.get(channelId)?.delete(res);
+      if (channelSubs.get(channelId)?.size === 0) channelSubs.delete(channelId);
+    });
+  };
+
+  if (role === 'super_admin') return openSSE();
+
+  pool.query(
+    'SELECT 1 FROM chat_channel_members WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  ).then(({ rows }) => {
+    if (!rows.length) return res.status(403).end();
+    openSSE();
+  }).catch(() => res.status(500).end());
+});
+
 // ── GET /api/chat/channels/:id/messages — paginated message history ──
 router.get('/channels/:id/messages', async (req, res) => {
   const channelId = Number(req.params.id);
@@ -368,11 +431,15 @@ router.post('/channels/:id/messages', async (req, res) => {
       [channelId, req.user.id, body.trim(), reply_to_id || null]
     );
     // Add sender name for immediate use by client
-    res.status(201).json({
+    const fullMsg = {
       ...msg,
       sender_name: req.user.name,
       sender_username: req.user.username,
-    });
+    };
+    res.status(201).json(fullMsg);
+
+    // Push to any open SSE connections for this channel instantly (no poll wait)
+    publishToChannel(channelId, fullMsg);
 
     // Fire-and-forget push notifications.
     // Combines explicit chat_channel_members AND user_permissions for team channels
