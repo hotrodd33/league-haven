@@ -8,7 +8,21 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import { Button, Input } from './ui';
 
-const POLL_MS = 5_000;
+// Adaptive polling: faster when tab is visible, backs off when backgrounded.
+const POLL_ACTIVE_MS     = 2_000;
+const POLL_BACKGROUND_MS = 15_000;
+const CHAN_POLL_ACTIVE_MS = 4_000;  // channel list needs less precision
+const CHAN_POLL_BG_MS     = 30_000;
+
+function usePollInterval(active = POLL_ACTIVE_MS, background = POLL_BACKGROUND_MS) {
+  const [visible, setVisible] = useState(!document.hidden);
+  useEffect(() => {
+    const handler = () => setVisible(!document.hidden);
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, []);
+  return visible ? active : background;
+}
 
 // ── Format helpers ──────────────────────────────────────────────
 function formatTime(ts) {
@@ -31,20 +45,21 @@ function channelLabel(ch) {
 // ══════════════════════════════════════════════════════════════
 // Chat — main component
 // ══════════════════════════════════════════════════════════════
-export default function Chat() {
+export default function Chat({ initialChannelId = null }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [activeChannelId, setActiveChannelId] = useState(null);
+  const [activeChannelId, setActiveChannelId] = useState(initialChannelId);
   const [showNewChat, setShowNewChat] = useState(false);
   // Mobile navigation: 'list' shows channel list, 'messages' shows message pane
-  const [mobileView, setMobileView] = useState('list');
+  const [mobileView, setMobileView] = useState(initialChannelId ? 'messages' : 'list');
+
+  const chanPollMs = usePollInterval(CHAN_POLL_ACTIVE_MS, CHAN_POLL_BG_MS);
 
   // Channel list — polled
   const { data: channels = [] } = useQuery({
     queryKey: ['chat-channels'],
     queryFn: fetchChatChannels,
-    refetchInterval: POLL_MS,
-    refetchIntervalInBackground: true,
+    refetchInterval: chanPollMs,
     staleTime: 0,
     retry: false,
   });
@@ -139,8 +154,10 @@ export default function Chat() {
           />
         ) : activeChannelId ? (
           <MessagePane
+            key={activeChannelId}
             channelId={activeChannelId}
             currentUserId={user?.id}
+            currentUserName={user?.name || user?.username}
             channelName={activeChannel ? channelLabel(activeChannel) : 'Chat'}
             channelType={activeChannel?.type}
             onBack={handleBack}
@@ -187,23 +204,40 @@ function ChannelItem({ channel, active, onClick }) {
 }
 
 // ── Message pane ────────────────────────────────────────────────
-function MessagePane({ channelId, currentUserId, channelName, channelType, onBack }) {
+function MessagePane({ channelId, currentUserId, currentUserName, channelName, channelType, onBack }) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const bottomRef = useRef(null);
+  const containerRef = useRef(null);
+  // Ref (not state) so poll queryFn always reads the freshest value without re-subscribing
+  const newestAtRef = useRef(null);
+  const [initialized, setInitialized] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editBody, setEditBody] = useState('');
   const [replyTo, setReplyTo] = useState(null); // { id, sender_name, body }
   const [input, setInput] = useState('');
   const [loadedAll, setLoadedAll] = useState(false);
-  const [olderMessages, setOlderMessages] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const pollMs = usePollInterval();
 
-  // Latest messages — polled
-  const { data: latestMessages = [] } = useQuery({
+  // ── Initial load ──────────────────────────────────────────────
+  // key={channelId} on this component guarantees a fresh mount on channel switch,
+  // so no explicit reset effect is needed.
+  useQuery({
     queryKey: ['chat-messages', channelId],
-    queryFn: () => fetchChatMessages(channelId),
-    refetchInterval: POLL_MS,
-    refetchIntervalInBackground: true,
+    queryFn: async () => {
+      const msgs = await fetchChatMessages(channelId);
+      setMessages(msgs);
+      if (msgs.length) {
+        newestAtRef.current = msgs[msgs.length - 1].created_at;
+        // Snap to bottom instantly on first load (no animation)
+        requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }));
+      }
+      setInitialized(true);
+      return msgs;
+    },
     staleTime: 0,
+    refetchOnWindowFocus: false,
     retry: false,
   });
 
@@ -211,46 +245,101 @@ function MessagePane({ channelId, currentUserId, channelName, channelType, onBac
   useEffect(() => {
     markChatRead(channelId).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
-    setOlderMessages([]);
-    setLoadedAll(false);
   }, [channelId, queryClient]);
 
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [latestMessages]);
+  // ── Incremental poll ──────────────────────────────────────────
+  // Only fetches messages newer than the last seen timestamp → returns [] most of the time
+  // → minimal payload, minimal DB work, ~70–140x less data than full refetch per poll.
+  useQuery({
+    queryKey: ['chat-messages-poll', channelId],
+    queryFn: async () => {
+      const after = newestAtRef.current;
+      if (!after) return [];
+      const newMsgs = await fetchChatMessages(channelId, undefined, after);
+      if (!newMsgs.length) return [];
 
-  // Combine older + latest, deduplicate by id
-  const allIds = new Set(latestMessages.map(m => m.id));
-  const uniqueOlder = olderMessages.filter(m => !allIds.has(m.id));
-  const messages = [...uniqueOlder, ...latestMessages];
+      const el = containerRef.current;
+      const wasNearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 120);
 
-  // Load older messages
+      setMessages(prev => {
+        const ids = new Set(prev.map(m => m.id));
+        // Exclude IDs that are already present (including our own optimistic messages
+        // which were already replaced in onSuccess)
+        const realNew = newMsgs.filter(m => !ids.has(m.id));
+        if (!realNew.length) return prev;
+        newestAtRef.current = newMsgs[newMsgs.length - 1].created_at;
+        return [...prev, ...realNew];
+      });
+
+      if (wasNearBottom) {
+        requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
+      }
+      return newMsgs;
+    },
+    refetchInterval: pollMs,
+    staleTime: 0,
+    retry: false,
+    enabled: initialized,
+  });
+
+  // ── Load older messages ───────────────────────────────────────
   async function loadOlder() {
-    if (loadedAll || messages.length === 0) return;
-    const oldest = messages[0];
+    if (loadedAll || !messages.length) return;
+    // Find oldest real (non-optimistic) message to use as cursor
+    const oldest = messages.find(m => typeof m.id === 'number');
+    if (!oldest) return;
     const older = await fetchChatMessages(channelId, oldest.created_at);
-    if (older.length === 0) { setLoadedAll(true); return; }
-    setOlderMessages(prev => {
+    if (!older.length) { setLoadedAll(true); return; }
+    setMessages(prev => {
       const ids = new Set(prev.map(m => m.id));
       return [...older.filter(m => !ids.has(m.id)), ...prev];
     });
   }
 
+  // ── Send with optimistic update ───────────────────────────────
   const sendMutation = useMutation({
     mutationFn: ({ body, replyToId }) => sendChatMessage(channelId, body, replyToId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', channelId] });
-      queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
+    onMutate: async ({ body, replyToId }) => {
+      const tempId = `temp-${Date.now()}`;
+      const optimisticMsg = {
+        id: tempId,
+        channel_id: channelId,
+        sender_id: currentUserId,
+        sender_name: currentUserName || 'You',
+        sender_username: user?.username,
+        body,
+        reply_to_id: replyToId || null,
+        reply_body: replyTo?.body || null,
+        reply_sender_name: replyTo?.sender_name || null,
+        created_at: new Date().toISOString(),
+        edited_at: null,
+        deleted_at: null,
+        _optimistic: true,
+      };
+      setMessages(prev => [...prev, optimisticMsg]);
       setInput('');
       setReplyTo(null);
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
+      return { tempId };
+    },
+    onSuccess: (serverMsg, _vars, ctx) => {
+      // Replace the optimistic placeholder with the confirmed server message
+      setMessages(prev => prev.map(m => m.id === ctx.tempId ? { ...serverMsg } : m));
+      newestAtRef.current = serverMsg.created_at;
+      queryClient.invalidateQueries({ queryKey: ['chat-channels'] });
+    },
+    onError: (_err, _vars, ctx) => {
+      // Roll back — remove the placeholder so the user can retry
+      setMessages(prev => prev.filter(m => m.id !== ctx.tempId));
     },
   });
 
   const editMutation = useMutation({
     mutationFn: ({ id, body }) => editChatMessage(id, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', channelId] });
+    onSuccess: (updated) => {
+      setMessages(prev =>
+        prev.map(m => m.id === updated.id ? { ...m, body: updated.body, edited_at: updated.edited_at } : m)
+      );
       setEditingId(null);
       setEditBody('');
     },
@@ -258,7 +347,9 @@ function MessagePane({ channelId, currentUserId, channelName, channelType, onBac
 
   const deleteMutation = useMutation({
     mutationFn: deleteChatMessage,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['chat-messages', channelId] }),
+    onSuccess: (_data, msgId) => {
+      setMessages(prev => prev.filter(m => m.id !== msgId));
+    },
   });
 
   function handleSend(e) {
@@ -296,8 +387,8 @@ function MessagePane({ channelId, currentUserId, channelName, channelType, onBac
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
-        {!loadedAll && messages.length > 0 && (
+      <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+        {!loadedAll && messages.some(m => typeof m.id === 'number') && (
           <button
             type="button"
             onClick={loadOlder}
@@ -306,7 +397,10 @@ function MessagePane({ channelId, currentUserId, channelName, channelType, onBac
             Load earlier messages
           </button>
         )}
-        {messages.length === 0 && (
+        {messages.length === 0 && !initialized && (
+          <p className="text-sm text-gray-500 text-center py-8">Loading…</p>
+        )}
+        {messages.length === 0 && initialized && (
           <p className="text-sm text-gray-500 text-center py-8">No messages yet. Say hello!</p>
         )}
         {messages.map((msg) => (
@@ -360,10 +454,11 @@ function MessagePane({ channelId, currentUserId, channelName, channelType, onBac
 // ── Message row ─────────────────────────────────────────────────
 function MessageRow({ msg, isOwn, editing, editBody, onEditStart, onEditChange, onEditSave, onEditCancel, onDelete, onReply }) {
   const [showMenu, setShowMenu] = useState(false);
+  const isPending = !!msg._optimistic;
 
   return (
     <div
-      className={`group flex gap-2 items-start ${isOwn ? 'flex-row-reverse' : ''}`}
+      className={`group flex gap-2 items-start ${isOwn ? 'flex-row-reverse' : ''} ${isPending ? 'opacity-60' : ''}`}
       onMouseLeave={() => setShowMenu(false)}
     >
       {/* Avatar */}

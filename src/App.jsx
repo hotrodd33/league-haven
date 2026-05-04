@@ -34,6 +34,13 @@ export default function App() {
     const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
     const [unreadAnnouncementCount, setUnreadAnnouncementCount] = useState(0);
     const [chatUnreadCount, setChatUnreadCount] = useState(0);
+    // Capture ?channelId= on initial load (set by push notification deep-link via sw.js).
+    // Must be read before the inline replaceState call wipes the URL params.
+    const [initialChatChannelId] = useState(() => {
+        const p = new URLSearchParams(window.location.search);
+        const id = p.get('channelId');
+        return id ? Number(id) : null;
+    });
 
     // Fetch pending counts for nav badges
     useEffect(() => {
@@ -177,6 +184,7 @@ export default function App() {
                     refreshKey={refreshKey}
                     canEditSelectedPlayer={canEditSelectedPlayer}
                     onChangePassword={() => setShowChangePassword(true)}
+                    initialChatChannelId={initialChatChannelId}
                 />
             </AppShell>
 

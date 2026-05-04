@@ -53,93 +53,69 @@ async function ensureTeamChannel(teamId) {
 
 // ── GET /api/chat/channels — list channels the user is a member of ──
 router.get('/channels', async (req, res) => {
+  const userId = req.user.id;
   const isSuperAdmin = req.user.role === 'super_admin';
   try {
-    if (isSuperAdmin) {
-      // Super admin: ensure ALL team channels exist, then return every channel
-      const { rows: allTeamRows } = await pool.query(`SELECT id AS team_id FROM teams`);
-      await Promise.all(allTeamRows.map(r => ensureTeamChannel(r.team_id).catch(() => {})));
-
-      const { rows } = await pool.query(
-        `SELECT
-           cc.id,
-           cc.type,
-           cc.name,
-           cc.team_id,
-           cc.org_id,
-           ccm.last_read_at,
-           (SELECT COUNT(*) FROM chat_messages cm
-            WHERE cm.channel_id = cc.id
-              AND cm.deleted_at IS NULL
-              AND (ccm.last_read_at IS NULL OR cm.created_at > ccm.last_read_at)
-           ) AS unread_count,
-           (SELECT cm2.body FROM chat_messages cm2
-            WHERE cm2.channel_id = cc.id AND cm2.deleted_at IS NULL
-            ORDER BY cm2.created_at DESC LIMIT 1) AS last_message,
-           (SELECT cm2.created_at FROM chat_messages cm2
-            WHERE cm2.channel_id = cc.id AND cm2.deleted_at IS NULL
-            ORDER BY cm2.created_at DESC LIMIT 1) AS last_message_at,
-           -- For DM channels, return the other participant's name
-           CASE WHEN cc.type = 'direct' THEN (
-             SELECT u.name FROM chat_channel_members m2
-             JOIN users u ON u.id = m2.user_id
-             WHERE m2.channel_id = cc.id AND m2.user_id <> $1
-             LIMIT 1
-           ) END AS other_user_name
-         FROM chat_channels cc
-         LEFT JOIN chat_channel_members ccm ON ccm.channel_id = cc.id AND ccm.user_id = $1
-         WHERE cc.type = 'direct'
-            OR EXISTS (
-              SELECT 1 FROM chat_messages WHERE channel_id = cc.id AND deleted_at IS NULL
-            )
-         ORDER BY last_message_at DESC NULLS LAST`,
-        [req.user.id]
-      );
-      return res.json(rows);
-    }
-
-    // Regular user: ensure team channels for their own teams only
-    const { rows: teamRows } = await pool.query(
-      `SELECT DISTINCT team_id FROM user_permissions WHERE user_id = $1 AND team_id IS NOT NULL AND is_active = TRUE
-       UNION
-       SELECT DISTINCT tp.team_id FROM guardian_claims gc
-         JOIN team_players tp ON tp.player_id = gc.player_id
-         WHERE gc.user_id = $1 AND gc.status = 'approved'`,
-      [req.user.id]
-    );
-    await Promise.all(teamRows.map(r => ensureTeamChannel(r.team_id).catch(() => {})));
+    // Optimized: LATERAL joins instead of correlated subqueries (one index scan per channel,
+    // not N separate subquery executions). No ensureTeamChannel on the read path —
+    // team access is derived from user_permissions directly, eliminating all writes on GET.
+    //
+    // Super admin: sees all DM channels + any channel (team/org) that has at least one message.
+    // Regular user: sees DM channels they're an explicit member of, plus team channels where
+    //   they have user_permissions (or approved guardian_claims), provided messages exist.
+    const whereClause = isSuperAdmin
+      ? `WHERE cc.type = 'direct' OR lm.created_at IS NOT NULL`
+      : `WHERE
+           (cc.type = 'direct' AND ccm.channel_id IS NOT NULL)
+           OR (
+             cc.type = 'team'
+             AND lm.created_at IS NOT NULL
+             AND (
+               ccm.channel_id IS NOT NULL
+               OR EXISTS (
+                 SELECT 1 FROM user_permissions
+                 WHERE user_id = $1 AND team_id = cc.team_id AND is_active = TRUE
+                 UNION ALL
+                 SELECT 1 FROM guardian_claims gc
+                   JOIN team_players tp ON tp.player_id = gc.player_id
+                   WHERE gc.user_id = $1 AND tp.team_id = cc.team_id AND gc.status = 'approved'
+               )
+             )
+           )`;
 
     const { rows } = await pool.query(
       `SELECT
-         cc.id,
-         cc.type,
-         cc.name,
-         cc.team_id,
-         cc.org_id,
+         cc.id, cc.type, cc.name, cc.team_id, cc.org_id,
          ccm.last_read_at,
-         (SELECT COUNT(*) FROM chat_messages cm
-          WHERE cm.channel_id = cc.id
-            AND cm.deleted_at IS NULL
-            AND (ccm.last_read_at IS NULL OR cm.created_at > ccm.last_read_at)
-         ) AS unread_count,
-         (SELECT cm2.body FROM chat_messages cm2
-          WHERE cm2.channel_id = cc.id AND cm2.deleted_at IS NULL
-          ORDER BY cm2.created_at DESC LIMIT 1) AS last_message,
-         (SELECT cm2.created_at FROM chat_messages cm2
-          WHERE cm2.channel_id = cc.id AND cm2.deleted_at IS NULL
-          ORDER BY cm2.created_at DESC LIMIT 1) AS last_message_at,
-         CASE WHEN cc.type = 'direct' THEN (
-           SELECT u.name FROM chat_channel_members m2
-           JOIN users u ON u.id = m2.user_id
-           WHERE m2.channel_id = cc.id AND m2.user_id <> $1
-           LIMIT 1
-         ) END AS other_user_name
+         lm.body        AS last_message,
+         lm.created_at  AS last_message_at,
+         COALESCE(unread.cnt, 0) AS unread_count,
+         CASE WHEN cc.type = 'direct' THEN other.name END AS other_user_name
        FROM chat_channels cc
-       JOIN chat_channel_members ccm ON ccm.channel_id = cc.id AND ccm.user_id = $1
-       ORDER BY last_message_at DESC NULLS LAST`,
-      [req.user.id]
+       LEFT JOIN chat_channel_members ccm
+              ON ccm.channel_id = cc.id AND ccm.user_id = $1
+       LEFT JOIN LATERAL (
+         SELECT body, created_at FROM chat_messages
+         WHERE channel_id = cc.id AND deleted_at IS NULL
+         ORDER BY created_at DESC LIMIT 1
+       ) lm ON TRUE
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::int AS cnt FROM chat_messages
+         WHERE channel_id = cc.id
+           AND deleted_at IS NULL
+           AND (ccm.last_read_at IS NULL OR created_at > ccm.last_read_at)
+       ) unread ON TRUE
+       LEFT JOIN LATERAL (
+         SELECT u.name FROM chat_channel_members m2
+         JOIN users u ON u.id = m2.user_id
+         WHERE m2.channel_id = cc.id AND m2.user_id <> $1
+         LIMIT 1
+       ) other ON cc.type = 'direct'
+       ${whereClause}
+       ORDER BY lm.created_at DESC NULLS LAST`,
+      [userId]
     );
-    res.json(rows);
+    return res.json(rows);
   } catch (err) {
     console.error('GET /chat/channels error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -291,46 +267,59 @@ router.get('/channels/:id/messages', async (req, res) => {
   }
 
   const limit = Math.min(Number(req.query.limit) || 50, 100);
-  const before = req.query.before; // ISO timestamp or message id
+  const before = req.query.before; // ISO timestamp — load older messages
+  const after  = req.query.after;  // ISO timestamp — incremental poll (new messages only)
 
   try {
-    let query, params;
-    if (before) {
-      query = `
-        SELECT cm.*,
-          u.name AS sender_name, u.username AS sender_username,
-          reply.body AS reply_body,
-          reply_u.name AS reply_sender_name
-        FROM chat_messages cm
-        JOIN users u ON u.id = cm.sender_id
-        LEFT JOIN chat_messages reply ON reply.id = cm.reply_to_id
-        LEFT JOIN users reply_u ON reply_u.id = reply.sender_id
-        WHERE cm.channel_id = $1
-          AND cm.deleted_at IS NULL
-          AND cm.created_at < $2::timestamptz
-        ORDER BY cm.created_at DESC
-        LIMIT $3`;
-      params = [channelId, before, limit];
-    } else {
-      query = `
-        SELECT cm.*,
-          u.name AS sender_name, u.username AS sender_username,
-          reply.body AS reply_body,
-          reply_u.name AS reply_sender_name
-        FROM chat_messages cm
-        JOIN users u ON u.id = cm.sender_id
-        LEFT JOIN chat_messages reply ON reply.id = cm.reply_to_id
-        LEFT JOIN users reply_u ON reply_u.id = reply.sender_id
-        WHERE cm.channel_id = $1
-          AND cm.deleted_at IS NULL
-        ORDER BY cm.created_at DESC
-        LIMIT $2`;
-      params = [channelId, limit];
+    const MSG_SELECT = `
+      SELECT cm.*,
+        u.name AS sender_name, u.username AS sender_username,
+        reply.body AS reply_body,
+        reply_u.name AS reply_sender_name
+      FROM chat_messages cm
+      JOIN users u ON u.id = cm.sender_id
+      LEFT JOIN chat_messages reply ON reply.id = cm.reply_to_id
+      LEFT JOIN users reply_u ON reply_u.id = reply.sender_id`;
+
+    if (after) {
+      // Incremental poll: return ONLY new messages, ASC so client can append directly.
+      // Returns [] when nothing is new — minimal payload, minimal DB work.
+      const { rows } = await pool.query(
+        `${MSG_SELECT}
+         WHERE cm.channel_id = $1
+           AND cm.deleted_at IS NULL
+           AND cm.created_at > $2::timestamptz
+         ORDER BY cm.created_at ASC
+         LIMIT $3`,
+        [channelId, after, limit]
+      );
+      return res.json(rows);
     }
 
-    const { rows } = await pool.query(query, params);
-    // Return oldest-first
-    res.json(rows.reverse());
+    if (before) {
+      // Paginate backwards for "load older" button.
+      const { rows } = await pool.query(
+        `${MSG_SELECT}
+         WHERE cm.channel_id = $1
+           AND cm.deleted_at IS NULL
+           AND cm.created_at < $2::timestamptz
+         ORDER BY cm.created_at DESC
+         LIMIT $3`,
+        [channelId, before, limit]
+      );
+      return res.json(rows.reverse());
+    }
+
+    // Initial load: latest N messages, oldest-first.
+    const { rows } = await pool.query(
+      `${MSG_SELECT}
+       WHERE cm.channel_id = $1
+         AND cm.deleted_at IS NULL
+       ORDER BY cm.created_at DESC
+       LIMIT $2`,
+      [channelId, limit]
+    );
+    return res.json(rows.reverse());
   } catch (err) {
     console.error('GET /chat/channels/:id/messages error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -385,14 +374,28 @@ router.post('/channels/:id/messages', async (req, res) => {
       sender_username: req.user.username,
     });
 
-    // Fire-and-forget push notifications to other channel members
+    // Fire-and-forget push notifications.
+    // Combines explicit chat_channel_members AND user_permissions for team channels
+    // so that users who joined a team after the channel was last bootstrapped still receive pushes.
     pool.query(
-      `SELECT ccm.user_id
-       FROM chat_channel_members ccm
-       JOIN users u ON u.id = ccm.user_id
-       WHERE ccm.channel_id = $1
-         AND ccm.user_id <> $2
-         AND (u.notification_prefs IS NULL OR (u.notification_prefs->>'chat_message')::boolean IS NOT FALSE)`,
+      `SELECT DISTINCT r.user_id
+       FROM (
+         -- Explicit channel members
+         SELECT ccm.user_id
+         FROM chat_channel_members ccm
+         JOIN users u ON u.id = ccm.user_id
+         WHERE ccm.channel_id = $1
+           AND (u.notification_prefs IS NULL OR (u.notification_prefs->>'chat_message')::boolean IS NOT FALSE)
+         UNION
+         -- Team channel members via user_permissions (catches new members not yet in chat_channel_members)
+         SELECT up.user_id
+         FROM chat_channels cc
+         JOIN user_permissions up ON up.team_id = cc.team_id AND up.is_active = TRUE
+         JOIN users u ON u.id = up.user_id
+         WHERE cc.id = $1 AND cc.type = 'team'
+           AND (u.notification_prefs IS NULL OR (u.notification_prefs->>'chat_message')::boolean IS NOT FALSE)
+       ) r
+       WHERE r.user_id <> $2`,
       [channelId, req.user.id]
     ).then(({ rows }) => {
       const senderName = req.user.name || req.user.username;
@@ -401,7 +404,7 @@ router.post('/channels/:id/messages', async (req, res) => {
         title: senderName,
         body: preview,
         tag: `chat-${channelId}`,
-        url: '/?page=chat',
+        url: `/?page=chat&channelId=${channelId}`,
         data: { page: 'chat', channelId },
       }).catch(() => {}));
     }).catch(() => {});

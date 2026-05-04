@@ -48,6 +48,7 @@ function PageContent({
     refreshKey,
     canEditSelectedPlayer,
     onChangePassword,
+    initialChatChannelId,
 }) {
     if (isUmpire && page === 'dashboard') {
         return <UmpireDashboard onBack={() => setPage('dashboard')} />;
@@ -61,7 +62,7 @@ function PageContent({
             return <GuardianHome onViewPlayer={onViewPlayer} />;
 
         case 'chat':
-            return features.feature_chat !== false ? <Chat /> : null;
+            return features.feature_chat !== false ? <Chat initialChannelId={initialChatChannelId} /> : null;
 
         case 'dashboard':
             return <Dashboard onNavigate={setPage} onViewPlayer={onViewPlayer} onNavigateToGame={navigateToGame} />;

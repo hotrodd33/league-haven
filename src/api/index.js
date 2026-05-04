@@ -1365,9 +1365,10 @@ export async function fetchChatChannels() {
   return apiFetch('/chat/channels');
 }
 
-export async function fetchChatMessages(channelId, before) {
+export async function fetchChatMessages(channelId, before, after) {
   const params = new URLSearchParams({ limit: '50' });
   if (before) params.set('before', before);
+  if (after)  params.set('after', after);
   return apiFetch(`/chat/channels/${channelId}/messages?${params}`);
 }
 
