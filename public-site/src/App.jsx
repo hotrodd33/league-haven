@@ -3,6 +3,7 @@ import Teams from './components/Teams.jsx';
 import Standings from './components/Standings.jsx';
 import Scores from './components/Scores.jsx';
 import TeamDetail from './components/TeamDetail.jsx';
+import GameDetail from './components/GameDetail.jsx';
 import TravelMatrix from './components/TravelMatrix.jsx';
 import { fetchBranding, fetchTeams } from './api/index.js';
 
@@ -46,6 +47,8 @@ function toSlug(name) {
 
 function parsePath(pathname) {
   const path = pathname.replace(/^\/site/, '') || '/';
+  const mg = path.match(/^\/game\/(\d+)$/);
+  if (mg) return { view: 'game', gameId: parseInt(mg[1], 10) };
   const m = path.match(/^\/team\/(.+)$/);
   if (m) return { view: 'team', teamSlug: m[1] };
   const tab = (path.replace(/^\//, '').split('/')[0]) || 'standings';
@@ -95,6 +98,11 @@ export default function App() {
       document.title = appName;
     }
   }, [nav, resolvedTeamId, allTeams, branding.app_name]);
+
+  function navigateToGame(gameId) {
+    window.history.pushState({}, '', `/site/game/${gameId}`);
+    setNav({ view: 'game', gameId });
+  }
 
   function navigateToTeam(teamId) {
     const team = allTeams.find(t => t.id === teamId);
@@ -187,18 +195,25 @@ export default function App() {
 
       {/* Content */}
       <main className="p-4 max-w-6xl mx-auto">
-        {nav.view === 'team' ? (
+        {nav.view === 'game' ? (
+          <GameDetail
+            gameId={nav.gameId}
+            onBack={() => window.history.back()}
+            onNavigateToTeam={navigateToTeam}
+          />
+        ) : nav.view === 'team' ? (
           resolvedTeamId
             ? <TeamDetail
                 teamId={resolvedTeamId}
                 onNavigateToTeam={navigateToTeam}
+                onNavigateToGame={navigateToGame}
                 onBack={() => window.history.back()}
               />
             : <div className="py-16 text-center text-gray-400">Loading team…</div>
         ) : (
           <SiteErrorBoundary>
             {nav.tab === 'standings' && <Standings onNavigateToTeam={navigateToTeam} />}
-            {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} />}
+            {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} />}
             {nav.tab === 'teams'     && <Teams     onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'travel'    && <TravelMatrix />}
           </SiteErrorBoundary>

@@ -40,7 +40,7 @@ const TABS = [
   { key: 'staff',    label: 'Coaches / Staff' },
 ];
 
-export default function TeamDetail({ teamId, onNavigateToTeam, onBack }) {
+export default function TeamDetail({ teamId, onNavigateToTeam, onNavigateToGame, onBack }) {
   const [team, setTeam]         = useState(null);
   const [games, setGames]       = useState([]);
   const [roster, setRoster]     = useState([]);
@@ -170,7 +170,7 @@ export default function TeamDetail({ teamId, onNavigateToTeam, onBack }) {
 
       {/* ── SCHEDULE ── */}
       {!tabLoading && activeTab === 'schedule' && (
-        <ScheduleTab games={games} teamId={teamId} onNavigateToTeam={onNavigateToTeam} />
+        <ScheduleTab games={games} teamId={teamId} onNavigateToTeam={onNavigateToTeam} onNavigateToGame={onNavigateToGame} />
       )}
 
       {/* ── ROSTER ── */}
@@ -189,7 +189,7 @@ export default function TeamDetail({ teamId, onNavigateToTeam, onBack }) {
 /* ────────────────────────────────────────────────────────── */
 /* Schedule tab                                               */
 /* ────────────────────────────────────────────────────────── */
-function ScheduleTab({ games, teamId, onNavigateToTeam }) {
+function ScheduleTab({ games, teamId, onNavigateToTeam, onNavigateToGame }) {
   if (!games.length) {
     return <div className="py-12 text-center text-gray-400">No games scheduled yet.</div>;
   }
@@ -214,7 +214,11 @@ function ScheduleTab({ games, teamId, onNavigateToTeam }) {
         const lost      = isScored && myScore != null && myScore < oppScore;
 
         return (
-          <div key={g.id} className="bg-gray-800 border border-gray-700 rounded-card-sm p-4 hover:border-gray-600 transition-colors">
+          <div
+            key={g.id}
+            onClick={() => onNavigateToGame?.(g.id)}
+            className="bg-gray-800 border border-gray-700 rounded-card-sm p-4 hover:border-action-600 hover:bg-gray-700/50 transition-colors cursor-pointer"
+          >
             <div className="flex items-center gap-3">
               {/* Date / time */}
               <div className="shrink-0 w-20 text-center">
@@ -228,7 +232,7 @@ function ScheduleTab({ games, teamId, onNavigateToTeam }) {
                 <TeamLogo src={opp.logo} name={opp.name} ageGroup={opp.age} level={opp.level} cityAbbr={opp.abbr} primaryColor={opp.pc} secondaryColor={opp.sc} size="w-7 h-7" />
                 {opp.id ? (
                   <button
-                    onClick={() => onNavigateToTeam(opp.id)}
+                    onClick={e => { e.stopPropagation(); onNavigateToTeam(opp.id); }}
                     className="font-semibold text-sm text-action-300 hover:text-action-100 hover:underline text-left truncate"
                   >
                     {opp.name}

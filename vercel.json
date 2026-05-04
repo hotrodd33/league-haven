@@ -23,6 +23,8 @@
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/site/team/(.*)", "destination": "/site/index.html" },
+    { "source": "/site/game/(.*)", "destination": "/site/index.html" },
     { "source": "/site/(.*)", "destination": "/site/index.html" }
   ]
 }
