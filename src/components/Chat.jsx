@@ -8,13 +8,14 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import { Button, Input } from './ui';
 
-// Adaptive polling: faster when tab is visible, backs off when backgrounded.
-const POLL_ACTIVE_MS     = 2_000;
-const POLL_BACKGROUND_MS = 15_000;
-const CHAN_POLL_ACTIVE_MS = 4_000;  // channel list needs less precision
+// Adaptive polling for the channel LIST only (less time-sensitive).
+// Message poll always runs at 2s — it's cheap (?after= returns [] on no activity)
+// and chat must feel real-time even when the tab is not focused.
+const CHAN_POLL_ACTIVE_MS = 4_000;
 const CHAN_POLL_BG_MS     = 30_000;
+const MSG_POLL_MS        = 2_000;
 
-function usePollInterval(active = POLL_ACTIVE_MS, background = POLL_BACKGROUND_MS) {
+function usePollInterval(active = CHAN_POLL_ACTIVE_MS, background = CHAN_POLL_BG_MS) {
   const [visible, setVisible] = useState(!document.hidden);
   useEffect(() => {
     const handler = () => setVisible(!document.hidden);
@@ -53,13 +54,13 @@ export default function Chat({ initialChannelId = null }) {
   // Mobile navigation: 'list' shows channel list, 'messages' shows message pane
   const [mobileView, setMobileView] = useState(initialChannelId ? 'messages' : 'list');
 
-  const chanPollMs = usePollInterval(CHAN_POLL_ACTIVE_MS, CHAN_POLL_BG_MS);
+  const pollMs = usePollInterval(); // channel list only
 
   // Channel list — polled
   const { data: channels = [] } = useQuery({
     queryKey: ['chat-channels'],
     queryFn: fetchChatChannels,
-    refetchInterval: chanPollMs,
+    refetchInterval: pollMs,
     staleTime: 0,
     retry: false,
   });
@@ -252,6 +253,8 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
   // ── Incremental poll ──────────────────────────────────────────
   // Only fetches messages newer than the last seen timestamp → returns [] most of the time
   // → minimal payload, minimal DB work, ~70–140x less data than full refetch per poll.
+  // refetchIntervalInBackground:true keeps polling even when the tab loses focus —
+  // critical for chat so messages arrive without needing to switch back to the tab.
   useQuery({
     queryKey: ['chat-messages-poll', channelId],
     queryFn: async () => {
@@ -277,9 +280,8 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
       }
       return newMsgs;
     },
-    refetchInterval: pollMs,
-    staleTime: 0,
-    retry: false,
+    refetchInterval: MSG_POLL_MS,
+    refetchIntervalInBackground: true,   // ← keep polling even when tab is not focused
     enabled: initialized,
   });
 
