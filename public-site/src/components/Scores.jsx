@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchGames, fetchSeasons } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
 
@@ -35,6 +35,7 @@ export default function Scores({ onNavigateToTeam }) {
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
   const [filter, setFilter] = useState('all');
+  const [teamFilter, setTeamFilter] = useState('');
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -64,8 +65,26 @@ export default function Scores({ onNavigateToTeam }) {
 
   useEffect(() => { loadGames(); }, [loadGames]);
 
+  // Build unique team list from all loaded games for the filter dropdown
+  const teamOptions = useMemo(() => {
+    const map = new Map();
+    for (const g of games) {
+      if (g.home_team_id) map.set(g.home_team_id, g.home_team_name);
+      if (g.away_team_id) map.set(g.away_team_id, g.away_team_name);
+    }
+    return [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [games]);
+
+  const filteredGames = useMemo(() => {
+    if (!teamFilter) return games;
+    const tid = parseInt(teamFilter, 10);
+    return games.filter(g => g.home_team_id === tid || g.away_team_id === tid);
+  }, [games, teamFilter]);
+
   const byDivision = {};
-  for (const g of games) {
+  for (const g of filteredGames) {
     const divKey  = g.division_id ? String(g.division_id) : '__none__';
     const divName = g.division_name || 'Unassigned';
     if (!byDivision[divKey]) byDivision[divKey] = { name: divName, sort: String(g.division_sort ?? 'zzz'), dates: {} };
@@ -106,6 +125,16 @@ export default function Scores({ onNavigateToTeam }) {
               </button>
             ))}
           </div>
+          <select
+            value={teamFilter}
+            onChange={e => setTeamFilter(e.target.value)}
+            className="lh-select"
+          >
+            <option value="">All Teams</option>
+            {teamOptions.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
           {seasons.length > 1 && (
             <select
               value={seasonId}
@@ -134,7 +163,7 @@ export default function Scores({ onNavigateToTeam }) {
           </h3>
 
           {Object.entries(div.dates)
-            .sort(([a], [b]) => b.localeCompare(a))
+            .sort(([a], [b]) => a.localeCompare(b))
             .map(([date, dateGames]) => (
               <div key={date} className="mb-4">
                 <div className="eyebrow mb-2">{formatDate(date)}</div>
@@ -201,12 +230,32 @@ export default function Scores({ onNavigateToTeam }) {
                         </div>
 
                         {(g.location_name || !!g.official_names?.length) && (
-                          <div className="mt-2.5 pt-2 border-t border-gray-700 flex flex-col gap-0.5">
-                            {g.location_name && (
-                              <div className="text-xs text-gray-500 text-center">
-                                📍 {g.location_name}{g.location_city ? `, ${g.location_city}` : ''}
-                              </div>
-                            )}
+                          <div className="mt-2.5 pt-2 border-t border-gray-700 flex flex-col gap-1">
+                            {g.location_name && (() => {
+                              const mapsUrl = g.location_lat && g.location_lon
+                                ? `https://www.google.com/maps/dir/?api=1&destination=${g.location_lat},${g.location_lon}`
+                                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                    [g.location_name, g.location_address, g.location_city].filter(Boolean).join(', ')
+                                  )}`;
+                              return (
+                                <div className="flex items-center justify-center gap-2 flex-wrap">
+                                  <span className="text-xs text-gray-500">
+                                    📍 {g.location_name}{g.location_city ? `, ${g.location_city}` : ''}
+                                  </span>
+                                  <a
+                                    href={mapsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-gray-700 text-action-300 hover:bg-gray-600 hover:text-action-100 transition-colors"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M3 12h18M12 3l9 9-9 9" />
+                                    </svg>
+                                    Get Directions
+                                  </a>
+                                </div>
+                              );
+                            })()}
                             {!!g.official_names?.length && (
                               <div className="text-xs text-gray-500 text-center">
                                 {g.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {g.official_names.join(', ')}
