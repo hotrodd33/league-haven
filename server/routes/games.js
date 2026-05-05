@@ -566,7 +566,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, official_ids } = req.body;
+    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, official_ids, tournament_id, tournament_match_id } = req.body;
     if (!home_team_id || !away_team_id) {
       return res.status(400).json({ error: 'home_team_id and away_team_id are required' });
     }
@@ -602,11 +602,12 @@ router.post('/', authMiddleware, async (req, res) => {
 
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, tournament_id, tournament_match_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
       [season_id || null, home_team_id, away_team_id, location_id || null,
        game_date || null, game_time || null, game_duration_minutes ? Number(game_duration_minutes) : 150,
-       status || (game_date && game_time && location_id ? 'scheduled' : 'unscheduled'), notes || null]
+       status || (game_date && game_time && location_id ? 'scheduled' : 'unscheduled'), notes || null,
+       tournament_id || null, tournament_match_id || null]
     );
     const gameId = rows[0].id;
     const officialIds = Array.isArray(official_ids) ? official_ids : [];
@@ -630,6 +631,7 @@ router.post('/', authMiddleware, async (req, res) => {
     cache.invalidatePrefix('games:');
     cache.invalidatePrefix('standings:');
     cache.invalidatePrefix('umpires:');
+    if (tournament_id) cache.invalidatePrefix('tournaments:');
     const { rows: gameRows } = await pool.query(BASE_SELECT + ' WHERE g.id = $1', [gameId]);
     res.status(201).json(enrichGame(gameRows[0]));
   } catch (err) {

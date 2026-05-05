@@ -9,8 +9,18 @@ export function useAppNavigation() {
     const [selectedTeam, setSelectedTeam] = useState(null);
     const [selectedTeamOrgId, setSelectedTeamOrgId] = useState(null);
     const [pendingGameId, setPendingGameId] = useState(null);
+    const [selectedTournamentId, setSelectedTournamentId] = useState(null);
 
-    function navigateToTeam(teamId, orgId) {
+    function navigateToTeam(teamId, orgId, isTemp = false) {
+        if (isTemp) {
+            // Temporary teams only exist within a tournament context and do not have
+            // dedicated roster pages or backend entities to fetch.
+            // Navigating to them would cause queries to fail.
+            // In the future, this could open a quick-view modal instead.
+            console.warn("Cannot navigate to a temporary tournament team.");
+            return;
+        }
+
         setSelectedTeam(teamId);
         setSelectedTeamOrgId(orgId || null);
         setPage('rosters');
@@ -25,12 +35,19 @@ export function useAppNavigation() {
         setPage('schedule');
     }
 
+    function navigateToTournament(tournamentId) {
+        setSelectedTournamentId(tournamentId);
+        setPage('tournament-detail');
+    }
+
     return {
         page, setPage,
         selectedTeam, setSelectedTeam,
         selectedTeamOrgId, setSelectedTeamOrgId,
         navigateToTeam,
         navigateToGame,
+        navigateToTournament,
+        selectedTournamentId, setSelectedTournamentId,
         pendingGameId,
         clearPendingGame: () => setPendingGameId(null),
     };

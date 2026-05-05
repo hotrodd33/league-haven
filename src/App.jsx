@@ -96,7 +96,7 @@ export default function App() {
 
     // Force password change before allowing access for admin-created accounts
     if (mustChangePassword) {
-        return <ChangePassword forced onPasswordChanged={clearMustChangePassword} onClose={() => {}} />;
+        return <ChangePassword forced onPasswordChanged={clearMustChangePassword} onClose={() => { }} />;
     }
 
     function openImportWizard(gameId = null) {
@@ -164,6 +164,8 @@ export default function App() {
                     setSelectedTeamOrgId={nav.setSelectedTeamOrgId}
                     navigateToTeam={nav.navigateToTeam}
                     navigateToGame={nav.navigateToGame}
+                    navigateToTournament={nav.navigateToTournament}
+                    selectedTournamentId={nav.selectedTournamentId}
                     onViewPlayer={handleViewPlayer}
                     pendingGameId={nav.pendingGameId}
                     clearPendingGame={nav.clearPendingGame}

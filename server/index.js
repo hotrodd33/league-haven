@@ -39,6 +39,7 @@ const travelRoutes = require('./routes/travel');
 const bugReportRoutes = require('./routes/bug-report');
 const guardianClaimsRoutes = require('./routes/guardian-claims');
 const chatRoutes = require('./routes/chat');
+const tournamentsRoutes = require('./routes/tournaments');
 
 const helmet = require('helmet');
 const compression = require('compression');
@@ -70,7 +71,7 @@ app.use(express.text({ limit: '10mb' }));
 // Public endpoints (no auth) override this to 'public, s-maxage=N' in their handlers.
 app.use((req, res, next) => {
   if (req.method === 'GET') {
-    res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=30');
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   }
   next();
 });
@@ -117,6 +118,7 @@ app.use('/api/travel', travelRoutes);
 app.use('/api/bug-report', bugReportRoutes);
 app.use('/api/guardian-claims', guardianClaimsRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/tournaments', tournamentsRoutes);
 
 // ── Serve React build in local dev only (Vercel serves static files itself) ──
 if (!process.env.VERCEL) {
