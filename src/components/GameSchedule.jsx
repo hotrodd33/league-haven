@@ -1238,6 +1238,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const [confirmSave, setConfirmSave] = useState(false);
   const [isDoubleheader, setIsDoubleheader] = useState(false);
   const [awayLocations, setAwayLocations] = useState([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
+  const [loadingAwayLocations, setLoadingAwayLocations] = useState(false);
 
   const selectedHomeTeam = teams.find((t) => String(t.id) === String(form.home_team_id));
   const selectedAwayTeam = teams.find((t) => String(t.id) === String(form.away_team_id));
@@ -1272,18 +1274,22 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     if (!homeOrgId) {
       setLocations([]);
       setOfficials([]);
-      if (form.location_id) {
-        setForm((prev) => ({ ...prev, location_id: '' }));
-      }
+      // Do NOT clear form.location_id here — this effect fires when teams haven't loaded
+      // yet (homeOrgId starts null while teams fetch async). Clearing here wipes the
+      // location on edit forms before the teams prop has resolved. The home_team_id
+      // handleChange already clears location_id when the user picks a different org.
       return;
     }
+    setLoadingLocations(true);
     fetchLocations(homeOrgId).then((locs) => {
       setLocations(locs);
-      if (form.location_id && !locs.some((loc) => String(loc.id) === String(form.location_id))) {
-        setForm((prev) => ({ ...prev, location_id: '' }));
-      }
+      // Do NOT auto-clear location_id based on whether it appears in the fetched list.
+      // handleChange already clears it on org change, and for edits the existing location
+      // is valid even if it was a neutral site not in this org's primary list.
     }).catch(() => {
       setLocations([]);
+    }).finally(() => {
+      setLoadingLocations(false);
     });
 
     fetchAssignableOfficials(homeOrgId).then((rows) => {
@@ -1304,11 +1310,13 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   useEffect(() => {
     if (!isDoubleheader || !awayOrgId || awayOrgId === homeOrgId) {
       setAwayLocations([]);
+      setLoadingAwayLocations(false);
       return;
     }
+    setLoadingAwayLocations(true);
     fetchLocations(awayOrgId).then((locs) => {
       setAwayLocations(locs);
-    }).catch(() => setAwayLocations([]));
+    }).catch(() => setAwayLocations([])).finally(() => setLoadingAwayLocations(false));
   }, [isDoubleheader, awayOrgId, homeOrgId]);
 
   // For non-game types, load locations from user's org(s)
@@ -1349,6 +1357,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     scheduleSettings.game_end_time,
     scheduleSettings.game_time_increment_minutes,
   );
+  // True when the current game_time isn't a standard slot — keeps a custom option rendered
+  // so the select never visually blanks while scheduleSettings loads asynchronously.
   const currentTimeIncluded = form.game_time && !timeSlots.includes(form.game_time);
 
   function handleChange(e) {
@@ -1687,8 +1697,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                     </button>
                   </div>
                 </div>
-                <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId}>
-                  <option value="">— None —</option>
+                <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId || loadingLocations}>
+                  <option value="">— {loadingLocations ? 'Loading fields…' : 'None'} —</option>
                   {isDoubleheader ? (
                     <>
                       <optgroup label={selectedHomeTeam?.org_name || 'Home Team Fields'}>
@@ -1699,7 +1709,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                           ))}
                       </optgroup>
                       {awayOrgId && awayOrgId !== homeOrgId && (
-                        <optgroup label={selectedAwayTeam?.org_name || 'Away Team Fields'}>
+                        <optgroup label={`${selectedAwayTeam?.org_name || 'Away Team Fields'}${loadingAwayLocations ? ' (loading…)' : ''}`}>
                           {awayLocations
                             .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
                             .map(l => (
@@ -1718,6 +1728,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                 </select>
                 {!homeOrgId ? (
                   <p className="text-xs text-gray-400 mt-1">Select a home team first to see that organization&apos;s fields.</p>
+                ) : loadingLocations ? (
+                  <p className="text-xs text-gray-400 mt-1">Loading fields…</p>
                 ) : locations.length === 0 ? (
                   <p className="text-xs text-gray-400 mt-1">No fields found for {selectedHomeTeam?.org_name || 'this organization'}.</p>
                 ) : null}
