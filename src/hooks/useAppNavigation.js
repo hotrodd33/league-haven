@@ -76,11 +76,21 @@ export function useAppNavigation() {
         window.addEventListener('popstate', onPop);
         return () => window.removeEventListener('popstate', onPop);
     }, []);
+    const [selectedTournamentId, setSelectedTournamentId] = useState(null);
 
-    function navigateToTeam(teamId, orgId) {
+    function navigateToTeam(teamId, orgId, isTemp = false) {
         const newState = {
             page: 'rosters',
-            selectedTeam: teamId,
+            if (isTemp) {
+            // Temporary teams only exist within a tournament context and do not have
+            // dedicated roster pages or backend entities to fetch.
+            // Navigating to them would cause queries to fail.
+            // In the future, this could open a quick-view modal instead.
+            console.warn("Cannot navigate to a temporary tournament team.");
+            return;
+        }
+
+        selectedTeam: teamId,
             selectedTeamOrgId: orgId || null,
             pendingGameId: null,
             pendingPlayerId: null,
@@ -93,21 +103,8 @@ export function useAppNavigation() {
     }
 
     function navigateToGame(gameId) {
-        pushNav({ page: 'schedule', selectedTeam: navState.selectedTeam, selectedTeamOrgId: navState.selectedTeamOrgId, pendingGameId: gameId, pendingPlayerId: null });
-    }
-
-    function setPage(page) {
-        pushNav({ page, selectedTeam: page === 'rosters' ? navState.selectedTeam : null, selectedTeamOrgId: page === 'rosters' ? navState.selectedTeamOrgId : null, pendingGameId: null, pendingPlayerId: null });
-    }
-
-    function setSelectedTeam(teamId) {
-        const newState = { ...navState, selectedTeam: teamId };
-        pushNav(newState);
-    }
-
-    function setSelectedTeamOrgId(orgId) {
-        // No URL push — org ID is secondary metadata, not its own route
-        setNavState(prev => ({ ...prev, selectedTeamOrgId: orgId }));
+        setPendingGameId(gameId);
+        setPage('schedule');
     }
 
     return {
@@ -119,6 +116,8 @@ export function useAppNavigation() {
         setSelectedTeamOrgId,
         navigateToTeam,
         navigateToGame,
+        navigateToTournament,
+        selectedTournamentId, setSelectedTournamentId,
         pendingGameId: navState.pendingGameId,
         clearPendingGame: () => setNavState(prev => ({ ...prev, pendingGameId: null })),
         pendingPlayerId: navState.pendingPlayerId,

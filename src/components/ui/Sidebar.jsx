@@ -35,10 +35,11 @@ export default function Sidebar({
 
   // ACTIVITY — day-to-day operational destinations
   const activityItems = [
-    { key: 'schedule',  label: 'Schedule',  icon: CalendarIcon },
-    { key: 'standings', label: 'Standings', icon: TrophyIcon },
-    { key: 'fields',    label: 'Fields',    icon: MapPinIcon },
-    { key: 'travel',    label: 'Travel',    icon: ArrowTrendingUpIcon },
+    { key: 'schedule',     label: 'Schedule',    icon: CalendarIcon },
+    { key: 'tournaments',  label: 'Tournaments', icon: TrophyIcon },
+    { key: 'standings',    label: 'Standings',   icon: TrophyIcon },
+    { key: 'fields',       label: 'Fields',      icon: MapPinIcon },
+    { key: 'travel',       label: 'Travel',      icon: ArrowTrendingUpIcon },
   ];
   if (ft('feature_chat')) activityItems.push({ key: 'chat', label: 'Chat', icon: MegaphoneIcon, badge: chatUnreadCount });
 

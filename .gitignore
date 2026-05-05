@@ -5,3 +5,7 @@ dist
 
 *storybook.log
 storybook-static
+storybook/
+stories/
+
+docker-compose.yml

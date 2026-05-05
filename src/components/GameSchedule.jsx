@@ -1268,7 +1268,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
   );
 }
 
-export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, defaultEventType, onDone, onCancel, onTeamsChanged }) {
+export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, defaultAwayTeamId, defaultEventType, lockTeams, tournamentId, tournamentMatchId, onDone, onCancel, onTeamsChanged }) {
   const isEditing = !!game;
   const { isSuperAdmin, isOrgAdmin, isTeamManager, permissions, role, canEditOrg } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -1290,7 +1290,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const [form, setForm] = useState({
     season_id: game?.season_id || defaultSeasonId || '',
     home_team_id: game?.home_team_id || defaultHomeTeamId || '',
-    away_team_id: game?.away_team_id || '',
+    away_team_id: game?.away_team_id || defaultAwayTeamId || '',
     location_id: game?.location_id || '',
     game_date: initialGameDate,
     game_time: game?.game_time?.slice(0, 5) || '',
@@ -1602,6 +1602,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       innings_played: form.innings_played !== '' ? Number(form.innings_played) : null,
       official_ids: form.official_ids || [],
       notes: form.notes.trim() || null,
+      ...(tournamentId ? { tournament_id: Number(tournamentId) } : {}),
+      ...(tournamentMatchId ? { tournament_match_id: Number(tournamentMatchId) } : {}),
     };
 
     // Check for field reservation conflicts when scheduling a game with location + time
@@ -1647,7 +1649,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   }
   const orgNames = Object.keys(teamsByOrg).sort();
 
-  function TeamSelect({ id, name, value }) {
+  function TeamSelect({ id, name, value, disabled }) {
     return (
       <div>
         <select id={id} name={name} value={value} onChange={(e) => {
@@ -1657,7 +1659,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
             return;
           }
           handleChange(e);
-        }} required className="lh-select">
+        }} required disabled={disabled} className={`lh-select ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
           <option value="">— Select Team —</option>
           {orgNames.map(orgName => (
             <optgroup key={orgName} label={orgName}>
@@ -1731,7 +1733,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="game-home" className="lh-eyebrow block mb-1">Home Team *</label>
-                  <TeamSelect id="game-home" name="home_team_id" value={form.home_team_id} />
+                  <TeamSelect id="game-home" name="home_team_id" value={form.home_team_id} disabled={!!lockTeams} />
                   {game?.home_sched_name && (
                     <div className="mt-1">
                       <CoachContact label={SCHED_ROLE_LABELS[game.home_sched_role] || 'Contact'} name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} />
@@ -1740,7 +1742,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                 </div>
                 <div>
                   <label htmlFor="game-away" className="lh-eyebrow block mb-1">Away Team *</label>
-                  <TeamSelect id="game-away" name="away_team_id" value={form.away_team_id} />
+                  <TeamSelect id="game-away" name="away_team_id" value={form.away_team_id} disabled={!!lockTeams} />
                   {game?.away_sched_name && (
                     <div className="mt-1">
                       <CoachContact label={SCHED_ROLE_LABELS[game.away_sched_role] || 'Contact'} name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} />

@@ -24,6 +24,8 @@ import TeamPage from './TeamPage.jsx';
 import GuardiansPage from './GuardiansPage.jsx';
 import CoachesPage from './CoachesPage.jsx';
 import TravelMatrix from './TravelMatrix.jsx';
+import TournamentsPage from './TournamentsPage.jsx';
+import TournamentDetail from './TournamentDetail.jsx';
 
 export default function FeatureRouter(props) {
     return (
@@ -38,10 +40,11 @@ function PageContent({
     isUmpire, isAdmin, isOrgAdmin, isTeamManager, isAccountant, isGuardian,
     features,
     selectedTeam, selectedTeamOrgId, setSelectedTeam, setSelectedTeamOrgId,
-    navigateToTeam, navigateToGame,
+    navigateToTeam, navigateToGame, navigateToTournament,
     onViewPlayer,
     pendingGameId, clearPendingGame,
     selectedPlayerData, onClearPlayer,
+    selectedTournamentId,
     openImportWizard,
     onEditPlayer, onAddPlayer,
     onTeamWatermarkChange, onTeamsChanged,
@@ -140,6 +143,18 @@ function PageContent({
 
         case 'travel':
             return <TravelMatrix />;
+
+        case 'tournaments':
+            return <TournamentsPage onSelectTournament={navigateToTournament} />;
+
+        case 'tournament-detail':
+            return (
+                <TournamentDetail
+                    tournamentId={selectedTournamentId}
+                    onBack={() => setPage('tournaments')}
+                    onNavigateToTeam={navigateToTeam}
+                />
+            );
 
         case 'about':
             return <HelpPage initialTab="about" onBack={() => setPage('dashboard')} />;
