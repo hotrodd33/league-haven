@@ -230,9 +230,9 @@ export default function PitchTracker({ gameId, onBack }) {
     if (!confirm('Finalize this game? This will save all pitch counts, score, and mark the game as completed.')) return;
     setSaving(true); setError(null);
     try {
-      // 1. Save/update pitch counts — only for sides this user owns.
+      // 1. Save/update pitch counts for all active pitchers (both sides).
+      // A coach entering the opposing team's pitchers on their behalf is allowed.
       for (const pitcher of activePitchers) {
-        if (!ownsSide(pitcher.side)) continue;
         const count = getCount(pitcher.side, pitcher.playerId);
         const teamId = pitcher.side === 'home' ? game.home_team_id : game.away_team_id;
         if (pitcher.pcId) {
@@ -245,12 +245,12 @@ export default function PitchTracker({ gameId, onBack }) {
           });
         }
       }
-      // 2. Delete pitch counts that the user removed — only for our own side.
-      //    Never touch the opposing team's pitch counts here.
+      // 2. Delete pitch counts that were removed — for all sides this user has
+      // been managing (both if they entered both teams' data).
       for (const pc of pitchCounts) {
-        const side = pc.team_id === game.home_team_id ? 'home' : 'away';
-        if (!ownsSide(side)) continue;
-        if (!activePitchers.some(p => p.pcId === pc.id || (p.side === side && p.playerId === pc.player_id))) {
+        if (!activePitchers.some(p => p.pcId === pc.id || (
+          (pc.team_id === game.home_team_id ? 'home' : 'away') === p.side && p.playerId === pc.player_id
+        ))) {
           await deletePitchCount(gameId, pc.id);
         }
       }
@@ -272,9 +272,8 @@ export default function PitchTracker({ gameId, onBack }) {
   async function handleSaveProgress() {
     setSaving(true); setError(null);
     try {
-      // Save pitch counts — only for sides this user owns.
+      // Save pitch counts for all active pitchers (both sides).
       for (const pitcher of activePitchers) {
-        if (!ownsSide(pitcher.side)) continue;
         const count = getCount(pitcher.side, pitcher.playerId);
         const teamId = pitcher.side === 'home' ? game.home_team_id : game.away_team_id;
         if (pitcher.pcId) {
@@ -313,23 +312,21 @@ export default function PitchTracker({ gameId, onBack }) {
         setAwayScore(g.away_score ?? 0);
         setInning(g.innings_played ?? 1);
       }
-      // Re-key our pcIds + merge in opposing-side rows so we don't blow
-      // them away on the next save.
+      // Refresh game + pitch counts so any concurrent edits from the other
+      // team's tracker show up and our pcIds stay up to date.
       setActivePitchers(prev => {
-        const ourKeys = new Set(
-          prev.filter(p => ownsSide(p.side)).map(p => `${p.side}-${p.playerId}`)
-        );
-        const ours = prev
-          .filter(p => ownsSide(p.side))
-          .map(p => {
-            const match = pcs.find(pc => pc.player_id === p.playerId &&
-              pc.team_id === (p.side === 'home' ? g.home_team_id : g.away_team_id));
-            return match ? { ...p, pcId: match.id } : p;
-          });
-        const theirs = pcs
+        // Re-key all local pitchers against the fresh server records.
+        const updated = prev.map(p => {
+          const match = pcs.find(pc => pc.player_id === p.playerId &&
+            pc.team_id === (p.side === 'home' ? g.home_team_id : g.away_team_id));
+          return match ? { ...p, pcId: match.id } : p;
+        });
+        // Add any server-side pitchers that aren't in local state yet.
+        const localKeys = new Set(prev.map(p => `${p.side}-${p.playerId}`));
+        const newFromServer = pcs
           .filter(pc => {
             const side = pc.team_id === g.home_team_id ? 'home' : 'away';
-            return !ownsSide(side) && !ourKeys.has(`${side}-${pc.player_id}`);
+            return !localKeys.has(`${side}-${pc.player_id}`);
           })
           .map(pc => ({
             side: pc.team_id === g.home_team_id ? 'home' : 'away',
@@ -338,16 +335,17 @@ export default function PitchTracker({ gameId, onBack }) {
             jerseyNumber: pc.jersey_number,
             pcId: pc.id,
           }));
-        return [...ours, ...theirs];
+        return [...updated, ...newFromServer];
       });
-      // Mirror the latest opposing-side counts into localCounts so the UI
-      // shows the freshest numbers from the other tracker.
+      // Sync server pitch counts into localCounts for any rows we didn't
+      // already have locally (another tracker may have updated them).
       setLocalCounts(prev => {
         const next = { ...prev };
         for (const pc of pcs) {
           const side = pc.team_id === g.home_team_id ? 'home' : 'away';
-          if (!ownsSide(side)) {
-            next[`${side}-${pc.player_id}`] = pc.pitch_count;
+          const key = `${side}-${pc.player_id}`;
+          if (!(key in next)) {
+            next[key] = pc.pitch_count;
           }
         }
         return next;
@@ -553,7 +551,7 @@ export default function PitchTracker({ gameId, onBack }) {
         removePitcher={removePitcher}
         onAddPitcher={() => { setAddingSide('home'); setSelectedPlayerId(''); setAddingNewPlayer(false); }}
         teamColor={game.home_primary_color}
-        readOnly={!ownsSide('home')}
+        readOnly={false}
       />
 
       <PitcherSection
@@ -565,7 +563,7 @@ export default function PitchTracker({ gameId, onBack }) {
         removePitcher={removePitcher}
         onAddPitcher={() => { setAddingSide('away'); setSelectedPlayerId(''); setAddingNewPlayer(false); }}
         teamColor={game.away_primary_color}
-        readOnly={!ownsSide('away')}
+        readOnly={false}
       />
 
       {/* Add pitcher modal */}

@@ -653,9 +653,12 @@ router.post('/', authMiddleware, async (req, res) => {
           'SELECT id, org_id FROM teams WHERE id IN ($1, $2)',
           [home_team_id, away_team_id]
         );
-        const hasAccess = teamOrgs.every(t => t.org_id && perms.org_ids.includes(t.org_id));
+        // At least one team must belong to the org_admin's organization.
+        // Using some() (not every()) so they can schedule inter-org games
+        // against opponents from other organizations.
+        const hasAccess = teamOrgs.some(t => t.org_id && perms.org_ids.includes(t.org_id));
         if (!hasAccess) {
-          return res.status(403).json({ error: 'You can only schedule games for teams in your organization' });
+          return res.status(403).json({ error: 'You can only schedule games involving a team in your organization' });
         }
       } else if (req.user.role === 'team_manager') {
         const teamIds = [Number(home_team_id), Number(away_team_id)];
@@ -954,9 +957,10 @@ router.delete('/:id', authMiddleware, async (req, res) => {
           'SELECT id, org_id FROM teams WHERE id IN ($1, $2)',
           [rows[0].home_team_id, rows[0].away_team_id]
         );
-        const hasAccess = teamOrgs.every(t => t.org_id && perms.org_ids.includes(t.org_id));
+        // At least one team must belong to the org_admin's organization.
+        const hasAccess = teamOrgs.some(t => t.org_id && perms.org_ids.includes(t.org_id));
         if (!hasAccess) {
-          return res.status(403).json({ error: 'You can only delete games for teams in your organization' });
+          return res.status(403).json({ error: 'You can only delete games involving a team in your organization' });
         }
       } else if (req.user.role === 'team_manager') {
         const teamIds = [Number(rows[0].home_team_id), Number(rows[0].away_team_id)];
@@ -1132,21 +1136,18 @@ router.post('/:gameId/pitch-counts', authMiddleware, async (req, res) => {
     if (!player_id || !team_id || pitch_count == null) {
       return res.status(400).json({ error: 'player_id, team_id, and pitch_count are required' });
     }
-    // Side-scope: a user may only add pitch counts for a team they have
-    // authority over. Prevents the home tracker from creating pitch counts
-    // attributed to away pitchers and vice versa.
+    // Verify team_id is actually one of the teams in this game.
     const { rows: gameRows } = await pool.query(
       'SELECT home_team_id, away_team_id FROM games WHERE id = $1', [gameId]
     );
-    const side = await getUserGameSide(req.user, gameRows[0]);
     const isHome = Number(team_id) === Number(gameRows[0].home_team_id);
     const isAway = Number(team_id) === Number(gameRows[0].away_team_id);
     if (!isHome && !isAway) {
       return res.status(400).json({ error: 'team_id must be one of the teams in this game' });
     }
-    if (side !== 'both' && ((isHome && side !== 'home') || (isAway && side !== 'away'))) {
-      return res.status(403).json({ error: "You can only track pitch counts for your own team's pitchers" });
-    }
+    // No side-scope restriction: any coach affiliated with either team may
+    // enter pitch counts for both teams (e.g. when the opposing team has no
+    // one entering their own data).
     const { rows } = await pool.query(
       `INSERT INTO game_pitch_counts (game_id, player_id, team_id, pitch_count)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -1174,11 +1175,8 @@ router.put('/:gameId/pitch-counts/:id', authMiddleware, async (req, res) => {
       [id, gameId]
     );
     if (!pcRows.length) return res.status(404).json({ error: 'Pitch count entry not found' });
-    const side = await getUserGameSide(req.user, pcRows[0]);
-    const isHome = Number(pcRows[0].team_id) === Number(pcRows[0].home_team_id);
-    if (side !== 'both' && ((isHome && side !== 'home') || (!isHome && side !== 'away'))) {
-      return res.status(403).json({ error: "You can only edit pitch counts for your own team's pitchers" });
-    }
+    // No side-scope restriction: any coach affiliated with either team may
+    // edit pitch counts for both teams.
     const { pitch_count } = req.body;
     const { rows } = await pool.query(
       `UPDATE game_pitch_counts SET pitch_count = $1 WHERE id = $2 AND game_id = $3 RETURNING *`,
@@ -1207,11 +1205,8 @@ router.delete('/:gameId/pitch-counts/:id', authMiddleware, async (req, res) => {
       [id, gameId]
     );
     if (!pcRows.length) return res.status(404).json({ error: 'Pitch count entry not found' });
-    const side = await getUserGameSide(req.user, pcRows[0]);
-    const isHome = Number(pcRows[0].team_id) === Number(pcRows[0].home_team_id);
-    if (side !== 'both' && ((isHome && side !== 'home') || (!isHome && side !== 'away'))) {
-      return res.status(403).json({ error: "You can only delete pitch counts for your own team's pitchers" });
-    }
+    // No side-scope restriction: any coach affiliated with either team may
+    // delete pitch counts for both teams.
     const { rows } = await pool.query(
       'DELETE FROM game_pitch_counts WHERE id = $1 AND game_id = $2 RETURNING id', [id, gameId]
     );
