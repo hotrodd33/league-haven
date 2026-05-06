@@ -22,6 +22,15 @@ import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../cons
 import { Button, Input, Modal } from './ui/index.js';
 import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon } from './ui/icons.jsx';
 
+// Compact chip label: "10U" + "AA" → "10AA", "12U" alone → "12U", division_name as-is.
+function divisionChipLabel(game) {
+  if (game.division_name) return game.division_name;
+  const age = game.home_age_group || '';
+  const lvl = game.home_level || '';
+  if (age && lvl) return age.replace(/U$/i, '') + lvl; // e.g. 10AA
+  return age || lvl || null;
+}
+
 // Strip known age-group / level suffixes from a team's display name.
 // The chip next to the game time is the single source for that info.
 function stripAgeLevel(name, ageGroup, level) {
@@ -663,17 +672,17 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                         deleting={deletingPractice === item.id} />;
                     }
                     const game = item;
-                    const divisionLabel = gameDivisionLevelLabel(game);
+                    const chipLabel = divisionChipLabel(game);
                     const isInterested = interestGameIds.includes(Number(game.id));
                     const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
                     return (
                       <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                        className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
-                        {/* Time + Division chip — chip left of time */}
-                        <div className="w-44 shrink-0 flex items-center justify-end gap-2">
-                          {divisionLabel && (
+                        className="bg-gray-800 border border-gray-700 rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
+                        {/* Chip + Time */}
+                        <div className="w-36 shrink-0 flex items-center justify-end gap-2">
+                          {chipLabel && (
                             <span className="px-2 py-1 bg-chrome-700 text-chrome-100 text-xs font-bold rounded-md border border-chrome-500 whitespace-nowrap shrink-0 leading-none">
-                              {divisionLabel}
+                              {chipLabel}
                             </span>
                           )}
                           <span className="text-sm font-semibold text-gray-300 whitespace-nowrap w-16 text-center shrink-0">{formatTime(game.game_time) || 'TBD'}</span>
@@ -794,15 +803,15 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       deleting={deletingPractice === item.id} />;
                   }
                   const game = item;
-                  const divisionLabel = gameDivisionLevelLabel(game);
+                  const chipLabel = divisionChipLabel(game);
                   const isInterested = interestGameIds.includes(Number(game.id));
                   const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
                   return (
                     <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                      className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
+                      className="bg-gray-800 border border-gray-700 rounded-lg p-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          {divisionLabel && <span className="px-2 py-1 bg-chrome-700 text-chrome-100 text-xs font-bold rounded-md border border-chrome-500 leading-none whitespace-nowrap">{divisionLabel}</span>}
+                          {chipLabel && <span className="px-2 py-1 bg-chrome-700 text-chrome-100 text-xs font-bold rounded-md border border-chrome-500 leading-none whitespace-nowrap">{chipLabel}</span>}
                           <span className="text-xs font-semibold text-gray-400 whitespace-nowrap">{formatTime(game.game_time) || 'TBD'}</span>
                         </div>
                         <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
@@ -1102,7 +1111,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                     'bg-chrome-900/40 text-chrome-300';
                   return (
                     <div key={g.id || j} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${statusColor}`}>
-                      {formatTime(g.game_time)} {[g.home_age_group, g.home_level].filter(Boolean).join(' ')} {g.home_city_abbr} vs {g.away_city_abbr}
+                      {[formatTime(g.game_time), divisionChipLabel(g), g.home_city_abbr, 'vs', g.away_city_abbr].filter(Boolean).join(' ')}
                     </div>
                   );
                 })}
@@ -1131,11 +1140,16 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                 return (
                   <div key={game.id}
                     onClick={() => onSelectGame(game.id)}
-                    className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-gray-300 w-20 shrink-0 text-center">
-                          {formatTime(game.game_time) || 'TBD'}
+                    className="bg-gray-800 border border-gray-700 rounded-lg p-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="shrink-0 flex items-center gap-2">
+                          {divisionChipLabel(game) && (
+                            <span className="px-2 py-1 bg-chrome-700 text-chrome-100 text-xs font-bold rounded-md border border-chrome-500 whitespace-nowrap leading-none">
+                              {divisionChipLabel(game)}
+                            </span>
+                          )}
+                          <span className="text-sm font-semibold text-gray-300 w-16 text-center shrink-0">{formatTime(game.game_time) || 'TBD'}</span>
                         </div>
                         {/* Calendar tile: Away @ Home */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -1158,7 +1172,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {game.location_name && (
-                          <span className="text-xs text-gray-400 hidden sm:inline">📍 {game.location_name}</span>
+                          <span className="text-xs text-gray-400 hidden sm:inline-flex items-center gap-1"><MapPinIcon className="w-3 h-3 shrink-0" />{game.location_name}</span>
                         )}
                         {gameWeather[String(game.id)] && (() => {
                           const w = gameWeather[String(game.id)];
