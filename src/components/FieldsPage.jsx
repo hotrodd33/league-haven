@@ -83,7 +83,16 @@ export default function FieldsPage({ onViewGame }) {
   const [calendarField, setCalendarField] = useState(null);
   const [ageGroups, setAgeGroups] = useState([]);
   const [filterAgeGroup, setFilterAgeGroup] = useState('');
+  const [expandedOrgs, setExpandedOrgs] = useState(new Set());
   const markerRefs = useRef({});
+
+  function toggleOrg(orgId) {
+    setExpandedOrgs(prev => {
+      const next = new Set(prev);
+      if (next.has(orgId)) next.delete(orgId); else next.add(orgId);
+      return next;
+    });
+  }
 
   // Determine which orgs the user can edit
   const editableOrgIds = new Set();
@@ -228,22 +237,39 @@ export default function FieldsPage({ onViewGame }) {
         <div className="space-y-6">
           {orgGroups.map(group => {
             const editable = canEditOrg(group.id);
+            const isExpanded = expandedOrgs.has(group.id);
             return (
               <div key={group.id}>
-                <div className="flex items-center justify-between mb-2">
+                <button
+                  type="button"
+                  onClick={() => toggleOrg(group.id)}
+                  className="w-full flex items-center justify-between mb-2 group text-left"
+                >
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: orgColorMap[group.id] }} />
-                    <h2 className="text-lg font-display font-bold text-white">{group.name}</h2>
+                    <h2 className="text-lg font-display font-bold text-white group-hover:text-chrome-200 transition-colors">{group.name}</h2>
                     <span className="text-xs text-gray-400">({group.locations.length})</span>
                   </div>
-                  {editable && (
-                    <button onClick={() => { setEditing(null); setFormOrgId(group.id); setShowForm(true); }}
-                      className="btn btn-xs btn-primary">
-                      + Add Field
-                    </button>
-                  )}
-                </div>
+                  <div className="flex items-center gap-2">
+                    {editable && (
+                      <span
+                        role="button"
+                        onClick={e => { e.stopPropagation(); setEditing(null); setFormOrgId(group.id); setShowForm(true); }}
+                        className="btn btn-xs btn-primary"
+                      >
+                        + Add Field
+                      </span>
+                    )}
+                    <svg
+                      className={`w-4 h-4 text-gray-400 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </button>
 
+                {isExpanded && <>
                 {/* Desktop table */}
                 <div className="hidden md:block">
                   <table className="w-full bg-gray-800 rounded-lg shadow-sm overflow-hidden text-sm text-gray-200">
@@ -307,7 +333,7 @@ export default function FieldsPage({ onViewGame }) {
                   {group.locations.map(loc => {
                     const hasPin = loc.latitude && loc.longitude;
                     const isHighlighted = highlightedId === loc.id;
-                    return (
+                    return (  
                       <div key={loc.id} onClick={() => handleRowClick(loc)}
                         className={`bg-gray-800 rounded-lg border p-4 text-gray-200 ${hasPin ? 'cursor-pointer' : ''} ${isHighlighted ? 'border-chrome-400 bg-chrome-900/30 shadow-card' : 'border-gray-700'}`}>
                         <div className="flex justify-between items-start mb-2">
@@ -341,6 +367,7 @@ export default function FieldsPage({ onViewGame }) {
                     );
                   })}
                 </div>
+                </>}
               </div>
             );
           })}
