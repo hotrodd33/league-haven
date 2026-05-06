@@ -446,12 +446,13 @@ export function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, on
     setReverseGeocoding(true);
     const result = await reverseGeocode(lat, lng);
     if (result) {
+      // Only fill address fields that are currently blank
       setForm(prev => ({
         ...prev,
-        address: result.address || prev.address,
-        city: result.city || prev.city,
-        state: result.state || prev.state,
-        zip: result.zip || prev.zip,
+        address: prev.address.trim() ? prev.address : (result.address || prev.address),
+        city: prev.city.trim() ? prev.city : (result.city || prev.city),
+        state: prev.state.trim() ? prev.state : (result.state || prev.state),
+        zip: prev.zip.trim() ? prev.zip : (result.zip || prev.zip),
       }));
     }
     setReverseGeocoding(false);
@@ -470,7 +471,8 @@ export function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, on
     setLocatingByDevice(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setCoordinatesOnly(position.coords.latitude, position.coords.longitude);
+        // On new fields, reverse geocode to pre-fill address from GPS location
+        setCoordinatesAndReverse(position.coords.latitude, position.coords.longitude);
         setLocatingByDevice(false);
       },
       () => { setLocatingByDevice(false); },
