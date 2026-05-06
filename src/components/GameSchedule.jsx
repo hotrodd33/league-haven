@@ -215,6 +215,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [trackingGameId, setTrackingGameId] = useState(null);
   const [managingInterest, setManagingInterest] = useState(null);
   const dateSectionRefs = useRef({});
+  const stickyHeaderRef = useRef(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
@@ -505,7 +506,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     if (!el) return;
 
     requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'auto', block: 'start' });
+      const headerHeight = stickyHeaderRef.current ? stickyHeaderRef.current.offsetHeight : 80;
+      const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
+      window.scrollTo({ top, behavior: 'smooth' });
     });
   }, [anchorDateKey, loading, filterSeason, filterTeam, filterStatus, filterDivision]);
 
@@ -549,7 +552,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
 
   return (
     <div>
-      <div className="sticky top-16 z-20 -mx-4 lg:-mx-6 px-4 lg:px-6 pt-2 pb-2 mb-4 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
+      <div ref={stickyHeaderRef} className="sticky top-16 z-20 -mx-4 lg:-mx-6 px-4 lg:px-6 pt-2 pb-2 mb-4 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
 
         {/* ── Top bar ─────────────────────────────────────────── */}
         <div className="flex items-center gap-2 min-h-10">
