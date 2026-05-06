@@ -672,7 +672,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                         deleting={deletingPractice === item.id} />;
                     }
                     const game = item;
-                    const chipLabel = divisionChipLabel(game);
+                    const divLabel = divisionChipLabel(game);
                     const isInterested = interestGameIds.includes(Number(game.id));
                     const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
                     return (
@@ -681,7 +681,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                         {/* Time + Division stacked */}
                         <div className="w-28 shrink-0 text-center">
                           <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
-                          {chipLabel && <span className="text-base font-bold text-action-300 block leading-tight">{chipLabel}</span>}
+                          {divLabel && <span className="text-base font-bold text-action-300 block leading-tight">{divLabel}</span>}
                         </div>
 
                         {/* Matchup: Away @ Home */}
