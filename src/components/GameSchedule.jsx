@@ -617,7 +617,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
 
         {/* ── Filter bar — hidden on mobile until toggled, always shown md+ ── */}
         <div className={`${showFilters ? 'block' : 'hidden md:block'} mt-2`}>
-          <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
             <select value={filterSeason} onChange={(e) => {
               setFilterSeason(e.target.value);
               if (!isAdmin && myTeamIds.length === 1) setFilterTeam(String(myTeamIds[0]));
