@@ -1173,7 +1173,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
 
 export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, defaultEventType, onDone, onCancel, onTeamsChanged }) {
   const isEditing = !!game;
-  const { isSuperAdmin, isOrgAdmin, permissions, role, canEditOrg } = useAuth();
+  const { isSuperAdmin, isOrgAdmin, isTeamManager, permissions, role, canEditOrg } = useAuth();
   const [saving, setSaving] = useState(false);
   const [addingLocation, setAddingLocation] = useState(false);
   const [showAddLocationForm, setShowAddLocationForm] = useState(false);
