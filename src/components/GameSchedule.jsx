@@ -20,7 +20,7 @@ import { PracticeCard, PracticeEditModal } from './TeamSchedule.jsx';
 import { FieldForm } from './FieldsPage.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 import { Button, Input, Modal } from './ui/index.js';
-import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon } from './ui/icons.jsx';
+import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, PlusIcon, ChevronLeftIcon } from './ui/icons.jsx';
 
 // Compact chip label: "10U" + "AA" → "10AA", "12U" alone → "12U", division_name as-is.
 function divisionChipLabel(game) {
@@ -219,6 +219,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [showSubscribe, setShowSubscribe] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Consume initialGameId so it doesn't re-trigger on re-renders
   useEffect(() => {
@@ -240,7 +241,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
   const [filterEventType, setFilterEventType] = useState('games');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortOrder] = useState('asc');
   // For non-admins: block the games query until we know which teams to filter on.
   // Lazy-initialize to true for admins so they get zero extra render cycles.
   const [filterTeamReady, setFilterTeamReady] = useState(() => isAdmin);
@@ -538,87 +539,134 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); queryClient.invalidateQueries({ queryKey: ['games'] }); }} onNavigateToTeam={onNavigateToTeam} onOpenImport={onOpenImport} onViewPlayer={onViewPlayer} />;
   }
 
+  // Badge count for filters that deviate from defaults
+  const activeFilterCount = [
+    filterTeam,
+    filterStatus,
+    filterDivision,
+    filterEventType !== 'games' ? filterEventType : '',
+  ].filter(Boolean).length;
+
   return (
     <div>
-      <div className="sticky top-16 z-20 -mx-4 lg:-mx-6 px-4 lg:px-6 pt-2 pb-3 mb-4 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-          <h2 className="text-xl font-display font-bold text-white">Schedule ({mergedItems.length})</h2>
-          <div className="flex gap-2">
-            <div className="flex items-center gap-1 mr-2">
-              <button onClick={() => setViewMode('list')}
-                className={`lh-tab ${viewMode === 'list' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
-                List
-              </button>
-              <button onClick={() => setViewMode('calendar')}
-                className={`lh-tab ${viewMode === 'calendar' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
-                Calendar
-              </button>
-              <Button size="xs" variant="secondary" onClick={() => setShowSubscribe(true)} title="Subscribe to calendar feed">
-                📅
-              </Button>
-            </div>
-            <Button size="xs" variant="secondary" onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')} title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
-              {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
-            </Button>
-            {canScheduleGames && (
-              <>
-                <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Schedule</Button>
-              </>
+      <div className="sticky top-16 z-20 -mx-4 lg:-mx-6 px-4 lg:px-6 pt-2 pb-2 mb-4 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
+
+        {/* ── Top bar ─────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 min-h-10">
+
+          {/* Back — chevron only on mobile, chevron+label on sm+ */}
+          {onBack && (
+            <button onClick={onBack} className="btn btn-ghost btn-sm shrink-0 flex items-center gap-1" title="Back to Teams">
+              <ChevronLeftIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Teams</span>
+            </button>
+          )}
+
+          {/* Title */}
+          <h2 className="text-lg font-display font-bold text-white mr-auto">
+            Schedule
+            <span className="ml-1.5 text-sm font-normal text-gray-400">({mergedItems.length})</span>
+          </h2>
+
+          {/* View toggles — grouped pill */}
+          <div className="flex items-center gap-0.5 bg-gray-800 rounded-lg p-0.5 border border-gray-700 shrink-0">
+            <button onClick={() => setViewMode('list')}
+              className={`lh-tab ${viewMode === 'list' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
+              List
+            </button>
+            <button onClick={() => setViewMode('calendar')}
+              className={`lh-tab ${viewMode === 'calendar' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
+              Cal
+            </button>
+          </div>
+
+          {/* ICS subscribe — icon only with tooltip */}
+          <button
+            onClick={() => setShowSubscribe(true)}
+            className="btn btn-ghost btn-sm shrink-0"
+            title="Subscribe to calendar feed (.ics)"
+          >
+            <CalendarIcon className="w-4 h-4" />
+          </button>
+
+          {/* Filters toggle — badge shows active count */}
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            className={`btn btn-sm shrink-0 relative ${showFilters ? 'btn-secondary' : 'btn-ghost'}`}
+            title="Toggle filters"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" d="M3 6h18M7 12h10M11 18h2" />
+            </svg>
+            <span className="hidden sm:inline ml-1">Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-action-500 text-black text-[10px] font-bold flex items-center justify-center leading-none">
+                {activeFilterCount}
+              </span>
             )}
-            {onBack && <Button variant="secondary" onClick={onBack}>← Teams</Button>}
+          </button>
+
+          {/* + Schedule */}
+          {canScheduleGames && (
+            <Button size="sm" onClick={() => { setEditing(null); setShowForm(true); }}>
+              <PlusIcon className="w-4 h-4" />
+              <span className="hidden sm:inline ml-1">Schedule</span>
+            </Button>
+          )}
+        </div>
+
+        {/* ── Filter bar — hidden on mobile until toggled, always shown md+ ── */}
+        <div className={`${showFilters ? 'block' : 'hidden md:block'} mt-2`}>
+          <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2">
+            <select value={filterSeason} onChange={(e) => {
+              setFilterSeason(e.target.value);
+              if (!isAdmin && myTeamIds.length === 1) setFilterTeam(String(myTeamIds[0]));
+              else if (!isAdmin && myTeamIds.length > 1) setFilterTeam('__my_teams__');
+            }}
+              className="lh-select text-sm col-span-2 md:col-span-1">
+              <option value="">All Seasons</option>
+              {seasons.map(s => (
+                <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
+              ))}
+            </select>
+            <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)}
+              className="lh-select text-sm col-span-2 md:col-span-1">
+              <option value="">All Teams</option>
+              {myTeamIds.length > 0 && <option value="__my_teams__">⭐ My Teams</option>}
+              {orgNames.map(orgName => (
+                <optgroup key={orgName} label={orgName}>
+                  {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </optgroup>
+              ))}
+              {ungroupedTeams.length > 0 && (
+                <optgroup label="Unassigned">
+                  {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </optgroup>
+              )}
+            </select>
+            <select value={filterEventType} onChange={(e) => setFilterEventType(e.target.value)}
+              className="lh-select text-sm">
+              <option value="games">Games Only</option>
+              <option value="all">All Events</option>
+              <option value="practice">Practices</option>
+              <option value="event">Events</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+              className="lh-select text-sm">
+              <option value="">All Statuses</option>
+              {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}
+              className="lh-select text-sm">
+              <option value="">All Divisions</option>
+              {sortedDivisions.map(div => (
+                <option key={div} value={div}>{div}</option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <select value={filterSeason} onChange={(e) => {
-            setFilterSeason(e.target.value);
-            // Reset team filter to user's default when season changes
-            if (!isAdmin && myTeamIds.length === 1) setFilterTeam(String(myTeamIds[0]));
-            else if (!isAdmin && myTeamIds.length > 1) setFilterTeam('__my_teams__');
-          }}
-            className="lh-select min-w-[160px]">
-            <option value="">All Seasons</option>
-            {seasons.map(s => (
-              <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
-            ))}
-          </select>
-          <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)}
-            className="lh-select min-w-[180px]">
-            <option value="">All Teams</option>
-            {myTeamIds.length > 0 && <option value="__my_teams__">⭐ My Teams</option>}
-            {orgNames.map(orgName => (
-              <optgroup key={orgName} label={orgName}>
-                {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </optgroup>
-            ))}
-            {ungroupedTeams.length > 0 && (
-              <optgroup label="Unassigned">
-                {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </optgroup>
-            )}
-          </select>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="lh-select min-w-[140px]">
-            <option value="">All Statuses</option>
-            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-          <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}
-            className="lh-select min-w-[140px]">
-            <option value="">All Divisions</option>
-            {sortedDivisions.map(div => (
-              <option key={div} value={div}>{div}</option>
-            ))}
-          </select>
-          <select value={filterEventType} onChange={(e) => setFilterEventType(e.target.value)}
-            className="lh-select min-w-[140px]">
-            <option value="all">All Events</option>
-            <option value="games">Games Only</option>
-            <option value="practice">Practices</option>
-            <option value="event">Events</option>
-            <option value="maintenance">Maintenance</option>
-          </select>
-        </div>
       </div>
 
       {/* Non-admin scoped-to-my-teams info bar */}
