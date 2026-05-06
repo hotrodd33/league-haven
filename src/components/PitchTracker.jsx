@@ -587,9 +587,13 @@ export default function PitchTracker({ gameId, onBack }) {
                 </div>
 
                 <div className="border-t border-gray-700 mt-4 pt-3">
-                  <button onClick={() => setAddingNewPlayer(true)} className="text-sm text-chrome-400 hover:text-chrome-200 font-medium">
-                    + Add new player to roster
-                  </button>
+                  {ownsSide(addingSide) ? (
+                    <button onClick={() => setAddingNewPlayer(true)} className="text-sm text-chrome-400 hover:text-chrome-200 font-medium">
+                      + Add new player to roster
+                    </button>
+                  ) : (
+                    <p className="text-xs text-gray-500">Can't add new players to the opponent's roster — ask their coach to add them.</p>
+                  )}
                 </div>
               </>
             ) : (

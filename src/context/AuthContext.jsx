@@ -159,7 +159,8 @@ export function AuthProvider({ children }) {
     if (isSuperAdmin) return true;
     if (isOrgAdmin) {
       const orgIds = [homeOrgId, awayOrgId].filter(Boolean).map(Number);
-      return orgIds.length > 0 && orgIds.every(id => permissions.org_ids.includes(id));
+      // some() — only one team needs to be in their org (inter-org games allowed)
+      return orgIds.length > 0 && orgIds.some(id => permissions.org_ids.includes(id));
     }
     if (isTeamManager) {
       const teamIds = [Number(homeTeamId), Number(awayTeamId)];
