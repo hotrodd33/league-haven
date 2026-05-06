@@ -1,12 +1,15 @@
+// This is supposed to mimic GameSchedule.jsx and GameDetail.jsx. Its currently separate because of temporary teams, 
+// This can be replaced in the future depending on whats easiest.
+
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchTournamentGame, updateTournamentGame,
   fetchLocations, fetchWeather, fetchWeatherForecast,
-} from '../api/index.js';
-import { useAuth } from '../context/AuthContext.jsx';
-import TeamLogo from './TeamLogo.jsx';
-import { Button, Input } from './ui/index.js';
-import { DARK_STATUS_COLORS } from '../constants/statusClasses.js';
+} from '../../api/index.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import TeamLogo from '../TeamLogo.jsx';
+import { Button, Input, Modal } from '../ui/index.js';
+import { DARK_STATUS_COLORS } from '../../constants/statusClasses.js';
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
 
@@ -37,7 +40,7 @@ function formatTime(timeStr) {
  * with tournament_games data. Gracefully handles temp teams by hiding
  * sections that require real team data.
  */
-export default function TournamentGameDetail({ tournamentId, gameId, canManage, onBack, onNavigateToTeam }) {
+export default function TournamentGameDetail({ tournamentId, gameId, canManage, onBack, onNavigateToTeam, onNavigateToFields }) {
   const { isAdmin } = useAuth();
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -106,7 +109,7 @@ export default function TournamentGameDetail({ tournamentId, gameId, canManage, 
 
     fetcher.then(w => {
       if (w && !w.unavailable) setWeather(w);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [game?.location_lat, game?.location_lon, game?.game_date, game?.game_time, game?.status]);
 
   async function handleSaveScore(e) {
@@ -119,10 +122,7 @@ export default function TournamentGameDetail({ tournamentId, gameId, canManage, 
         home_score: hs,
         away_score: as,
       };
-      // Auto-complete if both scores present and different
-      if (hs != null && as != null && hs !== as) {
-        data.status = 'completed';
-      }
+      // Explicit status change required now
       await updateTournamentGame(tournamentId, gameId, data);
       setEditingScore(false);
       await loadGame();
@@ -130,28 +130,17 @@ export default function TournamentGameDetail({ tournamentId, gameId, canManage, 
     finally { setSaving(false); }
   }
 
-  async function handleSaveSchedule(e) {
-    e.preventDefault();
+  async function handleSaveGameForm(formData) {
     setSaving(true); setError(null);
     try {
       await updateTournamentGame(tournamentId, gameId, {
-        game_date: schedForm.game_date || null,
-        game_time: schedForm.game_time || null,
-        location_id: schedForm.location_id || null,
-        notes: schedForm.notes || null,
+        game_date: formData.game_date || null,
+        game_time: formData.game_time || null,
+        location_id: formData.location_id || null,
+        notes: formData.notes || null,
+        status: formData.status || 'pending',
       });
       setEditingSchedule(false);
-      await loadGame();
-    } catch (err) { setError(err.message); }
-    finally { setSaving(false); }
-  }
-
-  async function handleSaveStatus(e) {
-    e.preventDefault();
-    setSaving(true); setError(null);
-    try {
-      await updateTournamentGame(tournamentId, gameId, { status: statusValue });
-      setEditingStatus(false);
       await loadGame();
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -169,12 +158,27 @@ export default function TournamentGameDetail({ tournamentId, gameId, canManage, 
       {/* Back button + context */}
       <div className="flex items-center gap-2 mb-4">
         <Button variant="secondary" onClick={onBack}>← Back to Bracket</Button>
+        {canManage && (
+          <Button variant="secondary" onClick={() => setEditingSchedule(true)}>
+            ✏️ Edit Game
+          </Button>
+        )}
         {game.round_name && (
-          <span className="text-sm text-slate-400">
+          <span className="text-sm text-slate-400 ml-auto">
             {game.round_name} · Match #{game.match_number}
           </span>
         )}
       </div>
+
+      {editingSchedule && (
+        <TournamentGameForm
+          game={game}
+          locations={locations}
+          onSave={handleSaveGameForm}
+          onCancel={() => setEditingSchedule(false)}
+          saving={saving}
+        />
+      )}
 
       {error && <div className="lh-alert lh-alert-error mb-4">{error}</div>}
 
@@ -258,7 +262,25 @@ export default function TournamentGameDetail({ tournamentId, gameId, canManage, 
 
         {game.location_name && (
           <div className="text-xs text-gray-400 text-center">
-            📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}
+            {onNavigateToFields ? (
+              <button
+                onClick={onNavigateToFields}
+                className="hover:text-action-400 hover:underline cursor-pointer inline-flex items-center justify-center"
+                title={`View ${game.location_name} in Fields Tab`}
+              >
+                📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}
+              </button>
+            ) : (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location_name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-action-400 hover:underline cursor-pointer inline-flex items-center justify-center"
+                title={`View ${game.location_name} on Map`}
+              >
+                📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}
+              </a>
+            )}
           </div>
         )}
         {game.notes && <div className="text-xs text-gray-400 italic text-center mt-1">{game.notes}</div>}
@@ -266,23 +288,21 @@ export default function TournamentGameDetail({ tournamentId, gameId, canManage, 
 
       {/* Weather card */}
       {weather && (
-        <div className={`border rounded-xl p-4 sm:p-5 mb-4 ${
-          weather.playability?.rating === 'unplayable' ? 'bg-red-950/20 border-signal-500/30' :
+        <div className={`border rounded-xl p-4 sm:p-5 mb-4 ${weather.playability?.rating === 'unplayable' ? 'bg-red-950/20 border-signal-500/30' :
           weather.playability?.rating === 'poor' ? 'bg-orange-950/15 border-orange-500/30' :
-          'bg-gray-800 border-gray-700'
-        }`}>
+            'bg-gray-800 border-gray-700'
+          }`}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-display font-bold uppercase tracking-wide text-gray-100 flex items-center gap-2">
               {weather.icon} Game Day Weather
               {weather.isForecast && <span className="text-[10px] font-normal normal-case text-gray-500 italic">(forecast)</span>}
             </h3>
             {weather.playability && (
-              <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                weather.playability.rating === 'good' ? 'bg-action-900/40 text-action-300' :
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${weather.playability.rating === 'good' ? 'bg-action-900/40 text-action-300' :
                 weather.playability.rating === 'fair' ? 'bg-yellow-900/40 text-yellow-300' :
-                weather.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
-                'bg-signal-900/40 text-signal-300'
-              }`}>{weather.playability.rating}</span>
+                  weather.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                    'bg-signal-900/40 text-signal-300'
+                }`}>{weather.playability.rating}</span>
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -332,9 +352,7 @@ export default function TournamentGameDetail({ tournamentId, gameId, canManage, 
                   setScoreForm({ home_score: game.home_score ?? '', away_score: game.away_score ?? '' });
                 }}>Cancel</Button>
               </div>
-              {scoreForm.home_score !== '' && scoreForm.away_score !== '' && Number(scoreForm.home_score) !== Number(scoreForm.away_score) && (
-                <p className="text-xs text-emerald-400">💡 Saving will mark the game as completed and auto-advance the winner.</p>
-              )}
+              <p className="text-xs text-slate-400">💡 Game status must be explicitly set to Final via "Edit Game" to lock the match and advance the winner.</p>
               {scoreForm.home_score !== '' && scoreForm.away_score !== '' && Number(scoreForm.home_score) === Number(scoreForm.away_score) && (
                 <p className="text-xs text-yellow-400">⚠️ Ties are not allowed in elimination tournaments.</p>
               )}
@@ -348,85 +366,56 @@ export default function TournamentGameDetail({ tournamentId, gameId, canManage, 
           )}
         </div>
       )}
-
-      {/* Admin: Schedule */}
-      {canManage && (
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-display font-bold uppercase tracking-wide text-white">Schedule</h3>
-            {!editingSchedule && (
-              <button onClick={() => setEditingSchedule(true)} className="text-xs text-chrome-400 font-semibold hover:underline">Edit</button>
-            )}
-          </div>
-          {editingSchedule ? (
-            <form onSubmit={handleSaveSchedule} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="Date" type="date" value={schedForm.game_date}
-                  onChange={(e) => setSchedForm(prev => ({ ...prev, game_date: e.target.value }))} />
-                <Input label="Time" type="time" value={schedForm.game_time}
-                  onChange={(e) => setSchedForm(prev => ({ ...prev, game_time: e.target.value }))} />
-              </div>
-              <div>
-                <label className="lh-eyebrow block mb-1">Location</label>
-                <select value={schedForm.location_id}
-                  onChange={(e) => setSchedForm(prev => ({ ...prev, location_id: e.target.value }))}
-                  className="lh-select w-full">
-                  <option value="">— Select Location —</option>
-                  {locations.map(l => (
-                    <option key={l.id} value={l.id}>{l.name}{l.city ? ` (${l.city})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="lh-eyebrow block mb-1">Notes</label>
-                <textarea value={schedForm.notes}
-                  onChange={(e) => setSchedForm(prev => ({ ...prev, notes: e.target.value }))}
-                  rows={2} className="lh-input w-full" placeholder="Optional game notes…" />
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Schedule'}</Button>
-                <Button variant="secondary" onClick={() => setEditingSchedule(false)}>Cancel</Button>
-              </div>
-            </form>
-          ) : (
-            <div className="text-sm text-gray-300 space-y-1">
-              <div>📅 {game.game_date ? formatDate(game.game_date) : 'No date set'}{game.game_time ? ` at ${formatTime(game.game_time)}` : ''}</div>
-              <div>📍 {game.location_name || 'No location set'}</div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Admin: Status */}
-      {canManage && (
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-display font-bold uppercase tracking-wide text-white">Status</h3>
-            {!editingStatus && (
-              <button onClick={() => setEditingStatus(true)} className="text-xs text-chrome-400 font-semibold hover:underline">Change</button>
-            )}
-          </div>
-          {editingStatus ? (
-            <form onSubmit={handleSaveStatus} className="flex items-end gap-3">
-              <div className="flex-1">
-                <select value={statusValue}
-                  onChange={(e) => setStatusValue(e.target.value)}
-                  className="lh-select w-full">
-                  {STATUS_OPTIONS.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
-              <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Update'}</Button>
-              <Button variant="secondary" onClick={() => { setEditingStatus(false); setStatusValue(game.status); }}>Cancel</Button>
-            </form>
-          ) : (
-            <div className="text-sm text-gray-300">
-              Current status: <span className={`lh-badge ml-1 ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>{statusLabel}</span>
-            </div>
-          )}
-        </div>
-      )}
     </div>
+  );
+}
+
+// ─── Tournament Game Form Modal ───────────────────────────────────────────────
+function TournamentGameForm({ game, locations, onSave, onCancel, saving }) {
+  const [form, setForm] = useState({
+    game_date: game.game_date || '',
+    game_time: game.game_time?.slice(0, 5) || '',
+    location_id: game.location_id || '',
+    notes: game.notes || '',
+    status: game.status || 'pending',
+  });
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    onSave(form);
+  }
+
+  return (
+    <Modal open onClose={onCancel} title="Edit Tournament Game" size="lg">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Date" type="date" value={form.game_date} onChange={e => setForm({ ...form, game_date: e.target.value })} />
+          <Input label="Time" type="time" value={form.game_time} onChange={e => setForm({ ...form, game_time: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="lh-eyebrow block mb-1">Location</label>
+            <select value={form.location_id} onChange={e => setForm({ ...form, location_id: e.target.value })} className="lh-select w-full">
+              <option value="">— Select Location —</option>
+              {locations.map(l => <option key={l.id} value={l.id}>{l.name}{l.city ? ` (${l.city})` : ''}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="lh-eyebrow block mb-1">Status</label>
+            <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="lh-select w-full">
+              {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="lh-eyebrow block mb-1">Notes</label>
+          <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} className="lh-input w-full" placeholder="Optional notes..." />
+        </div>
+        <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-slate-700">
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Game'}</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
