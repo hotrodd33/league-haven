@@ -489,6 +489,22 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     return fallback || null;
   }
 
+  // Strip known age-group / level suffixes from a team's display name so the
+  // chip next to the game time is the single source for that info.
+  function stripAgeLevel(name, ageGroup, level) {
+    if (!name) return name;
+    let n = name.trim();
+    if (level) {
+      const suffix = ` ${level}`;
+      if (n.endsWith(suffix)) n = n.slice(0, -suffix.length).trim();
+    }
+    if (ageGroup) {
+      const suffix = ` ${ageGroup}`;
+      if (n.endsWith(suffix)) n = n.slice(0, -suffix.length).trim();
+    }
+    return n || name;
+  }
+
   // Build team optgroups
   const teamsByOrg = {};
   const ungroupedTeams = [];
@@ -653,24 +669,24 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                     return (
                       <div key={game.id} onClick={() => setSelectedGameId(game.id)}
                         className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
-                        {/* Time + Division */}
+                        {/* Time + Division chip */}
                         <div className="w-28 text-center shrink-0">
                           <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
-                          {divisionLabel && <span className="text-[11px] text-gray-400 truncate block">{divisionLabel}</span>}
+                          {divisionLabel && <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-chrome-900/60 text-chrome-300 text-[10px] font-bold rounded border border-chrome-700/50">{divisionLabel}</span>}
                         </div>
 
                         {/* Matchup: Away @ Home */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                             <div className="text-right min-w-0">
-                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.away_team_name}</button>
+                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{stripAgeLevel(game.away_team_name, game.away_age_group, game.away_level)}</button>
                               {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
                                 <CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} />
                               )}
                             </div>
                             <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
                           </div>
-                          <div className="px-2 shrink-0">
+                          <div className="w-20 text-center shrink-0">
                             {game.status === 'completed' ? (
                               <span className="font-extrabold text-lg text-white tabular-nums tracking-tight">{game.away_score ?? '—'} – {game.home_score ?? '—'}</span>
                             ) : (
@@ -680,7 +696,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                             <div className="min-w-0">
-                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.home_team_name}</button>
+                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{stripAgeLevel(game.home_team_name, game.home_age_group, game.home_level)}</button>
                               {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
                                 <CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} />
                               )}
@@ -781,9 +797,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                     <div key={game.id} onClick={() => setSelectedGameId(game.id)}
                       className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                       <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <span className="text-xs font-semibold text-gray-400 block">{formatTime(game.game_time) || 'TBD'}</span>
-                          {divisionLabel && <span className="text-[11px] text-gray-400 block">{divisionLabel}</span>}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-gray-400">{formatTime(game.game_time) || 'TBD'}</span>
+                          {divisionLabel && <span className="px-1.5 py-0.5 bg-chrome-900/60 text-chrome-300 text-[10px] font-bold rounded border border-chrome-700/50">{divisionLabel}</span>}
                         </div>
                         <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                           {game.status_label}
@@ -798,8 +814,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       <div className="mb-1">
                         <div className="flex items-center gap-2">
                           <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
-                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.away_team_name}</button>
-                          {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.away_score ?? '—'}</span>}
+                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{stripAgeLevel(game.away_team_name, game.away_age_group, game.away_level)}</button>
+                          {game.status === 'completed' && <span className="font-extrabold text-base text-white tabular-nums w-8 text-right shrink-0">{game.away_score ?? '—'}</span>}
                         </div>
                         {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
                           <div className="ml-8"><CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} /></div>
@@ -809,8 +825,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-gray-500 w-6 text-center shrink-0">@</span>
                           <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
-                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.home_team_name}</button>
-                          {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.home_score ?? '—'}</span>}
+                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{stripAgeLevel(game.home_team_name, game.home_age_group, game.home_level)}</button>
+                          {game.status === 'completed' && <span className="font-extrabold text-base text-white tabular-nums w-8 text-right shrink-0">{game.home_score ?? '—'}</span>}
                         </div>
                         {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
                           <div className="ml-8"><CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} /></div>
@@ -1119,20 +1135,20 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                         </div>
                         {/* Calendar tile: Away @ Home */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
                             <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }}
-                              className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{game.away_team_name}</button>
+                              className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline text-right">{stripAgeLevel(game.away_team_name, game.away_age_group, game.away_level)}</button>
+                            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
                           </div>
-                          <span className="text-xs text-gray-500 shrink-0">
+                          <div className="w-16 text-center shrink-0">
                             {game.status === 'completed'
-                              ? <span className="font-extrabold text-white">{game.away_score ?? '—'} – {game.home_score ?? '—'}</span>
-                              : '@'}
-                          </span>
-                          <div className="flex items-center gap-1.5">
+                              ? <span className="font-extrabold text-white text-sm tabular-nums">{game.away_score ?? '—'}–{game.home_score ?? '—'}</span>
+                              : <span className="text-xs text-gray-500">@</span>}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
                             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                             <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }}
-                              className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{game.home_team_name}</button>
+                              className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{stripAgeLevel(game.home_team_name, game.home_age_group, game.home_level)}</button>
                           </div>
                         </div>
                       </div>
