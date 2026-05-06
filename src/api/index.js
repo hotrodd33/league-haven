@@ -1524,6 +1524,12 @@ export async function createTournamentGame(tournamentId, matchId, data = {}) {
   });
 }
 
+export async function undoCreateGame(tournamentId, matchId) {
+  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/create-game`, {
+    method: 'DELETE',
+  });
+}
+
 export async function resetTournamentMatch(tournamentId, matchId) {
   return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/reset`, {
     method: 'POST',

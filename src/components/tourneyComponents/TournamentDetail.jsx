@@ -1,16 +1,27 @@
+// This is supposed to be the logic for the tournament page. When someone cicks on a tournament, this is the 
+// view that they will see. All data comes into this component, passed into children for rendering updates.
+// 
+// It has three top level components currently:
+//
+// 1. The TournamentBracket Component, which renders the bracket.
+// ***Review*** 2. The TournamentGameDetail Component which is the main view for the game details. I don't know if this needs to be rendered
+// from here. Could likely be something that the router could handle. 
+
+// 3. The TournamentEditorModal Component which is the main view for the tournament editor. 
+
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchTournament, fetchTeams, fetchLocations,
   assignTournamentMatch, scheduleTournamentMatch,
   updateTournament, createTournamentGame, resetTournamentMatch, resetTournamentRound,
-} from '../api/index.js';
-import { useAuth } from '../context/AuthContext.jsx';
-import { STALE } from '../lib/queryConfig.js';
-import { Button, Modal, Input, Select } from './ui/index.js';
-import { ChevronLeftIcon, CalendarIcon } from './ui/icons.jsx';
+} from '../../api/index.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { STALE } from '../../lib/queryConfig.js';
+import { Button, Modal, Input, Select } from '../ui/index.js';
+import { ChevronLeftIcon, CalendarIcon } from '../ui/icons.jsx';
 import TournamentBracket from './TournamentBracket.jsx';
-import TeamLogo from './TeamLogo.jsx';
+import TeamLogo from '../TeamLogo.jsx';
 import TournamentGameDetail from './TournamentGameDetail.jsx';
 import TournamentEditorModal from './TournamentEditorModal.jsx';
 
@@ -22,7 +33,7 @@ const STATUS_COLORS = {
   cancelled: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
-export default function TournamentDetail({ tournamentId, onBack, onNavigateToTeam }) {
+export default function TournamentDetail({ tournamentId, onBack, onNavigateToTeam, onNavigateToFields }) {
   const queryClient = useQueryClient();
   const { isAdmin, isOrgAdmin } = useAuth();
   const canManage = isAdmin || isOrgAdmin;
@@ -30,12 +41,14 @@ export default function TournamentDetail({ tournamentId, onBack, onNavigateToTea
   // ── UI state ─────────────────────────────────────────────
   const [selectedGameId, setSelectedGameId] = useState(null); // When a match is clicked
   const [showEditor, setShowEditor] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // ── Data fetching ──────────────────────────────────────────
   const { data, isLoading, error } = useQuery({
     queryKey: ['tournament', tournamentId],
     queryFn: () => fetchTournament(tournamentId),
     staleTime: STALE.THIRTY_SEC,
+    refetchInterval: 15000,
     refetchOnMount: 'always',
     enabled: !!tournamentId,
   });
@@ -56,6 +69,7 @@ export default function TournamentDetail({ tournamentId, onBack, onNavigateToTea
         teams: m.teams,
         winnerId: m.winnerId,
         game: m.game,
+        linked_game_id: m.linked_game_id,
         _matchData: m, // pass through for admin actions
       })),
     }));
@@ -99,6 +113,7 @@ export default function TournamentDetail({ tournamentId, onBack, onNavigateToTea
         canManage={canManage}
         onBack={() => setSelectedGameId(null)}
         onNavigateToTeam={onNavigateToTeam}
+        onNavigateToFields={onNavigateToFields}
       />
     );
   }
@@ -125,6 +140,9 @@ export default function TournamentDetail({ tournamentId, onBack, onNavigateToTea
         </div>
         {canManage && (
           <div className="flex items-center gap-2 shrink-0">
+            <Button variant="ghost" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-xs whitespace-nowrap bg-slate-800/50 hover:bg-slate-700">
+              {isSidebarOpen ? 'Hide Scheduler' : 'Show Scheduler'}
+            </Button>
             <Button variant="ghost" onClick={() => setShowEditor(true)} className="text-xs whitespace-nowrap">
               ✏️ Edit
             </Button>
@@ -142,12 +160,13 @@ export default function TournamentDetail({ tournamentId, onBack, onNavigateToTea
             bracketData={bracketData}
             onMatchClick={handleMatchClick}
             onNavigateToTeam={onNavigateToTeam}
+            onNavigateToFields={onNavigateToFields}
             onSlotClick={canManage ? handleSlotClick : undefined}
           />
         </div>
 
         {/* Admin sidebar */}
-        {canManage && (
+        {canManage && isSidebarOpen && (
           <aside className="w-full lg:w-80 shrink-0 space-y-4">
             <MatchScheduler
               tournamentId={tournamentId}
@@ -321,7 +340,7 @@ function MatchScheduler({ tournamentId, rounds, teams, queryClient, onCreateGame
                         await resetTournamentRound(tournamentId, r.id);
                         queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] });
                         queryClient.invalidateQueries({ queryKey: ['tournaments'] });
-                      } catch(err) { alert(err.message); }
+                      } catch (err) { alert(err.message); }
                     }
                   }}>Reset Round</Button>
                 </div>
@@ -335,7 +354,7 @@ function MatchScheduler({ tournamentId, rounds, teams, queryClient, onCreateGame
                             await resetTournamentMatch(tournamentId, m.id);
                             queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] });
                             queryClient.invalidateQueries({ queryKey: ['tournaments'] });
-                          } catch(err) { alert(err.message); }
+                          } catch (err) { alert(err.message); }
                         }
                       }}>Reset Match</Button>
                     </div>

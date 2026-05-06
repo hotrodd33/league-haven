@@ -153,6 +153,7 @@ function PageContent({
                     tournamentId={selectedTournamentId}
                     onBack={() => setPage('tournaments')}
                     onNavigateToTeam={navigateToTeam}
+                    onNavigateToFields={() => setPage('fields')}
                 />
             );
 

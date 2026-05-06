@@ -178,6 +178,7 @@ router.get('/:id', async (req, res) => {
               game_time: m.game_time || null,
               location_name: m.location_name || null,
             } : null,
+            linked_game_id: gameHasTeams ? m.game_id : null,
             can_create_game: !!(m.team_a_id && m.team_b_id && !gameHasTeams && !m.winner_team_id),
           };
         });
@@ -681,6 +682,44 @@ router.post('/:id/matches/:matchId/create-game', authMiddleware, async (req, res
   }
 });
 
+// ── DELETE /:id/matches/:matchId/create-game — undo game creation ────────────
+
+router.delete('/:id/matches/:matchId/create-game', authMiddleware, async (req, res) => {
+  try {
+    const { id, matchId } = req.params;
+    const { rows: tRows } = await pool.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+    const allowed = await canManageTournament(req.user, tRows[0].org_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
+
+    const { rows: mRows } = await pool.query(
+      'SELECT game_id, winner_team_id FROM tournament_matches WHERE id = $1 AND tournament_id = $2', [matchId, id]
+    );
+    if (!mRows.length) return res.status(404).json({ error: 'Match not found' });
+    
+    if (mRows[0].winner_team_id) {
+      return res.status(400).json({ error: 'Cannot undo matchup when there is already a winner.' });
+    }
+
+    if (mRows[0].game_id) {
+      await pool.query(
+        `UPDATE tournament_games SET
+          home_team_id = NULL, away_team_id = NULL,
+          game_date = NULL, game_time = NULL, location_id = NULL,
+          status = 'pending', updated_at = NOW()
+         WHERE id = $1`,
+        [mRows[0].game_id]
+      );
+    }
+
+    cache.invalidatePrefix('tournaments:');
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ── PUT /:id/rounds/:roundId — rename a round ───────────────────────────────
 
 router.put('/:id/rounds/:roundId', authMiddleware, async (req, res) => {
@@ -791,12 +830,15 @@ router.put('/:id/games/:gameId', authMiddleware, async (req, res) => {
 
     const { game_date, game_time, location_id, home_score, away_score, notes } = req.body;
     let { status } = req.body;
+    if (status === undefined) {
+      status = game.status;
+    }
 
-    // Auto-promote to scheduled if date+time+location set
+    // Auto-promote to scheduled if date+time+location set, but only if currently pending
     const effDate = game_date !== undefined ? game_date : game.game_date;
     const effTime = game_time !== undefined ? game_time : game.game_time;
     const effLoc = location_id !== undefined ? location_id : game.location_id;
-    if ((!status || status === 'pending') && effDate && effTime && effLoc) {
+    if (status === 'pending' && effDate && effTime && effLoc) {
       status = 'scheduled';
     }
 
@@ -813,14 +855,14 @@ router.put('/:id/games/:gameId', authMiddleware, async (req, res) => {
         notes = $7,
         updated_at = NOW()
        WHERE id = $8`,
-      [game_date, game_time ?? game.game_time, location_id ?? game.location_id,
-       status, home_score ?? null, away_score ?? null, notes ?? game.notes, gameId]
+      [game_date, game_time !== undefined ? game_time : game.game_time, location_id !== undefined ? location_id : game.location_id,
+       status, home_score !== undefined ? home_score : game.home_score, away_score !== undefined ? away_score : game.away_score, notes !== undefined ? notes : game.notes, gameId]
     );
 
     // Auto-advance: if game is now completed with a clear winner, advance in bracket
     const finalStatus = status || game.status;
-    const finalHomeScore = home_score ?? game.home_score;
-    const finalAwayScore = away_score ?? game.away_score;
+    const finalHomeScore = home_score !== undefined ? home_score : game.home_score;
+    const finalAwayScore = away_score !== undefined ? away_score : game.away_score;
 
     if (finalStatus === 'completed' && finalHomeScore != null && finalAwayScore != null && finalHomeScore !== finalAwayScore) {
       const { rows: mRows } = await client.query(
@@ -934,9 +976,9 @@ router.post('/:id/matches/:matchId/reset', authMiddleware, async (req, res) => {
       );
     }
 
-    // Clear winner/loser on match
+    // Clear winner/loser and bye status on match
     await client.query(
-      'UPDATE tournament_matches SET winner_team_id = NULL, loser_team_id = NULL WHERE id = $1', [matchId]
+      'UPDATE tournament_matches SET winner_team_id = NULL, loser_team_id = NULL, is_bye = FALSE WHERE id = $1', [matchId]
     );
 
     // Reset game back to scheduled/pending
@@ -1009,9 +1051,9 @@ router.post('/:id/rounds/:roundId/reset', authMiddleware, async (req, res) => {
         );
       }
 
-      // Clear match result
+      // Clear match result and bye status
       await client.query(
-        'UPDATE tournament_matches SET winner_team_id = NULL, loser_team_id = NULL WHERE id = $1', [match.id]
+        'UPDATE tournament_matches SET winner_team_id = NULL, loser_team_id = NULL, is_bye = FALSE WHERE id = $1', [match.id]
       );
 
       // Reset game

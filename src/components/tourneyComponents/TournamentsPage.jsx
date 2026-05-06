@@ -1,10 +1,12 @@
+// This holds a list of the active tournaments.
+
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchTournaments, createTournament, deleteTournament, fetchOrganizations } from '../api/index.js';
-import { useAuth } from '../context/AuthContext.jsx';
-import { STALE } from '../lib/queryConfig.js';
-import { Button, Badge, Modal, Input, Select } from './ui/index.js';
-import { PlusIcon, TrophyIcon, CalendarIcon, TrashIcon } from './ui/icons.jsx';
+import { fetchTournaments, createTournament, deleteTournament, fetchOrganizations } from '../../api/index.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { STALE } from '../../lib/queryConfig.js';
+import { Button, Badge, Modal, Input, Select } from '../ui/index.js';
+import { PlusIcon, TrophyIcon, CalendarIcon, TrashIcon } from '../ui/icons.jsx';
 
 const FORMAT_LABELS = {
   single_elimination: 'Single Elim',

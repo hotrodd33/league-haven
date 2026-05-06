@@ -1,14 +1,16 @@
+// This allows an admin to edit the tourney.
+
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   updateTournament, updateTournamentRound,
-  assignTournamentMatch, resizeTournament,
+  assignTournamentMatch, advanceTournamentMatch, undoCreateGame, resizeTournament,
   fetchTeams, addTournamentTeam, removeTournamentTeam,
-} from '../api/index.js';
-import { Button, Modal, Input, Select } from './ui/index.js';
-import TeamLogo from './TeamLogo.jsx';
-import { STALE } from '../lib/queryConfig.js';
-import { TrashIcon, MagnifyingGlassIcon, PlusIcon } from './ui/icons.jsx';
+} from '../../api/index.js';
+import { Button, Modal, Input, Select } from '../ui/index.js';
+import TeamLogo from '../TeamLogo.jsx';
+import { STALE } from '../../lib/queryConfig.js';
+import { TrashIcon, MagnifyingGlassIcon, PlusIcon } from '../ui/icons.jsx';
 
 const TAB_ITEMS = [
   { key: 'info', label: 'Info' },
@@ -29,11 +31,10 @@ export default function TournamentEditorModal({ tournament, tournamentId, teams,
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 text-sm font-semibold py-1.5 rounded-md transition-colors ${
-              tab === t.key
-                ? 'bg-slate-700 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className={`flex-1 text-sm font-semibold py-1.5 rounded-md transition-colors ${tab === t.key
+              ? 'bg-slate-700 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
+              }`}
           >
             {t.label}
           </button>
@@ -148,15 +149,14 @@ function InfoTab({ tournament, tournamentId, queryClient }) {
 
       {tournament.status === 'draft' && (
         <div className="pt-2 border-t border-slate-700">
-          <Select
+          <Input
             label="Tournament Size (Teams)"
+            type="number"
+            min={2}
+            max={128}
             value={teamCount}
             onChange={(e) => setTeamCount(Number(e.target.value))}
-          >
-            {[4, 8, 16, 32, 64].map(n => (
-              <option key={n} value={n}>{n} Teams</option>
-            ))}
-          </Select>
+          />
           <p className="text-xs text-slate-500 mt-1">Warning: Changing size will reset the bracket.</p>
         </div>
       )}
@@ -406,6 +406,22 @@ function MatchupsTab({ rounds, teams, tournamentId, queryClient, onCreateGame, o
     },
   });
 
+  const advanceMut = useMutation({
+    mutationFn: ({ matchId, teamId }) => advanceTournamentMatch(tournamentId, matchId, { tournament_team_id: teamId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] });
+      queryClient.invalidateQueries({ queryKey: ['tournaments'] });
+    },
+  });
+
+  const undoMut = useMutation({
+    mutationFn: (matchId) => undoCreateGame(tournamentId, matchId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tournament', tournamentId] });
+      queryClient.invalidateQueries({ queryKey: ['tournaments'] });
+    },
+  });
+
   function handleSlotChange(match, slot, tournamentTeamId) {
     assignMut.mutate({
       matchId: match.id,
@@ -477,7 +493,40 @@ function MatchupsTab({ rounds, teams, tournamentId, queryClient, onCreateGame, o
                         onClose();
                       }}
                     >
-                      ⚡ Create Game for This Matchup
+                      ⚡ Finalize Matchup
+                    </Button>
+                  )}
+
+                  {/* Undo Matchup / Delete Game button */}
+                  {hasLinkedGame && !hasWinner && (
+                    <Button
+                      variant="ghost"
+                      className="w-full text-xs text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-500/40"
+                      onClick={() => {
+                        if (confirm('Undo this matchup? This will clear any scheduled dates and times.')) {
+                          undoMut.mutate(match.id);
+                        }
+                      }}
+                      disabled={undoMut.isPending}
+                    >
+                      {undoMut.isPending ? 'Undoing...' : '🗑️ Undo / Delete Matchup'}
+                    </Button>
+                  )}
+
+                  {/* Bye button */}
+                  {(!teamA || !teamB) && (teamA || teamB) && !hasWinner && !hasLinkedGame && (
+                    <Button
+                      variant="ghost"
+                      className="w-full text-xs text-slate-400 hover:text-slate-300 border border-slate-700/50 hover:border-slate-600"
+                      onClick={() => {
+                        const teamId = teamA?.id || teamB?.id;
+                        if (confirm('Mark this match as a Bye and automatically advance the team?')) {
+                          advanceMut.mutate({ matchId: match.id, teamId });
+                        }
+                      }}
+                      disabled={advanceMut.isPending}
+                    >
+                      {advanceMut.isPending ? 'Advancing...' : '⏩ Mark as Bye (Advance Team)'}
                     </Button>
                   )}
                 </div>
