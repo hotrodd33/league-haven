@@ -22,6 +22,22 @@ import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../cons
 import { Button, Input, Modal } from './ui/index.js';
 import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon } from './ui/icons.jsx';
 
+// Strip known age-group / level suffixes from a team's display name.
+// The chip next to the game time is the single source for that info.
+function stripAgeLevel(name, ageGroup, level) {
+  if (!name) return name;
+  let n = name.trim();
+  if (level) {
+    const suffix = ` ${level}`;
+    if (n.endsWith(suffix)) n = n.slice(0, -suffix.length).trim();
+  }
+  if (ageGroup) {
+    const suffix = ` ${ageGroup}`;
+    if (n.endsWith(suffix)) n = n.slice(0, -suffix.length).trim();
+  }
+  return n || name;
+}
+
 const STATUS_OPTIONS = [
   { value: 'unscheduled', label: 'Unscheduled' },
   { value: 'scheduled', label: 'Scheduled' },
@@ -487,22 +503,6 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     if (game.division_name) return game.division_name;
     const fallback = [game.home_age_group, game.home_level].filter(Boolean).join(' ');
     return fallback || null;
-  }
-
-  // Strip known age-group / level suffixes from a team's display name so the
-  // chip next to the game time is the single source for that info.
-  function stripAgeLevel(name, ageGroup, level) {
-    if (!name) return name;
-    let n = name.trim();
-    if (level) {
-      const suffix = ` ${level}`;
-      if (n.endsWith(suffix)) n = n.slice(0, -suffix.length).trim();
-    }
-    if (ageGroup) {
-      const suffix = ` ${ageGroup}`;
-      if (n.endsWith(suffix)) n = n.slice(0, -suffix.length).trim();
-    }
-    return n || name;
   }
 
   // Build team optgroups
