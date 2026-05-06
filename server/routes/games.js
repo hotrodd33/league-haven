@@ -677,7 +677,12 @@ router.post('/', authMiddleware, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
       [season_id || null, home_team_id, away_team_id, location_id || null,
        game_date || null, game_time || null, game_duration_minutes ? Number(game_duration_minutes) : 150,
-       status || (game_date && game_time && location_id ? 'scheduled' : 'unscheduled'), notes || null]
+       // Auto-promote: treat explicit 'unscheduled' (sent by the form default) the same as no status.
+       // Promote to 'scheduled' when date + time + location are all provided.
+       (!status || status === 'unscheduled')
+         ? (game_date && game_time && location_id ? 'scheduled' : 'unscheduled')
+         : status,
+       notes || null]
     );
     const gameId = rows[0].id;
     const officialIds = Array.isArray(official_ids) ? official_ids : [];
