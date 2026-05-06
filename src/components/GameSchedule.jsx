@@ -669,10 +669,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                     return (
                       <div key={game.id} onClick={() => setSelectedGameId(game.id)}
                         className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
-                        {/* Time + Division chip */}
-                        <div className="w-28 text-center shrink-0">
-                          <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
-                          {divisionLabel && <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-chrome-900/60 text-chrome-300 text-[10px] font-bold rounded border border-chrome-700/50">{divisionLabel}</span>}
+                        {/* Time + Division chip — chip left of time */}
+                        <div className="w-44 shrink-0 flex items-center justify-end gap-2">
+                          {divisionLabel && (
+                            <span className="px-2 py-1 bg-chrome-700 text-chrome-100 text-xs font-bold rounded-md border border-chrome-500 whitespace-nowrap shrink-0 leading-none">
+                              {divisionLabel}
+                            </span>
+                          )}
+                          <span className="text-sm font-semibold text-gray-300 whitespace-nowrap w-16 text-center shrink-0">{formatTime(game.game_time) || 'TBD'}</span>
                         </div>
 
                         {/* Matchup: Away @ Home */}
@@ -705,10 +709,10 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                         </div>
 
                         {/* Location + Weather + Status */}
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-3 min-w-[16rem] shrink-0 justify-end">
                           {game.location_name && (
-                            <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[180px]">
-                              📍 {game.location_name}
+                            <span className="text-xs text-gray-400 hidden lg:inline-flex items-center gap-1 truncate max-w-[180px]">
+                              <MapPinIcon className="w-3 h-3 shrink-0" />{game.location_name}
                             </span>
                           )}
                           {gameWeather[String(game.id)] && (() => {
@@ -798,8 +802,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-400">{formatTime(game.game_time) || 'TBD'}</span>
-                          {divisionLabel && <span className="px-1.5 py-0.5 bg-chrome-900/60 text-chrome-300 text-[10px] font-bold rounded border border-chrome-700/50">{divisionLabel}</span>}
+                          {divisionLabel && <span className="px-2 py-1 bg-chrome-700 text-chrome-100 text-xs font-bold rounded-md border border-chrome-500 leading-none whitespace-nowrap">{divisionLabel}</span>}
+                          <span className="text-xs font-semibold text-gray-400 whitespace-nowrap">{formatTime(game.game_time) || 'TBD'}</span>
                         </div>
                         <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                           {game.status_label}
@@ -1728,6 +1732,10 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                 </div>
                 <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId || loadingLocations}>
                   <option value="">— {loadingLocations ? 'Loading fields…' : 'None'} —</option>
+                  {/* When editing, always include the current location even if it belongs to a different org (neutral site etc.) */}
+                  {form.location_id && !locations.some(l => String(l.id) === String(form.location_id)) && (
+                    <option value={form.location_id}>{game?.location_name || `Field #${form.location_id}`}</option>
+                  )}
                   {isDoubleheader ? (
                     <>
                       <optgroup label={selectedHomeTeam?.org_name || 'Home Team Fields'}>
