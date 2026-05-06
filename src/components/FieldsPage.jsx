@@ -436,7 +436,7 @@ export function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, on
 
   const parsedLat = Number(form.latitude);
   const parsedLng = Number(form.longitude);
-  const hasValidPin = Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
+  const hasValidPin = form.latitude !== '' && form.longitude !== '' && Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
   const mapCenter = hasValidPin ? [parsedLat, parsedLng] : DEFAULT_MAP_CENTER;
 
   async function setCoordinatesAndReverse(lat, lng) {
