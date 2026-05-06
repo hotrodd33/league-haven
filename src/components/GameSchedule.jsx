@@ -678,14 +678,10 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                     return (
                       <div key={game.id} onClick={() => setSelectedGameId(game.id)}
                         className="bg-gray-800 border border-gray-700 rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
-                        {/* Chip + Time */}
-                        <div className="w-36 shrink-0 flex items-center justify-end gap-2">
-                          {chipLabel && (
-                            <span className="px-2 py-1 bg-action-900/60 text-action-300 text-sm font-bold rounded-md border border-action-700 whitespace-nowrap shrink-0 leading-none">
-                              {chipLabel}
-                            </span>
-                          )}
-                          <span className="text-sm font-semibold text-gray-300 whitespace-nowrap w-16 text-center shrink-0">{formatTime(game.game_time) || 'TBD'}</span>
+                        {/* Time + Division stacked */}
+                        <div className="w-28 shrink-0 text-center">
+                          <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
+                          {chipLabel && <span className="text-base font-bold text-action-300 block leading-tight">{chipLabel}</span>}
                         </div>
 
                         {/* Matchup: Away @ Home */}
@@ -810,9 +806,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                     <div key={game.id} onClick={() => setSelectedGameId(game.id)}
                       className="bg-gray-800 border border-gray-700 rounded-lg p-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          {chipLabel && <span className="px-2 py-1 bg-action-900/60 text-action-300 text-sm font-bold rounded-md border border-action-700 leading-none whitespace-nowrap">{chipLabel}</span>}
-                          <span className="text-xs font-semibold text-gray-400 whitespace-nowrap">{formatTime(game.game_time) || 'TBD'}</span>
+                        <div>
+                          <span className="text-xs font-semibold text-gray-400 block">{formatTime(game.game_time) || 'TBD'}</span>
+                          {chipLabel && <span className="text-base font-bold text-action-300 leading-tight block">{chipLabel}</span>}
                         </div>
                         <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                           {game.status_label}
@@ -1143,13 +1139,9 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                     className="bg-gray-800 border border-gray-700 rounded-lg p-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className="shrink-0 flex items-center gap-2">
-                          {divisionChipLabel(game) && (
-                            <span className="px-2 py-1 bg-action-900/60 text-action-300 text-sm font-bold rounded-md border border-action-700 whitespace-nowrap leading-none">
-                              {divisionChipLabel(game)}
-                            </span>
-                          )}
-                          <span className="text-sm font-semibold text-gray-300 w-16 text-center shrink-0">{formatTime(game.game_time) || 'TBD'}</span>
+                        <div className="shrink-0 text-center w-28">
+                          <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
+                          {divisionChipLabel(game) && <span className="text-base font-bold text-action-300 block leading-tight">{divisionChipLabel(game)}</span>}
                         </div>
                         {/* Calendar tile: Away @ Home */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
