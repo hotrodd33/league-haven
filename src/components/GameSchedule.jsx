@@ -20,7 +20,32 @@ import { PracticeCard, PracticeEditModal } from './TeamSchedule.jsx';
 import { FieldForm } from './FieldsPage.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 import { Button, Input, Modal } from './ui/index.js';
-import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon } from './ui/icons.jsx';
+import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, PlusIcon, ChevronLeftIcon } from './ui/icons.jsx';
+
+// Compact chip label: "10U" + "AA" → "10AA", "12U" alone → "12U", division_name as-is.
+function divisionChipLabel(game) {
+  if (game.division_name) return game.division_name;
+  const age = game.home_age_group || '';
+  const lvl = game.home_level || '';
+  if (age && lvl) return age.replace(/U$/i, '') + lvl; // e.g. 10AA
+  return age || lvl || null;
+}
+
+// Strip known age-group / level suffixes from a team's display name.
+// The chip next to the game time is the single source for that info.
+function stripAgeLevel(name, ageGroup, level) {
+  if (!name) return name;
+  let n = name.trim();
+  if (level) {
+    const suffix = ` ${level}`;
+    if (n.endsWith(suffix)) n = n.slice(0, -suffix.length).trim();
+  }
+  if (ageGroup) {
+    const suffix = ` ${ageGroup}`;
+    if (n.endsWith(suffix)) n = n.slice(0, -suffix.length).trim();
+  }
+  return n || name;
+}
 
 const STATUS_OPTIONS = [
   { value: 'unscheduled', label: 'Unscheduled' },
@@ -190,10 +215,12 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [trackingGameId, setTrackingGameId] = useState(null);
   const [managingInterest, setManagingInterest] = useState(null);
   const dateSectionRefs = useRef({});
+  const stickyHeaderRef = useRef(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [showSubscribe, setShowSubscribe] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Consume initialGameId so it doesn't re-trigger on re-renders
   useEffect(() => {
@@ -215,7 +242,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
   const [filterEventType, setFilterEventType] = useState('games');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortOrder] = useState('asc');
   // For non-admins: block the games query until we know which teams to filter on.
   // Lazy-initialize to true for admins so they get zero extra render cycles.
   const [filterTeamReady, setFilterTeamReady] = useState(() => isAdmin);
@@ -367,7 +394,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   }
 
   async function handleDelete(game) {
-    const label = `${game.home_team_name} vs ${game.away_team_name} on ${formatDate(game.game_date)}`;
+    const label = `${game.away_team_name} @ ${game.home_team_name} on ${formatDate(game.game_date)}`;
     if (!window.confirm(`Delete game: ${label}?`)) return;
     setDeleting(game.id);
     // Optimistic removal — strip the game from every cached games query immediately
@@ -479,7 +506,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     if (!el) return;
 
     requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'auto', block: 'start' });
+      const headerHeight = stickyHeaderRef.current ? stickyHeaderRef.current.offsetHeight : 80;
+      const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
+      window.scrollTo({ top, behavior: 'smooth' });
     });
   }, [anchorDateKey, loading, filterSeason, filterTeam, filterStatus, filterDivision]);
 
@@ -513,87 +542,134 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
     return <GameDetail gameId={selectedGameId} onBack={() => { setSelectedGameId(null); queryClient.invalidateQueries({ queryKey: ['games'] }); }} onNavigateToTeam={onNavigateToTeam} onOpenImport={onOpenImport} onViewPlayer={onViewPlayer} />;
   }
 
+  // Badge count for filters that deviate from defaults
+  const activeFilterCount = [
+    filterTeam,
+    filterStatus,
+    filterDivision,
+    filterEventType !== 'games' ? filterEventType : '',
+  ].filter(Boolean).length;
+
   return (
     <div>
-      <div className="sticky top-16 z-20 -mx-4 lg:-mx-6 px-4 lg:px-6 pt-2 pb-3 mb-4 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-          <h2 className="text-xl font-display font-bold text-white">Schedule ({mergedItems.length})</h2>
-          <div className="flex gap-2">
-            <div className="flex items-center gap-1 mr-2">
-              <button onClick={() => setViewMode('list')}
-                className={`lh-tab ${viewMode === 'list' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
-                List
-              </button>
-              <button onClick={() => setViewMode('calendar')}
-                className={`lh-tab ${viewMode === 'calendar' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
-                Calendar
-              </button>
-              <Button size="xs" variant="secondary" onClick={() => setShowSubscribe(true)} title="Subscribe to calendar feed">
-                📅
-              </Button>
-            </div>
-            <Button size="xs" variant="secondary" onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')} title={sortOrder === 'asc' ? 'Oldest first' : 'Newest first'}>
-              {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
-            </Button>
-            {canScheduleGames && (
-              <>
-                <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Schedule</Button>
-              </>
+      <div ref={stickyHeaderRef} className="sticky top-16 z-20 -mx-4 lg:-mx-6 px-4 lg:px-6 pt-2 pb-2 mb-4 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
+
+        {/* ── Top bar ─────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 min-h-10">
+
+          {/* Back — chevron only on mobile, chevron+label on sm+ */}
+          {onBack && (
+            <button onClick={onBack} className="btn btn-ghost btn-sm shrink-0 flex items-center gap-1" title="Back to Teams">
+              <ChevronLeftIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Teams</span>
+            </button>
+          )}
+
+          {/* Title */}
+          <h2 className="text-lg font-display font-bold text-white mr-auto">
+            Schedule
+            <span className="ml-1.5 text-sm font-normal text-gray-400">({mergedItems.length})</span>
+          </h2>
+
+          {/* View toggles — grouped pill */}
+          <div className="flex items-center gap-0.5 bg-gray-800 rounded-lg p-0.5 border border-gray-700 shrink-0">
+            <button onClick={() => setViewMode('list')}
+              className={`lh-tab ${viewMode === 'list' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
+              List
+            </button>
+            <button onClick={() => setViewMode('calendar')}
+              className={`lh-tab ${viewMode === 'calendar' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
+              Cal
+            </button>
+          </div>
+
+          {/* ICS subscribe — icon only with tooltip */}
+          <button
+            onClick={() => setShowSubscribe(true)}
+            className="btn btn-ghost btn-sm shrink-0"
+            title="Subscribe to calendar feed (.ics)"
+          >
+            <CalendarIcon className="w-4 h-4" />
+          </button>
+
+          {/* Filters toggle — badge shows active count */}
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            className={`btn btn-sm shrink-0 relative ${showFilters ? 'btn-secondary' : 'btn-ghost'}`}
+            title="Toggle filters"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" d="M3 6h18M7 12h10M11 18h2" />
+            </svg>
+            <span className="hidden sm:inline ml-1">Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-action-500 text-black text-[10px] font-bold flex items-center justify-center leading-none">
+                {activeFilterCount}
+              </span>
             )}
-            {onBack && <Button variant="secondary" onClick={onBack}>← Teams</Button>}
+          </button>
+
+          {/* + Schedule */}
+          {canScheduleGames && (
+            <Button size="sm" onClick={() => { setEditing(null); setShowForm(true); }}>
+              <PlusIcon className="w-4 h-4" />
+              <span className="hidden sm:inline ml-1">Schedule</span>
+            </Button>
+          )}
+        </div>
+
+        {/* ── Filter bar — hidden on mobile until toggled, always shown md+ ── */}
+        <div className={`${showFilters ? 'block' : 'hidden md:block'} mt-2`}>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <select value={filterSeason} onChange={(e) => {
+              setFilterSeason(e.target.value);
+              if (!isAdmin && myTeamIds.length === 1) setFilterTeam(String(myTeamIds[0]));
+              else if (!isAdmin && myTeamIds.length > 1) setFilterTeam('__my_teams__');
+            }}
+              className="lh-select text-sm col-span-2 md:col-span-1">
+              <option value="">All Seasons</option>
+              {seasons.map(s => (
+                <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
+              ))}
+            </select>
+            <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)}
+              className="lh-select text-sm col-span-2 md:col-span-1">
+              <option value="">All Teams</option>
+              {myTeamIds.length > 0 && <option value="__my_teams__">⭐ My Teams</option>}
+              {orgNames.map(orgName => (
+                <optgroup key={orgName} label={orgName}>
+                  {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </optgroup>
+              ))}
+              {ungroupedTeams.length > 0 && (
+                <optgroup label="Unassigned">
+                  {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </optgroup>
+              )}
+            </select>
+            <select value={filterEventType} onChange={(e) => setFilterEventType(e.target.value)}
+              className="lh-select text-sm">
+              <option value="games">Games Only</option>
+              <option value="all">All Events</option>
+              <option value="practice">Practices</option>
+              <option value="event">Events</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+              className="lh-select text-sm">
+              <option value="">All Statuses</option>
+              {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}
+              className="lh-select text-sm">
+              <option value="">All Divisions</option>
+              {sortedDivisions.map(div => (
+                <option key={div} value={div}>{div}</option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <select value={filterSeason} onChange={(e) => {
-            setFilterSeason(e.target.value);
-            // Reset team filter to user's default when season changes
-            if (!isAdmin && myTeamIds.length === 1) setFilterTeam(String(myTeamIds[0]));
-            else if (!isAdmin && myTeamIds.length > 1) setFilterTeam('__my_teams__');
-          }}
-            className="lh-select min-w-[160px]">
-            <option value="">All Seasons</option>
-            {seasons.map(s => (
-              <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
-            ))}
-          </select>
-          <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)}
-            className="lh-select min-w-[180px]">
-            <option value="">All Teams</option>
-            {myTeamIds.length > 0 && <option value="__my_teams__">⭐ My Teams</option>}
-            {orgNames.map(orgName => (
-              <optgroup key={orgName} label={orgName}>
-                {teamsByOrg[orgName].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </optgroup>
-            ))}
-            {ungroupedTeams.length > 0 && (
-              <optgroup label="Unassigned">
-                {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </optgroup>
-            )}
-          </select>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="lh-select min-w-[140px]">
-            <option value="">All Statuses</option>
-            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-          <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}
-            className="lh-select min-w-[140px]">
-            <option value="">All Divisions</option>
-            {sortedDivisions.map(div => (
-              <option key={div} value={div}>{div}</option>
-            ))}
-          </select>
-          <select value={filterEventType} onChange={(e) => setFilterEventType(e.target.value)}
-            className="lh-select min-w-[140px]">
-            <option value="all">All Events</option>
-            <option value="games">Games Only</option>
-            <option value="practice">Practices</option>
-            <option value="event">Events</option>
-            <option value="maintenance">Maintenance</option>
-          </select>
-        </div>
       </div>
 
       {/* Non-admin scoped-to-my-teams info bar */}
@@ -647,52 +723,52 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                         deleting={deletingPractice === item.id} />;
                     }
                     const game = item;
-                    const divisionLabel = gameDivisionLevelLabel(game);
+                    const divLabel = divisionChipLabel(game);
                     const isInterested = interestGameIds.includes(Number(game.id));
                     const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
                     return (
                       <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                        className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
-                        {/* Time + Division */}
-                        <div className="w-28 text-center shrink-0">
+                        className="bg-gray-800 border border-gray-700 rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
+                        {/* Time + Division stacked */}
+                        <div className="w-28 shrink-0 text-center">
                           <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
-                          {divisionLabel && <span className="text-[11px] text-gray-400 truncate block">{divisionLabel}</span>}
+                          {divLabel && <span className="text-base font-bold text-action-300 block leading-tight">{divLabel}</span>}
                         </div>
 
-                        {/* Matchup */}
+                        {/* Matchup: Away @ Home */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                             <div className="text-right min-w-0">
-                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.home_team_name}</button>
-                              {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
-                                <CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} />
+                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{stripAgeLevel(game.away_team_name, game.away_age_group, game.away_level)}</button>
+                              {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
+                                <CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} />
                               )}
                             </div>
-                            <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
+                            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
                           </div>
-                          <div className="px-2 shrink-0">
+                          <div className="w-20 text-center shrink-0">
                             {game.status === 'completed' ? (
-                              <span className="font-extrabold text-lg text-white tabular-nums tracking-tight">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
+                              <span className="font-extrabold text-lg text-white tabular-nums tracking-tight">{game.away_score ?? '—'} – {game.home_score ?? '—'}</span>
                             ) : (
-                              <span className="text-xs font-semibold text-gray-400">vs</span>
+                              <span className="text-xs font-semibold text-gray-400">@</span>
                             )}
                           </div>
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
+                            <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                             <div className="min-w-0">
-                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.away_team_name}</button>
-                              {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
-                                <CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} />
+                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{stripAgeLevel(game.home_team_name, game.home_age_group, game.home_level)}</button>
+                              {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
+                                <CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} />
                               )}
                             </div>
                           </div>
                         </div>
 
                         {/* Location + Weather + Status */}
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-3 min-w-[16rem] shrink-0 justify-end">
                           {game.location_name && (
-                            <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[180px]">
-                              📍 {game.location_name}
+                            <span className="text-xs text-gray-400 hidden lg:inline-flex items-center gap-1 truncate max-w-[180px]">
+                              <MapPinIcon className="w-3 h-3 shrink-0" />{game.location_name}
                             </span>
                           )}
                           {gameWeather[String(game.id)] && (() => {
@@ -774,16 +850,16 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       deleting={deletingPractice === item.id} />;
                   }
                   const game = item;
-                  const divisionLabel = gameDivisionLevelLabel(game);
+                  const chipLabel = divisionChipLabel(game);
                   const isInterested = interestGameIds.includes(Number(game.id));
                   const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
                   return (
                     <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                      className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
+                      className="bg-gray-800 border border-gray-700 rounded-lg p-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                       <div className="flex items-center justify-between mb-2">
                         <div>
                           <span className="text-xs font-semibold text-gray-400 block">{formatTime(game.game_time) || 'TBD'}</span>
-                          {divisionLabel && <span className="text-[11px] text-gray-400 block">{divisionLabel}</span>}
+                          {chipLabel && <span className="text-base font-bold text-action-300 leading-tight block">{chipLabel}</span>}
                         </div>
                         <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                           {game.status_label}
@@ -794,24 +870,26 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           </span>
                         )}
                       </div>
+                      {/* Mobile: Away @ Home */}
                       <div className="mb-1">
                         <div className="flex items-center gap-2">
-                          <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
-                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.home_team_name}</button>
-                          {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.home_score ?? '—'}</span>}
+                          <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
+                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{stripAgeLevel(game.away_team_name, game.away_age_group, game.away_level)}</button>
+                          {game.status === 'completed' && <span className="font-extrabold text-base text-white tabular-nums w-8 text-right shrink-0">{game.away_score ?? '—'}</span>}
                         </div>
-                        {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
-                          <div className="ml-8"><CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} /></div>
+                        {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
+                          <div className="ml-8"><CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} /></div>
                         )}
                       </div>
                       <div className="mb-2">
                         <div className="flex items-center gap-2">
-                          <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
-                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.away_team_name}</button>
-                          {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.away_score ?? '—'}</span>}
+                          <span className="text-xs font-semibold text-gray-500 w-6 text-center shrink-0">@</span>
+                          <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
+                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{stripAgeLevel(game.home_team_name, game.home_age_group, game.home_level)}</button>
+                          {game.status === 'completed' && <span className="font-extrabold text-base text-white tabular-nums w-8 text-right shrink-0">{game.home_score ?? '—'}</span>}
                         </div>
-                        {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
-                          <div className="ml-8"><CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} /></div>
+                        {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
+                          <div className="ml-8"><CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} /></div>
                         )}
                       </div>
                       {game.location_name && (
@@ -1080,7 +1158,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                     'bg-chrome-900/40 text-chrome-300';
                   return (
                     <div key={g.id || j} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${statusColor}`}>
-                      {formatTime(g.game_time)} {[g.home_age_group, g.home_level].filter(Boolean).join(' ')} {g.home_city_abbr} vs {g.away_city_abbr}
+                      {[formatTime(g.game_time), divisionChipLabel(g), g.home_city_abbr, 'vs', g.away_city_abbr].filter(Boolean).join(' ')}
                     </div>
                   );
                 })}
@@ -1109,33 +1187,35 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                 return (
                   <div key={game.id}
                     onClick={() => onSelectGame(game.id)}
-                    className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-gray-300 w-20 shrink-0 text-center">
-                          {formatTime(game.game_time) || 'TBD'}
+                    className="bg-gray-800 border border-gray-700 rounded-lg p-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="shrink-0 text-center w-28">
+                          <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
+                          {divisionChipLabel(game) && <span className="text-base font-bold text-action-300 block leading-tight">{divisionChipLabel(game)}</span>}
                         </div>
+                        {/* Calendar tile: Away @ Home */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }}
+                              className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline text-right">{stripAgeLevel(game.away_team_name, game.away_age_group, game.away_level)}</button>
+                            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
+                          </div>
+                          <div className="w-16 text-center shrink-0">
+                            {game.status === 'completed'
+                              ? <span className="font-extrabold text-white text-sm tabular-nums">{game.away_score ?? '—'}–{game.home_score ?? '—'}</span>
+                              : <span className="text-xs text-gray-500">@</span>}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
                             <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                             <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }}
-                              className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{game.home_team_name}</button>
-                          </div>
-                          <span className="text-xs text-gray-500 shrink-0">
-                            {game.status === 'completed'
-                              ? <span className="font-extrabold text-white">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
-                              : 'vs'}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
-                            <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }}
-                              className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{game.away_team_name}</button>
+                              className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline">{stripAgeLevel(game.home_team_name, game.home_age_group, game.home_level)}</button>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {game.location_name && (
-                          <span className="text-xs text-gray-400 hidden sm:inline">📍 {game.location_name}</span>
+                          <span className="text-xs text-gray-400 hidden sm:inline-flex items-center gap-1"><MapPinIcon className="w-3 h-3 shrink-0" />{game.location_name}</span>
                         )}
                         {gameWeather[String(game.id)] && (() => {
                           const w = gameWeather[String(game.id)];
@@ -1709,6 +1789,10 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                 </div>
                 <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId || loadingLocations}>
                   <option value="">— {loadingLocations ? 'Loading fields…' : 'None'} —</option>
+                  {/* When editing, always include the current location even if it belongs to a different org (neutral site etc.) */}
+                  {form.location_id && !locations.some(l => String(l.id) === String(form.location_id)) && (
+                    <option value={form.location_id}>{game?.location_name || `Field #${form.location_id}`}</option>
+                  )}
                   {isDoubleheader ? (
                     <>
                       <optgroup label={selectedHomeTeam?.org_name || 'Home Team Fields'}>
