@@ -163,7 +163,7 @@ function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCou
 }
 
 export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport, onViewPlayer }) {
-  const { isAdmin, isSuperAdmin, isAuthenticated, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
+  const { isAdmin, isSuperAdmin, isOrgAdmin, isTeamManager, isAuthenticated, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
   const { features } = useBranding(isAuthenticated);
   const queryClient = useQueryClient();
   const gameDeleteEnabled = features.feature_game_delete === true;
@@ -1322,22 +1322,32 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   // For non-game types, load locations from user's org(s)
   useEffect(() => {
     if (isGame) return;
-    // Load locations for the user's org(s)
-    const orgIds = isSuperAdmin ? null : (permissions?.org_ids || []);
     if (isSuperAdmin) {
-      // Load all orgs to get all locations
       fetchOrganizations().then(orgs => {
         const promises = orgs.map(o => fetchLocations(o.id).catch(() => []));
         return Promise.all(promises);
-      }).then(results => {
-        setLocations(results.flat());
-      }).catch(() => setLocations([]));
-    } else if (orgIds?.length) {
-      Promise.all(orgIds.map(oid => fetchLocations(oid).catch(() => [])))
+      }).then(results => setLocations(results.flat()))
+        .catch(() => setLocations([]));
+    } else if (permissions?.org_ids?.length) {
+      // org_admin: load by their direct org list
+      Promise.all(permissions.org_ids.map(oid => fetchLocations(oid).catch(() => [])))
         .then(results => setLocations(results.flat()))
         .catch(() => setLocations([]));
+    } else if (permissions?.team_ids?.length) {
+      // team_manager: derive org(s) from their teams, then load those orgs' fields
+      const teamOrgIds = [...new Set(
+        teams
+          .filter(t => permissions.team_ids.includes(Number(t.id)))
+          .map(t => t.org_id)
+          .filter(Boolean)
+      )];
+      if (teamOrgIds.length) {
+        Promise.all(teamOrgIds.map(oid => fetchLocations(oid).catch(() => [])))
+          .then(results => setLocations(results.flat()))
+          .catch(() => setLocations([]));
+      }
     }
-  }, [isGame, isSuperAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isGame, isSuperAdmin, permissions?.org_ids, permissions?.team_ids, teams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Time options for reservation types — use the same settings as game times but wider window
   const resTimeOptions = useMemo(() => {
@@ -1568,8 +1578,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     );
   }
 
-  // Determine if user can create reservations (needs canEditOrg for at least one org)
-  const canCreateReservation = isSuperAdmin || isOrgAdmin;
+  // Determine if user can create reservations: org admins + team managers (coaches) and above
+  const canCreateReservation = isSuperAdmin || isOrgAdmin || isTeamManager;
 
   // Available event types based on permissions
   const eventTypeOptions = [

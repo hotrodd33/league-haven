@@ -177,6 +177,7 @@ export function AuthProvider({ children }) {
     isAdmin,
     isSuperAdmin,
     isOrgAdmin,
+    isTeamManager,
     isAccountant,
     isUmpire,
     isGuardian,
