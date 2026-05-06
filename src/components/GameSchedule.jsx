@@ -681,7 +681,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                         {/* Chip + Time */}
                         <div className="w-36 shrink-0 flex items-center justify-end gap-2">
                           {chipLabel && (
-                            <span className="px-2 py-1 bg-chrome-700 text-chrome-100 text-xs font-bold rounded-md border border-chrome-500 whitespace-nowrap shrink-0 leading-none">
+                            <span className="px-2 py-1 bg-action-900/60 text-action-300 text-sm font-bold rounded-md border border-action-700 whitespace-nowrap shrink-0 leading-none">
                               {chipLabel}
                             </span>
                           )}
@@ -811,7 +811,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       className="bg-gray-800 border border-gray-700 rounded-lg p-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          {chipLabel && <span className="px-2 py-1 bg-chrome-700 text-chrome-100 text-xs font-bold rounded-md border border-chrome-500 leading-none whitespace-nowrap">{chipLabel}</span>}
+                          {chipLabel && <span className="px-2 py-1 bg-action-900/60 text-action-300 text-sm font-bold rounded-md border border-action-700 leading-none whitespace-nowrap">{chipLabel}</span>}
                           <span className="text-xs font-semibold text-gray-400 whitespace-nowrap">{formatTime(game.game_time) || 'TBD'}</span>
                         </div>
                         <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
@@ -1145,7 +1145,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <div className="shrink-0 flex items-center gap-2">
                           {divisionChipLabel(game) && (
-                            <span className="px-2 py-1 bg-chrome-700 text-chrome-100 text-xs font-bold rounded-md border border-chrome-500 whitespace-nowrap leading-none">
+                            <span className="px-2 py-1 bg-action-900/60 text-action-300 text-sm font-bold rounded-md border border-action-700 whitespace-nowrap leading-none">
                               {divisionChipLabel(game)}
                             </span>
                           )}
