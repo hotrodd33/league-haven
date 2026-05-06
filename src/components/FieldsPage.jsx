@@ -518,15 +518,24 @@ export function FieldForm({ orgId, editableOrgIds, orgs, ageGroups, location, on
     if (longitude != null && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
       setSaving(false); setError('Longitude must be a number between -180 and 180.'); return;
     }
+
+    // Auto-fill address from coordinates if address fields are blank
+    let resolvedForm = form;
+    const addressBlank = !form.address.trim() && !form.city.trim() && !form.state.trim() && !form.zip.trim();
+    if (latitude != null && longitude != null && addressBlank) {
+      const geo = await reverseGeocode(latitude, longitude);
+      if (geo) resolvedForm = { ...form, address: geo.address || '', city: geo.city || '', state: geo.state || '', zip: geo.zip || '' };
+    }
+
     const data = {
-      org_id: Number(form.org_id),
-      name: form.name.trim() || null,
-      address: form.address.trim() || null,
-      city: form.city.trim() || null,
-      state: form.state.trim() || null,
-      zip: form.zip.trim() || null,
+      org_id: Number(resolvedForm.org_id),
+      name: resolvedForm.name.trim() || null,
+      address: resolvedForm.address.trim() || null,
+      city: resolvedForm.city.trim() || null,
+      state: resolvedForm.state.trim() || null,
+      zip: resolvedForm.zip.trim() || null,
       latitude, longitude,
-      comments: form.comments.trim() || null,
+      comments: resolvedForm.comments.trim() || null,
       age_group_ids: selectedAgeGroupIds,
     };
     try {
