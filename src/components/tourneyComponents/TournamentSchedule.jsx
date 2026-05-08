@@ -33,7 +33,7 @@ const STATUS_COLORS = {
   cancelled: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
-export default function TournamentDetail({ tournamentId, onBack, onNavigateToTeam, onNavigateToFields }) {
+export default function TournamentSchedule({ tournamentId, onBack, onNavigateToTeam, onNavigateToFields }) {
   const queryClient = useQueryClient();
   const { isAdmin, isOrgAdmin } = useAuth();
   const canManage = isAdmin || isOrgAdmin;
