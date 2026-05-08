@@ -106,11 +106,10 @@ function UmpireStatusList({ officials, interestedUmpires }) {
   return (
     <div className="flex flex-wrap gap-1">
       {items.map((item, i) => (
-        <span key={i} className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-          item.status === 'assigned'
+        <span key={i} className={`text-xs px-1.5 py-0.5 rounded font-medium ${item.status === 'assigned'
             ? 'bg-action-900/50 text-action-300'
             : DARK_BADGES.warning
-        }`}>
+          }`}>
           {item.name}
         </span>
       ))}
@@ -119,9 +118,9 @@ function UmpireStatusList({ officials, interestedUmpires }) {
 }
 
 function buildTimeSlots(startTime, endTime, increment) {
-  const start = toMinutes(startTime);  const end = toMinutes(endTime);
+  const start = toMinutes(startTime); const end = toMinutes(endTime);
   if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) return [];
-  const step = Number(increment) || 30;  const slots = [];
+  const step = Number(increment) || 30; const slots = [];
   for (let cur = start; cur <= end; cur += step) {
     slots.push(toHHMM(cur));
   }
@@ -416,9 +415,9 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   // Filter games by division if selected
   const filteredGames = filterDivision
     ? games.filter(g => {
-        const divLabel = g.division_name || ([g.home_age_group, g.home_level].filter(Boolean).join(' ')) || null;
-        return divLabel === filterDivision;
-      })
+      const divLabel = g.division_name || ([g.home_age_group, g.home_level].filter(Boolean).join(' ')) || null;
+      return divLabel === filterDivision;
+    })
     : games;
 
   // Build merged items list based on event type filter
@@ -621,125 +620,244 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                 </>
               )}
             </div>
-      ) : (
-        <div className="space-y-6">
-          {sortedDateKeys.map(dateKey => (
-            <div key={dateKey} ref={(el) => { dateSectionRefs.current[dateKey] = el; }}>
-              <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
-                {formatDate(dateKey)}
-              </h3>
+          ) : (
+            <div className="space-y-6">
+              {sortedDateKeys.map(dateKey => (
+                <div key={dateKey} ref={(el) => { dateSectionRefs.current[dateKey] = el; }}>
+                  <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
+                    {formatDate(dateKey)}
+                  </h3>
 
-              {/* Desktop */}
-              <div className="hidden md:block">
-                <div className="space-y-2">
-                  {gamesByDate[dateKey].map(item => {
-                    if (item._type === 'practice') {
-                      return <PracticeCard key={`p-${item.id}`} practice={item} editable={canScheduleGames}
-                        onEdit={() => setEditingPractice(item)}
-                        onDelete={async () => { setDeletingPractice(item.id); await deleteReservation(item.id); queryClient.invalidateQueries({ queryKey: ['practices'] }); setDeletingPractice(null); }}
-                        deleting={deletingPractice === item.id} />;
-                    }
-                    const game = item;
-                    const divisionLabel = gameDivisionLevelLabel(game);
-                    const isInterested = interestGameIds.includes(Number(game.id));
-                    const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
-                    return (
-                      <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                        className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
-                        {/* Time + Division */}
-                        <div className="w-28 text-center shrink-0">
-                          <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
-                          {divisionLabel && <span className="text-[11px] text-gray-400 truncate block">{divisionLabel}</span>}
-                        </div>
+                  {/* Desktop */}
+                  <div className="hidden md:block">
+                    <div className="space-y-2">
+                      {gamesByDate[dateKey].map(item => {
+                        if (item._type === 'practice') {
+                          return <PracticeCard key={`p-${item.id}`} practice={item} editable={canScheduleGames}
+                            onEdit={() => setEditingPractice(item)}
+                            onDelete={async () => { setDeletingPractice(item.id); await deleteReservation(item.id); queryClient.invalidateQueries({ queryKey: ['practices'] }); setDeletingPractice(null); }}
+                            deleting={deletingPractice === item.id} />;
+                        }
+                        const game = item;
+                        const divisionLabel = gameDivisionLevelLabel(game);
+                        const isInterested = interestGameIds.includes(Number(game.id));
+                        const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
+                        return (
+                          <div key={game.id} onClick={() => setSelectedGameId(game.id)}
+                            className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
+                            {/* Time + Division */}
+                            <div className="w-28 text-center shrink-0">
+                              <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
+                              {divisionLabel && <span className="text-[11px] text-gray-400 truncate block">{divisionLabel}</span>}
+                            </div>
 
-                        {/* Matchup */}
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                            <div className="text-right min-w-0">
-                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.home_team_name}</button>
-                              {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
-                                <CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} />
+                            {/* Matchup */}
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                                <div className="text-right min-w-0">
+                                  <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.home_team_name}</button>
+                                  {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
+                                    <CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} />
+                                  )}
+                                </div>
+                                <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
+                              </div>
+                              <div className="px-2 shrink-0">
+                                {game.status === 'completed' ? (
+                                  <span className="font-extrabold text-lg text-white tabular-nums tracking-tight">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
+                                ) : (
+                                  <span className="text-xs font-semibold text-gray-400">vs</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
+                                <div className="min-w-0">
+                                  <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.away_team_name}</button>
+                                  {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
+                                    <CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} />
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Location + Weather + Status */}
+                            <div className="flex items-center gap-3 shrink-0">
+                              {game.location_name && (
+                                <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[180px]">
+                                  📍 {game.location_name}
+                                </span>
+                              )}
+                              {gameWeather[String(game.id)] && (() => {
+                                const w = gameWeather[String(game.id)];
+                                return (
+                                  <span className="hidden lg:inline-flex items-center gap-1 text-xs text-gray-400 shrink-0" title={`${w.description}${w.isForecast ? ' (forecast)' : ''}`}>
+                                    <span>{w.icon}</span>
+                                    <span>{w.temp}°</span>
+                                    {w.precipitationProbability > 0 && (
+                                      <span className={w.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️{w.precipitationProbability}%</span>
+                                    )}
+                                    {w.playability && w.playability.rating !== 'good' && (
+                                      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
+                                          w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                                            'bg-yellow-900/40 text-yellow-300'
+                                        }`}>{w.playability.rating}</span>
+                                    )}
+                                  </span>
+                                );
+                              })()}
+                              {!!game.officials?.length && (
+                                <div className="hidden lg:flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                                  {game.officials.map((o, i) => (
+                                    <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-action-900/50 text-action-300">{o.name}</span>
+                                  ))}
+                                </div>
+                              )}
+                              <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
+                                {game.status_label}
+                              </span>
+                              {game.is_gamechanger_imported && (
+                                <span className={GC_BADGE_CLASS} title="Imported from GameChanger" aria-label="Imported from GameChanger">
+                                  GC
+                                </span>
+                              )}
+                              {(game.status === 'scheduled' || game.status === 'in_progress') && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
+                                <Button size="xs" variant={game.status === 'in_progress' ? 'primary' : 'warn'} onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}>{game.status === 'in_progress' ? '⚾ Live' : '⚾ Track'}</Button>
+                              )}
+                              {canEditThisGame && (
+                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                  {game.status === 'unscheduled' && (
+                                    <Button size="xs" variant="danger" onClick={() => handleScheduleIt(game)}>Schedule It!</Button>
+                                  )}
+                                  {game.status !== 'unscheduled' && (
+                                    <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
+                                  )}
+                                  {canShowDelete(game) && (
+                                    <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Del'}</Button>
+                                  )}
+                                </div>
+                              )}
+                              {isUmpire && game.status === 'scheduled' && (
+                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <Button
+                                    size="xs"
+                                    variant={isInterested ? 'primary' : 'chrome'}
+                                    onClick={() => handleToggleInterest(game.id, isInterested)}
+                                    disabled={managingInterest === game.id}
+                                  >
+                                    {managingInterest === game.id ? '…' : (isInterested ? 'Interested' : 'I\'m Interested')}
+                                  </Button>
+                                </div>
                               )}
                             </div>
-                            <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} />
                           </div>
-                          <div className="px-2 shrink-0">
-                            {game.status === 'completed' ? (
-                              <span className="font-extrabold text-lg text-white tabular-nums tracking-tight">{game.home_score ?? '—'} – {game.away_score ?? '—'}</span>
-                            ) : (
-                              <span className="text-xs font-semibold text-gray-400">vs</span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Mobile cards */}
+                  <div className="md:hidden space-y-2">
+                    {gamesByDate[dateKey].map(item => {
+                      if (item._type === 'practice') {
+                        return <PracticeCard key={`p-${item.id}`} practice={item} editable={canScheduleGames}
+                          onEdit={() => setEditingPractice(item)}
+                          onDelete={async () => { setDeletingPractice(item.id); await deleteReservation(item.id); queryClient.invalidateQueries({ queryKey: ['practices'] }); setDeletingPractice(null); }}
+                          deleting={deletingPractice === item.id} />;
+                      }
+                      const game = item;
+                      const divisionLabel = gameDivisionLevelLabel(game);
+                      const isInterested = interestGameIds.includes(Number(game.id));
+                      const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
+                      return (
+                        <div key={game.id} onClick={() => setSelectedGameId(game.id)}
+                          className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <span className="text-xs font-semibold text-gray-400 block">{formatTime(game.game_time) || 'TBD'}</span>
+                              {divisionLabel && <span className="text-[11px] text-gray-400 block">{divisionLabel}</span>}
+                            </div>
+                            <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
+                              {game.status_label}
+                            </span>
+                            {game.is_gamechanger_imported && (
+                              <span className={GC_BADGE_CLASS} title="Imported from GameChanger" aria-label="Imported from GameChanger">
+                                GC
+                              </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} />
-                            <div className="min-w-0">
-                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm truncate text-action-300 hover:text-action-100 hover:underline block">{game.away_team_name}</button>
-                              {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
-                                <CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} />
-                              )}
+                          <div className="mb-1">
+                            <div className="flex items-center gap-2">
+                              <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
+                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.home_team_name}</button>
+                              {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.home_score ?? '—'}</span>}
                             </div>
+                            {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
+                              <div className="ml-8"><CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} /></div>
+                            )}
                           </div>
-                        </div>
-
-                        {/* Location + Weather + Status */}
-                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="mb-2">
+                            <div className="flex items-center gap-2">
+                              <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
+                              <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.away_team_name}</button>
+                              {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.away_score ?? '—'}</span>}
+                            </div>
+                            {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
+                              <div className="ml-8"><CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} /></div>
+                            )}
+                          </div>
                           {game.location_name && (
-                            <span className="text-xs text-gray-400 hidden lg:inline truncate max-w-[180px]">
-                              📍 {game.location_name}
-                            </span>
+                            <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
                           )}
                           {gameWeather[String(game.id)] && (() => {
                             const w = gameWeather[String(game.id)];
                             return (
-                              <span className="hidden lg:inline-flex items-center gap-1 text-xs text-gray-400 shrink-0" title={`${w.description}${w.isForecast ? ' (forecast)' : ''}`}>
-                                <span>{w.icon}</span>
-                                <span>{w.temp}°</span>
+                              <div className="flex items-center gap-2 text-xs text-gray-400 mb-1 flex-wrap">
+                                <span title={w.description}>{w.icon} {w.temp}°F</span>
+                                {w.feelsLike != null && w.feelsLike !== w.temp && (
+                                  <span className="text-gray-500">(feels {w.feelsLike}°)</span>
+                                )}
+                                {w.windSpeed > 0 && (
+                                  <span className="text-gray-500">💨 {w.windSpeed}mph{w.windDirection ? ` ${w.windDirection}` : ''}</span>
+                                )}
                                 {w.precipitationProbability > 0 && (
-                                  <span className={w.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️{w.precipitationProbability}%</span>
+                                  <span className={w.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️ {w.precipitationProbability}%</span>
                                 )}
                                 {w.playability && w.playability.rating !== 'good' && (
-                                  <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
-                                    w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
-                                    w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
-                                    'bg-yellow-900/40 text-yellow-300'
-                                  }`}>{w.playability.rating}</span>
+                                  <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
+                                      w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                                        'bg-yellow-900/40 text-yellow-300'
+                                    }`}>{w.playability.rating}</span>
                                 )}
-                              </span>
+                                {w.isForecast && <span className="text-gray-600 text-[10px] italic">forecast</span>}
+                              </div>
                             );
                           })()}
                           {!!game.officials?.length && (
-                            <div className="hidden lg:flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex flex-wrap gap-1 mb-1" onClick={(e) => e.stopPropagation()}>
                               {game.officials.map((o, i) => (
                                 <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-action-900/50 text-action-300">{o.name}</span>
                               ))}
                             </div>
                           )}
-                          <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
-                            {game.status_label}
-                          </span>
-                          {game.is_gamechanger_imported && (
-                            <span className={GC_BADGE_CLASS} title="Imported from GameChanger" aria-label="Imported from GameChanger">
-                              GC
-                            </span>
-                          )}
-                          {(game.status === 'scheduled' || game.status === 'in_progress') && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                            <Button size="xs" variant={game.status === 'in_progress' ? 'primary' : 'warn'} onClick={(e) => { e.stopPropagation(); setTrackingGameId(game.id); }}>{game.status === 'in_progress' ? '⚾ Live' : '⚾ Track'}</Button>
-                          )}
-                          {canEditThisGame && (
-                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                              {game.status === 'unscheduled' && (
-                                <Button size="xs" variant="danger" onClick={() => handleScheduleIt(game)}>Schedule It!</Button>
-                              )}
-                              {game.status !== 'unscheduled' && (
-                                <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
-                              )}
-                              {canShowDelete(game) && (
-                                <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Del'}</Button>
-                              )}
-                            </div>
-                          )}
-                          {isUmpire && game.status === 'scheduled' && (
-                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                          {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
+                          <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
+                            {(game.status === 'scheduled' || game.status === 'in_progress') && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
+                              <Button size="xs" variant={game.status === 'in_progress' ? 'primary' : 'warn'} onClick={() => setTrackingGameId(game.id)}>{game.status === 'in_progress' ? '⚾ Live' : '⚾ Track'}</Button>
+                            )}
+                            {canEditThisGame && (
+                              <>
+                                {game.status === 'unscheduled' && (
+                                  <Button size="xs" variant="danger" onClick={() => handleScheduleIt(game)}>Schedule It!</Button>
+                                )}
+                                {game.status !== 'unscheduled' && (
+                                  <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
+                                )}
+                                {canShowDelete(game) && (
+                                  <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Delete'}</Button>
+                                )}
+                              </>
+                            )}
+                            {isUmpire && game.status === 'scheduled' && (
                               <Button
                                 size="xs"
                                 variant={isInterested ? 'primary' : 'chrome'}
@@ -748,137 +866,16 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                               >
                                 {managingInterest === game.id ? '…' : (isInterested ? 'Interested' : 'I\'m Interested')}
                               </Button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Mobile cards */}
-              <div className="md:hidden space-y-2">
-                {gamesByDate[dateKey].map(item => {
-                  if (item._type === 'practice') {
-                    return <PracticeCard key={`p-${item.id}`} practice={item} editable={canScheduleGames}
-                      onEdit={() => setEditingPractice(item)}
-                      onDelete={async () => { setDeletingPractice(item.id); await deleteReservation(item.id); queryClient.invalidateQueries({ queryKey: ['practices'] }); setDeletingPractice(null); }}
-                      deleting={deletingPractice === item.id} />;
-                  }
-                  const game = item;
-                  const divisionLabel = gameDivisionLevelLabel(game);
-                  const isInterested = interestGameIds.includes(Number(game.id));
-                  const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
-                  return (
-                    <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                      className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <span className="text-xs font-semibold text-gray-400 block">{formatTime(game.game_time) || 'TBD'}</span>
-                          {divisionLabel && <span className="text-[11px] text-gray-400 block">{divisionLabel}</span>}
-                        </div>
-                        <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
-                          {game.status_label}
-                        </span>
-                        {game.is_gamechanger_imported && (
-                          <span className={GC_BADGE_CLASS} title="Imported from GameChanger" aria-label="Imported from GameChanger">
-                            GC
-                          </span>
-                        )}
-                      </div>
-                      <div className="mb-1">
-                        <div className="flex items-center gap-2">
-                          <TeamLogo src={game.home_logo} name={game.home_team_name} ageGroup={game.home_age_group} level={game.home_level} cityAbbr={game.home_city_abbr} primaryColor={game.home_primary_color} secondaryColor={game.home_secondary_color} size="w-6 h-6" />
-                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.home_team_id, game.home_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.home_team_name}</button>
-                          {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.home_score ?? '—'}</span>}
-                        </div>
-                        {game.status === 'unscheduled' && canEditThisGame && game.home_sched_name && (
-                          <div className="ml-8"><CoachContact name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} label={SCHED_ROLE_LABELS[game.home_sched_role]} /></div>
-                        )}
-                      </div>
-                      <div className="mb-2">
-                        <div className="flex items-center gap-2">
-                          <TeamLogo src={game.away_logo} name={game.away_team_name} ageGroup={game.away_age_group} level={game.away_level} cityAbbr={game.away_city_abbr} primaryColor={game.away_primary_color} secondaryColor={game.away_secondary_color} size="w-6 h-6" />
-                          <button onClick={(e) => { e.stopPropagation(); onNavigateToTeam?.(game.away_team_id, game.away_org_id); }} className="font-semibold text-sm flex-1 truncate text-action-300 hover:text-action-100 hover:underline text-left">{game.away_team_name}</button>
-                          {game.status === 'completed' && <span className="font-extrabold text-lg text-white tabular-nums">{game.away_score ?? '—'}</span>}
-                        </div>
-                        {game.status === 'unscheduled' && canEditThisGame && game.away_sched_name && (
-                          <div className="ml-8"><CoachContact name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} label={SCHED_ROLE_LABELS[game.away_sched_role]} /></div>
-                        )}
-                      </div>
-                      {game.location_name && (
-                        <div className="text-xs text-gray-400 mb-1">📍 {game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
-                      )}
-                      {gameWeather[String(game.id)] && (() => {
-                        const w = gameWeather[String(game.id)];
-                        return (
-                          <div className="flex items-center gap-2 text-xs text-gray-400 mb-1 flex-wrap">
-                            <span title={w.description}>{w.icon} {w.temp}°F</span>
-                            {w.feelsLike != null && w.feelsLike !== w.temp && (
-                              <span className="text-gray-500">(feels {w.feelsLike}°)</span>
                             )}
-                            {w.windSpeed > 0 && (
-                              <span className="text-gray-500">💨 {w.windSpeed}mph{w.windDirection ? ` ${w.windDirection}` : ''}</span>
-                            )}
-                            {w.precipitationProbability > 0 && (
-                              <span className={w.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️ {w.precipitationProbability}%</span>
-                            )}
-                            {w.playability && w.playability.rating !== 'good' && (
-                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
-                                w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
-                                w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
-                                'bg-yellow-900/40 text-yellow-300'
-                              }`}>{w.playability.rating}</span>
-                            )}
-                            {w.isForecast && <span className="text-gray-600 text-[10px] italic">forecast</span>}
                           </div>
-                        );
-                      })()}
-                      {!!game.officials?.length && (
-                        <div className="flex flex-wrap gap-1 mb-1" onClick={(e) => e.stopPropagation()}>
-                          {game.officials.map((o, i) => (
-                            <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-action-900/50 text-action-300">{o.name}</span>
-                          ))}
                         </div>
-                      )}
-                      {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}
-                      <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700" onClick={(e) => e.stopPropagation()}>
-                        {(game.status === 'scheduled' || game.status === 'in_progress') && canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) && (
-                          <Button size="xs" variant={game.status === 'in_progress' ? 'primary' : 'warn'} onClick={() => setTrackingGameId(game.id)}>{game.status === 'in_progress' ? '⚾ Live' : '⚾ Track'}</Button>
-                        )}
-                        {canEditThisGame && (
-                          <>
-                            {game.status === 'unscheduled' && (
-                              <Button size="xs" variant="danger" onClick={() => handleScheduleIt(game)}>Schedule It!</Button>
-                            )}
-                            {game.status !== 'unscheduled' && (
-                              <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
-                            )}
-                            {canShowDelete(game) && (
-                              <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Delete'}</Button>
-                            )}
-                          </>
-                        )}
-                        {isUmpire && game.status === 'scheduled' && (
-                          <Button
-                            size="xs"
-                            variant={isInterested ? 'primary' : 'chrome'}
-                            onClick={() => handleToggleInterest(game.id, isInterested)}
-                            disabled={managingInterest === game.id}
-                          >
-                            {managingInterest === game.id ? '…' : (isInterested ? 'Interested' : 'I\'m Interested')}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
         </>
       ) : (
         <ScheduleCalendar
@@ -952,43 +949,43 @@ function SubscribeModal({ filterTeam, filterSeason, onClose }) {
 
   return (
     <Modal open onClose={onClose} title="Subscribe to Calendar" size="md">
-        <p className="text-sm text-gray-400 mb-4">
-          Subscribe to this game schedule in your calendar app. Games will sync automatically as they're added or updated.
-          {(filterTeam || filterSeason) && (
-            <span className="block mt-1 text-chrome-400">Your current filters are included in this feed.</span>
-          )}
-        </p>
+      <p className="text-sm text-gray-400 mb-4">
+        Subscribe to this game schedule in your calendar app. Games will sync automatically as they're added or updated.
+        {(filterTeam || filterSeason) && (
+          <span className="block mt-1 text-chrome-400">Your current filters are included in this feed.</span>
+        )}
+      </p>
 
-        {/* Quick subscribe button */}
-        <a href={webcalUrl}
-          className="btn btn-md btn-primary w-full flex items-center justify-center gap-2 mb-4">
-          📅 Open in Calendar App
-        </a>
+      {/* Quick subscribe button */}
+      <a href={webcalUrl}
+        className="btn btn-md btn-primary w-full flex items-center justify-center gap-2 mb-4">
+        📅 Open in Calendar App
+      </a>
 
-        {/* Manual URL copy */}
-        <div className="mb-4">
-          <label className="lh-eyebrow block mb-1">
-            Or copy the feed URL
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              readOnly
-              value={icsUrl}
-              className="lh-input flex-1 font-mono text-xs"
-              onClick={e => e.target.select()}
-            />
-            <Button size="sm" variant="secondary" onClick={handleCopy}>
-              {copied ? '✓ Copied' : 'Copy'}
-            </Button>
-          </div>
+      {/* Manual URL copy */}
+      <div className="mb-4">
+        <label className="lh-eyebrow block mb-1">
+          Or copy the feed URL
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            readOnly
+            value={icsUrl}
+            className="lh-input flex-1 font-mono text-xs"
+            onClick={e => e.target.select()}
+          />
+          <Button size="sm" variant="secondary" onClick={handleCopy}>
+            {copied ? '✓ Copied' : 'Copy'}
+          </Button>
         </div>
+      </div>
 
-        <div className="text-xs text-gray-500 space-y-1">
-          <p><strong>Google Calendar:</strong> Settings → Add calendar → From URL → paste the link</p>
-          <p><strong>Apple Calendar:</strong> Click "Open in Calendar App" above, or File → New Subscription</p>
-          <p><strong>Outlook:</strong> Add calendar → Subscribe from web → paste the link</p>
-        </div>
+      <div className="text-xs text-gray-500 space-y-1">
+        <p><strong>Google Calendar:</strong> Settings → Add calendar → From URL → paste the link</p>
+        <p><strong>Apple Calendar:</strong> Click "Open in Calendar App" above, or File → New Subscription</p>
+        <p><strong>Outlook:</strong> Add calendar → Subscribe from web → paste the link</p>
+      </div>
     </Modal>
   );
 }
@@ -1068,9 +1065,9 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                 {dayGames.slice(0, 3).map((g, j) => {
                   const statusColor =
                     g.status === 'completed' ? 'bg-action-900/40 text-action-300' :
-                    g.status === 'cancelled' ? 'bg-signal-900/40 text-signal-300 line-through' :
-                    g.status === 'postponed' ? 'bg-amber-900/40 text-amber-300' :
-                    'bg-chrome-900/40 text-chrome-300';
+                      g.status === 'cancelled' ? 'bg-signal-900/40 text-signal-300 line-through' :
+                        g.status === 'postponed' ? 'bg-amber-900/40 text-amber-300' :
+                          'bg-chrome-900/40 text-chrome-300';
                   return (
                     <div key={g.id || j} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${statusColor}`}>
                       {formatTime(g.game_time)} {[g.home_age_group, g.home_level].filter(Boolean).join(' ')} {g.home_city_abbr} vs {g.away_city_abbr}
@@ -1139,11 +1136,10 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                                 <span className={w.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️{w.precipitationProbability}%</span>
                               )}
                               {w.playability && w.playability.rating !== 'good' && (
-                                <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded-full ${
-                                  w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
-                                  w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
-                                  'bg-yellow-900/40 text-yellow-300'
-                                }`}>{w.playability.rating}</span>
+                                <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded-full ${w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
+                                    w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                                      'bg-yellow-900/40 text-yellow-300'
+                                  }`}>{w.playability.rating}</span>
                               )}
                             </span>
                           );
@@ -1164,7 +1160,7 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
   );
 }
 
-export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, defaultAwayTeamId, defaultEventType, lockTeams, tournamentId, tournamentMatchId, onDone, onCancel, onTeamsChanged }) {
+export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, defaultEventType, onDone, onCancel, onTeamsChanged }) {
   const isEditing = !!game;
   const { isSuperAdmin, isOrgAdmin, permissions, role, canEditOrg } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -1186,7 +1182,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const [form, setForm] = useState({
     season_id: game?.season_id || defaultSeasonId || '',
     home_team_id: game?.home_team_id || defaultHomeTeamId || '',
-    away_team_id: game?.away_team_id || defaultAwayTeamId || '',
+    away_team_id: game?.away_team_id || '',
     location_id: game?.location_id || '',
     game_date: initialGameDate,
     game_time: game?.game_time?.slice(0, 5) || '',
@@ -1258,7 +1254,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
         game_end_time: data?.game_end_time || '20:00',
         game_time_increment_minutes: Number(data?.game_time_increment_minutes) || 30,
       });
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -1478,8 +1474,6 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       innings_played: form.innings_played !== '' ? Number(form.innings_played) : null,
       official_ids: form.official_ids || [],
       notes: form.notes.trim() || null,
-      ...(tournamentId ? { tournament_id: Number(tournamentId) } : {}),
-      ...(tournamentMatchId ? { tournament_match_id: Number(tournamentMatchId) } : {}),
     };
 
     // Check for field reservation conflicts when scheduling a game with location + time
@@ -1507,7 +1501,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     setConfirmSave(true);
     setFieldConflicts(null);
     // Re-trigger submit
-    const fakeEvent = { preventDefault: () => {} };
+    const fakeEvent = { preventDefault: () => { } };
     handleSubmit(fakeEvent);
   }
 
@@ -1525,7 +1519,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   }
   const orgNames = Object.keys(teamsByOrg).sort();
 
-  function TeamSelect({ id, name, value, disabled }) {
+  function TeamSelect({ id, name, value }) {
     return (
       <div>
         <select id={id} name={name} value={value} onChange={(e) => {
@@ -1535,7 +1529,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
             return;
           }
           handleChange(e);
-        }} required disabled={disabled} className={`lh-select ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
+        }} required className="lh-select">
           <option value="">— Select Team —</option>
           {orgNames.map(orgName => (
             <optgroup key={orgName} label={orgName}>
@@ -1568,433 +1562,432 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
   return (
     <Modal open onClose={onCancel} title={isEditing ? 'Edit Game' : isGame ? 'Schedule Game' : `Schedule ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`} size="lg">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Event Type Toggle — only on create, not edit */}
-          {!isEditing && eventTypeOptions.length > 1 && (
-            <div>
-              <label className="lh-eyebrow block mb-1">Type</label>
-              <div className="flex gap-1 p-1 bg-gray-900 rounded-lg">
-                {eventTypeOptions.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setEventType(opt.value)}
-                    className={`flex-1 lh-tab ${
-                      eventType === opt.value
-                        ? 'lh-tab-active'
-                        : 'lh-tab-inactive'
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Event Type Toggle — only on create, not edit */}
+        {!isEditing && eventTypeOptions.length > 1 && (
+          <div>
+            <label className="lh-eyebrow block mb-1">Type</label>
+            <div className="flex gap-1 p-1 bg-gray-900 rounded-lg">
+              {eventTypeOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setEventType(opt.value)}
+                  className={`flex-1 lh-tab ${eventType === opt.value
+                      ? 'lh-tab-active'
+                      : 'lh-tab-inactive'
                     }`}
-                  >
-                    {opt.label}
-                  </button>
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isGame ? (
+          <>
+            {/* Season */}
+            <div>
+              <label htmlFor="game-season" className="lh-eyebrow block mb-1">Season</label>
+              <select id="game-season" name="season_id" value={form.season_id} onChange={handleChange} className="lh-select">
+                <option value="">— None —</option>
+                {seasons.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
                 ))}
+              </select>
+            </div>
+
+            {/* Teams */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="game-home" className="lh-eyebrow block mb-1">Home Team *</label>
+                <TeamSelect id="game-home" name="home_team_id" value={form.home_team_id} />
+                {game?.home_sched_name && (
+                  <div className="mt-1">
+                    <CoachContact label={SCHED_ROLE_LABELS[game.home_sched_role] || 'Contact'} name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} />
+                  </div>
+                )}
+              </div>
+              <div>
+                <label htmlFor="game-away" className="lh-eyebrow block mb-1">Away Team *</label>
+                <TeamSelect id="game-away" name="away_team_id" value={form.away_team_id} />
+                {game?.away_sched_name && (
+                  <div className="mt-1">
+                    <CoachContact label={SCHED_ROLE_LABELS[game.away_sched_role] || 'Contact'} name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} />
+                  </div>
+                )}
               </div>
             </div>
-          )}
 
-          {isGame ? (
-            <>
-              {/* Season */}
+            {/* Date/Time/Duration */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="game-season" className="lh-eyebrow block mb-1">Season</label>
-                <select id="game-season" name="season_id" value={form.season_id} onChange={handleChange} className="lh-select">
-                  <option value="">— None —</option>
-                  {seasons.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
+                <label htmlFor="game-date" className="lh-eyebrow block mb-1">Date</label>
+                <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} onTouchEnd={(e) => e.stopPropagation()} className="lh-input" />
+              </div>
+              <div>
+                <label htmlFor="game-time" className="lh-eyebrow block mb-1">Start Time</label>
+                <select id="game-time" name="game_time" value={form.game_time} onChange={handleChange} className="lh-select">
+                  <option value="">— Select Time —</option>
+                  {timeSlots.map((slot) => (
+                    <option key={slot} value={slot}>{formatTime(slot)}</option>
                   ))}
+                  {currentTimeIncluded && (
+                    <option value={form.game_time}>{formatTime(form.game_time)} (custom)</option>
+                  )}
                 </select>
               </div>
-
-              {/* Teams */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="game-home" className="lh-eyebrow block mb-1">Home Team *</label>
-                  <TeamSelect id="game-home" name="home_team_id" value={form.home_team_id} disabled={!!lockTeams} />
-                  {game?.home_sched_name && (
-                    <div className="mt-1">
-                      <CoachContact label={SCHED_ROLE_LABELS[game.home_sched_role] || 'Contact'} name={game.home_sched_name} email={game.home_sched_email} phone={game.home_sched_phone} />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="game-away" className="lh-eyebrow block mb-1">Away Team *</label>
-                  <TeamSelect id="game-away" name="away_team_id" value={form.away_team_id} disabled={!!lockTeams} />
-                  {game?.away_sched_name && (
-                    <div className="mt-1">
-                      <CoachContact label={SCHED_ROLE_LABELS[game.away_sched_role] || 'Contact'} name={game.away_sched_name} email={game.away_sched_email} phone={game.away_sched_phone} />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Date/Time/Duration */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="game-date" className="lh-eyebrow block mb-1">Date</label>
-                  <input id="game-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} onTouchEnd={(e) => e.stopPropagation()} className="lh-input" />
-                </div>
-                <div>
-                  <label htmlFor="game-time" className="lh-eyebrow block mb-1">Start Time</label>
-                  <select id="game-time" name="game_time" value={form.game_time} onChange={handleChange} className="lh-select">
-                    <option value="">— Select Time —</option>
-                    {timeSlots.map((slot) => (
-                      <option key={slot} value={slot}>{formatTime(slot)}</option>
-                    ))}
-                    {currentTimeIncluded && (
-                      <option value={form.game_time}>{formatTime(form.game_time)} (custom)</option>
-                    )}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="game-duration" className="lh-eyebrow block mb-1">Duration</label>
-                  <select id="game-duration" name="game_duration_minutes" value={form.game_duration_minutes} onChange={handleChange} className="lh-select">
-                    {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Location */}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <label htmlFor="game-location" className="lh-eyebrow mb-0">Location</label>
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={isDoubleheader}
-                        onChange={e => {
-                          setIsDoubleheader(e.target.checked);
-                          if (!e.target.checked) setAwayLocations([]);
-                        }}
-                        className="accent-green-500"
-                      />
-                      Doubleheader
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddLocationForm(true)}
-                      disabled={!homeOrgId}
-                      className="text-xs font-semibold text-action-300 hover:text-action-100 underline disabled:opacity-50 disabled:no-underline"
-                    >
-                      + Add new field
-                    </button>
-                  </div>
+                <label htmlFor="game-duration" className="lh-eyebrow block mb-1">Duration</label>
+                <select id="game-duration" name="game_duration_minutes" value={form.game_duration_minutes} onChange={handleChange} className="lh-select">
+                  {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Location */}
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <label htmlFor="game-location" className="lh-eyebrow mb-0">Location</label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isDoubleheader}
+                      onChange={e => {
+                        setIsDoubleheader(e.target.checked);
+                        if (!e.target.checked) setAwayLocations([]);
+                      }}
+                      className="accent-green-500"
+                    />
+                    Doubleheader
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddLocationForm(true)}
+                    disabled={!homeOrgId}
+                    className="text-xs font-semibold text-action-300 hover:text-action-100 underline disabled:opacity-50 disabled:no-underline"
+                  >
+                    + Add new field
+                  </button>
                 </div>
-                <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId}>
-                  <option value="">— None —</option>
-                  {isDoubleheader ? (
-                    <>
-                      <optgroup label={selectedHomeTeam?.org_name || 'Home Team Fields'}>
-                        {locations
+              </div>
+              <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId}>
+                <option value="">— None —</option>
+                {isDoubleheader ? (
+                  <>
+                    <optgroup label={selectedHomeTeam?.org_name || 'Home Team Fields'}>
+                      {locations
+                        .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
+                        .map(l => (
+                          <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
+                        ))}
+                    </optgroup>
+                    {awayOrgId && awayOrgId !== homeOrgId && (
+                      <optgroup label={selectedAwayTeam?.org_name || 'Away Team Fields'}>
+                        {awayLocations
                           .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
                           .map(l => (
                             <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
                           ))}
                       </optgroup>
-                      {awayOrgId && awayOrgId !== homeOrgId && (
-                        <optgroup label={selectedAwayTeam?.org_name || 'Away Team Fields'}>
-                          {awayLocations
-                            .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
-                            .map(l => (
-                              <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
-                            ))}
-                        </optgroup>
-                      )}
-                    </>
-                  ) : (
-                    locations
-                      .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
-                      .map(l => (
-                        <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
-                      ))
-                  )}
-                </select>
-                {!homeOrgId ? (
-                  <p className="text-xs text-gray-400 mt-1">Select a home team first to see that organization&apos;s fields.</p>
-                ) : locations.length === 0 ? (
-                  <p className="text-xs text-gray-400 mt-1">No fields found for {selectedHomeTeam?.org_name || 'this organization'}.</p>
-                ) : null}
-              </div>
-
-              {officialsEnabled && (
-                <div>
-                  <label className="lh-eyebrow block mb-1">Umpire Assignment</label>
-                  {officials.length === 0 ? (
-                    <p className="text-xs text-gray-400">No officials available for this organization. Add officials in the Officials module.</p>
-                  ) : (
-                    <div className="space-y-1 bg-gray-900 border border-gray-700 rounded-lg p-3 max-h-52 overflow-y-auto">
-                      {officials.map((official) => {
-                        const checked = (form.official_ids || []).some((id) => String(id) === String(official.id));
-                        const interested = interestedOfficialSet.has(Number(official.id));
-                        const rowCls = checked
-                          ? 'border border-action-500/40 bg-action-900/20'
-                          : interested
-                            ? 'border border-amber-400/50 bg-amber-500/10'
-                            : 'border border-signal-500/20 bg-signal-900/10';
-                        const dotCls = checked ? 'bg-action-400' : interested ? 'bg-amber-300' : 'bg-signal-500';
-                        return (
-                          <label key={official.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${rowCls}`}>
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
-                            <span className="flex-1 text-sm text-gray-200 truncate">
-                              {official.name}
-                              <span className="text-xs text-gray-400 ml-1">({official.org_ids?.length ? 'Org' : 'League'})</span>
-                            </span>
-                            <input type="checkbox" checked={checked} onChange={() => toggleOfficial(official.id)} className="accent-green-500" />
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <div className="flex gap-4 mt-1.5 text-xs text-gray-400">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-action-400 inline-block" /> Assigned</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-300 inline-block" /> Interested</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-signal-500 inline-block" /> No status</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Status + Score + Innings */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <label htmlFor="game-status" className="lh-eyebrow block mb-1">Status</label>
-                  <select id="game-status" name="status" value={form.status} onChange={handleChange} className="lh-select">
-                    {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="game-home-score" className="lh-eyebrow block mb-1">Home Score</label>
-                  <input id="game-home-score" name="home_score" type="number" min="0" value={form.home_score} onChange={handleChange} className="lh-input" placeholder="—" />
-                </div>
-                <div>
-                  <label htmlFor="game-away-score" className="lh-eyebrow block mb-1">Away Score</label>
-                  <input id="game-away-score" name="away_score" type="number" min="0" value={form.away_score} onChange={handleChange} className="lh-input" placeholder="—" />
-                </div>
-                <div>
-                  <label htmlFor="game-innings" className="lh-eyebrow block mb-1">Innings</label>
-                  <input id="game-innings" name="innings_played" type="number" min="1" max="99" value={form.innings_played} onChange={handleChange} className="lh-input" placeholder="6" />
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Reservation fields — Practice / Event / Maintenance */}
-              <Input label="Title *" id="res-title" value={resForm.title}
-                  onChange={e => setResForm(prev => ({ ...prev, title: e.target.value }))}
-                  required placeholder="e.g. 10U Practice" />
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="res-team" className="lh-eyebrow block mb-1">Team</label>
-                  <select id="res-team" value={resForm.team_id}
-                    onChange={e => setResForm(prev => ({ ...prev, team_id: e.target.value }))}
-                    className="lh-select">
-                    <option value="">— None —</option>
-                    {visibleTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="res-date" className="lh-eyebrow block mb-1">Date *</label>
-                  <input id="res-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} onTouchEnd={(e) => e.stopPropagation()} required className="lh-input" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="res-start" className="lh-eyebrow block mb-1">Start Time *</label>
-                  <select id="res-start" value={resForm.start_time}
-                    onChange={e => setResForm(prev => ({ ...prev, start_time: e.target.value }))}
-                    required className="lh-select">
-                    <option value="">— Select —</option>
-                    {resTimeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="res-duration" className="lh-eyebrow block mb-1">Duration *</label>
-                  <select id="res-duration" value={resForm.duration_minutes}
-                    onChange={e => setResForm(prev => ({ ...prev, duration_minutes: Number(e.target.value) }))}
-                    required className="lh-select">
-                    {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Location — required for reservations */}
-              <div>
-                <label htmlFor="res-location" className="lh-eyebrow block mb-1">Location *</label>
-                <select id="res-location" name="location_id" value={form.location_id} onChange={handleChange} required className="lh-select">
-                  <option value="">— Select Field —</option>
-                  {locations.map(l => (
-                    <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Recurrence */}
-              <div className="space-y-3 border border-white/10 rounded-lg p-3">
-                <div className="flex items-center gap-3">
-                  <span className="lh-eyebrow">Repeat</span>
-                  <select value={recurType} onChange={e => setRecurType(e.target.value)} className="lh-select flex-1">
-                    <option value="none">No repeat (single date)</option>
-                    <option value="until">Repeat until date</option>
-                    <option value="count">Repeat N times</option>
-                  </select>
-                </div>
-                {recurType !== 'none' && (
-                  <>
-                    <div>
-                      <label className="lh-eyebrow block mb-1">Days of Week</label>
-                      <div className="flex flex-wrap gap-2">
-                        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, i) => (
-                          <button key={i} type="button"
-                            onClick={() => setRecurDays(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
-                            className={`px-2.5 py-1 rounded text-sm font-medium border transition-colors ${recurDays.includes(i) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/20 text-white/60 hover:border-white/40'}`}>
-                            {d}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {recurType === 'until' && (
-                      <div>
-                        <label className="lh-eyebrow block mb-1">End Date</label>
-                        <input type="date" value={recurEndDate} onChange={e => setRecurEndDate(e.target.value)} className="lh-input" />
-                      </div>
-                    )}
-                    {recurType === 'count' && (
-                      <div>
-                        <label className="lh-eyebrow block mb-1">Number of Occurrences</label>
-                        <input type="number" min="1" max="60" value={recurCount} onChange={e => setRecurCount(Number(e.target.value))} className="lh-input w-24" />
-                      </div>
                     )}
                   </>
+                ) : (
+                  locations
+                    .filter(l => !form.age_group || !l.age_groups?.length || l.age_groups.some(ag => ag.name === form.age_group))
+                    .map(l => (
+                      <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
+                    ))
                 )}
+              </select>
+              {!homeOrgId ? (
+                <p className="text-xs text-gray-400 mt-1">Select a home team first to see that organization&apos;s fields.</p>
+              ) : locations.length === 0 ? (
+                <p className="text-xs text-gray-400 mt-1">No fields found for {selectedHomeTeam?.org_name || 'this organization'}.</p>
+              ) : null}
+            </div>
+
+            {officialsEnabled && (
+              <div>
+                <label className="lh-eyebrow block mb-1">Umpire Assignment</label>
+                {officials.length === 0 ? (
+                  <p className="text-xs text-gray-400">No officials available for this organization. Add officials in the Officials module.</p>
+                ) : (
+                  <div className="space-y-1 bg-gray-900 border border-gray-700 rounded-lg p-3 max-h-52 overflow-y-auto">
+                    {officials.map((official) => {
+                      const checked = (form.official_ids || []).some((id) => String(id) === String(official.id));
+                      const interested = interestedOfficialSet.has(Number(official.id));
+                      const rowCls = checked
+                        ? 'border border-action-500/40 bg-action-900/20'
+                        : interested
+                          ? 'border border-amber-400/50 bg-amber-500/10'
+                          : 'border border-signal-500/20 bg-signal-900/10';
+                      const dotCls = checked ? 'bg-action-400' : interested ? 'bg-amber-300' : 'bg-signal-500';
+                      return (
+                        <label key={official.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${rowCls}`}>
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
+                          <span className="flex-1 text-sm text-gray-200 truncate">
+                            {official.name}
+                            <span className="text-xs text-gray-400 ml-1">({official.org_ids?.length ? 'Org' : 'League'})</span>
+                          </span>
+                          <input type="checkbox" checked={checked} onChange={() => toggleOfficial(official.id)} className="accent-green-500" />
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="flex gap-4 mt-1.5 text-xs text-gray-400">
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-action-400 inline-block" /> Assigned</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-300 inline-block" /> Interested</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-signal-500 inline-block" /> No status</span>
+                </div>
               </div>
-            </>
-          )}
+            )}
 
-          {/* Notes */}
-          <div>
-            <label htmlFor="game-notes" className="lh-eyebrow block mb-1">Notes</label>
-            <textarea id="game-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Any additional info…"
-              className="lh-input" />
-          </div>
-
-          {/* Proximity warning after reservation saved */}
-          {resWarning && (
-            <div className="bg-yellow-900/30 border border-yellow-600 text-yellow-200 text-sm px-4 py-3 rounded-lg flex items-start gap-2">
-              <span className="text-yellow-400 font-bold mt-0.5">⚠</span>
-              <div className="flex-1">
-                <p>{resWarning}</p>
-                <Button size="xs" variant="secondary" className="mt-2" onClick={() => { setResWarning(null); onDone(); }}>
-                  OK, got it
-                </Button>
+            {/* Status + Score + Innings */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label htmlFor="game-status" className="lh-eyebrow block mb-1">Status</label>
+                <select id="game-status" name="status" value={form.status} onChange={handleChange} className="lh-select">
+                  {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="game-home-score" className="lh-eyebrow block mb-1">Home Score</label>
+                <input id="game-home-score" name="home_score" type="number" min="0" value={form.home_score} onChange={handleChange} className="lh-input" placeholder="—" />
+              </div>
+              <div>
+                <label htmlFor="game-away-score" className="lh-eyebrow block mb-1">Away Score</label>
+                <input id="game-away-score" name="away_score" type="number" min="0" value={form.away_score} onChange={handleChange} className="lh-input" placeholder="—" />
+              </div>
+              <div>
+                <label htmlFor="game-innings" className="lh-eyebrow block mb-1">Innings</label>
+                <input id="game-innings" name="innings_played" type="number" min="1" max="99" value={form.innings_played} onChange={handleChange} className="lh-input" placeholder="6" />
               </div>
             </div>
-          )}
+          </>
+        ) : (
+          <>
+            {/* Reservation fields — Practice / Event / Maintenance */}
+            <Input label="Title *" id="res-title" value={resForm.title}
+              onChange={e => setResForm(prev => ({ ...prev, title: e.target.value }))}
+              required placeholder="e.g. 10U Practice" />
 
-          {error && <div className="lh-alert lh-alert-error">{error}</div>}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="res-team" className="lh-eyebrow block mb-1">Team</label>
+                <select id="res-team" value={resForm.team_id}
+                  onChange={e => setResForm(prev => ({ ...prev, team_id: e.target.value }))}
+                  className="lh-select">
+                  <option value="">— None —</option>
+                  {visibleTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="res-date" className="lh-eyebrow block mb-1">Date *</label>
+                <input id="res-date" name="game_date" type="date" value={form.game_date} onChange={handleChange} onTouchEnd={(e) => e.stopPropagation()} required className="lh-input" />
+              </div>
+            </div>
 
-          {fieldConflicts && (
-            <div className="bg-amber-900/30 border border-amber-600 text-amber-200 text-sm px-4 py-3 rounded-lg space-y-2">
-              {fieldConflicts.has_conflicts ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="res-start" className="lh-eyebrow block mb-1">Start Time *</label>
+                <select id="res-start" value={resForm.start_time}
+                  onChange={e => setResForm(prev => ({ ...prev, start_time: e.target.value }))}
+                  required className="lh-select">
+                  <option value="">— Select —</option>
+                  {resTimeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="res-duration" className="lh-eyebrow block mb-1">Duration *</label>
+                <select id="res-duration" value={resForm.duration_minutes}
+                  onChange={e => setResForm(prev => ({ ...prev, duration_minutes: Number(e.target.value) }))}
+                  required className="lh-select">
+                  {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Location — required for reservations */}
+            <div>
+              <label htmlFor="res-location" className="lh-eyebrow block mb-1">Location *</label>
+              <select id="res-location" name="location_id" value={form.location_id} onChange={handleChange} required className="lh-select">
+                <option value="">— Select Field —</option>
+                {locations.map(l => (
+                  <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Recurrence */}
+            <div className="space-y-3 border border-white/10 rounded-lg p-3">
+              <div className="flex items-center gap-3">
+                <span className="lh-eyebrow">Repeat</span>
+                <select value={recurType} onChange={e => setRecurType(e.target.value)} className="lh-select flex-1">
+                  <option value="none">No repeat (single date)</option>
+                  <option value="until">Repeat until date</option>
+                  <option value="count">Repeat N times</option>
+                </select>
+              </div>
+              {recurType !== 'none' && (
                 <>
-                  <div className="font-bold text-amber-100">Field Conflict Detected</div>
-                  <p className="text-xs text-amber-300">
-                    This game runs from {formatTime(fieldConflicts.game_start)} to {formatTime(fieldConflicts.game_end)}. The following existing reservations overlap:
-                  </p>
-                  {fieldConflicts.conflicts.map((c, i) => (
-                    <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
-                      <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
-                      <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
-                      {c.created_by_name && (
-                        <div className="text-amber-200">
-                          Booked by: <span className="font-semibold text-white">{c.created_by_name}</span>
-                          {c.created_by_email && (
-                            <> — <a href={`mailto:${c.created_by_email}?subject=Field%20Reservation%20Conflict&body=Hi%20${encodeURIComponent(c.created_by_name)}%2C%0A%0AYour%20reservation%20%22${encodeURIComponent(c.title)}%22%20on%20${encodeURIComponent(form.game_date)}%20conflicts%20with%20a%20scheduled%20game.%20Games%20have%20priority%20so%20your%20reservation%20will%20need%20to%20be%20moved.%0A%0AThank%20you.`}
-                              className="text-chrome-400 underline hover:text-chrome-300">
-                              {c.created_by_email}
-                            </a></>
-                          )}
-                          {c.created_at && (
-                            <span className="ml-1 text-amber-400">on {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
-                          )}
-                        </div>
-                      )}
+                  <div>
+                    <label className="lh-eyebrow block mb-1">Days of Week</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+                        <button key={i} type="button"
+                          onClick={() => setRecurDays(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
+                          className={`px-2.5 py-1 rounded text-sm font-medium border transition-colors ${recurDays.includes(i) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/20 text-white/60 hover:border-white/40'}`}>
+                          {d}
+                        </button>
+                      ))}
                     </div>
-                  ))}
-                  <p className="text-xs text-amber-400">Games always have priority. Please contact the person(s) above to notify them their reservation needs to move.</p>
-                  <div className="flex gap-2 pt-1">
-                    <Button size="xs" variant="warn" onClick={handleConfirmSave}>
-                      Schedule Anyway
-                    </Button>
-                    <Button size="xs" variant="secondary" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}>
-                      Cancel
-                    </Button>
                   </div>
-                </>
-              ) : (
-                <>
-                  <div className="font-bold text-amber-100">⚠ Nearby Reservations</div>
-                  <p className="text-xs text-amber-300">
-                    The following reservations are within 3 hours of this game ({formatTime(fieldConflicts.game_start)}). They don't overlap but may want a heads-up:
-                  </p>
-                  {fieldConflicts.warnings.map((c, i) => (
-                    <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
-                      <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
-                      <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
-                      {c.created_by_name && <div className="text-amber-200">Booked by: <span className="font-semibold text-white">{c.created_by_name}</span></div>}
+                  {recurType === 'until' && (
+                    <div>
+                      <label className="lh-eyebrow block mb-1">End Date</label>
+                      <input type="date" value={recurEndDate} onChange={e => setRecurEndDate(e.target.value)} className="lh-input" />
                     </div>
-                  ))}
-                  <div className="flex gap-2 pt-1">
-                    <Button size="xs" onClick={handleConfirmSave}>
-                      Save Game
-                    </Button>
-                    <Button size="xs" variant="secondary" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}>
-                      Cancel
-                    </Button>
-                  </div>
+                  )}
+                  {recurType === 'count' && (
+                    <div>
+                      <label className="lh-eyebrow block mb-1">Number of Occurrences</label>
+                      <input type="number" min="1" max="60" value={recurCount} onChange={e => setRecurCount(Number(e.target.value))} className="lh-input w-24" />
+                    </div>
+                  )}
                 </>
               )}
             </div>
-          )}
+          </>
+        )}
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-            <Button type="submit" disabled={saving} loading={saving}>
-              {saving ? 'Saving…' : isEditing ? 'Update' : isGame ? 'Schedule Game' : `Book ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`}
-            </Button>
+        {/* Notes */}
+        <div>
+          <label htmlFor="game-notes" className="lh-eyebrow block mb-1">Notes</label>
+          <textarea id="game-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Any additional info…"
+            className="lh-input" />
+        </div>
+
+        {/* Proximity warning after reservation saved */}
+        {resWarning && (
+          <div className="bg-yellow-900/30 border border-yellow-600 text-yellow-200 text-sm px-4 py-3 rounded-lg flex items-start gap-2">
+            <span className="text-yellow-400 font-bold mt-0.5">⚠</span>
+            <div className="flex-1">
+              <p>{resWarning}</p>
+              <Button size="xs" variant="secondary" className="mt-2" onClick={() => { setResWarning(null); onDone(); }}>
+                OK, got it
+              </Button>
+            </div>
           </div>
-        </form>
-
-        {showAddLocationForm && (
-          <AddFieldModal
-            homeOrgId={homeOrgId}
-            onDone={async () => {
-              const updated = await fetchLocations(homeOrgId);
-              setLocations(updated);
-              if (updated.length) {
-                const newest = updated.reduce((a, b) => (a.id > b.id ? a : b));
-                setForm(prev => ({ ...prev, location_id: String(newest.id) }));
-              }
-              setShowAddLocationForm(false);
-            }}
-            onCancel={() => setShowAddLocationForm(false)}
-          />
         )}
 
-        {showCreateTeam && (
-          <QuickCreateTeamForm
-            onCreated={(newTeam) => {
-              const field = showCreateTeam === 'home' ? 'home_team_id' : 'away_team_id';
-              setForm(prev => ({ ...prev, [field]: String(newTeam.id) }));
-              setShowCreateTeam(null);
-              if (onTeamsChanged) onTeamsChanged();
-            }}
-            onCancel={() => setShowCreateTeam(null)}
-          />
+        {error && <div className="lh-alert lh-alert-error">{error}</div>}
+
+        {fieldConflicts && (
+          <div className="bg-amber-900/30 border border-amber-600 text-amber-200 text-sm px-4 py-3 rounded-lg space-y-2">
+            {fieldConflicts.has_conflicts ? (
+              <>
+                <div className="font-bold text-amber-100">Field Conflict Detected</div>
+                <p className="text-xs text-amber-300">
+                  This game runs from {formatTime(fieldConflicts.game_start)} to {formatTime(fieldConflicts.game_end)}. The following existing reservations overlap:
+                </p>
+                {fieldConflicts.conflicts.map((c, i) => (
+                  <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
+                    <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
+                    <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
+                    {c.created_by_name && (
+                      <div className="text-amber-200">
+                        Booked by: <span className="font-semibold text-white">{c.created_by_name}</span>
+                        {c.created_by_email && (
+                          <> — <a href={`mailto:${c.created_by_email}?subject=Field%20Reservation%20Conflict&body=Hi%20${encodeURIComponent(c.created_by_name)}%2C%0A%0AYour%20reservation%20%22${encodeURIComponent(c.title)}%22%20on%20${encodeURIComponent(form.game_date)}%20conflicts%20with%20a%20scheduled%20game.%20Games%20have%20priority%20so%20your%20reservation%20will%20need%20to%20be%20moved.%0A%0AThank%20you.`}
+                            className="text-chrome-400 underline hover:text-chrome-300">
+                            {c.created_by_email}
+                          </a></>
+                        )}
+                        {c.created_at && (
+                          <span className="ml-1 text-amber-400">on {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <p className="text-xs text-amber-400">Games always have priority. Please contact the person(s) above to notify them their reservation needs to move.</p>
+                <div className="flex gap-2 pt-1">
+                  <Button size="xs" variant="warn" onClick={handleConfirmSave}>
+                    Schedule Anyway
+                  </Button>
+                  <Button size="xs" variant="secondary" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}>
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="font-bold text-amber-100">⚠ Nearby Reservations</div>
+                <p className="text-xs text-amber-300">
+                  The following reservations are within 3 hours of this game ({formatTime(fieldConflicts.game_start)}). They don't overlap but may want a heads-up:
+                </p>
+                {fieldConflicts.warnings.map((c, i) => (
+                  <div key={i} className="bg-amber-950/40 rounded px-3 py-2 text-xs space-y-1">
+                    <div className="font-semibold text-white">{c.title} <span className="text-amber-400 font-normal">({c.event_type})</span></div>
+                    <div className="text-amber-300">{formatTime(c.start_time)} – {formatTime(c.end_time)}{c.team_name ? ` • ${c.team_name}` : ''}</div>
+                    {c.created_by_name && <div className="text-amber-200">Booked by: <span className="font-semibold text-white">{c.created_by_name}</span></div>}
+                  </div>
+                ))}
+                <div className="flex gap-2 pt-1">
+                  <Button size="xs" onClick={handleConfirmSave}>
+                    Save Game
+                  </Button>
+                  <Button size="xs" variant="secondary" onClick={() => { setFieldConflicts(null); setConfirmSave(false); }}>
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
         )}
-      </Modal>
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" disabled={saving} loading={saving}>
+            {saving ? 'Saving…' : isEditing ? 'Update' : isGame ? 'Schedule Game' : `Book ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`}
+          </Button>
+        </div>
+      </form>
+
+      {showAddLocationForm && (
+        <AddFieldModal
+          homeOrgId={homeOrgId}
+          onDone={async () => {
+            const updated = await fetchLocations(homeOrgId);
+            setLocations(updated);
+            if (updated.length) {
+              const newest = updated.reduce((a, b) => (a.id > b.id ? a : b));
+              setForm(prev => ({ ...prev, location_id: String(newest.id) }));
+            }
+            setShowAddLocationForm(false);
+          }}
+          onCancel={() => setShowAddLocationForm(false)}
+        />
+      )}
+
+      {showCreateTeam && (
+        <QuickCreateTeamForm
+          onCreated={(newTeam) => {
+            const field = showCreateTeam === 'home' ? 'home_team_id' : 'away_team_id';
+            setForm(prev => ({ ...prev, [field]: String(newTeam.id) }));
+            setShowCreateTeam(null);
+            if (onTeamsChanged) onTeamsChanged();
+          }}
+          onCancel={() => setShowCreateTeam(null)}
+        />
+      )}
+    </Modal>
   );
 }
 
@@ -2018,7 +2011,7 @@ function QuickCreateTeamForm({ onCreated, onCancel }) {
   useEffect(() => {
     Promise.all([fetchAgeGroups(), fetchLevels(), fetchOrganizations()])
       .then(([ag, lv, og]) => { setAgeGroups(ag); setLevels(lv); setOrgs(og); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const shortName = [form.team_city, form.team_color, form.age_group, form.level].filter(Boolean).join(' ');
@@ -2053,80 +2046,80 @@ function QuickCreateTeamForm({ onCreated, onCancel }) {
 
   return (
     <Modal open onClose={onCancel} title="Create Opponent Team" size="md">
-        <p className="text-xs text-gray-400 mb-4">Quickly add a team that doesn&apos;t exist yet. Organization is optional for opponent teams.</p>
+      <p className="text-xs text-gray-400 mb-4">Quickly add a team that doesn&apos;t exist yet. Organization is optional for opponent teams.</p>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <Input label="Team City *" id="qt-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" />
-            <Input label="Team Mascot" id="qt-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" />
-            <Input label="Team Color" id="qt-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="Team City *" id="qt-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" />
+          <Input label="Team Mascot" id="qt-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" />
+          <Input label="Team Color" id="qt-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" />
+        </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="qt-primary" className="lh-eyebrow block mb-1">Primary Color</label>
-              <div className="flex items-center gap-2">
-                <input id="qt-primary" type="color" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
-                <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="qt-secondary" className="lh-eyebrow block mb-1">Secondary Color</label>
-              <div className="flex items-center gap-2">
-                <input id="qt-secondary" type="color" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
-                <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="qt-age" className="lh-eyebrow block mb-1">Age Group</label>
-              {ageGroups.length > 0 ? (
-                <select id="qt-age" name="age_group" value={form.age_group} onChange={handleChange} className="lh-select">
-                  <option value="">— Select —</option>
-                  {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
-                </select>
-              ) : (
-                <input id="qt-age" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className="lh-input" />
-              )}
-            </div>
-            <div>
-              <label htmlFor="qt-level" className="lh-eyebrow block mb-1">Level</label>
-              {levels.length > 0 ? (
-                <select id="qt-level" name="level" value={form.level} onChange={handleChange} className="lh-select">
-                  <option value="">— Select —</option>
-                  {levels.map(lv => <option key={lv.id} value={lv.name}>{lv.name}</option>)}
-                </select>
-              ) : (
-                <input id="qt-level" name="level" type="text" value={form.level} onChange={handleChange} placeholder="e.g. Competitive" className="lh-input" />
-              )}
-            </div>
-          </div>
-
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="qt-org" className="lh-eyebrow block mb-1">Organization</label>
-            <select id="qt-org" name="org_id" value={form.org_id} onChange={handleChange} className="lh-select">
-              <option value="">— None (opponent) —</option>
-              {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">Leave blank for external opponent teams.</p>
-          </div>
-
-          {shortName && (
-            <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm">
-              <span className="text-xs font-semibold text-gray-400 uppercase">Team Name: </span>
-              <span className="font-semibold text-gray-200">{shortName}</span>
+            <label htmlFor="qt-primary" className="lh-eyebrow block mb-1">Primary Color</label>
+            <div className="flex items-center gap-2">
+              <input id="qt-primary" type="color" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
+              <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
             </div>
-          )}
-
-          {error && <div className="lh-alert lh-alert-error">{error}</div>}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-            <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Creating…' : 'Create Team'}</Button>
           </div>
-        </form>
+          <div>
+            <label htmlFor="qt-secondary" className="lh-eyebrow block mb-1">Secondary Color</label>
+            <div className="flex items-center gap-2">
+              <input id="qt-secondary" type="color" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
+              <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="qt-age" className="lh-eyebrow block mb-1">Age Group</label>
+            {ageGroups.length > 0 ? (
+              <select id="qt-age" name="age_group" value={form.age_group} onChange={handleChange} className="lh-select">
+                <option value="">— Select —</option>
+                {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
+              </select>
+            ) : (
+              <input id="qt-age" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className="lh-input" />
+            )}
+          </div>
+          <div>
+            <label htmlFor="qt-level" className="lh-eyebrow block mb-1">Level</label>
+            {levels.length > 0 ? (
+              <select id="qt-level" name="level" value={form.level} onChange={handleChange} className="lh-select">
+                <option value="">— Select —</option>
+                {levels.map(lv => <option key={lv.id} value={lv.name}>{lv.name}</option>)}
+              </select>
+            ) : (
+              <input id="qt-level" name="level" type="text" value={form.level} onChange={handleChange} placeholder="e.g. Competitive" className="lh-input" />
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="qt-org" className="lh-eyebrow block mb-1">Organization</label>
+          <select id="qt-org" name="org_id" value={form.org_id} onChange={handleChange} className="lh-select">
+            <option value="">— None (opponent) —</option>
+            {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Leave blank for external opponent teams.</p>
+        </div>
+
+        {shortName && (
+          <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+            <span className="text-xs font-semibold text-gray-400 uppercase">Team Name: </span>
+            <span className="font-semibold text-gray-200">{shortName}</span>
+          </div>
+        )}
+
+        {error && <div className="lh-alert lh-alert-error">{error}</div>}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Creating…' : 'Create Team'}</Button>
+        </div>
+      </form>
     </Modal>
   );
 }

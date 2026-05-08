@@ -25,7 +25,7 @@ import GuardiansPage from './GuardiansPage.jsx';
 import CoachesPage from './CoachesPage.jsx';
 import TravelMatrix from './TravelMatrix.jsx';
 import TournamentsPage from './TournamentsPage.jsx';
-import TournamentDetail from './TournamentDetail.jsx';
+import TournamentSchedule from './TournamentSchedule.jsx';
 
 export default function FeatureRouter(props) {
     return (
@@ -146,9 +146,9 @@ function PageContent({
         case 'tournaments':
             return <TournamentsPage onSelectTournament={navigateToTournament} />;
 
-        case 'tournament-detail':
+        case 'tournament-schedule':
             return (
-                <TournamentDetail
+                <TournamentSchedule
                     tournamentId={selectedTournamentId}
                     onBack={() => setPage('tournaments')}
                     onNavigateToTeam={navigateToTeam}
