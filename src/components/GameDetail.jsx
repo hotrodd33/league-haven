@@ -219,10 +219,13 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
         });
       }
 
+      // Bypass the browser HTTP cache (server sends max-age=60 on GETs) so the
+      // newly added player and any new pitch count appear in the fresh data.
+      const noCache = { cache: 'reload' };
       const [updated, elig, pcs] = await Promise.all([
-        fetchPlayersByTeam(teamId),
-        fetchPitchEligibility(teamId, game.game_date, gameId).catch(() => null),
-        pcEntered ? fetchPitchCounts(gameId) : Promise.resolve(null),
+        fetchPlayersByTeam(teamId, noCache),
+        fetchPitchEligibility(teamId, game.game_date, gameId, noCache).catch(() => null),
+        pcEntered ? fetchPitchCounts(gameId, noCache) : Promise.resolve(null),
       ]);
       if (side === 'home') { setHomePlayers(updated); setHomeEligibility(elig); }
       else { setAwayPlayers(updated); setAwayEligibility(elig); }

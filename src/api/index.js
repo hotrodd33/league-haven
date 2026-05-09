@@ -160,8 +160,8 @@ export async function fetchPositions() {
 
 // ── Players ──
 
-export async function fetchPlayersByTeam(teamId) {
-  return apiFetch(`/players?team_id=${teamId}`);
+export async function fetchPlayersByTeam(teamId, opts = {}) {
+  return apiFetch(`/players?team_id=${teamId}`, opts);
 }
 
 export async function fetchPlayer(playerId) {
@@ -478,8 +478,8 @@ export async function fetchStandings(seasonId) {
 
 // ── Pitch Counts ──
 
-export async function fetchPitchCounts(gameId) {
-  return apiFetch(`/games/${gameId}/pitch-counts`);
+export async function fetchPitchCounts(gameId, opts = {}) {
+  return apiFetch(`/games/${gameId}/pitch-counts`, opts);
 }
 
 // ── Live scoring claim ──
@@ -527,11 +527,11 @@ export async function deletePitchCount(gameId, id) {
 
 // ── Pitch Rules ──
 
-export async function fetchPitchEligibility(teamId, gameDate, gameId) {
+export async function fetchPitchEligibility(teamId, gameDate, gameId, opts = {}) {
   if (!gameDate || gameDate === 'null') return null;
   const params = new URLSearchParams({ team_id: teamId, game_date: gameDate });
   if (gameId) params.set('game_id', gameId);
-  return apiFetch(`/pitch-rules/eligibility?${params}`);
+  return apiFetch(`/pitch-rules/eligibility?${params}`, opts);
 }
 
 export async function fetchTeamPitcherStats(teamId) {
