@@ -240,9 +240,13 @@ router.post('/', authMiddleware, async (req, res) => {
             jersey_size, hat_size, needs_new_jersey, needs_new_hat,
             email: playerEmail, phone: playerPhone } = req.body;
 
-    if (!first_name || !last_name) {
-      return res.status(400).json({ error: 'first_name and last_name are required' });
+    if (!jersey_number) {
+      return res.status(400).json({ error: 'jersey_number is required' });
     }
+
+    const final_first_name = first_name || 'Player';
+    const final_last_name = last_name || `#${jersey_number}`;
+
     // If assigning to a team, check permission
     if (team_id) {
       if (!(await canEditTeam(req.user, team_id))) return res.status(403).json({ error: 'No permission for this team' });
@@ -255,7 +259,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const { rows } = await client.query(
       `INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade, jersey_size, hat_size, needs_new_jersey, needs_new_hat, email, phone)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
-      [first_name, last_name, normalizeDOB(date_of_birth), batting_hand || null, throwing_hand || null,
+      [final_first_name, final_last_name, normalizeDOB(date_of_birth), batting_hand || null, throwing_hand || null,
        parent_email || null, parent_phone || null, grade || null,
        jersey_size || null, hat_size || null, !!needs_new_jersey, !!needs_new_hat,
        playerEmail || null, playerPhone || null]

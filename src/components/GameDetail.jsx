@@ -196,15 +196,15 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
   }
 
   async function handleQuickAddPlayer(side) {
-    if (!newPlayerForm.first_name.trim() || !newPlayerForm.last_name.trim()) return;
+    if (!newPlayerForm.jersey_number.trim()) return;
     setSavingNewPlayer(true);
     try {
       const teamId = side === 'home' ? game.home_team_id : game.away_team_id;
-      await createPlayer({
+      const newPlayer = await createPlayer({
         team_id: teamId,
-        first_name: newPlayerForm.first_name.trim(),
-        last_name: newPlayerForm.last_name.trim(),
-        jersey_number: newPlayerForm.jersey_number.trim() || undefined,
+        first_name: newPlayerForm.first_name.trim() || 'Player',
+        last_name: newPlayerForm.last_name.trim() || `#${newPlayerForm.jersey_number.trim()}`,
+        jersey_number: newPlayerForm.jersey_number.trim(),
       });
       // Refresh player list and eligibility for the relevant team
       const [updated, elig] = await Promise.all([
@@ -215,6 +215,8 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       else { setAwayPlayers(updated); setAwayEligibility(elig); }
       setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' });
       setAddingNewPlayerFor(null);
+      // Select the new player in the pitch count form
+      setPcForm(prev => ({ ...prev, player_id: newPlayer.id }));
     } catch (err) { setError(err.message); }
     finally { setSavingNewPlayer(false); }
   }
@@ -750,13 +752,13 @@ function PitchCountSection({
             <div className="bg-action-900/20 border border-action-400/30 rounded-lg p-3 space-y-2">
               <div className="eyebrow text-action-300 mb-1">Quick Add Player</div>
               <div className="grid grid-cols-3 gap-2">
-                <Input label="First Name *" type="text" required value={newPlayerForm.first_name}
+                <Input label="First Name" type="text" value={newPlayerForm.first_name}
                     onChange={(e) => setNewPlayerForm(prev => ({ ...prev, first_name: e.target.value }))}
                     placeholder="First" />
-                <Input label="Last Name *" type="text" required value={newPlayerForm.last_name}
+                <Input label="Last Name" type="text" value={newPlayerForm.last_name}
                     onChange={(e) => setNewPlayerForm(prev => ({ ...prev, last_name: e.target.value }))}
                     placeholder="Last" />
-                <Input label="Jersey #" type="text" value={newPlayerForm.jersey_number}
+                <Input label="Jersey # *" type="text" required value={newPlayerForm.jersey_number}
                     onChange={(e) => setNewPlayerForm(prev => ({ ...prev, jersey_number: e.target.value }))}
                     placeholder="#" />
               </div>
