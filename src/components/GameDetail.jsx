@@ -202,6 +202,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       const teamId = side === 'home' ? game.home_team_id : game.away_team_id;
       const newPlayer = await createPlayer({
         team_id: teamId,
+        game_id: gameId,
         first_name: newPlayerForm.first_name.trim() || 'Player',
         last_name: newPlayerForm.last_name.trim() || `#${newPlayerForm.jersey_number.trim()}`,
         jersey_number: newPlayerForm.jersey_number.trim(),
