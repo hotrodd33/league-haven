@@ -207,17 +207,38 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
         last_name: newPlayerForm.last_name.trim() || `#${newPlayerForm.jersey_number.trim()}`,
         jersey_number: newPlayerForm.jersey_number.trim(),
       });
-      // Refresh player list and eligibility for the relevant team
-      const [updated, elig] = await Promise.all([
+
+      // If a pitch count was already entered, log it for the new player now
+      // so the user doesn't have to wait for the dropdown to refresh.
+      const pcEntered = pcForm.pitch_count !== '' && !Number.isNaN(Number(pcForm.pitch_count));
+      if (pcEntered) {
+        await createPitchCount(gameId, {
+          player_id: newPlayer.id,
+          team_id: teamId,
+          pitch_count: Number(pcForm.pitch_count),
+        });
+      }
+
+      const [updated, elig, pcs] = await Promise.all([
         fetchPlayersByTeam(teamId),
         fetchPitchEligibility(teamId, game.game_date, gameId).catch(() => null),
+        pcEntered ? fetchPitchCounts(gameId) : Promise.resolve(null),
       ]);
       if (side === 'home') { setHomePlayers(updated); setHomeEligibility(elig); }
       else { setAwayPlayers(updated); setAwayEligibility(elig); }
+      if (pcs) setPitchCounts(pcs);
+
       setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' });
       setAddingNewPlayerFor(null);
-      // Select the new player in the pitch count form
-      setPcForm(prev => ({ ...prev, player_id: newPlayer.id }));
+
+      if (pcEntered) {
+        // Pitch count was logged — close the whole add flow.
+        setPcForm({ player_id: '', pitch_count: '' });
+        setAddingFor(null);
+      } else {
+        // Just the player was added — auto-select for next step.
+        setPcForm(prev => ({ ...prev, player_id: newPlayer.id }));
+      }
     } catch (err) { setError(err.message); }
     finally { setSavingNewPlayer(false); }
   }
@@ -772,7 +793,7 @@ function PitchCountSection({
             </div>
           )}
 
-          {availablePlayers.length > 0 && (
+          {(availablePlayers.length > 0 || addingNewPlayer) && (
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -805,7 +826,7 @@ function PitchCountSection({
             </>
           )}
           <div className="flex flex-wrap gap-2 pt-1">
-            {availablePlayers.length > 0 && (
+            {(availablePlayers.length > 0 || pcForm.player_id) && (
               <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Adding…' : 'Add'}</Button>
             )}
             <Button variant="secondary" onClick={onCancelAdd}>Cancel</Button>
