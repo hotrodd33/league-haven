@@ -159,7 +159,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
         team_id: teamId,
         pitch_count: Number(pcForm.pitch_count),
       });
-      setPitchCounts(await fetchPitchCounts(gameId));
+      setPitchCounts(await fetchPitchCounts(gameId, { cache: 'reload' }));
       setPcForm({ player_id: '', pitch_count: '' });
       setAddingFor(null);
     } catch (err) { setError(err.message); }
@@ -174,7 +174,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       await updatePitchCount(gameId, editingPc.id, {
         pitch_count: Number(pcForm.pitch_count),
       });
-      setPitchCounts(await fetchPitchCounts(gameId));
+      setPitchCounts(await fetchPitchCounts(gameId, { cache: 'reload' }));
       setEditingPc(null);
       setPcForm({ player_id: '', pitch_count: '' });
     } catch (err) { setError(err.message); }
