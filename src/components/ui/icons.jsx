@@ -393,3 +393,11 @@ export function ShareIcon({ className = 'w-5 h-5' }) {
     </svg>
   );
 }
+
+export function TournamentIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" {...s}>
+      <path d="M3 4.5h4M3 9.5h4M7 4.5v5M7 7h5M3 14.5h4M3 19.5h4M7 14.5v5M7 17h5M12 7v10M12 12h9" />
+    </svg>
+  );
+}

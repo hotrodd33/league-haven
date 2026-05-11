@@ -1,6 +1,6 @@
 import { cn } from '../../lib/cn.js';
 import {
-  UsersIcon, BuildingIcon, CalendarIcon, TrophyIcon,
+  UsersIcon, BuildingIcon, CalendarIcon, TrophyIcon, TournamentIcon,
   ClipboardIcon, CogIcon, UserGroupIcon, DatabaseIcon,
   ChevronLeftIcon, ChevronRightIcon, HomeIcon, CurrencyDollarIcon,
   MapPinIcon, UserIcon, MegaphoneIcon, GlobeIcon, BookOpenIcon,
@@ -36,7 +36,7 @@ export default function Sidebar({
   // ACTIVITY — day-to-day operational destinations
   const activityItems = [
     { key: 'schedule',     label: 'Schedule',    icon: CalendarIcon },
-    { key: 'tournaments',  label: 'Tournaments', icon: TrophyIcon },
+    { key: 'tournaments',  label: 'Tournaments', icon: TournamentIcon },
     { key: 'standings',    label: 'Standings',   icon: TrophyIcon },
     { key: 'fields',       label: 'Fields',      icon: MapPinIcon },
     { key: 'travel',       label: 'Travel',      icon: ArrowTrendingUpIcon },

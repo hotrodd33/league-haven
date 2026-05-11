@@ -1,16 +1,14 @@
+import React from 'react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
 import { formatPhone } from '../utils/formatPhone.js';
 import { needsScoreEntry, isGameToday } from '../utils/games.js';
 import {
-  fetchGames, createGame, updateGame, deleteGame,
-  fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
-  fetchOrganizations, fetchAssignableOfficials,
+  fetchGames, deleteGame,
+  fetchTeams, fetchSeasons,
   fetchGameInterests, expressGameInterest, removeGameInterest,
-  checkGameConflicts, createTeam, fetchAgeGroups, fetchLevels,
-  fetchWeather, fetchWeatherForecast,
-  createReservation, fetchAllPractices, updateReservation, deleteReservation,
+  fetchWeather, fetchWeatherForecast, fetchAllPractices, deleteReservation,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useBranding } from '../hooks/useBranding.js';
@@ -18,9 +16,9 @@ import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { PracticeCard, PracticeEditModal } from './TeamSchedule.jsx';
-import { FieldForm } from './FieldsPage.jsx';
-import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
-import { Button, Input, Modal } from './ui/index.js';
+
+import { DARK_STATUS_COLORS } from '../constants/statusClasses.js';
+import { Button, Modal } from './ui/index.js';
 import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, PlusIcon, ChevronLeftIcon } from './ui/icons.jsx';
 
 // Compact chip label: "10U" + "AA" → "10AA", "12U" alone → "12U", division_name as-is.
@@ -47,8 +45,9 @@ function stripAgeLevel(name, ageGroup, level) {
   }
   return n || name;
 }
+import { GameForm } from './GameForm.jsx';
 
-const STATUS_OPTIONS = [
+export const STATUS_OPTIONS = [
   { value: 'unscheduled', label: 'Unscheduled' },
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'in_progress', label: 'In Progress' },
@@ -69,7 +68,7 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function formatTime(timeStr) {
+export function formatTime(timeStr) {
   if (!timeStr) return '';
   const [h, m] = timeStr.split(':').map(Number);
   const ampm = h >= 12 ? 'PM' : 'AM';
@@ -77,12 +76,9 @@ function formatTime(timeStr) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-function toMinutes(hhmm) {
-  const [h, m] = String(hhmm).split(':').map(Number);
-  return (h * 60) + m;
-}
 
-function CoachContact({ name, email, phone, label }) {
+
+export function CoachContact({ name, email, phone, label }) {
   if (!name && !email && !phone) return null;
   return (
     <div className="flex items-center gap-2 text-xs text-gray-400">
@@ -94,98 +90,7 @@ function CoachContact({ name, email, phone, label }) {
   );
 }
 
-const SCHED_ROLE_LABELS = { scheduling_contact: 'Scheduler', org_scheduler: 'Org Scheduler', head_coach: 'Head Coach', org_admin: 'Org Admin' };
-
-function AddFieldModal({ homeOrgId, onDone, onCancel }) {
-  const [orgs, setOrgs] = useState([]);
-  const [ageGroups, setAgeGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    Promise.all([fetchOrganizations(), fetchAgeGroups()])
-      .then(([o, ag]) => { setOrgs(o); setAgeGroups(ag); })
-      .finally(() => setLoading(false));
-  }, []);
-  if (loading) return <Modal open onClose={onCancel} title="Add Field Location" size="lg"><div className="p-6 text-center text-gray-400">Loading...</div></Modal>;
-  const editableOrgIds = new Set(orgs.map(o => o.id));
-  return (
-    <FieldForm orgId={homeOrgId} editableOrgIds={editableOrgIds} orgs={orgs} ageGroups={ageGroups} onDone={onDone} onCancel={onCancel} />
-  );
-}
-
-function toHHMM(totalMinutes) {
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function UmpireStatusList({ officials, interestedUmpires }) {
-  const assignedIds = new Set((officials || []).map(o => Number(o.id)));
-  const items = [];
-  for (const o of (officials || [])) {
-    items.push({ name: o.name, status: 'assigned' });
-  }
-  for (const u of (interestedUmpires || [])) {
-    if (!assignedIds.has(Number(u.official_id))) {
-      items.push({ name: u.name, status: 'interested' });
-    }
-  }
-  if (!items.length) return null;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {items.map((item, i) => (
-        <span key={i} className={`text-xs px-1.5 py-0.5 rounded font-medium ${item.status === 'assigned'
-            ? 'bg-action-900/50 text-action-300'
-            : DARK_BADGES.warning
-          }`}>
-          {item.name}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function buildTimeSlots(startTime, endTime, increment) {
-  const start = toMinutes(startTime); const end = toMinutes(endTime);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) return [];
-  const step = Number(increment) || 30; const slots = [];
-  for (let cur = start; cur <= end; cur += step) {
-    slots.push(toHHMM(cur));
-  }
-  return slots;
-}
-
-// Duration options: 1 hr, then 15-min increments up to 12 hrs
-const DURATION_OPTIONS = (() => {
-  const opts = [];
-  for (let m = 60; m <= 720; m += 15) {
-    const h = Math.floor(m / 60);
-    const min = m % 60;
-    const label = min === 0 ? `${h} hr${h !== 1 ? 's' : ''}` : `${h}:${String(min).padStart(2, '0')}`;
-    opts.push({ value: m, label });
-  }
-  return opts;
-})();
-
-function addDays(dateStr, n) {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
-function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCount) {
-  if (recurType === 'none') return [startDate];
-  const dates = [];
-  const limit = recurType === 'count' ? Number(recurCount) : 365;
-  let cur = startDate;
-  while (dates.length < limit) {
-    const dow = new Date(cur + 'T00:00:00').getDay();
-    if (recurDays.includes(dow)) dates.push(cur);
-    cur = addDays(cur, 1);
-    if (recurType === 'until' && cur > recurEndDate) break;
-    if (cur > addDays(startDate, 365)) break;
-  }
-  return dates;
-}
+export const SCHED_ROLE_LABELS = { scheduling_contact: 'Scheduler', org_scheduler: 'Org Scheduler', head_coach: 'Head Coach', org_admin: 'Org Admin' };
 
 export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport, onViewPlayer }) {
   const { isAdmin, isSuperAdmin, isOrgAdmin, isTeamManager, isAuthenticated, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
@@ -225,7 +130,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   // Consume initialGameId so it doesn't re-trigger on re-renders
   useEffect(() => {
     if (initialGameId && onGameIdConsumed) onGameIdConsumed();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filters
   const [filterTeam, setFilterTeam] = useState('');
@@ -283,7 +188,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
       setFilterTeam('__my_teams__');
     }
     setFilterTeamReady(true);
-  }, [teamsLoading, isAdmin, myTeamIds, filterTeamReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [teamsLoading, isAdmin, myTeamIds, filterTeamReady]);
 
   // ── React Query: filter-driven data ────────────────────────────────────────
   const isMyTeams = filterTeam === '__my_teams__';
@@ -1243,8 +1148,8 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                               )}
                               {w.playability && w.playability.rating !== 'good' && (
                                 <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded-full ${w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
-                                    w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
-                                      'bg-yellow-900/40 text-yellow-300'
+                                  w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                                    'bg-yellow-900/40 text-yellow-300'
                                   }`}>{w.playability.rating}</span>
                               )}
                             </span>
