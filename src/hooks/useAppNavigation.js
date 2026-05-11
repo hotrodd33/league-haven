@@ -37,7 +37,7 @@ export function useAppNavigation() {
 
     function navigateToTournament(tournamentId) {
         setSelectedTournamentId(tournamentId);
-        setPage('tournament-detail');
+        setPage('tournament-schedule');
     }
 
     return {

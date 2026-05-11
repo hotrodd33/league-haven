@@ -103,7 +103,7 @@ export const BracketMatch = ({ match, onMatchClick, onNavigateToTeam, onNavigate
   const { teams, game } = match;
   const gameStatus = game?.status || 'pending';
   const isCompleted = gameStatus === 'completed';
-  const hasGame = !!match.linked_game_id;
+  const hasGame = !!match.game?.id;
   const statusBorder = GAME_STATUS_STYLES[gameStatus] || GAME_STATUS_STYLES.pending;
   const badge = GAME_STATUS_BADGES[gameStatus] || null;
 

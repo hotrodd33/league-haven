@@ -441,7 +441,7 @@ function MatchupsTab({ rounds, teams, tournamentId, queryClient, onCreateGame, o
               if (match.is_bye) return null;
               const teamA = match.teams[0];
               const teamB = match.teams[1];
-              const hasLinkedGame = !!match.linked_game_id;
+              const hasLinkedGame = !!match.game?.id;
               const hasWinner = !!match.winnerId;
 
               // Status indicator
@@ -470,7 +470,7 @@ function MatchupsTab({ rounds, teams, tournamentId, queryClient, onCreateGame, o
                       label="Team A (Home)"
                       team={teamA}
                       allTeams={teams}
-                      disabled={hasWinner || hasLinkedGame}
+                      disabled={hasWinner}
                       onChange={(ttId) => handleSlotChange(match, 'a', ttId)}
                     />
                     {/* Team B slot */}
@@ -478,7 +478,7 @@ function MatchupsTab({ rounds, teams, tournamentId, queryClient, onCreateGame, o
                       label="Team B (Away)"
                       team={teamB}
                       allTeams={teams}
-                      disabled={hasWinner || hasLinkedGame}
+                      disabled={hasWinner}
                       onChange={(ttId) => handleSlotChange(match, 'b', ttId)}
                     />
                   </div>

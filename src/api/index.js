@@ -1419,6 +1419,10 @@ export async function fetchTournaments(filters = {}) {
   return apiFetch(`/tournaments${qs ? '?' + qs : ''}`);
 }
 
+export async function fetchTournamentTeams(tournamentId) {
+  return apiFetch(`/tournaments/${tournamentId}/teams`);
+}
+
 export async function fetchTournament(id) {
   return apiFetch(`/tournaments/${id}`);
 }
@@ -1469,34 +1473,10 @@ export async function advanceTournamentMatch(tournamentId, matchId, data) {
   });
 }
 
-export async function finalizeTournamentMatch(tournamentId, matchId) {
-  // DEPRECATED — use createTournamentGame instead
-  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/finalize`, {
-    method: 'POST',
-  });
-}
-
-export async function linkTournamentGame(tournamentId, matchId, gameId) {
-  // DEPRECATED — tournament games no longer link to the games table
-  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/link-game`, {
-    method: 'PUT', body: JSON.stringify({ game_id: gameId }),
-  });
-}
+// ── Tournament Games ──
 
 export async function updateTournamentRound(tournamentId, roundId, data) {
   return apiFetch(`/tournaments/${tournamentId}/rounds/${roundId}`, {
-    method: 'PUT', body: JSON.stringify(data),
-  });
-}
-
-// ── Tournament Games ──
-
-export async function fetchTournamentGame(tournamentId, gameId) {
-  return apiFetch(`/tournaments/${tournamentId}/games/${gameId}`);
-}
-
-export async function updateTournamentGame(tournamentId, gameId, data) {
-  return apiFetch(`/tournaments/${tournamentId}/games/${gameId}`, {
     method: 'PUT', body: JSON.stringify(data),
   });
 }

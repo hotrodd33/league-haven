@@ -1069,24 +1069,6 @@ async function migrate() {
     );
   `);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS tournament_games (
-      id SERIAL PRIMARY KEY,
-      tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
-      home_team_id INTEGER REFERENCES tournament_teams(id) ON DELETE SET NULL,
-      away_team_id INTEGER REFERENCES tournament_teams(id) ON DELETE SET NULL,
-      location_id INTEGER REFERENCES field_locations(id) ON DELETE SET NULL,
-      game_date DATE,
-      game_time TIME,
-      status TEXT NOT NULL DEFAULT 'pending'
-        CHECK(status IN ('pending','scheduled','in_progress','completed','cancelled')),
-      home_score INTEGER,
-      away_score INTEGER,
-      notes TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tournament_matches (
@@ -1100,7 +1082,7 @@ async function migrate() {
       loser_team_id INTEGER REFERENCES tournament_teams(id) ON DELETE SET NULL,
       next_match_id INTEGER REFERENCES tournament_matches(id) ON DELETE SET NULL,
       loser_next_match_id INTEGER REFERENCES tournament_matches(id) ON DELETE SET NULL,
-      game_id INTEGER REFERENCES tournament_games(id) ON DELETE SET NULL,
+      game_id INTEGER REFERENCES games(id) ON DELETE SET NULL,
       is_bye BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -1110,6 +1092,11 @@ async function migrate() {
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS tournament_id INTEGER REFERENCES tournaments(id) ON DELETE CASCADE;`);
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS tournament_match_id INTEGER REFERENCES tournament_matches(id) ON DELETE SET NULL;`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_games_tournament ON games(tournament_id) WHERE tournament_id IS NOT NULL;`);
+
+  // Drop deprecated table and fix fk
+  await pool.query(`ALTER TABLE tournament_matches DROP CONSTRAINT IF EXISTS tournament_matches_game_id_fkey`);
+  await pool.query(`ALTER TABLE tournament_matches ADD CONSTRAINT tournament_matches_game_id_fkey FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE SET NULL`);
+  await pool.query(`DROP TABLE IF EXISTS tournament_games CASCADE;`);
 }
 
 // Lazy migration: retries on each request until it succeeds.

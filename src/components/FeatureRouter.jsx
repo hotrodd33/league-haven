@@ -24,8 +24,8 @@ import TeamPage from './TeamPage.jsx';
 import GuardiansPage from './GuardiansPage.jsx';
 import CoachesPage from './CoachesPage.jsx';
 import TravelMatrix from './TravelMatrix.jsx';
-import TournamentsPage from './TournamentsPage.jsx';
-import TournamentSchedule from './TournamentSchedule.jsx';
+import TournamentsPage from './tourneyComponents/TournamentsPage.jsx';
+import TournamentSchedule from './tourneyComponents/TournamentSchedule.jsx';
 
 export default function FeatureRouter(props) {
     return (
