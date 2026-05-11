@@ -1287,8 +1287,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const initialGameDate = game?.game_date || new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     season_id: game?.season_id || defaultSeasonId || '',
-    home_team_id: game?.home_team_id || defaultHomeTeamId || '',
-    away_team_id: game?.away_team_id || '',
+    home_team_id: game?.tournament_id ? (game.tournament_team_a_id || '') : (game?.home_team_id || defaultHomeTeamId || ''),
+    away_team_id: game?.tournament_id ? (game.tournament_team_b_id || '') : (game?.away_team_id || ''),
     location_id: game?.location_id || '',
     game_date: initialGameDate,
     game_time: game?.game_time?.slice(0, 5) || '',
@@ -1667,7 +1667,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               {ungroupedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </optgroup>
           )}
-          <option value="__create__">＋ Create New Team…</option>
+          {!game?.tournament_id && <option value="__create__">＋ Create New Team…</option>}
         </select>
       </div>
     );

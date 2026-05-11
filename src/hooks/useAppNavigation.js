@@ -107,6 +107,11 @@ export function useAppNavigation() {
         setPage('schedule');
     }
 
+    function navigateToTournament(tournamentId) {
+        setSelectedTournamentId(tournamentId);
+        setPage('tournament-schedule');
+    }
+
     return {
         page: navState.page,
         setPage,

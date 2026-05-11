@@ -22,7 +22,7 @@ import { Button, Modal, Input, Select } from '../ui/index.js';
 import { ChevronLeftIcon, CalendarIcon } from '../ui/icons.jsx';
 import TournamentBracket from './TournamentBracket.jsx';
 import TeamLogo from '../TeamLogo.jsx';
-import TournamentGameDetail from './TournamentGameDetail.jsx';
+import GameDetail from '../GameDetail.jsx';
 import TournamentEditorModal from './TournamentEditorModal.jsx';
 
 const FORMAT_LABELS = { single_elimination: 'Single Elimination', double_elimination: 'Double Elimination' };
@@ -69,7 +69,7 @@ export default function TournamentSchedule({ tournamentId, onBack, onNavigateToT
         teams: m.teams,
         winnerId: m.winnerId,
         game: m.game,
-        linked_game_id: m.linked_game_id,
+        linked_game_id: m.game?.id,
         _matchData: m, // pass through for admin actions
       })),
     }));
@@ -107,8 +107,7 @@ export default function TournamentSchedule({ tournamentId, onBack, onNavigateToT
   // Render game detail inline if selected
   if (selectedGameId) {
     return (
-      <TournamentGameDetail
-        tournamentId={tournamentId}
+      <GameDetail
         gameId={selectedGameId}
         canManage={canManage}
         onBack={() => setSelectedGameId(null)}

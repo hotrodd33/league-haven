@@ -143,7 +143,7 @@ router.get('/:id', async (req, res) => {
               g.home_team_id AS game_home_team_id, g.away_team_id AS game_away_team_id,
               fl.name AS location_name
        FROM tournament_matches m
-       LEFT JOIN tournament_games g ON g.id = m.game_id
+       LEFT JOIN games g ON g.id = m.game_id
        LEFT JOIN field_locations fl ON fl.id = g.location_id
        WHERE m.tournament_id = $1
        ORDER BY m.match_number`, [id]
@@ -258,7 +258,7 @@ router.post('/', authMiddleware, async (req, res) => {
       for (let m = 0; m < matchCount; m++) {
         // Create game
         const { rows: gRows } = await client.query(
-          `INSERT INTO tournament_games (tournament_id) VALUES ($1) RETURNING id`,
+          `INSERT INTO games (tournament_id, status) VALUES ($1, 'unscheduled') RETURNING id`,
           [tournamentId]
         );
         const gameId = gRows[0].id;
@@ -340,6 +340,34 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     await pool.query('DELETE FROM tournaments WHERE id = $1', [id]);
     cache.invalidatePrefix('tournaments:');
     res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /:id/teams — get teams ───────────────────────────────────────────────
+
+router.get('/:id/teams', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `SELECT tt.*, 
+        t.name AS team_name, t.org_id, o.name AS org_name,
+        json_build_object(
+          'id', t.id,
+          'name', t.name,
+          'org_id', t.org_id,
+          'org_name', o.name
+        ) as team
+       FROM tournament_teams tt
+       LEFT JOIN teams t ON t.id = tt.team_id
+       LEFT JOIN organizations o ON o.id = t.org_id
+       WHERE tt.tournament_id = $1
+       ORDER BY tt.seed ASC NULLS LAST, tt.created_at ASC`,
+      [id]
+    );
+    res.json(rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -444,10 +472,20 @@ router.put('/:id/matches/:matchId/assign', authMiddleware, async (req, res) => {
     }
 
     const col = slot === 'a' ? 'team_a_id' : 'team_b_id';
-    await pool.query(
-      `UPDATE tournament_matches SET ${col} = $1 WHERE id = $2 AND tournament_id = $3`,
+    const { rows: updatedMatch } = await pool.query(
+      `UPDATE tournament_matches SET ${col} = $1 WHERE id = $2 AND tournament_id = $3 RETURNING game_id`,
       [tournament_team_id || null, matchId, id]
     );
+
+    if (updatedMatch[0] && updatedMatch[0].game_id) {
+      let realTeamId = null;
+      if (tournament_team_id) {
+        const { rows: teamRows } = await pool.query('SELECT team_id FROM tournament_teams WHERE id = $1', [tournament_team_id]);
+        if (teamRows.length) realTeamId = teamRows[0].team_id;
+      }
+      const gameCol = slot === 'a' ? 'home_team_id' : 'away_team_id';
+      await pool.query(`UPDATE games SET ${gameCol} = $1 WHERE id = $2`, [realTeamId, updatedMatch[0].game_id]);
+    }
     cache.invalidatePrefix('tournaments:');
     res.json({ success: true });
   } catch (err) {
@@ -473,9 +511,9 @@ router.put('/:id/matches/:matchId/schedule', authMiddleware, async (req, res) =>
     if (!mRows[0].game_id) return res.status(400).json({ error: 'No game linked to this match' });
 
     const { game_date, game_time, location_id } = req.body;
-    const newStatus = game_date && game_time && location_id ? 'scheduled' : 'pending';
+    const newStatus = game_date && game_time && location_id ? 'scheduled' : 'unscheduled';
     await pool.query(
-      `UPDATE tournament_games SET
+      `UPDATE games SET
         game_date = COALESCE($1, game_date),
         game_time = COALESCE($2, game_time),
         location_id = COALESCE($3, location_id),
@@ -522,7 +560,7 @@ router.put('/:id/matches/:matchId/score', authMiddleware, async (req, res) => {
     // Update game
     if (match.game_id) {
       await client.query(
-        `UPDATE tournament_games SET home_score = $1, away_score = $2, status = 'completed', updated_at = NOW()
+        `UPDATE games SET home_score = $1, away_score = $2, status = 'completed', updated_at = NOW()
          WHERE id = $3`,
         [hs, as, match.game_id]
       );
@@ -653,23 +691,34 @@ router.post('/:id/matches/:matchId/create-game', authMiddleware, async (req, res
     // Check if game already has teams assigned (already created)
     if (match.game_id) {
       const { rows: gRows } = await pool.query(
-        'SELECT home_team_id, away_team_id FROM tournament_games WHERE id = $1', [match.game_id]
+        'SELECT home_team_id, away_team_id FROM games WHERE id = $1', [match.game_id]
       );
       if (gRows.length && (gRows[0].home_team_id || gRows[0].away_team_id)) {
         return res.status(400).json({ error: 'Game already created for this match' });
       }
     }
 
-    // Set teams on the tournament game (works with both real and temp teams)
+    // Retrieve the real team IDs for the tournament teams
+    const { rows: ttRows } = await pool.query(
+      'SELECT id, team_id FROM tournament_teams WHERE id IN ($1, $2)',
+      [match.team_a_id || -1, match.team_b_id || -1]
+    );
+    const ttMap = {};
+    for (const row of ttRows) ttMap[row.id] = row.team_id;
+
+    const homeTeamId = match.team_a_id ? ttMap[match.team_a_id] : null;
+    const awayTeamId = match.team_b_id ? ttMap[match.team_b_id] : null;
+
+    // Set teams on the game
     const { game_date, game_time, location_id } = req.body;
-    const newStatus = game_date && game_time && location_id ? 'scheduled' : 'pending';
+    const newStatus = game_date && game_time && location_id ? 'scheduled' : 'unscheduled';
     await pool.query(
-      `UPDATE tournament_games SET
+      `UPDATE games SET
         home_team_id = $1, away_team_id = $2,
         game_date = $3, game_time = $4, location_id = $5,
         status = $6, updated_at = NOW()
        WHERE id = $7`,
-      [match.team_a_id, match.team_b_id,
+      [homeTeamId, awayTeamId,
        game_date || null, game_time || null, location_id || null,
        newStatus, match.game_id]
     );
@@ -703,10 +752,10 @@ router.delete('/:id/matches/:matchId/create-game', authMiddleware, async (req, r
 
     if (mRows[0].game_id) {
       await pool.query(
-        `UPDATE tournament_games SET
+        `UPDATE games SET
           home_team_id = NULL, away_team_id = NULL,
           game_date = NULL, game_time = NULL, location_id = NULL,
-          status = 'pending', updated_at = NOW()
+          status = 'unscheduled', updated_at = NOW()
          WHERE id = $1`,
         [mRows[0].game_id]
       );
@@ -746,184 +795,7 @@ router.put('/:id/rounds/:roundId', authMiddleware, async (req, res) => {
   }
 });
 
-// ── GET /:id/games/:gameId — fetch a single tournament game (enriched) ───────
 
-router.get('/:id/games/:gameId', async (req, res) => {
-  try {
-    const { id, gameId } = req.params;
-    const { rows: gRows } = await pool.query(
-      `SELECT g.*,
-              fl.name AS location_name, fl.address AS location_address,
-              fl.city AS location_city, fl.state AS location_state,
-              fl.latitude AS location_lat, fl.longitude AS location_lon
-       FROM tournament_games g
-       LEFT JOIN field_locations fl ON fl.id = g.location_id
-       WHERE g.id = $1 AND g.tournament_id = $2`, [gameId, id]
-    );
-    if (!gRows.length) return res.status(404).json({ error: 'Tournament game not found' });
-    const game = gRows[0];
-    game.game_date = game.game_date instanceof Date ? game.game_date.toISOString().slice(0, 10) : game.game_date;
-
-    // Get the match this game belongs to
-    const { rows: mRows } = await pool.query(
-      'SELECT id, match_number, round_id, winner_team_id FROM tournament_matches WHERE game_id = $1 AND tournament_id = $2', [gameId, id]
-    );
-    const match = mRows[0] || null;
-
-    // Get round info
-    let roundName = null;
-    if (match) {
-      const { rows: rRows } = await pool.query('SELECT name FROM tournament_rounds WHERE id = $1', [match.round_id]);
-      roundName = rRows[0]?.name || null;
-    }
-
-    // Enrich teams
-    const enrichSide = async (ttId) => {
-      if (!ttId) return null;
-      const { rows } = await pool.query(
-        `SELECT tt.*, t.name, t.logo_url, t.org_id, t.age_group, t.level,
-                t.team_city, t.team_mascot, t.team_color, t.primary_color, t.secondary_color,
-                o.logo_url AS org_logo
-         FROM tournament_teams tt
-         LEFT JOIN teams t ON t.id = tt.team_id
-         LEFT JOIN organizations o ON o.id = t.org_id
-         WHERE tt.id = $1`, [ttId]
-      );
-      if (!rows.length) return null;
-      return enrichTeam(rows[0], rows[0].team_id ? rows[0] : null);
-    };
-
-    const homeTeam = await enrichSide(game.home_team_id);
-    const awayTeam = await enrichSide(game.away_team_id);
-
-    res.json({
-      ...game,
-      home_team: homeTeam,
-      away_team: awayTeam,
-      match_id: match?.id || null,
-      match_number: match?.match_number || null,
-      round_name: roundName,
-      winner_team_id: match?.winner_team_id || null,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ── PUT /:id/games/:gameId — update tournament game + auto-advance ───────────
-
-router.put('/:id/games/:gameId', authMiddleware, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { id, gameId } = req.params;
-    const { rows: tRows } = await client.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
-    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
-    const allowed = await canManageTournament(req.user, tRows[0].org_id);
-    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
-
-    const { rows: gRows } = await client.query(
-      'SELECT * FROM tournament_games WHERE id = $1 AND tournament_id = $2', [gameId, id]
-    );
-    if (!gRows.length) return res.status(404).json({ error: 'Tournament game not found' });
-    const game = gRows[0];
-
-    const { game_date, game_time, location_id, home_score, away_score, notes } = req.body;
-    let { status } = req.body;
-    if (status === undefined) {
-      status = game.status;
-    }
-
-    // Auto-promote to scheduled if date+time+location set, but only if currently pending
-    const effDate = game_date !== undefined ? game_date : game.game_date;
-    const effTime = game_time !== undefined ? game_time : game.game_time;
-    const effLoc = location_id !== undefined ? location_id : game.location_id;
-    if (status === 'pending' && effDate && effTime && effLoc) {
-      status = 'scheduled';
-    }
-
-    await client.query('BEGIN');
-
-    await client.query(
-      `UPDATE tournament_games SET
-        game_date = COALESCE($1, game_date),
-        game_time = $2,
-        location_id = $3,
-        status = COALESCE($4, status),
-        home_score = $5,
-        away_score = $6,
-        notes = $7,
-        updated_at = NOW()
-       WHERE id = $8`,
-      [game_date, game_time !== undefined ? game_time : game.game_time, location_id !== undefined ? location_id : game.location_id,
-       status, home_score !== undefined ? home_score : game.home_score, away_score !== undefined ? away_score : game.away_score, notes !== undefined ? notes : game.notes, gameId]
-    );
-
-    // Auto-advance: if game is now completed with a clear winner, advance in bracket
-    const finalStatus = status || game.status;
-    const finalHomeScore = home_score !== undefined ? home_score : game.home_score;
-    const finalAwayScore = away_score !== undefined ? away_score : game.away_score;
-
-    if (finalStatus === 'completed' && finalHomeScore != null && finalAwayScore != null && finalHomeScore !== finalAwayScore) {
-      const { rows: mRows } = await client.query(
-        'SELECT * FROM tournament_matches WHERE game_id = $1 AND tournament_id = $2', [gameId, id]
-      );
-      if (mRows.length) {
-        const match = mRows[0];
-        const hs = Number(finalHomeScore);
-        const as = Number(finalAwayScore);
-        const winnerId = hs > as ? match.team_a_id : match.team_b_id;
-        const loserId = hs > as ? match.team_b_id : match.team_a_id;
-
-        // Only set winner if not already set
-        if (!match.winner_team_id) {
-          await client.query(
-            'UPDATE tournament_matches SET winner_team_id = $1, loser_team_id = $2 WHERE id = $3',
-            [winnerId, loserId, match.id]
-          );
-
-          // Advance winner to next match
-          if (match.next_match_id && winnerId) {
-            const { rows: nextMatch } = await client.query(
-              'SELECT team_a_id, team_b_id FROM tournament_matches WHERE id = $1', [match.next_match_id]
-            );
-            if (nextMatch.length) {
-              const slot = !nextMatch[0].team_a_id ? 'team_a_id' : 'team_b_id';
-              await client.query(
-                `UPDATE tournament_matches SET ${slot} = $1 WHERE id = $2`,
-                [winnerId, match.next_match_id]
-              );
-            }
-          }
-
-          // Double-elim: advance loser
-          if (match.loser_next_match_id && loserId) {
-            const { rows: loserNext } = await client.query(
-              'SELECT team_a_id, team_b_id FROM tournament_matches WHERE id = $1', [match.loser_next_match_id]
-            );
-            if (loserNext.length) {
-              const slot = !loserNext[0].team_a_id ? 'team_a_id' : 'team_b_id';
-              await client.query(
-                `UPDATE tournament_matches SET ${slot} = $1 WHERE id = $2`,
-                [loserId, match.loser_next_match_id]
-              );
-            }
-          }
-        }
-      }
-    }
-
-    await client.query('COMMIT');
-    cache.invalidatePrefix('tournaments:');
-    res.json({ success: true });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  } finally {
-    client.release();
-  }
-});
 
 // ── POST /:id/matches/:matchId/reset — undo a match result ──────────────────
 
@@ -984,7 +856,7 @@ router.post('/:id/matches/:matchId/reset', authMiddleware, async (req, res) => {
     // Reset game back to scheduled/pending
     if (match.game_id) {
       await client.query(
-        `UPDATE tournament_games SET home_score = NULL, away_score = NULL, status = 'pending', updated_at = NOW()
+        `UPDATE games SET home_score = NULL, away_score = NULL, status = 'unscheduled', updated_at = NOW()
          WHERE id = $1`, [match.game_id]
       );
     }
@@ -1059,7 +931,7 @@ router.post('/:id/rounds/:roundId/reset', authMiddleware, async (req, res) => {
       // Reset game
       if (match.game_id) {
         await client.query(
-          `UPDATE tournament_games SET home_score = NULL, away_score = NULL, status = 'pending', updated_at = NOW()
+          `UPDATE games SET home_score = NULL, away_score = NULL, status = 'unscheduled', updated_at = NOW()
            WHERE id = $1`, [match.game_id]
         );
       }
@@ -1111,7 +983,7 @@ router.put('/:id/resize', authMiddleware, async (req, res) => {
 
     // Delete existing bracket (cascade will handle matches → games)
     await client.query('DELETE FROM tournament_matches WHERE tournament_id = $1', [id]);
-    await client.query('DELETE FROM tournament_games WHERE tournament_id = $1', [id]);
+    await client.query('DELETE FROM games WHERE tournament_id = $1', [id]);
     await client.query('DELETE FROM tournament_rounds WHERE tournament_id = $1', [id]);
 
     // Update team_count
@@ -1138,7 +1010,7 @@ router.put('/:id/resize', authMiddleware, async (req, res) => {
       const matchIds = [];
       for (let m = 0; m < matchCount; m++) {
         const { rows: gRows } = await client.query(
-          `INSERT INTO tournament_games (tournament_id) VALUES ($1) RETURNING id`, [id]
+          `INSERT INTO games (tournament_id, status) VALUES ($1, 'unscheduled') RETURNING id`, [id]
         );
         const gameId = gRows[0].id;
         let nextMatchId = null;
