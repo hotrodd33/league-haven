@@ -12,7 +12,7 @@ import PitchTracker from './PitchTracker.jsx';
 import BoxScoreView from './BoxScoreView.jsx';
 import { Button, Input, Select } from './ui/index.js';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
-import { GameForm } from './GameSchedule.jsx';
+import { GameForm } from './GameForm.jsx';
 import { fetchTeams, fetchSeasons, fetchTournamentTeams } from '../api/index.js';
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
@@ -128,7 +128,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
 
     fetcher.then(w => {
       if (w && !w.unavailable) setWeather(w);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [game?.location_lat, game?.location_lon, game?.game_date, game?.game_time, game?.status]);
 
   async function handleSaveScore(e) {
@@ -139,7 +139,6 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
         home_score: scoreForm.home_score !== '' ? Number(scoreForm.home_score) : null,
         away_score: scoreForm.away_score !== '' ? Number(scoreForm.away_score) : null,
         innings_played: scoreForm.innings_played !== '' ? Number(scoreForm.innings_played) : null,
-        status: scoreForm.home_score !== '' && scoreForm.away_score !== '' ? 'completed' : undefined,
       });
       setGame(updated);
       setEditingScore(false);
@@ -230,7 +229,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
   const isAwaitingTeams = !hasHomeTeam || !hasAwayTeam;
   const userCanEdit = canEdit(game) || (game.tournament_org_id && permissions?.org_ids?.includes(game.tournament_org_id));
   const userCanScore = !isAwaitingTeams && (
-    canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) || 
+    canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id) ||
     (game.tournament_org_id && permissions?.org_ids?.includes(game.tournament_org_id))
   );
   const homePC = pitchCounts.filter(pc => pc.team_id === game.home_team_id);
@@ -352,23 +351,21 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
 
       {/* Weather card */}
       {weather && (
-        <div className={`border rounded-xl p-4 sm:p-5 mb-4 ${
-          weather.playability?.rating === 'unplayable' ? 'bg-red-950/20 border-signal-500/30' :
+        <div className={`border rounded-xl p-4 sm:p-5 mb-4 ${weather.playability?.rating === 'unplayable' ? 'bg-red-950/20 border-signal-500/30' :
           weather.playability?.rating === 'poor' ? 'bg-orange-950/15 border-orange-500/30' :
-          'bg-gray-800 border-gray-700'
-        }`}>
+            'bg-gray-800 border-gray-700'
+          }`}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-display font-bold uppercase tracking-wide text-gray-100 flex items-center gap-2">
               {weather.icon} Game Day Weather
               {weather.isForecast && <span className="text-[10px] font-normal normal-case text-gray-500 italic">(forecast)</span>}
             </h3>
             {weather.playability && (
-              <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                weather.playability.rating === 'good' ? 'bg-action-900/40 text-action-300' :
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${weather.playability.rating === 'good' ? 'bg-action-900/40 text-action-300' :
                 weather.playability.rating === 'fair' ? 'bg-yellow-900/40 text-yellow-300' :
-                weather.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
-                'bg-signal-900/40 text-signal-300'
-              }`}>{weather.playability.rating}</span>
+                  weather.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                    'bg-signal-900/40 text-signal-300'
+                }`}>{weather.playability.rating}</span>
             )}
           </div>
 
@@ -459,14 +456,14 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
             <form onSubmit={handleSaveScore} className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
                 <Input label="Home Score" type="number" min="0" value={scoreForm.home_score}
-                    onChange={(e) => setScoreForm(prev => ({ ...prev, home_score: e.target.value }))}
-                    placeholder="—" />
+                  onChange={(e) => setScoreForm(prev => ({ ...prev, home_score: e.target.value }))}
+                  placeholder="—" />
                 <Input label="Away Score" type="number" min="0" value={scoreForm.away_score}
-                    onChange={(e) => setScoreForm(prev => ({ ...prev, away_score: e.target.value }))}
-                    placeholder="—" />
+                  onChange={(e) => setScoreForm(prev => ({ ...prev, away_score: e.target.value }))}
+                  placeholder="—" />
                 <Input label="Innings" type="number" min="1" max="99" value={scoreForm.innings_played}
-                    onChange={(e) => setScoreForm(prev => ({ ...prev, innings_played: e.target.value }))}
-                    placeholder="6" />
+                  onChange={(e) => setScoreForm(prev => ({ ...prev, innings_played: e.target.value }))}
+                  placeholder="6" />
               </div>
               <div className="flex gap-2">
                 <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Saving…' : 'Save Score'}</Button>
@@ -490,82 +487,82 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
 
       {/* Box Score (only renders if a GameChanger box score has been imported) */}
       {game.is_gamechanger_imported && (
-      <div className="mb-4">
-        <BoxScoreView
-          gameId={game.id}
-          awayTeamName={game.away_team_name}
-          homeTeamName={game.home_team_name}
-          onViewPlayer={onViewPlayer}
-        />
-      </div>
+        <div className="mb-4">
+          <BoxScoreView
+            gameId={game.id}
+            awayTeamName={game.away_team_name}
+            homeTeamName={game.home_team_name}
+            onViewPlayer={onViewPlayer}
+          />
+        </div>
       )}
 
       {/* Pitch Counts */}
       {!isAwaitingTeams && game.status !== 'unscheduled' && game.status !== 'cancelled' && (
         <div className="grid sm:grid-cols-2 gap-4">
           {!game.home_is_temp && (
-          <PitchCountSection
-            label={`${game.home_team_name} — Pitch Counts`}
-            logo={game.home_logo}
-            teamName={game.home_team_name}
-            entries={homePC}
-            availablePlayers={availableHome}
-            canEdit={userCanScore}
-            isAdding={addingFor === 'home'}
-            onStartAdd={() => { setAddingFor('home'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); setAddingNewPlayerFor(null); }}
-            onCancelAdd={() => { setAddingFor(null); setAddingNewPlayerFor(null); }}
-            onAdd={handleAddPitchCount}
-            pcForm={pcForm}
-            setPcForm={setPcForm}
-            saving={saving}
-            editingPc={editingPc}
-            onStartEdit={startEditPc}
-            onSaveEdit={handleUpdatePitchCount}
-            onCancelEdit={() => { setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); }}
-            onDelete={handleDeletePitchCount}
-            addingNewPlayer={addingNewPlayerFor === 'home'}
-            onStartAddNewPlayer={() => setAddingNewPlayerFor('home')}
-            onCancelAddNewPlayer={() => { setAddingNewPlayerFor(null); setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' }); }}
-            newPlayerForm={newPlayerForm}
-            setNewPlayerForm={setNewPlayerForm}
-            onSaveNewPlayer={() => handleQuickAddPlayer('home')}
-            savingNewPlayer={savingNewPlayer}
-            eligibilityData={homeEligibility}
-            gameDate={game.game_date}
-          />
+            <PitchCountSection
+              label={`${game.home_team_name} — Pitch Counts`}
+              logo={game.home_logo}
+              teamName={game.home_team_name}
+              entries={homePC}
+              availablePlayers={availableHome}
+              canEdit={userCanScore}
+              isAdding={addingFor === 'home'}
+              onStartAdd={() => { setAddingFor('home'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); setAddingNewPlayerFor(null); }}
+              onCancelAdd={() => { setAddingFor(null); setAddingNewPlayerFor(null); }}
+              onAdd={handleAddPitchCount}
+              pcForm={pcForm}
+              setPcForm={setPcForm}
+              saving={saving}
+              editingPc={editingPc}
+              onStartEdit={startEditPc}
+              onSaveEdit={handleUpdatePitchCount}
+              onCancelEdit={() => { setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); }}
+              onDelete={handleDeletePitchCount}
+              addingNewPlayer={addingNewPlayerFor === 'home'}
+              onStartAddNewPlayer={() => setAddingNewPlayerFor('home')}
+              onCancelAddNewPlayer={() => { setAddingNewPlayerFor(null); setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' }); }}
+              newPlayerForm={newPlayerForm}
+              setNewPlayerForm={setNewPlayerForm}
+              onSaveNewPlayer={() => handleQuickAddPlayer('home')}
+              savingNewPlayer={savingNewPlayer}
+              eligibilityData={homeEligibility}
+              gameDate={game.game_date}
+            />
           )}
 
           {/* Pitch Counts — Away */}
           {!game.away_is_temp && (
-          <PitchCountSection
-            label={`${game.away_team_name} — Pitch Counts`}
-            logo={game.away_logo}
-            teamName={game.away_team_name}
-            entries={awayPC}
-            availablePlayers={availableAway}
-            canEdit={userCanScore}
-            isAdding={addingFor === 'away'}
-            onStartAdd={() => { setAddingFor('away'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); setAddingNewPlayerFor(null); }}
-            onCancelAdd={() => { setAddingFor(null); setAddingNewPlayerFor(null); }}
-            onAdd={handleAddPitchCount}
-            pcForm={pcForm}
-            setPcForm={setPcForm}
-            saving={saving}
-            editingPc={editingPc}
-            onStartEdit={startEditPc}
-            onSaveEdit={handleUpdatePitchCount}
-            onCancelEdit={() => { setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); }}
-            onDelete={handleDeletePitchCount}
-            addingNewPlayer={addingNewPlayerFor === 'away'}
-            onStartAddNewPlayer={() => setAddingNewPlayerFor('away')}
-            onCancelAddNewPlayer={() => { setAddingNewPlayerFor(null); setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' }); }}
-            newPlayerForm={newPlayerForm}
-            setNewPlayerForm={setNewPlayerForm}
-            onSaveNewPlayer={() => handleQuickAddPlayer('away')}
-            savingNewPlayer={savingNewPlayer}
-            eligibilityData={awayEligibility}
-            gameDate={game.game_date}
-          />
+            <PitchCountSection
+              label={`${game.away_team_name} — Pitch Counts`}
+              logo={game.away_logo}
+              teamName={game.away_team_name}
+              entries={awayPC}
+              availablePlayers={availableAway}
+              canEdit={userCanScore}
+              isAdding={addingFor === 'away'}
+              onStartAdd={() => { setAddingFor('away'); setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); setAddingNewPlayerFor(null); }}
+              onCancelAdd={() => { setAddingFor(null); setAddingNewPlayerFor(null); }}
+              onAdd={handleAddPitchCount}
+              pcForm={pcForm}
+              setPcForm={setPcForm}
+              saving={saving}
+              editingPc={editingPc}
+              onStartEdit={startEditPc}
+              onSaveEdit={handleUpdatePitchCount}
+              onCancelEdit={() => { setEditingPc(null); setPcForm({ player_id: '', pitch_count: '' }); }}
+              onDelete={handleDeletePitchCount}
+              addingNewPlayer={addingNewPlayerFor === 'away'}
+              onStartAddNewPlayer={() => setAddingNewPlayerFor('away')}
+              onCancelAddNewPlayer={() => { setAddingNewPlayerFor(null); setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' }); }}
+              newPlayerForm={newPlayerForm}
+              setNewPlayerForm={setNewPlayerForm}
+              onSaveNewPlayer={() => handleQuickAddPlayer('away')}
+              savingNewPlayer={savingNewPlayer}
+              eligibilityData={awayEligibility}
+              gameDate={game.game_date}
+            />
           )}
         </div>
       )}
@@ -676,12 +673,11 @@ function PitchCountSection({
                   {restDays != null && (() => {
                     const availDate = availableDate(restDays);
                     return (
-                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-full ${
-                        restDays >= 3 ? 'bg-signal-900/35 text-signal-300' :
+                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-full ${restDays >= 3 ? 'bg-signal-900/35 text-signal-300' :
                         restDays >= 2 ? DARK_BADGES.warning :
-                        restDays >= 1 ? DARK_BADGES.warning :
-                        DARK_BADGES.success
-                      }`}
+                          restDays >= 1 ? DARK_BADGES.warning :
+                            DARK_BADGES.success
+                        }`}
                         title={availDate ? `Available ${availDate}` : 'No rest required'}
                       >
                         {restDays > 0 ? `${restDays}d` : '0d'}
@@ -762,14 +758,14 @@ function PitchCountSection({
               <div className="eyebrow text-action-300 mb-1">Quick Add Player</div>
               <div className="grid grid-cols-3 gap-2">
                 <Input label="First Name *" type="text" required value={newPlayerForm.first_name}
-                    onChange={(e) => setNewPlayerForm(prev => ({ ...prev, first_name: e.target.value }))}
-                    placeholder="First" />
+                  onChange={(e) => setNewPlayerForm(prev => ({ ...prev, first_name: e.target.value }))}
+                  placeholder="First" />
                 <Input label="Last Name *" type="text" required value={newPlayerForm.last_name}
-                    onChange={(e) => setNewPlayerForm(prev => ({ ...prev, last_name: e.target.value }))}
-                    placeholder="Last" />
+                  onChange={(e) => setNewPlayerForm(prev => ({ ...prev, last_name: e.target.value }))}
+                  placeholder="Last" />
                 <Input label="Jersey #" type="text" value={newPlayerForm.jersey_number}
-                    onChange={(e) => setNewPlayerForm(prev => ({ ...prev, jersey_number: e.target.value }))}
-                    placeholder="#" />
+                  onChange={(e) => setNewPlayerForm(prev => ({ ...prev, jersey_number: e.target.value }))}
+                  placeholder="#" />
               </div>
               <div className="flex gap-2">
                 <Button size="xs" disabled={savingNewPlayer} onClick={(e) => { e.preventDefault(); onSaveNewPlayer(); }}>
