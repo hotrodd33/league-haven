@@ -1,7 +1,8 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, optionalAuth, canEditTeam } = require('../auth');
+const { authMiddleware, optionalAuth, canEditTeam, canScoreGame } = require('../auth');
 const { normalizeDOB } = require('../utils/dob');
+const { sendOpponentRosterAddEmail } = require('../email');
 
 const router = express.Router();
 
@@ -20,6 +21,43 @@ async function canEditPlayer(user, playerId) {
     if (await canEditTeam(user, r.team_id)) return true;
   }
   return false;
+}
+
+async function notifyOpponentRosterAdd({ teamId, game, addedByUser, playerFirstName, playerLastName, jerseyNumber }) {
+  const { rows: coachRows } = await pool.query(
+    `SELECT DISTINCT s.email
+     FROM staff_members s
+     JOIN team_staff_assignments tsa ON tsa.staff_id = s.id
+     WHERE tsa.team_id = $1 AND s.email IS NOT NULL AND s.email != ''`,
+    [teamId]
+  );
+  const emails = coachRows.map(r => r.email);
+  if (!emails.length) return;
+
+  const opponentTeamId = Number(game.home_team_id) === Number(teamId) ? game.away_team_id : game.home_team_id;
+  const { rows: nameRows } = await pool.query(
+    `SELECT
+       (SELECT name FROM teams WHERE id = $1) AS team_name,
+       (SELECT name FROM teams WHERE id = $2) AS opponent_team_name`,
+    [teamId, opponentTeamId]
+  );
+  const teamName = nameRows[0]?.team_name || 'Your team';
+  const opponentTeamName = nameRows[0]?.opponent_team_name || 'Opposing team';
+
+  const { rows: senderRows } = await pool.query('SELECT email FROM users WHERE id = $1', [addedByUser.id]);
+  const senderEmail = senderRows[0]?.email || null;
+  const replyTo = senderEmail ? { email: senderEmail, name: addedByUser.name || addedByUser.username } : undefined;
+
+  await sendOpponentRosterAddEmail(emails, {
+    teamName,
+    opponentTeamName,
+    gameDate: game.game_date,
+    addedBy: addedByUser.name || addedByUser.username || 'Unknown',
+    playerFirstName,
+    playerLastName,
+    jerseyNumber,
+    replyTo,
+  });
 }
 
 async function withPositions(player) {
@@ -235,17 +273,39 @@ router.get('/:id', authMiddleware, async (req, res) => {
 router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { team_id, first_name, last_name, jersey_number, date_of_birth,
+    const { team_id, game_id, first_name, last_name, jersey_number, date_of_birth,
             batting_hand, throwing_hand, parent_email, parent_phone, grade, position_ids, contacts,
             jersey_size, hat_size, needs_new_jersey, needs_new_hat,
             email: playerEmail, phone: playerPhone } = req.body;
 
-    if (!first_name || !last_name) {
-      return res.status(400).json({ error: 'first_name and last_name are required' });
+    if (!jersey_number) {
+      return res.status(400).json({ error: 'jersey_number is required' });
     }
-    // If assigning to a team, check permission
+
+    const final_first_name = first_name || 'Player';
+    const final_last_name = last_name || `#${jersey_number}`;
+
+    // If assigning to a team, check permission. When the user lacks direct edit
+    // permission on the team, allow the add only if it is performed in the
+    // context of a game in which they are an authorized scorer for the
+    // opposing team. We notify the affected team's coaches afterwards.
+    let crossTeamGame = null;
     if (team_id) {
-      if (!(await canEditTeam(req.user, team_id))) return res.status(403).json({ error: 'No permission for this team' });
+      const hasTeamPerm = await canEditTeam(req.user, team_id);
+      if (!hasTeamPerm) {
+        if (game_id) {
+          const { rows: gameRows } = await pool.query(
+            'SELECT id, home_team_id, away_team_id, game_date FROM games WHERE id = $1',
+            [game_id]
+          );
+          const g = gameRows[0];
+          const teamIsInGame = g && [Number(g.home_team_id), Number(g.away_team_id)].includes(Number(team_id));
+          if (g && teamIsInGame && (await canScoreGame(req.user, g.home_team_id, g.away_team_id))) {
+            crossTeamGame = g;
+          }
+        }
+        if (!crossTeamGame) return res.status(403).json({ error: 'No permission for this team' });
+      }
       const { rows: teamCheck } = await client.query('SELECT id FROM teams WHERE id = $1', [team_id]);
       if (!teamCheck.length) return res.status(400).json({ error: 'Team not found' });
     }
@@ -255,7 +315,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const { rows } = await client.query(
       `INSERT INTO players (first_name, last_name, date_of_birth, batting_hand, throwing_hand, parent_email, parent_phone, grade, jersey_size, hat_size, needs_new_jersey, needs_new_hat, email, phone)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
-      [first_name, last_name, normalizeDOB(date_of_birth), batting_hand || null, throwing_hand || null,
+      [final_first_name, final_last_name, normalizeDOB(date_of_birth), batting_hand || null, throwing_hand || null,
        parent_email || null, parent_phone || null, grade || null,
        jersey_size || null, hat_size || null, !!needs_new_jersey, !!needs_new_hat,
        playerEmail || null, playerPhone || null]
@@ -310,6 +370,17 @@ router.post('/', authMiddleware, async (req, res) => {
     const player = await withPositions(playerRows[0]);
     // Include jersey_number in the response for convenience
     res.status(201).json({ ...player, jersey_number: jersey_number || null });
+
+    if (crossTeamGame) {
+      notifyOpponentRosterAdd({
+        teamId: Number(team_id),
+        game: crossTeamGame,
+        addedByUser: req.user,
+        playerFirstName: final_first_name,
+        playerLastName: final_last_name,
+        jerseyNumber: jersey_number,
+      }).catch(err => console.error('[opponent roster add notify]', err));
+    }
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);

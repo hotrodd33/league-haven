@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
 import { formatPhone } from '../utils/formatPhone.js';
+import { needsScoreEntry, isGameToday } from '../utils/games.js';
 import { fetchGames, fetchTeams, fetchSeasons, fetchTeamPractices, updateReservation, deleteReservation, fetchLocations, fetchWeather, fetchWeatherForecast } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
@@ -379,10 +380,15 @@ function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canSco
   const cardTone = isHome
     ? (isUnplayed ? 'bg-slate-800/85 border-green-600/70' : 'bg-gray-800 border-green-700/60')
     : (isUnplayed ? 'bg-slate-800/85 border-slate-600/80' : 'bg-gray-800 border-gray-700');
+  const highlightTone = isGameToday(game)
+    ? '!border-action-500 ring-1 ring-action-500/40'
+    : needsScoreEntry(game)
+      ? '!border-signal-500 ring-1 ring-signal-500/40'
+      : '';
 
   return (
     <div onClick={onSelect}
-      className={`${cardTone} border rounded-lg px-3 py-2 text-sm cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all`}>
+      className={`${cardTone} ${highlightTone} border rounded-lg px-3 py-2 text-sm cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all`}>
       <div className="flex items-center gap-3">
         <div className="w-16 shrink-0 text-center">
           <div className="text-xs text-gray-400">{formatTime(game.game_time) || 'TBD'}</div>

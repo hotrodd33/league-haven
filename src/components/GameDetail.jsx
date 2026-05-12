@@ -159,7 +159,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
         team_id: teamId,
         pitch_count: Number(pcForm.pitch_count),
       });
-      setPitchCounts(await fetchPitchCounts(gameId));
+      setPitchCounts(await fetchPitchCounts(gameId, { cache: 'reload' }));
       setPcForm({ player_id: '', pitch_count: '' });
       setAddingFor(null);
     } catch (err) { setError(err.message); }
@@ -174,7 +174,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       await updatePitchCount(gameId, editingPc.id, {
         pitch_count: Number(pcForm.pitch_count),
       });
-      setPitchCounts(await fetchPitchCounts(gameId));
+      setPitchCounts(await fetchPitchCounts(gameId, { cache: 'reload' }));
       setEditingPc(null);
       setPcForm({ player_id: '', pitch_count: '' });
     } catch (err) { setError(err.message); }
@@ -196,25 +196,52 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
   }
 
   async function handleQuickAddPlayer(side) {
-    if (!newPlayerForm.first_name.trim() || !newPlayerForm.last_name.trim()) return;
+    if (!newPlayerForm.jersey_number.trim()) return;
     setSavingNewPlayer(true);
     try {
       const teamId = side === 'home' ? game.home_team_id : game.away_team_id;
-      await createPlayer({
+      const newPlayer = await createPlayer({
         team_id: teamId,
-        first_name: newPlayerForm.first_name.trim(),
-        last_name: newPlayerForm.last_name.trim(),
-        jersey_number: newPlayerForm.jersey_number.trim() || undefined,
+        game_id: gameId,
+        first_name: newPlayerForm.first_name.trim() || 'Player',
+        last_name: newPlayerForm.last_name.trim() || `#${newPlayerForm.jersey_number.trim()}`,
+        jersey_number: newPlayerForm.jersey_number.trim(),
       });
-      // Refresh player list and eligibility for the relevant team
-      const [updated, elig] = await Promise.all([
-        fetchPlayersByTeam(teamId),
-        fetchPitchEligibility(teamId, game.game_date, gameId).catch(() => null),
+
+      // If a pitch count was already entered, log it for the new player now
+      // so the user doesn't have to wait for the dropdown to refresh.
+      const pcEntered = pcForm.pitch_count !== '' && !Number.isNaN(Number(pcForm.pitch_count));
+      if (pcEntered) {
+        await createPitchCount(gameId, {
+          player_id: newPlayer.id,
+          team_id: teamId,
+          pitch_count: Number(pcForm.pitch_count),
+        });
+      }
+
+      // Bypass the browser HTTP cache (server sends max-age=60 on GETs) so the
+      // newly added player and any new pitch count appear in the fresh data.
+      const noCache = { cache: 'reload' };
+      const [updated, elig, pcs] = await Promise.all([
+        fetchPlayersByTeam(teamId, noCache),
+        fetchPitchEligibility(teamId, game.game_date, gameId, noCache).catch(() => null),
+        pcEntered ? fetchPitchCounts(gameId, noCache) : Promise.resolve(null),
       ]);
       if (side === 'home') { setHomePlayers(updated); setHomeEligibility(elig); }
       else { setAwayPlayers(updated); setAwayEligibility(elig); }
+      if (pcs) setPitchCounts(pcs);
+
       setNewPlayerForm({ first_name: '', last_name: '', jersey_number: '' });
       setAddingNewPlayerFor(null);
+
+      if (pcEntered) {
+        // Pitch count was logged — close the whole add flow.
+        setPcForm({ player_id: '', pitch_count: '' });
+        setAddingFor(null);
+      } else {
+        // Just the player was added — auto-select for next step.
+        setPcForm(prev => ({ ...prev, player_id: newPlayer.id }));
+      }
     } catch (err) { setError(err.message); }
     finally { setSavingNewPlayer(false); }
   }
@@ -750,13 +777,13 @@ function PitchCountSection({
             <div className="bg-action-900/20 border border-action-400/30 rounded-lg p-3 space-y-2">
               <div className="eyebrow text-action-300 mb-1">Quick Add Player</div>
               <div className="grid grid-cols-3 gap-2">
-                <Input label="First Name *" type="text" required value={newPlayerForm.first_name}
+                <Input label="First Name" type="text" value={newPlayerForm.first_name}
                     onChange={(e) => setNewPlayerForm(prev => ({ ...prev, first_name: e.target.value }))}
                     placeholder="First" />
-                <Input label="Last Name *" type="text" required value={newPlayerForm.last_name}
+                <Input label="Last Name" type="text" value={newPlayerForm.last_name}
                     onChange={(e) => setNewPlayerForm(prev => ({ ...prev, last_name: e.target.value }))}
                     placeholder="Last" />
-                <Input label="Jersey #" type="text" value={newPlayerForm.jersey_number}
+                <Input label="Jersey # *" type="text" required value={newPlayerForm.jersey_number}
                     onChange={(e) => setNewPlayerForm(prev => ({ ...prev, jersey_number: e.target.value }))}
                     placeholder="#" />
               </div>
@@ -769,7 +796,7 @@ function PitchCountSection({
             </div>
           )}
 
-          {availablePlayers.length > 0 && (
+          {(availablePlayers.length > 0 || addingNewPlayer) && (
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -802,7 +829,7 @@ function PitchCountSection({
             </>
           )}
           <div className="flex flex-wrap gap-2 pt-1">
-            {availablePlayers.length > 0 && (
+            {(availablePlayers.length > 0 || pcForm.player_id) && (
               <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Adding…' : 'Add'}</Button>
             )}
             <Button variant="secondary" onClick={onCancelAdd}>Cancel</Button>

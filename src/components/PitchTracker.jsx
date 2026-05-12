@@ -182,23 +182,24 @@ export default function PitchTracker({ gameId, onBack }) {
   }
 
   async function handleAddNewPlayer() {
-    if (!newFirst.trim() || !newLast.trim() || !addingSide) return;
+    if (!newFirst.trim() || !newLast.trim() || !newJersey.trim() || !addingSide) return;
     setSavingPlayer(true);
     try {
       const teamId = addingSide === 'home' ? game.home_team_id : game.away_team_id;
       const result = await createPlayer({
         team_id: teamId,
+        game_id: gameId,
         first_name: newFirst.trim(),
         last_name: newLast.trim(),
-        jersey_number: newJersey.trim() || undefined,
+        jersey_number: newJersey.trim(),
       });
-      // Refresh player list
-      const updated = await fetchPlayersByTeam(teamId);
+      // Refresh player list (bypass browser HTTP cache so the new player is included)
+      const updated = await fetchPlayersByTeam(teamId, { cache: 'reload' });
       if (addingSide === 'home') setHomePlayers(updated);
       else setAwayPlayers(updated);
 
       // Auto-add as pitcher
-      const newPlayer = updated.find(p => p.first_name === newFirst.trim() && p.last_name === newLast.trim()) || result;
+      const newPlayer = updated.find(p => p.id === result.id) || result;
       if (newPlayer) {
         const key = `${addingSide}-${newPlayer.id}`;
         setActivePitchers(prev => [...prev, {
@@ -587,12 +588,11 @@ export default function PitchTracker({ gameId, onBack }) {
                 </div>
 
                 <div className="border-t border-gray-700 mt-4 pt-3">
-                  {ownsSide(addingSide) ? (
-                    <button onClick={() => setAddingNewPlayer(true)} className="text-sm text-chrome-400 hover:text-chrome-200 font-medium">
-                      + Add new player to roster
-                    </button>
-                  ) : (
-                    <p className="text-xs text-gray-500">Can't add new players to the opponent's roster — ask their coach to add them.</p>
+                  <button onClick={() => setAddingNewPlayer(true)} className="text-sm text-chrome-400 hover:text-chrome-200 font-medium">
+                    + Add new player to roster
+                  </button>
+                  {!ownsSide(addingSide) && (
+                    <p className="mt-1 text-xs text-gray-500">The opposing coach will be emailed about this addition.</p>
                   )}
                 </div>
               </>
@@ -603,11 +603,11 @@ export default function PitchTracker({ gameId, onBack }) {
                     <Input label="First Name *" value={newFirst} onChange={e => setNewFirst(e.target.value)} placeholder="First" />
                     <Input label="Last Name *" value={newLast} onChange={e => setNewLast(e.target.value)} placeholder="Last" />
                   </div>
-                  <Input label="Jersey #" value={newJersey} onChange={e => setNewJersey(e.target.value)} placeholder="Optional" />
+                  <Input label="Jersey # *" value={newJersey} onChange={e => setNewJersey(e.target.value)} placeholder="#" />
                 </div>
 
                 <div className="flex gap-3 mt-4">
-                  <Button onClick={handleAddNewPlayer} disabled={!newFirst.trim() || !newLast.trim()} loading={savingPlayer}>Add & Track</Button>
+                  <Button onClick={handleAddNewPlayer} disabled={!newFirst.trim() || !newLast.trim() || !newJersey.trim()} loading={savingPlayer}>Add & Track</Button>
                   <Button variant="ghost" onClick={() => setAddingNewPlayer(false)}>Cancel</Button>
                 </div>
               </>

@@ -173,6 +173,40 @@ function sendGameChangeEmail(emails, { homeTeam, awayTeam, oldDate, newDate, old
   });
 }
 
+function sendOpponentRosterAddEmail(emails, { teamName, opponentTeamName, gameDate, addedBy, playerFirstName, playerLastName, jerseyNumber, replyTo }) {
+  if (!emails.length) return Promise.resolve(null);
+
+  const playerLabel = `${esc(playerFirstName)} ${esc(playerLastName)}${jerseyNumber ? ` (#${esc(jerseyNumber)})` : ''}`;
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+      <h2 style="color:#1e3a5f;">⚾ Roster Addition by Opposing Coach</h2>
+      <p style="font-size:15px;">
+        A new player was added to <strong>${esc(teamName)}</strong> by the opposing coach during a game.
+      </p>
+      <table style="border-collapse:collapse;margin:12px 0;">
+        <tr><td style="padding:4px 12px;font-weight:600;color:#555;">Player</td><td style="padding:4px 12px;">${playerLabel}</td></tr>
+        <tr><td style="padding:4px 12px;font-weight:600;color:#555;">Game</td><td style="padding:4px 12px;">vs ${esc(opponentTeamName)}${gameDate ? ` on ${esc(formatDate(gameDate))}` : ''}</td></tr>
+        <tr><td style="padding:4px 12px;font-weight:600;color:#555;">Added by</td><td style="padding:4px 12px;">${esc(addedBy)}</td></tr>
+      </table>
+      <p style="font-size:13px;color:#888;margin-top:16px;">
+        Please review your roster and update the player's information as needed.
+      </p>
+      <p style="margin-top:12px;"><a href="${APP_URL}" style="color:#1d4ed8;">View in LeagueHaven</a></p>
+    </div>
+  `;
+
+  if (emails.length === 1) {
+    return sendEmail({ to: emails[0], subject: 'LeagueHaven — Roster Addition by Opposing Coach', html, replyTo });
+  }
+  return sendEmail({
+    to: FROM_EMAIL,
+    bcc: emails,
+    subject: 'LeagueHaven — Roster Addition by Opposing Coach',
+    html,
+    replyTo,
+  });
+}
+
 function formatDate(d) {
   if (!d) return 'TBD';
   const s = typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10);
@@ -342,6 +376,7 @@ module.exports = {
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
   sendGameChangeEmail,
+  sendOpponentRosterAddEmail,
   sendApprovalRequestEmail,
   sendApprovalEmail,
   sendRejectionEmail,

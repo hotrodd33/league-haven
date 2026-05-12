@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
 import { formatPhone } from '../utils/formatPhone.js';
+import { needsScoreEntry, isGameToday } from '../utils/games.js';
 import {
   fetchGames, createGame, updateGame, deleteGame,
   fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
@@ -726,9 +727,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                     const divLabel = divisionChipLabel(game);
                     const isInterested = interestGameIds.includes(Number(game.id));
                     const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
+                    const highlightClass = isGameToday(game)
+                      ? '!border-action-500 ring-1 ring-action-500/40'
+                      : needsScoreEntry(game)
+                        ? '!border-signal-500 ring-1 ring-signal-500/40'
+                        : '';
                     return (
                       <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                        className="bg-gray-800 border border-gray-700 rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
+                        className={`bg-gray-800 border border-gray-700 rounded-lg p-2 flex items-center gap-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all ${highlightClass}`}>
                         {/* Time + Division stacked */}
                         <div className="w-28 shrink-0 text-center">
                           <span className="text-sm font-semibold text-gray-300 block">{formatTime(game.game_time) || 'TBD'}</span>
@@ -853,9 +859,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                   const chipLabel = divisionChipLabel(game);
                   const isInterested = interestGameIds.includes(Number(game.id));
                   const canEditThisGame = canScoreGame(game.home_team_id, game.away_team_id, game.home_org_id, game.away_org_id);
+                  const highlightClass = isGameToday(game)
+                    ? '!border-action-500 ring-1 ring-action-500/40'
+                    : needsScoreEntry(game)
+                      ? '!border-signal-500 ring-1 ring-signal-500/40'
+                      : '';
                   return (
                     <div key={game.id} onClick={() => setSelectedGameId(game.id)}
-                      className="bg-gray-800 border border-gray-700 rounded-lg p-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all">
+                      className={`bg-gray-800 border border-gray-700 rounded-lg p-2 cursor-pointer hover:border-chrome-300 hover:shadow-sm transition-all ${highlightClass}`}>
                       <div className="flex items-center justify-between mb-2">
                         <div>
                           <span className="text-xs font-semibold text-gray-400 block">{formatTime(game.game_time) || 'TBD'}</span>
