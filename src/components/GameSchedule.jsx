@@ -1806,8 +1806,10 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                 </div>
                 <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId || loadingLocations}>
                   <option value="">— {loadingLocations ? 'Loading fields…' : 'None'} —</option>
-                  {/* When editing, always include the current location even if it belongs to a different org (neutral site etc.) */}
-                  {form.location_id && !locations.some(l => String(l.id) === String(form.location_id)) && (
+                  {/* When editing, always include the current location even if it belongs to a different org (neutral site etc.). Skip if it's already in the doubleheader away-team list, otherwise we'd render two options with the same value. */}
+                  {form.location_id
+                    && !locations.some(l => String(l.id) === String(form.location_id))
+                    && !awayLocations.some(l => String(l.id) === String(form.location_id)) && (
                     <option value={form.location_id}>{game?.location_name || `Field #${form.location_id}`}</option>
                   )}
                   {isDoubleheader ? (
