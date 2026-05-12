@@ -8,8 +8,10 @@ export function isIOS() {
 
 export function directionsUrl(destination) {
   const q = encodeURIComponent(destination || '');
+  // maps:// is a URL scheme the iOS OS intercepts in any browser
+  // (Safari, Chrome, Edge, Firefox), guaranteeing Apple Maps opens.
   return isIOS()
-    ? `https://maps.apple.com/?daddr=${q}`
+    ? `maps://?daddr=${q}`
     : `https://www.google.com/maps/dir/?api=1&destination=${q}`;
 }
 
