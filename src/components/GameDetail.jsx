@@ -268,8 +268,11 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
   return (
     <div>
       {/* Back button + tracker */}
-      <div className="flex items-center gap-2 mb-4">
-        <Button variant="secondary" onClick={onBack}>← Back to Schedule</Button>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Button variant="secondary" onClick={onBack}>
+          <span className="sm:hidden">← Back</span>
+          <span className="hidden sm:inline">← Back to Schedule</span>
+        </Button>
         {onOpenImport && (userCanScore || userCanEdit) && (
           <Button variant="chrome" onClick={() => onOpenImport(game.id)}>
             Import from GC
