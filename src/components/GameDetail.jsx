@@ -10,11 +10,12 @@ import { useAuth } from '../context/AuthContext.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import BoxScoreView from './BoxScoreView.jsx';
-import { Button, Input, Select } from './ui/index.js';
+import { Button, Input, Select, ShareButton } from './ui/index.js';
 import { PencilIcon, BaseballIcon, PlusIcon, ArrowPathIcon, MapPinIcon, ExclamationTriangleIcon } from './ui/icons.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
 import { GameForm } from './GameSchedule.jsx';
 import { fetchTeams, fetchSeasons } from '../api/index.js';
+import { directionsUrl } from '../utils/directions.js';
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
 const GC_BADGE_CLASS = 'inline-flex items-center rounded-sm bg-black px-1 py-0.5 text-[9px] font-bold leading-none tracking-tight text-[#00f092]';
@@ -267,8 +268,11 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
   return (
     <div>
       {/* Back button + tracker */}
-      <div className="flex items-center gap-2 mb-4">
-        <Button variant="secondary" onClick={onBack}>← Back to Schedule</Button>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Button variant="secondary" onClick={onBack}>
+          <span className="sm:hidden">← Back</span>
+          <span className="hidden sm:inline">← Back to Schedule</span>
+        </Button>
         {onOpenImport && (userCanScore || userCanEdit) && (
           <Button variant="chrome" onClick={() => onOpenImport(game.id)}>
             Import from GC
@@ -343,20 +347,31 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
         {game.location_name && (
           <div className="text-center">
             <div className="text-xs text-gray-400 mb-1">{game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
-            <a
-              href={
-                game.location_lat && game.location_lon
-                  ? `https://www.google.com/maps/dir/?api=1&destination=${game.location_lat},${game.location_lon}`
-                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([game.location_name, game.location_address, game.location_city, game.location_state].filter(Boolean).join(', '))}`
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg bg-action-600 hover:bg-action-500 text-white shadow transition-colors"
-            >
-              <MapPinIcon className="w-4 h-4" />
-              Get Directions
-            </a>
+            <div className="inline-flex flex-wrap items-center justify-center gap-2">
+              <a
+                href={directionsUrl(
+                  game.location_lat && game.location_lon
+                    ? `${game.location_lat},${game.location_lon}`
+                    : [game.location_name, game.location_address, game.location_city, game.location_state].filter(Boolean).join(', ')
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg bg-action-600 hover:bg-action-500 text-white shadow transition-colors"
+              >
+                <MapPinIcon className="w-4 h-4" />
+                Get Directions
+              </a>
+              <ShareButton
+                title={`${game.away_team_name} @ ${game.home_team_name}`}
+                text={[
+                  `${game.away_team_name} @ ${game.home_team_name}`,
+                  [formatDate(game.game_date), formatTime(game.game_time)].filter(Boolean).join(' • '),
+                  game.location_name && `📍 ${game.location_name}${game.location_city ? `, ${game.location_city}` : ''}`,
+                ].filter(Boolean).join('\n')}
+                url={`${window.location.origin}/schedule/${game.id}`}
+              />
+            </div>
           </div>
         )}
 

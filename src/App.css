@@ -265,6 +265,9 @@ html, body {
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "cv11", "ss01";
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip; /* contain any accidentally-wide child without breaking sticky positioning */
 }
 
 body {
