@@ -76,6 +76,27 @@ function dateKey(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCount) {
+  if (recurType === 'none') return [startDate];
+  const dates = [];
+  const limit = recurType === 'count' ? Number(recurCount) : 365;
+  let cur = startDate;
+  while (dates.length < limit) {
+    const dow = new Date(cur + 'T00:00:00').getDay();
+    if (recurDays.includes(dow)) dates.push(cur);
+    cur = addDays(cur, 1);
+    if (recurType === 'until' && cur > recurEndDate) break;
+    if (cur > addDays(startDate, 365)) break;
+  }
+  return dates;
+}
+
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -402,6 +423,17 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
     notes: reservation?.notes || '',
   });
 
+  // Recurrence (practice/event/maintenance only, create only)
+  const [recurType, setRecurType] = useState('none'); // 'none' | 'until' | 'count'
+  const [recurDays, setRecurDays] = useState(() => {
+    const base = reservation?.event_date?.slice?.(0, 10) || defaultDate || todayStr;
+    return [new Date(base + 'T00:00:00').getDay()];
+  });
+  const [recurEndDate, setRecurEndDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 42); return d.toISOString().slice(0, 10);
+  });
+  const [recurCount, setRecurCount] = useState(6);
+
   // Game-specific state
   const [gameForm, setGameForm] = useState({
     season_id: '',
@@ -523,26 +555,35 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
     if (!form.title.trim()) { setSaving(false); setError('Title is required.'); return; }
     if (!form.start_time) { setSaving(false); setError('Start time is required.'); return; }
     if (!form.duration_minutes) { setSaving(false); setError('Duration is required.'); return; }
+    if (!isEditing && recurType !== 'none' && recurDays.length === 0) {
+      setSaving(false); setError('Select at least one day of week for recurrence.'); return;
+    }
 
     // Compute end_time from start + duration
     const [sh, sm] = form.start_time.split(':').map(Number);
     const endMin = sh * 60 + sm + Number(form.duration_minutes);
     const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
 
-    const data = {
+    const baseData = {
       location_id: field.id,
       team_id: form.team_id ? Number(form.team_id) : null,
       title: form.title.trim(),
       event_type: form.event_type,
-      event_date: form.event_date,
       start_time: form.start_time,
       end_time: endTime,
       notes: form.notes.trim() || null,
     };
 
     try {
-      if (isEditing) await updateReservation(reservation.id, data);
-      else await createReservation(data);
+      if (isEditing) {
+        await updateReservation(reservation.id, { ...baseData, event_date: form.event_date });
+      } else {
+        const recurDates = buildRecurDates(form.event_date, recurType, recurDays, recurEndDate, recurCount);
+        if (!recurDates.length) { setSaving(false); setError('No dates match the recurrence pattern.'); return; }
+        for (const date of recurDates) {
+          await createReservation({ ...baseData, event_date: date });
+        }
+      }
       onDone();
     } catch (err) {
       setError(err.message);
@@ -703,6 +744,47 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
                   </select>
                 </div>
               </div>
+
+              {!isEditing && (
+                <div className="space-y-3 border border-white/10 rounded-lg p-3">
+                  <div className="flex items-center gap-3">
+                    <span className="lh-eyebrow">Repeat</span>
+                    <select value={recurType} onChange={e => setRecurType(e.target.value)} className="lh-select flex-1">
+                      <option value="none">No repeat (single date)</option>
+                      <option value="until">Repeat until date</option>
+                      <option value="count">Repeat N times</option>
+                    </select>
+                  </div>
+                  {recurType !== 'none' && (
+                    <>
+                      <div>
+                        <label className="lh-eyebrow block mb-1">Days of Week</label>
+                        <div className="flex flex-wrap gap-2">
+                          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, i) => (
+                            <button key={i} type="button"
+                              onClick={() => setRecurDays(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
+                              className={`px-2.5 py-1 rounded text-sm font-medium border transition-colors ${recurDays.includes(i) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/20 text-white/60 hover:border-white/40'}`}>
+                              {d}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {recurType === 'until' && (
+                        <div>
+                          <label className="lh-eyebrow block mb-1">End Date</label>
+                          <input type="date" value={recurEndDate} onChange={e => setRecurEndDate(e.target.value)} className="lh-input" />
+                        </div>
+                      )}
+                      {recurType === 'count' && (
+                        <div>
+                          <label className="lh-eyebrow block mb-1">Number of Occurrences</label>
+                          <input type="number" min="1" max="60" value={recurCount} onChange={e => setRecurCount(Number(e.target.value))} className="lh-input w-24" />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
 
