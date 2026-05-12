@@ -1,4 +1,5 @@
 import { Component, useEffect, useState, useMemo } from 'react';
+import Home from './components/Home.jsx';
 import Teams from './components/Teams.jsx';
 import Standings from './components/Standings.jsx';
 import Scores from './components/Scores.jsx';
@@ -35,6 +36,7 @@ class SiteErrorBoundary extends Component {
 }
 
 const TABS = [
+  { key: 'home',      label: 'Home'      },
   { key: 'standings', label: 'Standings' },
   { key: 'scores',    label: 'Scores'    },
   { key: 'teams',     label: 'Teams'     },
@@ -51,8 +53,8 @@ function parsePath(pathname) {
   if (mg) return { view: 'game', gameId: parseInt(mg[1], 10) };
   const m = path.match(/^\/team\/(.+)$/);
   if (m) return { view: 'team', teamSlug: m[1] };
-  const tab = (path.replace(/^\//, '').split('/')[0]) || 'standings';
-  return { view: 'tab', tab: TABS.some(t => t.key === tab) ? tab : 'standings' };
+  const tab = (path.replace(/^\//, '').split('/')[0]) || 'home';
+  return { view: 'tab', tab: TABS.some(t => t.key === tab) ? tab : 'home' };
 }
 
 export default function App() {
@@ -112,7 +114,7 @@ export default function App() {
   }
 
   function navigateToTab(tab) {
-    const path = tab === 'standings' ? '/site/' : `/site/${tab}`;
+    const path = tab === 'home' ? '/site/' : `/site/${tab}`;
     window.history.pushState({}, '', path);
     setNav({ view: 'tab', tab });
     setMenuOpen(false);
@@ -129,7 +131,7 @@ export default function App() {
 
           {/* Logo + name */}
           <button
-            onClick={() => navigateToTab('standings')}
+            onClick={() => navigateToTab('home')}
             className="flex items-center gap-2.5 hover:opacity-85 transition-opacity"
             aria-label="Go to home"
           >
@@ -212,6 +214,7 @@ export default function App() {
             : <div className="py-16 text-center text-gray-400">Loading team…</div>
         ) : (
           <SiteErrorBoundary>
+            {nav.tab === 'home'      && <Home      onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} onNavigateToTab={navigateToTab} />}
             {nav.tab === 'standings' && <Standings onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} />}
             {nav.tab === 'teams'     && <Teams     onNavigateToTeam={navigateToTeam} />}
