@@ -16,3 +16,4 @@ export { default as Scoreboard } from './Scoreboard.jsx';
 export { default as PlayerCard } from './PlayerCard.jsx';
 export { default as Sidebar } from './Sidebar.jsx';
 export { default as TopBar } from './TopBar.jsx';
+export { default as ShareButton } from './ShareButton.jsx';

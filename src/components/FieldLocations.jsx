@@ -6,6 +6,7 @@ import {
   fetchLocations, createLocation, updateLocation, deleteLocation,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { locationDirectionsUrl as directionsUrl } from '../utils/directions.js';
 import { Button, Input, Card, CardBody, Modal, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } from './ui';
 
 // Fix default marker icons for bundled builds
@@ -17,12 +18,6 @@ L.Icon.Default.mergeOptions({
 });
 
 const DEFAULT_MAP_CENTER = [44.4497, -92.2663]; // Lake City, MN
-
-function directionsUrl(loc) {
-  const addr = [loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ');
-  const dest = addr || `${loc.latitude},${loc.longitude}`;
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`;
-}
 
 function FitBounds({ locations }) {
   const map = useMap();

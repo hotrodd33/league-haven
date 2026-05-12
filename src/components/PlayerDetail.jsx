@@ -1165,7 +1165,7 @@ function DocumentsTab({ playerId, canEdit }) {
           <label className="btn btn-xs btn-primary flex items-center gap-1 cursor-pointer">
             <PlusIcon className="w-3.5 h-3.5" />
             {uploading ? 'Uploading...' : 'Upload'}
-            <input type="file" className="hidden" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf" onChange={handleUpload} disabled={uploading} />
+            <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleUpload} disabled={uploading} />
           </label>
         )}
       </div>

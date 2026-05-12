@@ -7,6 +7,7 @@ import {
   fetchOrganizations, fetchAgeGroups,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { locationDirectionsUrl as directionsUrl } from '../utils/directions.js';
 import FieldCalendar from './FieldCalendar.jsx';
 import { Button, Input, Select, Modal } from './ui';
 
@@ -19,12 +20,6 @@ L.Icon.Default.mergeOptions({
 });
 
 const DEFAULT_MAP_CENTER = [44.4497, -92.2663];
-
-function directionsUrl(loc) {
-  const addr = [loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ');
-  const dest = addr || `${loc.latitude},${loc.longitude}`;
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`;
-}
 
 function FitBounds({ locations }) {
   const map = useMap();
