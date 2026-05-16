@@ -284,22 +284,27 @@ export function LocationForm({ orgId, location, onDone, onCancel }) {
     setReverseGeocoding(true);
     try {
       const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'LeagueHaven/1.0' } });
       if (res.ok) {
         const data = await res.json();
         if (data.address) {
           const a = data.address;
+          // Build street address: prefer house_number + road, fall back to any
+          // named path/route, then park/leisure/amenity name for fields with no road.
+          const streetAddr = [a.house_number, a.road || a.pedestrian || a.footway || a.path].filter(Boolean).join(' ')
+            || a.leisure || a.amenity || a.building || a.tourism || '';
           setForm(prev => ({
             ...prev,
-            address: [a.house_number, a.road].filter(Boolean).join(' ') || prev.address,
+            address: streetAddr || prev.address,
             city: a.city || a.town || a.village || a.hamlet || prev.city,
             state: a.state ? (a['ISO3166-2-lvl4']?.split('-')[1] || a.state) : prev.state,
             zip: a.postcode || prev.zip,
           }));
         }
       }
-    } catch { /* ignore */ }
-    finally { setReverseGeocoding(false); }
+    } catch (err) {
+      console.warn('Reverse geocoding failed:', err.message);
+    } finally { setReverseGeocoding(false); }
   }
 
   // Auto-use device location for new fields
