@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   updateTournament, updateTournamentRound,
   assignTournamentMatch, advanceTournamentMatch, undoCreateGame, resizeTournament,
-  fetchTeams, addTournamentTeam, removeTournamentTeam,
+  fetchTeams, addTournamentTeam, removeTournamentTeam, fetchLocations,
 } from '../../api/index.js';
 import { Button, Modal, Input, Select } from '../ui/index.js';
 import TeamLogo from '../TeamLogo.jsx';
@@ -71,10 +71,23 @@ function InfoTab({ tournament, tournamentId, queryClient }) {
     description: tournament.description || '',
     start_date: tournament.start_date || '',
     end_date: tournament.end_date || '',
+    location_id: tournament.location_id || '',
+    location_notes: tournament.location_notes || '',
+    registration_open: tournament.registration_open ?? true,
+    registration_deadline: tournament.registration_deadline || '',
+    entry_fee: tournament.entry_fee != null ? String(tournament.entry_fee) : '',
+    max_registrations: tournament.max_registrations != null ? String(tournament.max_registrations) : '',
   });
   const [teamCount, setTeamCount] = useState(tournament.team_count || 4);
   const [saved, setSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const { data: locations = [] } = useQuery({
+    queryKey: ['locations', tournament.org_id],
+    queryFn: () => fetchLocations(tournament.org_id),
+    staleTime: STALE.THREE_MIN,
+    enabled: !!tournament.org_id,
+  });
 
   const updateMut = useMutation({
     mutationFn: (data) => updateTournament(tournamentId, data),
@@ -108,6 +121,12 @@ function InfoTab({ tournament, tournamentId, queryClient }) {
         description: form.description.trim() || null,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
+        location_id: form.location_id ? Number(form.location_id) : null,
+        location_notes: form.location_notes.trim() || null,
+        registration_open: form.registration_open,
+        registration_deadline: form.registration_deadline || null,
+        entry_fee: form.entry_fee !== '' ? Number(form.entry_fee) : null,
+        max_registrations: form.max_registrations !== '' ? Number(form.max_registrations) : null,
       });
     } catch (err) {
       // errors handled by mutation callbacks
@@ -145,6 +164,70 @@ function InfoTab({ tournament, tournamentId, queryClient }) {
           value={form.end_date}
           onChange={(e) => setForm({ ...form, end_date: e.target.value })}
         />
+      </div>
+
+      {/* Location */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="lh-eyebrow block mb-1">Location</label>
+          <select
+            value={form.location_id}
+            onChange={(e) => setForm({ ...form, location_id: e.target.value })}
+            className="lh-select w-full"
+          >
+            <option value="">— None —</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
+            ))}
+          </select>
+        </div>
+        <Input
+          label="Location Notes"
+          value={form.location_notes}
+          onChange={(e) => setForm({ ...form, location_notes: e.target.value })}
+          placeholder="Field complex, parking info…"
+        />
+      </div>
+
+      {/* Registration settings */}
+      <div className="pt-2 border-t border-slate-700 space-y-3">
+        <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Registration</h4>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.registration_open}
+              onChange={(e) => setForm({ ...form, registration_open: e.target.checked })}
+              className="w-4 h-4 rounded accent-action-500"
+            />
+            <span className="text-sm text-slate-200">Registration Open</span>
+          </label>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Input
+            label="Registration Deadline"
+            type="date"
+            value={form.registration_deadline}
+            onChange={(e) => setForm({ ...form, registration_deadline: e.target.value })}
+          />
+          <Input
+            label="Entry Fee ($)"
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.entry_fee}
+            onChange={(e) => setForm({ ...form, entry_fee: e.target.value })}
+            placeholder="0.00"
+          />
+          <Input
+            label="Max Registrations"
+            type="number"
+            min="1"
+            value={form.max_registrations}
+            onChange={(e) => setForm({ ...form, max_registrations: e.target.value })}
+            placeholder="No limit"
+          />
+        </div>
       </div>
 
       {tournament.status === 'draft' && (

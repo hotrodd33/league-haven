@@ -1527,3 +1527,24 @@ export async function resizeTournament(tournamentId, data) {
     method: 'PUT', body: JSON.stringify(data),
   });
 }
+
+export async function fetchMyTournamentRegistrations() {
+  return apiFetch('/tournaments/my-registrations');
+}
+
+export async function registerTeamForTournament(tournamentId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/register`, {
+    method: 'POST', body: JSON.stringify(data),
+  });
+}
+
+export async function withdrawTournamentRegistration(tournamentId, ttId) {
+  return apiFetch(`/tournaments/${tournamentId}/teams/${ttId}/withdraw`, {
+    method: 'PATCH',
+  });
+}
+
+export async function fetchTournamentRegistrations(tournamentId) {
+  return apiFetch(`/tournaments/${tournamentId}/registrations`);
+}
+

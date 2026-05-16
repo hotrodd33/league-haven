@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, requireRole, getUserPermissions } = require('../auth');
+const { authMiddleware, requireRole, getUserPermissions, canEditTeam } = require('../auth');
 const cache = require('../cache');
 
 const router = express.Router();
@@ -71,7 +71,8 @@ router.get('/', async (req, res) => {
 
     let sql = `
       SELECT t.*, o.name AS org_name, u.name AS created_by_name,
-        (SELECT COUNT(*)::int FROM tournament_teams tt WHERE tt.tournament_id = t.id) AS enrolled_count
+        (SELECT COUNT(*)::int FROM tournament_teams tt WHERE tt.tournament_id = t.id) AS enrolled_count,
+        (SELECT COUNT(*)::int FROM tournament_teams tt WHERE tt.tournament_id = t.id AND tt.registration_status != 'withdrawn') AS registered_count
       FROM tournaments t
       LEFT JOIN organizations o ON o.id = t.org_id
       LEFT JOIN users u ON u.id = t.created_by
@@ -90,6 +91,25 @@ router.get('/', async (req, res) => {
     }));
     cache.set(cacheKey, result, TOURNEY_TTL);
     res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /my-registrations — user's active registrations ──────────────────────
+// Must be registered before /:id to avoid wildcard match
+
+router.get('/my-registrations', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT tt.id, tt.tournament_id, tt.team_id, tt.registration_status, tt.registration_notes,
+              tt.created_at AS registered_at
+       FROM tournament_teams tt
+       WHERE tt.registered_by = $1 AND tt.registration_status != 'withdrawn'`,
+      [req.user.id]
+    );
+    res.json(rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -307,7 +327,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const allowed = await canManageTournament(req.user, existing[0].org_id);
     if (!allowed) return res.status(403).json({ error: 'Not authorized' });
 
-    const { name, description, status, start_date, end_date } = req.body;
+    const { name, description, status, start_date, end_date,
+            location_id, location_notes, registration_open, registration_deadline,
+            entry_fee, max_registrations } = req.body;
     await pool.query(
       `UPDATE tournaments SET
         name = COALESCE($1, name),
@@ -315,9 +337,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
         status = COALESCE($3, status),
         start_date = COALESCE($4, start_date),
         end_date = COALESCE($5, end_date),
+        location_id = COALESCE($6, location_id),
+        location_notes = COALESCE($7, location_notes),
+        registration_open = COALESCE($8, registration_open),
+        registration_deadline = COALESCE($9, registration_deadline),
+        entry_fee = COALESCE($10, entry_fee),
+        max_registrations = COALESCE($11, max_registrations),
         updated_at = NOW()
-       WHERE id = $6`,
-      [name, description, status, start_date, end_date, id]
+       WHERE id = $12`,
+      [name, description, status, start_date, end_date,
+       location_id, location_notes, registration_open, registration_deadline,
+       entry_fee, max_registrations, id]
     );
     cache.invalidatePrefix('tournaments:');
     const { rows } = await pool.query('SELECT * FROM tournaments WHERE id = $1', [id]);
@@ -1040,4 +1070,131 @@ router.put('/:id/resize', authMiddleware, async (req, res) => {
   }
 });
 
+// ── POST /:id/register — self-service team registration ──────────────────────
+
+router.post('/:id/register', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { team_id, notes } = req.body;
+  if (!team_id) return res.status(400).json({ error: 'team_id is required' });
+
+  try {
+    // Fetch tournament
+    const { rows: tRows } = await pool.query(
+      'SELECT * FROM tournaments WHERE id = $1', [id]
+    );
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+    const tournament = tRows[0];
+
+    if (!tournament.registration_open) {
+      return res.status(409).json({ error: 'Registration is closed for this tournament' });
+    }
+    if (tournament.registration_deadline) {
+      const deadline = new Date(tournament.registration_deadline);
+      deadline.setHours(23, 59, 59, 999);
+      if (new Date() > deadline) {
+        return res.status(409).json({ error: 'Registration deadline has passed' });
+      }
+    }
+
+    // Verify caller can manage this team
+    const allowed = await canEditTeam(req.user, team_id);
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+    // Check for existing non-withdrawn registration
+    const { rows: existing } = await pool.query(
+      `SELECT id FROM tournament_teams
+       WHERE tournament_id = $1 AND team_id = $2 AND registration_status != 'withdrawn'`,
+      [id, team_id]
+    );
+    if (existing.length) return res.status(409).json({ error: 'Team is already registered' });
+
+    // Count current active registrations
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*)::int AS cnt FROM tournament_teams
+       WHERE tournament_id = $1 AND registration_status != 'withdrawn'`,
+      [id]
+    );
+    const currentCount = countRows[0].cnt;
+    const status =
+      !tournament.max_registrations || currentCount < tournament.max_registrations
+        ? 'registered'
+        : 'waitlisted';
+
+    const { rows: inserted } = await pool.query(
+      `INSERT INTO tournament_teams (tournament_id, team_id, registration_status, registered_by, registration_notes)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [id, team_id, status, req.user.id, notes || null]
+    );
+
+    cache.invalidatePrefix('tournaments:');
+    res.status(201).json(inserted[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── PATCH /:id/teams/:ttId/withdraw — self-service withdrawal ────────────────
+
+router.patch('/:id/teams/:ttId/withdraw', authMiddleware, async (req, res) => {
+  const { id, ttId } = req.params;
+  try {
+    const { rows: ttRows } = await pool.query(
+      `SELECT tt.*, t.org_id AS tournament_org_id
+       FROM tournament_teams tt
+       JOIN tournaments t ON t.id = tt.tournament_id
+       WHERE tt.id = $1 AND tt.tournament_id = $2`,
+      [ttId, id]
+    );
+    if (!ttRows.length) return res.status(404).json({ error: 'Registration not found' });
+    const tt = ttRows[0];
+
+    const isOwner = tt.registered_by === req.user.id;
+    const isHost = await canManageTournament(req.user, tt.tournament_org_id);
+    if (!isOwner && !isHost) return res.status(403).json({ error: 'Forbidden' });
+
+    await pool.query(
+      `UPDATE tournament_teams SET registration_status = 'withdrawn' WHERE id = $1`,
+      [ttId]
+    );
+
+    cache.invalidatePrefix('tournaments:');
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /:id/registrations — list registrations (host admin) ─────────────────
+
+router.get('/:id/registrations', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows: tRows } = await pool.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+
+    const allowed = await canManageTournament(req.user, tRows[0].org_id);
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+    const { rows } = await pool.query(
+      `SELECT tt.*, t.name AS team_name, o.name AS org_name,
+              u.name AS registered_by_name
+       FROM tournament_teams tt
+       LEFT JOIN teams t ON t.id = tt.team_id
+       LEFT JOIN organizations o ON o.id = t.org_id
+       LEFT JOIN users u ON u.id = tt.registered_by
+       WHERE tt.tournament_id = $1
+       ORDER BY tt.created_at`,
+      [id]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
+

@@ -368,7 +368,9 @@ function MatchScheduler({ tournamentId, rounds, teams, queryClient, onCreateGame
       {selectedMatch && (
         <ScheduleModal
           tournamentId={tournamentId}
+          tournamentOrgId={tournament?.org_id}
           match={selectedMatch}
+          defaultLocationId={tournament?.location_id || ''}
           queryClient={queryClient}
           onClose={() => setSelectedMatch(null)}
         />
@@ -378,14 +380,15 @@ function MatchScheduler({ tournamentId, rounds, teams, queryClient, onCreateGame
 }
 
 // ── Schedule Modal ───────────────────────────────────────────────────────────
-function ScheduleModal({ tournamentId, match, queryClient, onClose }) {
-  const [form, setForm] = useState({ game_date: '', game_time: '', location_id: '' });
+function ScheduleModal({ tournamentId, tournamentOrgId, match, defaultLocationId, queryClient, onClose }) {
+  const [form, setForm] = useState({ game_date: '', game_time: '', location_id: defaultLocationId || '' });
   const [error, setError] = useState('');
 
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations'],
-    queryFn: () => fetchLocations(),
+    queryKey: ['locations', tournamentOrgId],
+    queryFn: () => fetchLocations(tournamentOrgId),
     staleTime: STALE.HOUR,
+    enabled: !!tournamentOrgId,
   });
 
   const scheduleMut = useMutation({
@@ -430,7 +433,7 @@ function ScheduleModal({ tournamentId, match, queryClient, onClose }) {
         >
           <option value="">Select location…</option>
           {locations.map((l) => (
-            <option key={l.id} value={l.id}>{l.name}</option>
+            <option key={l.id} value={l.id}>{l.name}{l.city ? ` — ${l.city}` : ''}</option>
           ))}
         </Select>
         {error && <p className="text-red-400 text-xs">{error}</p>}

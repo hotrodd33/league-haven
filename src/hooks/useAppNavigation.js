@@ -5,11 +5,12 @@ import { STALE } from '../lib/queryConfig.js';
 
 // ── URL ↔ nav state helpers ───────────────────────────────────────────────────
 // Supported paths:
-//   /              → { page: 'dashboard' }
-//   /:page         → { page }
-//   /rosters/:id   → { page: 'rosters', selectedTeam: id }
-//   /schedule/:id  → { page: 'schedule', pendingGameId: id }
-//   /players/:id   → { page: 'players', pendingPlayerId: id }
+//   /                        → { page: 'dashboard' }
+//   /:page                   → { page }
+//   /rosters/:id             → { page: 'rosters', selectedTeam: id }
+//   /schedule/:id            → { page: 'schedule', pendingGameId: id }
+//   /players/:id             → { page: 'players', pendingPlayerId: id }
+//   /tournament-schedule/:id → { page: 'tournament-schedule', selectedTournamentId: id }
 
 function parsePath(pathname) {
     const path = pathname.replace(/^\//, '').replace(/\/$/, '') || 'dashboard';
@@ -24,13 +25,17 @@ function parsePath(pathname) {
     if (page === 'players' && parts[1]) {
         return { page: 'players', pendingPlayerId: parseInt(parts[1], 10) };
     }
+    if (page === 'tournament-schedule' && parts[1]) {
+        return { page: 'tournament-schedule', selectedTournamentId: parseInt(parts[1], 10) };
+    }
     return { page };
 }
 
-function buildPath(page, { selectedTeam, pendingGameId, pendingPlayerId } = {}) {
+function buildPath(page, { selectedTeam, pendingGameId, pendingPlayerId, selectedTournamentId } = {}) {
     if (page === 'rosters' && selectedTeam) return `/rosters/${selectedTeam}`;
     if (page === 'schedule' && pendingGameId) return `/schedule/${pendingGameId}`;
     if (page === 'players' && pendingPlayerId) return `/players/${pendingPlayerId}`;
+    if (page === 'tournament-schedule' && selectedTournamentId) return `/tournament-schedule/${selectedTournamentId}`;
     if (page === 'dashboard') return '/';
     return `/${page}`;
 }
@@ -47,6 +52,7 @@ export function useAppNavigation() {
             selectedTeamOrgId: null,
             pendingGameId: parsed.pendingGameId ?? null,
             pendingPlayerId: parsed.pendingPlayerId ?? null,
+            selectedTournamentId: parsed.selectedTournamentId ?? null,
         };
     });
 
@@ -63,7 +69,7 @@ export function useAppNavigation() {
 
     // Restore state on browser back/forward
     useEffect(() => {
-        const onPop = (e) => {
+        const onPop = () => {
             const parsed = parsePath(window.location.pathname);
             setNavState(prev => ({
                 ...prev,
@@ -71,31 +77,40 @@ export function useAppNavigation() {
                 selectedTeam: parsed.selectedTeam ?? (parsed.page === 'rosters' ? prev.selectedTeam : null),
                 pendingGameId: parsed.pendingGameId ?? null,
                 pendingPlayerId: parsed.pendingPlayerId ?? null,
+                selectedTournamentId: parsed.selectedTournamentId ?? (parsed.page === 'tournament-schedule' ? prev.selectedTournamentId : null),
             }));
         };
         window.addEventListener('popstate', onPop);
         return () => window.removeEventListener('popstate', onPop);
     }, []);
-    const [selectedTournamentId, setSelectedTournamentId] = useState(null);
+
+    function setPage(page) {
+        pushNav({ ...navState, page });
+    }
+
+    function setSelectedTeam(teamId) {
+        setNavState(prev => ({ ...prev, selectedTeam: teamId }));
+    }
+
+    function setSelectedTeamOrgId(orgId) {
+        setNavState(prev => ({ ...prev, selectedTeamOrgId: orgId }));
+    }
 
     function navigateToTeam(teamId, orgId, isTemp = false) {
-        const newState = {
-            page: 'rosters',
-            if (isTemp) {
-            // Temporary teams only exist within a tournament context and do not have
-            // dedicated roster pages or backend entities to fetch.
-            // Navigating to them would cause queries to fail.
-            // In the future, this could open a quick-view modal instead.
-            console.warn("Cannot navigate to a temporary tournament team.");
+        // Temporary teams only exist within a tournament context and have no
+        // dedicated roster page. In the future this could open a quick-view modal.
+        if (isTemp) {
+            console.warn('Cannot navigate to a temporary tournament team.');
             return;
         }
-
-        selectedTeam: teamId,
+        pushNav({
+            ...navState,
+            page: 'rosters',
+            selectedTeam: teamId,
             selectedTeamOrgId: orgId || null,
             pendingGameId: null,
             pendingPlayerId: null,
-        };
-        pushNav(newState);
+        });
         if (teamId) {
             queryClient.prefetchQuery({ queryKey: ['roster', teamId], queryFn: () => fetchPlayersByTeam(teamId), staleTime: STALE.TWO_MIN });
             queryClient.prefetchQuery({ queryKey: ['staff', teamId], queryFn: () => fetchStaffByTeam(teamId), staleTime: STALE.TWO_MIN });
@@ -103,13 +118,11 @@ export function useAppNavigation() {
     }
 
     function navigateToGame(gameId) {
-        setPendingGameId(gameId);
-        setPage('schedule');
+        pushNav({ ...navState, page: 'schedule', pendingGameId: gameId });
     }
 
     function navigateToTournament(tournamentId) {
-        setSelectedTournamentId(tournamentId);
-        setPage('tournament-schedule');
+        pushNav({ ...navState, page: 'tournament-schedule', selectedTournamentId: tournamentId });
     }
 
     return {
@@ -122,7 +135,8 @@ export function useAppNavigation() {
         navigateToTeam,
         navigateToGame,
         navigateToTournament,
-        selectedTournamentId, setSelectedTournamentId,
+        selectedTournamentId: navState.selectedTournamentId,
+        setSelectedTournamentId: (id) => setNavState(prev => ({ ...prev, selectedTournamentId: id })),
         pendingGameId: navState.pendingGameId,
         clearPendingGame: () => setNavState(prev => ({ ...prev, pendingGameId: null })),
         pendingPlayerId: navState.pendingPlayerId,

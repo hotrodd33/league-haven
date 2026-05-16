@@ -88,7 +88,7 @@ function PageContent({
             return isAdmin ? <LeagueConfig onBack={() => setPage('dashboard')} /> : null;
 
         case 'schedule':
-            return <GameSchedule onBack={() => setPage('dashboard')} onNavigateToTeam={navigateToTeam} initialGameId={pendingGameId} onGameIdConsumed={clearPendingGame} onOpenImport={openImportWizard} onViewPlayer={onViewPlayer} />;
+            return <GameSchedule onBack={() => setPage('dashboard')} onNavigateToTeam={navigateToTeam} onNavigateToTournament={navigateToTournament} initialGameId={pendingGameId} onGameIdConsumed={clearPendingGame} onOpenImport={openImportWizard} onViewPlayer={onViewPlayer} />;
 
         case 'standings':
             return <Standings onBack={() => setPage('dashboard')} onNavigateToTeam={navigateToTeam} />;
@@ -185,6 +185,7 @@ function PageContent({
                             onViewPlayer={onViewPlayer}
                             refreshKey={refreshKey}
                             onNavigateToTeam={navigateToTeam}
+                            onNavigateToTournament={navigateToTournament}
                             onWatermarkLogoChange={onTeamWatermarkChange}
                             onEditTeam={isAdmin ? () => editTeamTriggerRef.current?.() : null}
                         />

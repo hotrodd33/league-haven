@@ -49,7 +49,7 @@ const BASE_SELECT = `
     tm.id AS tournament_match_id, tth.temp_name AS home_temp_name, tth.is_temp AS home_is_temp,
     tta.temp_name AS away_temp_name, tta.is_temp AS away_is_temp,
     tm.team_a_id AS tournament_team_a_id, tm.team_b_id AS tournament_team_b_id,
-    t.org_id AS tournament_org_id
+    t.org_id AS tournament_org_id, t.name AS tournament_name
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id

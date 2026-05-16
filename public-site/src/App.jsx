@@ -6,6 +6,8 @@ import Scores from './components/Scores.jsx';
 import TeamDetail from './components/TeamDetail.jsx';
 import GameDetail from './components/GameDetail.jsx';
 import TravelMatrix from './components/TravelMatrix.jsx';
+import Tournaments from './components/Tournaments.jsx';
+import TournamentDetail from './components/TournamentDetail.jsx';
 import { fetchBranding, fetchTeams } from './api/index.js';
 
 class SiteErrorBoundary extends Component {
@@ -36,11 +38,12 @@ class SiteErrorBoundary extends Component {
 }
 
 const TABS = [
-  { key: 'home',      label: 'Home'      },
-  { key: 'standings', label: 'Standings' },
-  { key: 'scores',    label: 'Scores'    },
-  { key: 'teams',     label: 'Teams'     },
-  { key: 'travel',    label: 'Travel'    },
+  { key: 'home',        label: 'Home'        },
+  { key: 'standings',   label: 'Standings'   },
+  { key: 'scores',      label: 'Scores'      },
+  { key: 'teams',       label: 'Teams'       },
+  { key: 'tournaments', label: 'Tournaments' },
+  { key: 'travel',      label: 'Travel'      },
 ];
 
 function toSlug(name) {
@@ -51,6 +54,8 @@ function parsePath(pathname) {
   const path = pathname.replace(/^\/site/, '') || '/';
   const mg = path.match(/^\/game\/(\d+)$/);
   if (mg) return { view: 'game', gameId: parseInt(mg[1], 10) };
+  const mt = path.match(/^\/tournament\/(\d+)$/);
+  if (mt) return { view: 'tournament', tournamentId: parseInt(mt[1], 10) };
   const m = path.match(/^\/team\/(.+)$/);
   if (m) return { view: 'team', teamSlug: m[1] };
   const tab = (path.replace(/^\//, '').split('/')[0]) || 'home';
@@ -111,6 +116,11 @@ export default function App() {
     const slug = team ? toSlug(team.long_name || team.name) : String(teamId);
     window.history.pushState({}, '', `/site/team/${slug}`);
     setNav({ view: 'team', teamSlug: slug, teamId });
+  }
+
+  function navigateToTournament(tournamentId) {
+    window.history.pushState({}, '', `/site/tournament/${tournamentId}`);
+    setNav({ view: 'tournament', tournamentId });
   }
 
   function navigateToTab(tab) {
@@ -203,6 +213,11 @@ export default function App() {
             onBack={() => window.history.back()}
             onNavigateToTeam={navigateToTeam}
           />
+        ) : nav.view === 'tournament' ? (
+          <TournamentDetail
+            tournamentId={nav.tournamentId}
+            onBack={() => window.history.back()}
+          />
         ) : nav.view === 'team' ? (
           resolvedTeamId
             ? <TeamDetail
@@ -214,11 +229,12 @@ export default function App() {
             : <div className="py-16 text-center text-gray-400">Loading team…</div>
         ) : (
           <SiteErrorBoundary>
-            {nav.tab === 'home'      && <Home      onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} onNavigateToTab={navigateToTab} />}
-            {nav.tab === 'standings' && <Standings onNavigateToTeam={navigateToTeam} />}
-            {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} />}
-            {nav.tab === 'teams'     && <Teams     onNavigateToTeam={navigateToTeam} />}
-            {nav.tab === 'travel'    && <TravelMatrix />}
+            {nav.tab === 'home'        && <Home      onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} onNavigateToTab={navigateToTab} />}
+            {nav.tab === 'standings'   && <Standings onNavigateToTeam={navigateToTeam} />}
+            {nav.tab === 'scores'      && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} />}
+            {nav.tab === 'teams'       && <Teams     onNavigateToTeam={navigateToTeam} />}
+            {nav.tab === 'tournaments' && <Tournaments onNavigateToTournament={navigateToTournament} />}
+            {nav.tab === 'travel'      && <TravelMatrix />}
           </SiteErrorBoundary>
         )}
       </main>

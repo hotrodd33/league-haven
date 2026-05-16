@@ -174,16 +174,26 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
     useEffect(() => {
         if (!homeOrgId) {
-            setLocations([]);
-            setOfficials([]);
-            if (form.location_id) {
-                setForm((prev) => ({ ...prev, location_id: '' }));
+            // For tournament games (no teams yet), load the hosting org's fields.
+            const tournamentOrgId = game?.tournament_org_id;
+            if (tournamentOrgId) {
+                fetchLocations(tournamentOrgId).then((locs) => {
+                    setLocations(locs);
+                }).catch(() => setLocations([]));
+            } else if (form.location_id) {
+                // Non-tournament game that already has a location — keep the list populated.
+                fetchLocations().then(setLocations).catch(() => setLocations([]));
+            } else {
+                setLocations([]);
+                setOfficials([]);
             }
             return;
         }
         fetchLocations(homeOrgId).then((locs) => {
             setLocations(locs);
-            if (form.location_id && !locs.some((loc) => String(loc.id) === String(form.location_id))) {
+            // Don't clear the location on tournament games — the field may belong
+            // to a different org than the home team.
+            if (form.location_id && !game?.tournament_id && !locs.some((loc) => String(loc.id) === String(form.location_id))) {
                 setForm((prev) => ({ ...prev, location_id: '' }));
             }
         }).catch(() => {
@@ -554,7 +564,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                                     </button>
                                 </div>
                             </div>
-                            <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId}>
+                            <select id="game-location" name="location_id" value={form.location_id} onChange={handleChange} className="lh-select" disabled={!homeOrgId && !game?.tournament_id}>
                                 <option value="">— None —</option>
                                 {isDoubleheader ? (
                                     <>

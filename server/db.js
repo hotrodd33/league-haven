@@ -1098,6 +1098,17 @@ async function migrate() {
   await pool.query(`ALTER TABLE tournament_matches DROP CONSTRAINT IF EXISTS tournament_matches_game_id_fkey`);
   await pool.query(`ALTER TABLE tournament_matches ADD CONSTRAINT tournament_matches_game_id_fkey FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE SET NULL`);
   await pool.query(`DROP TABLE IF EXISTS tournament_games CASCADE;`);
+
+  // ── Tournament registration fields ──
+  await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS location_id INTEGER REFERENCES field_locations(id) ON DELETE SET NULL;`);
+  await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS location_notes TEXT;`);
+  await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS registration_open BOOLEAN NOT NULL DEFAULT true;`);
+  await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS registration_deadline DATE;`);
+  await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS entry_fee NUMERIC(10,2);`);
+  await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS max_registrations INTEGER;`);
+  await pool.query(`ALTER TABLE tournament_teams ADD COLUMN IF NOT EXISTS registration_status TEXT NOT NULL DEFAULT 'registered' CHECK(registration_status IN ('registered','waitlisted','withdrawn'));`);
+  await pool.query(`ALTER TABLE tournament_teams ADD COLUMN IF NOT EXISTS registered_by INTEGER REFERENCES users(id) ON DELETE SET NULL;`);
+  await pool.query(`ALTER TABLE tournament_teams ADD COLUMN IF NOT EXISTS registration_notes TEXT;`);
 }
 
 // Lazy migration: retries on each request until it succeeds.

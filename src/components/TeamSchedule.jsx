@@ -10,7 +10,7 @@ import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { GameForm } from './GameForm.jsx';
 import { Button, Input, Select, Modal } from './ui/index.js';
-import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, UserIcon } from './ui/icons.jsx';
+import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, UserIcon, TrophyIcon } from './ui/icons.jsx';
 import { DARK_STATUS_COLORS, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
@@ -56,7 +56,7 @@ const PRACTICE_COLORS = {
   maintenance: { bg: 'bg-amber-900/40', border: 'border-amber-500', text: 'text-amber-300', dot: 'bg-amber-500', badge: 'bg-amber-900/60 text-amber-300' },
 };
 
-export default function TeamSchedule({ teamId, onNavigateToTeam, onViewPlayer }) {
+export default function TeamSchedule({ teamId, onNavigateToTeam, onNavigateToTournament, onViewPlayer }) {
   const { isAdmin, canScoreGame, canScheduleGames } = useAuth();
   const canManageGames = isAdmin || canScheduleGames;
   const queryClient = useQueryClient();
@@ -309,7 +309,8 @@ export default function TeamSchedule({ teamId, onNavigateToTeam, onViewPlayer })
                         onSelect={() => setSelectedGameId(item.id)}
                         onTrack={() => setTrackingGameId(item.id)}
                         onSchedule={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id) ? () => { setEditingGame(item); setShowForm(true); } : undefined}
-                        canScore={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id)} />
+                        canScore={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id)}
+                        onNavigateToTournament={onNavigateToTournament} />
                       : <PracticeCard key={`practice-${item.id}`} practice={item}
                         editable={canManageGames}
                         onEdit={() => setEditingPractice(item)}
@@ -356,7 +357,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam, onViewPlayer })
 
 /* ── Game Card (list view) ── */
 
-function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canScore }) {
+function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canScore, onNavigateToTournament }) {
   const isHome = game.home_team_id === teamId;
   const opponent = isHome ? game.away_team_name : game.home_team_name;
   const opponentLogo = isHome ? game.away_logo : game.home_logo;
@@ -473,6 +474,17 @@ function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canSco
               {game.away_sched_phone && <a href={`tel:${game.away_sched_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{formatPhone(game.away_sched_phone)}</a>}
             </span>
           )}
+        </div>
+      )}
+      {game.tournament_id && game.tournament_name && (
+        <div className="mt-1 ml-[76px]">
+          <button
+            onClick={(e) => { e.stopPropagation(); onNavigateToTournament?.(game.tournament_id); }}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors"
+          >
+            <TrophyIcon className="w-3 h-3" />
+            {game.tournament_name}
+          </button>
         </div>
       )}
     </div>
