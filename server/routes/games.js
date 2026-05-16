@@ -754,6 +754,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     let { status } = req.body;
     const hasGameDate = Object.prototype.hasOwnProperty.call(req.body, 'game_date');
     const hasGameTime = Object.prototype.hasOwnProperty.call(req.body, 'game_time');
+    const hasLocationId = Object.prototype.hasOwnProperty.call(req.body, 'location_id');
+    const hasNotes = Object.prototype.hasOwnProperty.call(req.body, 'notes');
 
     // Live-scoring claim enforcement: if someone else has claimed this game
     // for live scoring, only that user (or super_admin) may push score /
@@ -814,7 +816,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         season_id = COALESCE($1, season_id),
         home_team_id = COALESCE($2, home_team_id),
         away_team_id = COALESCE($3, away_team_id),
-        location_id = $4,
+        location_id = ${hasLocationId ? '$4' : 'COALESCE($4, location_id)'},
         game_date = COALESCE($5, game_date),
         game_time = ${hasGameTime ? '$6' : 'COALESCE($6, game_time)'},
         game_duration_minutes = COALESCE($7, game_duration_minutes),
@@ -822,7 +824,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         home_score = $9,
         away_score = $10,
         innings_played = $11,
-        notes = $12,
+        notes = ${hasNotes ? '$12' : 'COALESCE($12, notes)'},
         updated_at = NOW()
        WHERE id = $13`,
       [season_id, home_team_id, away_team_id, location_id ?? null,
