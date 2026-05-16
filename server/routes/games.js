@@ -618,9 +618,28 @@ router.get('/deleted', authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
+// GET /games/sweep — called by Vercel cron (and local setInterval) to expire stale scorers.
+// Must be registered before /:id to avoid the wildcard swallowing it.
+// Protect with CRON_SECRET env var if set.
+router.get('/sweep', async (req, res) => {
+  const secret = req.headers['x-cron-secret'] || req.query.secret;
+  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const count = await expireStaleScorers();
+    res.json({ expired: count });
+  } catch (err) {
+    console.error('[SWEEP] Error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET single game
 router.get('/:id', async (req, res) => {
   try {
+    // Fire-and-forget stale claim expiry so any page load cleans up abandoned live sessions
+    expireStaleScorers().catch(() => {});
     const { rows } = await pool.query(BASE_SELECT + ' WHERE g.id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Game not found' });
     res.json(enrichGame(rows[0]));
@@ -925,7 +944,7 @@ async function notifyGameChange(game, oldDate, newDate, oldTime, newTime, user) 
   }
 }
 
-// PUT /:id/heartbeat — scorer keepalive; bumps updated_at so the live ticker knows the game is active
+// PUT /:id/heartbeat — scorer keepalive; bumps timestamps so the stale-claim sweeper knows the game is still active
 router.put('/:id/heartbeat', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -933,7 +952,7 @@ router.put('/:id/heartbeat', authMiddleware, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Game not found' });
     const allowed = await canScoreGame(req.user, rows[0].home_team_id, rows[0].away_team_id);
     if (!allowed) return res.status(403).json({ error: 'Not authorized' });
-    await pool.query('UPDATE games SET updated_at = NOW() WHERE id = $1', [id]);
+    await pool.query('UPDATE games SET updated_at = NOW(), scoring_last_active_at = NOW() WHERE id = $1', [id]);
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -1068,7 +1087,7 @@ router.post('/:id/scoring-claim', authMiddleware, async (req, res) => {
     }
 
     await pool.query(
-      'UPDATE games SET scoring_user_id = $1, scoring_started_at = NOW() WHERE id = $2',
+      'UPDATE games SET scoring_user_id = $1, scoring_started_at = NOW(), scoring_last_active_at = NOW() WHERE id = $2',
       [req.user.id, id]
     );
     const { rows: out } = await pool.query(BASE_SELECT + ' WHERE g.id = $1', [id]);
@@ -1246,4 +1265,43 @@ router.get('/:id/box-score', async (req, res) => {
   }
 });
 
-module.exports = router;
+// ─── Stale Scorer Expiry ─────────────────────────────────────────────────────
+// Clears live-scoring claims that have had no heartbeat for 30+ minutes.
+// Transitions in_progress games: if scores present → completed; otherwise → scheduled.
+// Safe to call concurrently (each UPDATE is scoped to a single game row).
+
+const STALE_SCORER_TIMEOUT_MINUTES = 30;
+
+async function expireStaleScorers() {
+  const { rows } = await pool.query(`
+    SELECT id, status, home_score, away_score
+    FROM games
+    WHERE scoring_user_id IS NOT NULL
+      AND scoring_last_active_at < NOW() - INTERVAL '${STALE_SCORER_TIMEOUT_MINUTES} minutes'
+  `);
+  if (!rows.length) return 0;
+
+  for (const game of rows) {
+    let newStatus = game.status;
+    if (game.status === 'in_progress') {
+      newStatus = (game.home_score != null && game.away_score != null) ? 'completed' : 'scheduled';
+    }
+    await pool.query(
+      `UPDATE games
+       SET scoring_user_id = NULL,
+           scoring_started_at = NULL,
+           scoring_last_active_at = NULL,
+           status = $1,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [newStatus, game.id]
+    );
+    console.log(`[SWEEP] Expired stale scorer for game ${game.id}; status ${game.status} → ${newStatus}`);
+  }
+
+  cache.invalidatePrefix('games:');
+  cache.invalidatePrefix('standings:');
+  return rows.length;
+}
+
+module.exports = { router, expireStaleScorers };

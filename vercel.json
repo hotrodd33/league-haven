@@ -7,6 +7,12 @@
       "maxDuration": 300
     }
   },
+  "crons": [
+    {
+      "path": "/api/games/sweep",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
