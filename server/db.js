@@ -397,6 +397,7 @@ async function migrate() {
   // updates. Pitch counts remain side-scoped (each team manages their own).
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS scoring_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;`);
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS scoring_started_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS scoring_last_active_at TIMESTAMPTZ;`);
 
   // Fix: Change games team FKs from CASCADE to SET NULL so deleting a team
   // doesn't wipe out all its games (and cascading pitch counts).

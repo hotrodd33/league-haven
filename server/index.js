@@ -16,7 +16,7 @@ const orgsRoutes = require('./routes/organizations');
 const locationsRoutes = require('./routes/locations');
 const usersRoutes = require('./routes/users');
 const leagueConfigRoutes = require('./routes/league-config');
-const gamesRoutes = require('./routes/games');
+const { router: gamesRoutes, expireStaleScorers } = require('./routes/games');
 const pitchRulesRoutes = require('./routes/pitch-rules');
 const seedRoutes = require('./routes/seed');
 const dataManagerRoutes = require('./routes/data-manager');
@@ -142,6 +142,9 @@ if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
+
+  // Background sweep for stale live-scoring claims (Vercel uses cron instead)
+  setInterval(() => expireStaleScorers().catch(() => {}), 5 * 60 * 1000);
 }
 
 module.exports = app;
