@@ -10,6 +10,8 @@ const { authMiddleware, requireAdmin, canScoreGame, getUserPermissions } = requi
 const { parseBoxScorePDF, parseBoxScoreText } = require('../parsers/boxscore-pdf');
 const { normalizeDOB } = require('../utils/dob');
 const { findBestMatches, similarity } = require('../utils/fuzzyMatch');
+const { ensureOpposingTeamsOrg, resolveOrCreateOpponentTeam } = require('../utils/opponentTeams');
+const cache = require('../cache');
 
 const router = express.Router();
 const importDebugLoggingEnabled = process.env.IMPORT_DEBUG === 'true';
@@ -70,34 +72,13 @@ async function getTeamsList() {
 }
 
 /**
- * Find-or-create the catch-all 'External Opponents' org used when an
- * unknown opponent is created on the fly during a GameChanger import.
- */
-async function ensureExternalOpponentsOrg() {
-  const { rows } = await pool.query(
-    `SELECT id FROM organizations WHERE name = $1 LIMIT 1`,
-    ['External Opponents']
-  );
-  if (rows.length) return rows[0].id;
-  const { rows: created } = await pool.query(
-    `INSERT INTO organizations (name, notes)
-     VALUES ($1, $2) RETURNING id`,
-    ['External Opponents', 'Auto-created to host opponent teams imported from GameChanger.']
-  );
-  return created[0].id;
-}
-
-/**
- * Create a new team from an external (GameChanger) name.
- * Returns the newly-created team id.
+ * Create (or reuse) a team from an external (GameChanger) name, placing it in
+ * the shared "Opposing Teams" org. Returns the team id (or null if blank).
  */
 async function createTeamFromExternalName(externalName) {
-  const orgId = await ensureExternalOpponentsOrg();
-  const { rows } = await pool.query(
-    `INSERT INTO teams (org_id, name) VALUES ($1, $2) RETURNING id`,
-    [orgId, externalName]
-  );
-  return rows[0].id;
+  const orgId = await ensureOpposingTeamsOrg(pool);
+  const team = await resolveOrCreateOpponentTeam(pool, externalName, orgId);
+  return team ? team.id : null;
 }
 
 /**
@@ -1818,11 +1799,14 @@ router.post('/schedule', authMiddleware, requireAdmin, async (req, res) => {
     const { rows: seasonRows } = await pool.query('SELECT id FROM league_seasons WHERE id = $1', [seasonId]);
     if (!seasonRows.length) return res.status(400).json({ error: 'Invalid season' });
 
-    // Team mapping overrides: { "External Name" => team_id }
+    // Team mapping overrides: { "External Name" => team_id }. Non-numeric
+    // values (e.g. the "__new__" sentinel) are ignored so the name falls
+    // through to auto-creation in the "Opposing Teams" org below.
     const tMap = {};
     if (teamMappings && typeof teamMappings === 'object') {
       for (const [name, id] of Object.entries(teamMappings)) {
-        if (id) tMap[name.toLowerCase()] = Number(id);
+        const num = Number(id);
+        if (Number.isFinite(num) && num > 0) tMap[name.toLowerCase()] = num;
       }
     }
     // Venue mapping overrides: { "External Name" => location_id }
@@ -1839,16 +1823,33 @@ router.post('/schedule', authMiddleware, requireAdmin, async (req, res) => {
 
       let created = 0;
       let skipped = 0;
+      let teamsCreated = 0;
       const errors = [];
+      let opponentOrgId = null;
+      const autoCreated = {}; // lowercased name => team id (within this import)
+
+      // Resolve a team name to an id, creating it in the "Opposing Teams"
+      // org when the site doesn't have it and no mapping was supplied.
+      const resolveTeam = async (name) => {
+        if (!name) return null;
+        const key = name.toLowerCase();
+        if (autoCreated[key]) return autoCreated[key];
+        if (!opponentOrgId) opponentOrgId = await ensureOpposingTeamsOrg(client);
+        const team = await resolveOrCreateOpponentTeam(client, name, opponentOrgId);
+        if (!team) return null;
+        autoCreated[key] = team.id;
+        if (team.created) teamsCreated++;
+        return team.id;
+      };
 
       for (const g of games) {
-        const homeId = tMap[g.home_name?.toLowerCase()] || g.home_team_id;
-        const awayId = tMap[g.away_name?.toLowerCase()] || g.away_team_id;
+        const homeId = tMap[g.home_name?.toLowerCase()] || g.home_team_id || await resolveTeam(g.home_name);
+        const awayId = tMap[g.away_name?.toLowerCase()] || g.away_team_id || await resolveTeam(g.away_name);
         const locationId = (g.venue_name ? vMap[g.venue_name.toLowerCase()] : null) || g.location_id || null;
 
         if (!homeId || !awayId) {
           skipped++;
-          errors.push(`Row ${g.row}: Missing team match for "${!homeId ? g.home_name : g.away_name}"`);
+          errors.push(`Row ${g.row}: Missing team name for "${!homeId ? g.home_name : g.away_name}"`);
           continue;
         }
         if (homeId === awayId) {
@@ -1902,7 +1903,14 @@ router.post('/schedule', authMiddleware, requireAdmin, async (req, res) => {
       }
 
       await client.query('COMMIT');
-      res.json({ created, skipped, errors, total: games.length });
+      cache.invalidatePrefix('games:');
+      cache.invalidatePrefix('standings:');
+      if (teamsCreated > 0) {
+        cache.invalidatePrefix('teams:');
+        cache.invalidatePrefix('orgs:');
+        cache.invalidatePrefix('directory');
+      }
+      res.json({ created, skipped, errors, total: games.length, teamsCreated });
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

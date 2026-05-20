@@ -287,6 +287,13 @@ export default function DataManager({ onOpenImport }) {
                     <div className="text-xs text-gray-400 font-semibold">Skipped</div>
                   </div>
                 </div>
+                {result.teamsCreated > 0 && (
+                  <div className="bg-action-900/20 border border-action-700 rounded-lg p-3">
+                    <div className="text-xs text-action-300">
+                      {result.teamsCreated} missing {result.teamsCreated === 1 ? 'team was' : 'teams were'} created in the <span className="font-semibold">Opposing Teams</span> organization.
+                    </div>
+                  </div>
+                )}
                 {result.errors?.length > 0 && (
                   <div className="bg-yellow-900/30 border border-yellow-200 rounded-lg p-3">
                     <div className="text-xs font-semibold text-yellow-300 mb-1">Warnings ({result.errors.length})</div>

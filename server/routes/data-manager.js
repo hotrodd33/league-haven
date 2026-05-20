@@ -5,6 +5,7 @@ const { pool } = require('../db');
 const { authMiddleware, requireAdmin } = require('../auth');
 const { normalizeDOB } = require('../utils/dob');
 const { sendCoachInviteEmail } = require('../email');
+const { ensureOpposingTeamsOrg, resolveOrCreateOpponentTeam } = require('../utils/opponentTeams');
 const cache = require('../cache');
 
 const router = express.Router();
@@ -1090,6 +1091,23 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
         const notesCol = findCol(headers, 'notes');
 
         const teamLookup = await buildTeamLookup();
+        let opponentOrgId = null;
+        results.teamsCreated = 0;
+
+        // Resolve a team name to an id. If the destination site doesn't have
+        // the team (common on org-only sites), create it in the "Opposing
+        // Teams" org instead of leaving the game with no team.
+        const resolveTeam = async (rawName) => {
+          if (!rawName) return null;
+          const key = rawName.toLowerCase();
+          if (teamLookup[key]) return teamLookup[key];
+          if (!opponentOrgId) opponentOrgId = await ensureOpposingTeamsOrg(pool);
+          const team = await resolveOrCreateOpponentTeam(pool, rawName, opponentOrgId);
+          if (!team) return null;
+          teamLookup[key] = team.id;
+          if (team.created) results.teamsCreated++;
+          return team.id;
+        };
 
         const { rows: allLocs } = await pool.query('SELECT id, name FROM field_locations');
         const locLookup = {};
@@ -1105,10 +1123,8 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
           const r = rows[i];
           const gameDate = r[dateCol] && r[dateCol] !== '0000-00-00' ? r[dateCol] : null;
 
-          const homeTeamId = homeCol && r[homeCol] ? (teamLookup[r[homeCol].toLowerCase()] || null) : null;
-          const awayTeamId = awayCol && r[awayCol] ? (teamLookup[r[awayCol].toLowerCase()] || null) : null;
-          if (homeCol && r[homeCol] && !homeTeamId) results.errors.push(`Row ${i + 2}: home team "${r[homeCol]}" not found`);
-          if (awayCol && r[awayCol] && !awayTeamId) results.errors.push(`Row ${i + 2}: away team "${r[awayCol]}" not found`);
+          const homeTeamId = homeCol && r[homeCol] ? await resolveTeam(r[homeCol]) : null;
+          const awayTeamId = awayCol && r[awayCol] ? await resolveTeam(r[awayCol]) : null;
 
           const locationId = locCol && r[locCol] ? (locLookup[r[locCol].toLowerCase()] || null) : null;
           const seasonId = seasonCol && r[seasonCol] ? (seasonLookup[r[seasonCol].toLowerCase()] || null) : (season_id || null);
@@ -1251,6 +1267,16 @@ router.post('/import/:entity', authMiddleware, requireAdmin, async (req, res) =>
 
       default:
         return res.status(400).json({ error: `Unknown entity: ${entity}` });
+    }
+
+    if (entity === 'games') {
+      cache.invalidatePrefix('games:');
+      cache.invalidatePrefix('standings:');
+      if (results.teamsCreated > 0) {
+        cache.invalidatePrefix('teams:');
+        cache.invalidatePrefix('orgs:');
+        cache.invalidatePrefix('directory');
+      }
     }
 
     res.json(results);
