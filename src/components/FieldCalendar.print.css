@@ -218,11 +218,12 @@
   .fc-print-list-table th,
   .fc-print-list-table td {
     display: table-cell !important;
-    padding: 3pt 6pt 3pt 0 !important;
+    padding: 3pt 10pt 3pt 0 !important;
     vertical-align: top !important;
     text-align: left !important;
     color: #000 !important;
     border: none !important;
+    white-space: nowrap !important;
   }
   .fc-print-list-table th {
     font-weight: 700 !important;
@@ -237,6 +238,7 @@
   }
   .fc-print-list-table .fc-print-col-desc {
     width: 100% !important;
+    white-space: normal !important;
   }
 
   /* Legend */
