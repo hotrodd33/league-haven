@@ -214,6 +214,13 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
     finally { setDeleting(null); }
   }
 
+  // Fields the current user can schedule into (used for the create flow's field picker)
+  const editableFields = useMemo(
+    () => fieldsArr.filter(f => canEditOrg(f.org_id)),
+    [fieldsArr, canEditOrg]
+  );
+  const canCreate = editableFields.length > 0;
+
   function openEdit(ev) {
     const f = fieldsById[ev.location_id] || primaryField;
     setEditingField(f);
@@ -221,7 +228,9 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
     setShowForm(true);
   }
   function openCreate() {
-    setEditingField(primaryField);
+    // Default to primary field if it's editable, else first editable field
+    const def = (primaryField && canEditOrg(primaryField.org_id)) ? primaryField : editableFields[0];
+    setEditingField(def || null);
     setEditing(null);
     setShowForm(true);
   }
@@ -326,7 +335,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
             <p className="text-xs text-gray-400 truncate">{headerSub}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {editable && !isMulti && (
+            {canCreate && (
               <Button onClick={openCreate}>
                 + Schedule
               </Button>
@@ -440,7 +449,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                     <h3 className="text-sm font-bold text-white">
                       {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                     </h3>
-                    {editable && !isMulti && (
+                    {canCreate && (
                       <button onClick={openCreate}
                         className="btn btn-xs btn-primary">
                         + Schedule
@@ -521,6 +530,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
         {showForm && editingField && (
           <ReservationForm
             field={editingField}
+            fieldChoices={editing ? null : editableFields}
             reservation={editing}
             teams={teams}
             defaultDate={selectedDate}
@@ -682,12 +692,28 @@ function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete,
   );
 }
 
-function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCancel }) {
+function ReservationForm({ field, fieldChoices, reservation, teams, defaultDate, onDone, onCancel }) {
   const isEditing = !!reservation;
-  const { canScheduleGames } = useAuth();
+  const { canScheduleGames, canEditOrg } = useAuth();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [conflictDetails, setConflictDetails] = useState(null);
+
+  // When creating from combined view, allow the user to pick a field.
+  // When editing, the field is fixed to the reservation's field.
+  const selectableFields = useMemo(() => {
+    if (isEditing) return [];
+    const list = (fieldChoices && fieldChoices.length ? fieldChoices : [field])
+      .filter(Boolean)
+      .filter(f => canEditOrg(f.org_id));
+    return list;
+  }, [fieldChoices, field, isEditing, canEditOrg]);
+  const [activeFieldId, setActiveFieldId] = useState(() => {
+    if (field) return field.id;
+    if (selectableFields.length) return selectableFields[0].id;
+    return null;
+  });
+  const activeField = (selectableFields.find(f => f.id === activeFieldId)) || field;
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const [eventType, setEventType] = useState(reservation?.event_type || 'practice');
@@ -802,7 +828,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
         season_id: gameForm.season_id ? Number(gameForm.season_id) : null,
         home_team_id: Number(gameForm.home_team_id),
         away_team_id: Number(gameForm.away_team_id),
-        location_id: field.id,
+        location_id: activeField.id,
         game_date: form.event_date,
         game_time: gameForm.game_time || null,
         game_duration_minutes: Number(gameForm.game_duration_minutes) || 150,
@@ -817,7 +843,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
       // Check for field conflicts
       if (data.game_time && !confirmSave) {
         try {
-          const result = await checkGameConflicts(field.id, data.game_date, data.game_time, data.game_duration_minutes);
+          const result = await checkGameConflicts(activeField.id, data.game_date, data.game_time, data.game_duration_minutes);
           if (result.has_conflicts || result.has_warnings) {
             setFieldConflicts(result);
             setSaving(false);
@@ -850,7 +876,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
     const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
 
     const baseData = {
-      location_id: field.id,
+      location_id: activeField.id,
       team_id: form.team_id ? Number(form.team_id) : null,
       title: form.title.trim(),
       event_type: form.event_type,
@@ -886,7 +912,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
   }
 
   // Filter teams to those in the field's org
-  const orgTeams = teams.filter(t => t.org_id === field.org_id).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const orgTeams = teams.filter(t => t.org_id === activeField?.org_id).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   // Available event types (game only if user canScheduleGames)
   const eventTypeOptions = [
@@ -899,6 +925,26 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
   return (
     <Modal open onClose={onCancel} size="md" title={isEditing ? 'Edit Reservation' : isGame ? 'Schedule Game' : 'Book Field Time'}>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Field picker — only when creating from combined view */}
+          {!isEditing && selectableFields.length > 1 && (
+            <Select
+              label="Field *"
+              id="res-field"
+              value={activeFieldId ?? ''}
+              onChange={(e) => {
+                const newId = Number(e.target.value);
+                setActiveFieldId(newId);
+                // Reset team selection since teams are scoped to the field's org
+                setForm(prev => ({ ...prev, team_id: '' }));
+                setGameForm(prev => ({ ...prev, home_team_id: '', away_team_id: '' }));
+              }}
+            >
+              {selectableFields.map(f => (
+                <option key={f.id} value={f.id}>{f.name}{f.org_name ? ` — ${f.org_name}` : ''}</option>
+              ))}
+            </Select>
+          )}
+
           {/* Event type toggle — only on create */}
           {!isEditing && eventTypeOptions.length > 1 && (
             <div>
@@ -992,7 +1038,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
               </div>
 
               <div className="bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-400">
-                📍 Location: <span className="text-white font-semibold">{field.name}</span>
+                📍 Location: <span className="text-white font-semibold">{activeField?.name}</span>
               </div>
             </>
           ) : (
