@@ -16,33 +16,45 @@
     margin: 0.4in;
     size: landscape;
   }
-
   /* Page-level reset */
   html, body {
     background: #fff !important;
     color: #000 !important;
     height: auto !important;
+    min-height: 0 !important;
     overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  /* Hide everything by default; we'll re-show only the calendar subtree.
-   * Using visibility (not display) so ancestor layout doesn't collapse
-   * and the modal — which lives inside #root — still participates. */
-  body * {
-    visibility: hidden !important;
+  /* Hide every element that is NOT the calendar and NOT an ancestor of it.
+   * Using display:none (via :has) ensures no phantom layout space — which
+   * is what was creating an extra blank first page. */
+  body *:not(:has(.fc-print-root)):not(.fc-print-root):not(.fc-print-root *) {
+    display: none !important;
   }
-  .fc-print-root,
-  .fc-print-root * {
-    visibility: visible !important;
+  /* Collapse the ancestor wrappers themselves so they contribute no padding,
+   * margin, fixed sizing, or backdrops to the printed page. */
+  body, body *:has(.fc-print-root) {
+    display: block !important;
+    position: static !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    inset: auto !important;
+    transform: none !important;
   }
 
   /* Promote the modal to fill the printed page */
   .fc-print-root {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: auto !important;
+    position: static !important;
     inset: auto !important;
     background: #fff !important;
     color: #000 !important;
@@ -66,6 +78,10 @@
     max-height: none !important;
     overflow: visible !important;
     display: block !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   /* Hide any element marked print-hidden */
@@ -128,15 +144,15 @@
   }
   .fc-print-grid {
     gap: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
   .fc-print-grid > .fc-print-day {
     background: #fff !important;
     border: 1px solid #888 !important;
-    min-height: 1.1in !important;
+    min-height: 0.95in !important;
     height: auto !important;
     padding: 2pt !important;
-    page-break-inside: avoid;
-    break-inside: avoid;
     box-shadow: none !important;
     ring: none !important;
     overflow: visible !important;
