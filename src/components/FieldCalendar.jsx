@@ -7,6 +7,7 @@ import {
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Button, Input, Select, Modal } from './ui';
+import './FieldCalendar.print.css';
 
 const EVENT_COLORS = {
   game_hold: { bg: 'bg-signal-900/40', border: 'border-signal-500', text: 'text-signal-300', dot: 'bg-signal-500' },
@@ -326,20 +327,23 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
     : (primaryField ? [primaryField.address, primaryField.city, primaryField.state].filter(Boolean).join(', ') : '');
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className={`bg-gray-800 rounded-xl shadow-xl w-full ${isMulti ? 'max-w-6xl' : 'max-w-3xl'} my-4 text-gray-200 flex flex-col max-h-[90vh]`}>
+    <div className="fc-print-root fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className={`fc-print-panel bg-gray-800 rounded-xl shadow-xl w-full ${isMulti ? 'max-w-6xl' : 'max-w-3xl'} my-4 text-gray-200 flex flex-col max-h-[90vh]`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0">
+        <div className="fc-print-header flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0">
           <div className="min-w-0">
             <h2 className="text-xl font-display font-bold text-white truncate">{headerTitle}</h2>
             <p className="text-xs text-gray-400 truncate">{headerSub}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="fc-print-hide flex items-center gap-2 shrink-0">
             {canCreate && (
               <Button onClick={openCreate}>
                 + Schedule
               </Button>
             )}
+            <Button variant="secondary" onClick={() => window.print()} title="Print this view">
+              Print
+            </Button>
             <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg" aria-label="Close">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -349,8 +353,8 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
         </div>
 
         {/* View toggle + month nav */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-gray-700 shrink-0">
-          <div className="flex items-center gap-1">
+        <div className="fc-print-month-bar flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-gray-700 shrink-0">
+          <div className="fc-print-hide flex items-center gap-1">
             <button onClick={() => setView('month')}
               className={`lh-tab ${view === 'month' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
               Calendar
@@ -366,19 +370,19 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={prevMonth} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+            <button onClick={prevMonth} className="fc-print-hide p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <button onClick={goToday} className="px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 rounded">Today</button>
-            <span className="text-sm font-semibold text-white min-w-[140px] text-center">{MONTH_NAMES[month]} {year}</span>
-            <button onClick={nextMonth} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+            <button onClick={goToday} className="fc-print-hide px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 rounded">Today</button>
+            <span className="fc-print-month-label text-sm font-semibold text-white min-w-[140px] text-center">{MONTH_NAMES[month]} {year}</span>
+            <button onClick={nextMonth} className="fc-print-hide p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </button>
           </div>
         </div>
 
         {/* Body: filter sidebar (when shown) + main content */}
-        <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row">
+        <div className="fc-print-body flex-1 overflow-y-auto flex flex-col lg:flex-row">
           {showFilters && (
             <FilterPanel
               fieldsArr={fieldsArr}
@@ -396,22 +400,22 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
             />
           )}
 
-          <div className="flex-1 px-5 py-4 min-w-0">
+          <div className="fc-print-content flex-1 px-5 py-4 min-w-0">
           {loading ? (
             <div className="py-12 text-center text-gray-400">Loading…</div>
           ) : view === 'month' ? (
             /* Month calendar grid */
             <div>
               {/* Day headers */}
-              <div className="grid grid-cols-7 gap-px mb-1">
+              <div className="fc-print-grid-header grid grid-cols-7 gap-px mb-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                   <div key={d} className="text-center text-[10px] font-bold uppercase text-gray-500 py-1">{d}</div>
                 ))}
               </div>
               {/* Day cells */}
-              <div className="grid grid-cols-7 gap-px">
+              <div className="fc-print-grid grid grid-cols-7 gap-px">
                 {monthDays.map((day, i) => {
-                  if (day === null) return <div key={`pad-${i}`} className="min-h-[70px]" />;
+                  if (day === null) return <div key={`pad-${i}`} className="fc-print-day min-h-[70px]" />;
                   const dk = dateKey(year, month, day);
                   const dayEvents = eventsByDate[dk] || [];
                   const isToday = dk === todayKey;
@@ -419,13 +423,13 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                   return (
                     <button key={dk} type="button"
                       onClick={() => setSelectedDate(isSelected ? null : dk)}
-                      className={`min-h-[70px] p-1 text-left rounded transition-colors
+                      className={`fc-print-day min-h-[70px] p-1 text-left rounded transition-colors
                         ${isToday ? 'ring-1 ring-chrome-500' : ''}
                         ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}
                       `}>
-                      <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
+                      <div className={`fc-print-day-num text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
                       <div className="space-y-0.5">
-                        {dayEvents.slice(0, 3).map((ev, j) => {
+                        {dayEvents.map((ev, j) => {
                           const c = colorFor(ev);
                           const evField = fieldsById[ev.location_id];
                           const tooltip = [
@@ -434,15 +438,16 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                             ev.team_name && `Team: ${ev.team_name}`,
                             ev.notes,
                           ].filter(Boolean).join('\n');
+                          const isOverflow = j >= 3;
                           return (
                             <div key={ev.id || j} title={tooltip}
-                              className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
+                              className={`fc-print-event-chip ${isOverflow ? 'fc-print-only' : ''} text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
                               {formatTime(ev.start_time)} {ev.title}
                             </div>
                           );
                         })}
                         {dayEvents.length > 3 && (
-                          <div className="text-[9px] text-gray-400">+{dayEvents.length - 3} more</div>
+                          <div className="fc-print-event-chip-overflow fc-print-hide text-[9px] text-gray-400">+{dayEvents.length - 3} more</div>
                         )}
                       </div>
                     </button>
@@ -452,7 +457,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
 
               {/* Selected date detail */}
               {selectedDate && (
-                <div className="mt-4 border-t border-gray-700 pt-4">
+                <div className="fc-print-selected-day mt-4 border-t border-gray-700 pt-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-bold text-white">
                       {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -492,27 +497,60 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
               {upcomingEvents.length === 0 ? (
                 <p className="py-8 text-center text-gray-400">No upcoming events.</p>
               ) : (
-                <div className="space-y-2">
-                  {upcomingEvents.map(ev => {
-                    const evField = fieldsById[ev.location_id];
-                    const canEditEv = evField ? canEditOrg(evField.org_id) : editable;
-                    return (
-                      <EventCard key={ev.id} ev={ev} editable={canEditEv && !ev.is_game} showDate
-                        color={colorFor(ev)}
-                        fieldName={isMulti ? (evField?.name) : null}
-                        onEdit={() => openEdit(ev)}
-                        onDelete={() => handleDelete(ev)}
-                        onViewGame={onViewGame}
-                        deleting={deleting} />
-                    );
-                  })}
-                </div>
+                <>
+                  <div className="space-y-2">
+                    {upcomingEvents.map(ev => {
+                      const evField = fieldsById[ev.location_id];
+                      const canEditEv = evField ? canEditOrg(evField.org_id) : editable;
+                      return (
+                        <EventCard key={ev.id} ev={ev} editable={canEditEv && !ev.is_game} showDate
+                          color={colorFor(ev)}
+                          fieldName={isMulti ? (evField?.name) : null}
+                          onEdit={() => openEdit(ev)}
+                          onDelete={() => handleDelete(ev)}
+                          onViewGame={onViewGame}
+                          deleting={deleting} />
+                      );
+                    })}
+                  </div>
+                  {/* Print-only compact spreadsheet table */}
+                  <table className="fc-print-list-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Field</th>
+                        <th className="fc-print-col-desc">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {upcomingEvents.map(ev => {
+                        const evField = fieldsById[ev.location_id];
+                        const dateStr = new Date(String(ev.event_date).slice(0, 10) + 'T12:00:00')
+                          .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                        const timeStr = `${formatTime(ev.start_time)} – ${formatTime(ev.end_time)}`;
+                        const typeStr = EVENT_LABELS[ev.event_type] || ev.event_type;
+                        const desc = [ev.title, ev.team_name, ev.notes].filter(Boolean).join(' — ');
+                        return (
+                          <tr key={ev.id}>
+                            <td>{dateStr}</td>
+                            <td>{timeStr}</td>
+                            <td>{typeStr}</td>
+                            <td>{evField?.name || ''}</td>
+                            <td className="fc-print-col-desc">{desc}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </>
               )}
             </div>
           )}
 
           {/* Legend */}
-          <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-700">
+          <div className="fc-print-legend flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-700">
             {isMulti ? (
               fieldsArr.filter(f => visibleFieldIds.has(f.id)).map(f => (
                 <div key={f.id} className="flex items-center gap-1.5 text-xs text-gray-400">
@@ -647,7 +685,7 @@ function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete,
   const label = EVENT_LABELS[ev.event_type] || ev.event_type;
   const gameClickable = ev.is_game && ev.game_id && onViewGame;
   return (
-    <div className={`rounded-lg border ${c.border} ${c.bg} px-4 py-3 ${gameClickable ? 'cursor-pointer hover:brightness-125 transition-all' : ''}`}
+    <div className={`fc-print-list-card rounded-lg border ${c.border} ${c.bg} px-4 py-3 ${gameClickable ? 'cursor-pointer hover:brightness-125 transition-all' : ''}`}
       onClick={gameClickable ? () => onViewGame(ev.game_id) : undefined}
       role={gameClickable ? 'button' : undefined}
       tabIndex={gameClickable ? 0 : undefined}
@@ -687,7 +725,7 @@ function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete,
           {ev.notes && <div className="text-xs text-gray-400 mt-1">{ev.notes}</div>}
         </div>
         {editable && (
-          <div className="flex gap-1 shrink-0">
+          <div className="fc-print-hide flex gap-1 shrink-0">
             <button onClick={onEdit} className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
             <button onClick={onDelete} disabled={deleting === ev.id}
               className="btn btn-xs btn-danger">
