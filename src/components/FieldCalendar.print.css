@@ -14,16 +14,28 @@
   html, body {
     background: #fff !important;
     color: #000 !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
-  /* Hide everything that isn't the calendar modal */
-  body > *:not(.fc-print-root) {
-    display: none !important;
+  /* Hide everything by default; we'll re-show only the calendar subtree.
+   * Using visibility (not display) so ancestor layout doesn't collapse
+   * and the modal — which lives inside #root — still participates. */
+  body * {
+    visibility: hidden !important;
+  }
+  .fc-print-root,
+  .fc-print-root * {
+    visibility: visible !important;
   }
 
   /* Promote the modal to fill the printed page */
   .fc-print-root {
-    position: static !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: auto !important;
     inset: auto !important;
     background: #fff !important;
     color: #000 !important;
@@ -32,6 +44,8 @@
     overflow: visible !important;
     display: block !important;
     z-index: auto !important;
+    width: 100% !important;
+    height: auto !important;
   }
   .fc-print-root .fc-print-panel {
     background: #fff !important;
