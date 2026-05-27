@@ -43,6 +43,7 @@ router.get('/', async (req, res) => {
     // 2) Games scheduled at this field — generate game_hold entries (actual game window only)
     const { rows: games } = await pool.query(
       `SELECT g.id AS game_id, g.game_date, g.game_time, g.status, g.game_duration_minutes,
+              g.home_team_id, g.away_team_id,
               ht.name AS home_team_name, at.name AS away_team_name
        FROM games g
        JOIN teams ht ON ht.id = g.home_team_id
@@ -78,7 +79,12 @@ router.get('/', async (req, res) => {
       return {
         id: `game-${g.game_id}`,
         location_id: Number(location_id),
-        team_id: null,
+        team_id: g.home_team_id,
+        team_ids: [g.home_team_id, g.away_team_id].filter(Boolean),
+        home_team_id: g.home_team_id,
+        away_team_id: g.away_team_id,
+        home_team_name: g.home_team_name,
+        away_team_name: g.away_team_name,
         title: `${g.home_team_name} vs ${g.away_team_name}`,
         event_type: 'game_hold',
         event_date: g.game_date,
