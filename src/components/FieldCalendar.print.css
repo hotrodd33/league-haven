@@ -9,6 +9,9 @@
   .fc-print-only {
     display: none !important;
   }
+  .fc-print-list-table {
+    display: none !important;
+  }
 }
 
 @media print {
@@ -191,19 +194,49 @@
 
   /* ── List view ── */
   .fc-print-list-card {
-    background: #fff !important;
-    color: #000 !important;
-    border: 1px solid #999 !important;
-    border-radius: 0 !important;
-    page-break-inside: avoid;
-    break-inside: avoid;
-    margin-bottom: 4pt !important;
+    display: none !important;
   }
-  .fc-print-list-card * {
+
+  .fc-print-list-table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 9pt !important;
     color: #000 !important;
   }
-  .fc-print-list-card a {
-    text-decoration: none !important;
+  .fc-print-list-table thead {
+    display: table-header-group !important;
+  }
+  .fc-print-list-table tbody {
+    display: table-row-group !important;
+  }
+  .fc-print-list-table tr {
+    display: table-row !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .fc-print-list-table th,
+  .fc-print-list-table td {
+    display: table-cell !important;
+    padding: 3pt 6pt 3pt 0 !important;
+    vertical-align: top !important;
+    text-align: left !important;
+    color: #000 !important;
+    border: none !important;
+  }
+  .fc-print-list-table th {
+    font-weight: 700 !important;
+    font-size: 8.5pt !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    border-bottom: 1px solid #000 !important;
+    padding-bottom: 4pt !important;
+  }
+  .fc-print-list-table tbody tr + tr td {
+    border-top: 1px solid #ddd !important;
+  }
+  .fc-print-list-table .fc-print-col-desc {
+    width: 100% !important;
   }
 
   /* Legend */

@@ -497,21 +497,54 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
               {upcomingEvents.length === 0 ? (
                 <p className="py-8 text-center text-gray-400">No upcoming events.</p>
               ) : (
-                <div className="space-y-2">
-                  {upcomingEvents.map(ev => {
-                    const evField = fieldsById[ev.location_id];
-                    const canEditEv = evField ? canEditOrg(evField.org_id) : editable;
-                    return (
-                      <EventCard key={ev.id} ev={ev} editable={canEditEv && !ev.is_game} showDate
-                        color={colorFor(ev)}
-                        fieldName={isMulti ? (evField?.name) : null}
-                        onEdit={() => openEdit(ev)}
-                        onDelete={() => handleDelete(ev)}
-                        onViewGame={onViewGame}
-                        deleting={deleting} />
-                    );
-                  })}
-                </div>
+                <>
+                  <div className="space-y-2">
+                    {upcomingEvents.map(ev => {
+                      const evField = fieldsById[ev.location_id];
+                      const canEditEv = evField ? canEditOrg(evField.org_id) : editable;
+                      return (
+                        <EventCard key={ev.id} ev={ev} editable={canEditEv && !ev.is_game} showDate
+                          color={colorFor(ev)}
+                          fieldName={isMulti ? (evField?.name) : null}
+                          onEdit={() => openEdit(ev)}
+                          onDelete={() => handleDelete(ev)}
+                          onViewGame={onViewGame}
+                          deleting={deleting} />
+                      );
+                    })}
+                  </div>
+                  {/* Print-only compact spreadsheet table */}
+                  <table className="fc-print-list-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Field</th>
+                        <th className="fc-print-col-desc">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {upcomingEvents.map(ev => {
+                        const evField = fieldsById[ev.location_id];
+                        const dateStr = new Date(String(ev.event_date).slice(0, 10) + 'T12:00:00')
+                          .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                        const timeStr = `${formatTime(ev.start_time)} – ${formatTime(ev.end_time)}`;
+                        const typeStr = EVENT_LABELS[ev.event_type] || ev.event_type;
+                        const desc = [ev.title, ev.team_name, ev.notes].filter(Boolean).join(' — ');
+                        return (
+                          <tr key={ev.id}>
+                            <td>{dateStr}</td>
+                            <td>{timeStr}</td>
+                            <td>{typeStr}</td>
+                            <td>{evField?.name || ''}</td>
+                            <td className="fc-print-col-desc">{desc}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </>
               )}
             </div>
           )}
