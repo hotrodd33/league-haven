@@ -76,6 +76,7 @@ export default function FieldsPage({ onViewGame }) {
   const [deleting, setDeleting] = useState(null);
   const [highlightedId, setHighlightedId] = useState(null);
   const [calendarField, setCalendarField] = useState(null);
+  const [calendarFields, setCalendarFields] = useState(null); // array → combined view
   const [ageGroups, setAgeGroups] = useState([]);
   const [filterAgeGroup, setFilterAgeGroup] = useState('');
   const [expandedOrgs, setExpandedOrgs] = useState(new Set());
@@ -163,6 +164,11 @@ export default function FieldsPage({ onViewGame }) {
               {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
             </select>
           )}
+          {filteredLocations.length > 1 && (
+            <Button variant="secondary" onClick={() => setCalendarFields(filteredLocations)}>
+              Combined Calendar
+            </Button>
+          )}
           {canEditAny && (
             <Button onClick={() => { setEditing(null); setFormOrgId(null); setShowForm(true); }}>
               + Add Field
@@ -246,6 +252,16 @@ export default function FieldsPage({ onViewGame }) {
                     <span className="text-xs text-gray-400">({group.locations.length})</span>
                   </div>
                   <div className="flex items-center gap-2">
+                    {group.locations.length > 1 && (
+                      <span
+                        role="button"
+                        onClick={e => { e.stopPropagation(); setCalendarFields(group.locations); }}
+                        className="btn btn-xs btn-secondary"
+                        title="View all fields in this organization in one calendar"
+                      >
+                        Combined Calendar
+                      </span>
+                    )}
                     {editable && (
                       <span
                         role="button"
@@ -383,6 +399,10 @@ export default function FieldsPage({ onViewGame }) {
 
       {calendarField && (
         <FieldCalendar field={calendarField} onClose={() => setCalendarField(null)} onViewGame={onViewGame} />
+      )}
+
+      {calendarFields && (
+        <FieldCalendar fields={calendarFields} onClose={() => setCalendarFields(null)} onViewGame={onViewGame} />
       )}
     </div>
   );

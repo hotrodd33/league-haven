@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   fetchReservations, createReservation, updateReservation, deleteReservation,
   fetchTeams, fetchSeasons, createGame,
@@ -21,6 +21,20 @@ const EVENT_LABELS = {
   event: 'Event',
   maintenance: 'Maintenance',
 };
+
+// Color palette assigned per field in combined view (Outlook-style)
+const FIELD_COLORS = [
+  { bg: 'bg-blue-900/40', border: 'border-blue-500', text: 'text-blue-300', dot: 'bg-blue-500' },
+  { bg: 'bg-emerald-900/40', border: 'border-emerald-500', text: 'text-emerald-300', dot: 'bg-emerald-500' },
+  { bg: 'bg-rose-900/40', border: 'border-rose-500', text: 'text-rose-300', dot: 'bg-rose-500' },
+  { bg: 'bg-amber-900/40', border: 'border-amber-500', text: 'text-amber-300', dot: 'bg-amber-500' },
+  { bg: 'bg-purple-900/40', border: 'border-purple-500', text: 'text-purple-300', dot: 'bg-purple-500' },
+  { bg: 'bg-cyan-900/40', border: 'border-cyan-500', text: 'text-cyan-300', dot: 'bg-cyan-500' },
+  { bg: 'bg-pink-900/40', border: 'border-pink-500', text: 'text-pink-300', dot: 'bg-pink-500' },
+  { bg: 'bg-indigo-900/40', border: 'border-indigo-500', text: 'text-indigo-300', dot: 'bg-indigo-500' },
+  { bg: 'bg-teal-900/40', border: 'border-teal-500', text: 'text-teal-300', dot: 'bg-teal-500' },
+  { bg: 'bg-orange-900/40', border: 'border-orange-500', text: 'text-orange-300', dot: 'bg-orange-500' },
+];
 
 const DURATION_OPTIONS = (() => {
   const opts = [];
@@ -100,9 +114,31 @@ function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCou
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
-export default function FieldCalendar({ field, onClose, onViewGame }) {
+export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
   const { canEditOrg } = useAuth();
-  const editable = canEditOrg(field.org_id);
+
+  // Normalize to an array of fields. `field` (single) is the legacy/primary mode.
+  const fieldsArr = useMemo(() => {
+    if (fields && fields.length) return fields;
+    if (field) return [field];
+    return [];
+  }, [fields, field]);
+  const isMulti = fieldsArr.length > 1;
+  const primaryField = fieldsArr[0] || null;
+  const editable = primaryField ? canEditOrg(primaryField.org_id) : false;
+
+  // Stable color per field
+  const fieldColorMap = useMemo(() => {
+    const m = {};
+    fieldsArr.forEach((f, i) => { m[f.id] = FIELD_COLORS[i % FIELD_COLORS.length]; });
+    return m;
+  }, [fieldsArr]);
+  const fieldsById = useMemo(() => {
+    const m = {};
+    fieldsArr.forEach(f => { m[f.id] = f; });
+    return m;
+  }, [fieldsArr]);
+
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -111,26 +147,52 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [editingField, setEditingField] = useState(null); // field context for the form
   const [deleting, setDeleting] = useState(null);
   const [teams, setTeams] = useState([]);
   const [view, setView] = useState('month'); // 'month' | 'list'
+
+  // Filter state: which calendars/types/teams are visible
+  const [visibleFieldIds, setVisibleFieldIds] = useState(() => new Set(fieldsArr.map(f => f.id)));
+  const [visibleTypes, setVisibleTypes] = useState(() => new Set(Object.keys(EVENT_LABELS)));
+  // null = "all teams (including no-team)". A Set means explicit selection.
+  const [visibleTeamIds, setVisibleTeamIds] = useState(null);
+  const [showFilters, setShowFilters] = useState(true);
+
+  // Keep visibleFieldIds in sync when caller adds/removes fields
+  useEffect(() => {
+    setVisibleFieldIds(prev => {
+      const next = new Set();
+      fieldsArr.forEach(f => { next.add(f.id); });
+      // Preserve any user-driven exclusions by intersecting with prev IF prev had fewer
+      // (Simpler: if prev is non-empty and ⊆ current, keep prev; else default to all)
+      if (prev.size && [...prev].every(id => next.has(id))) return prev;
+      return next;
+    });
+  }, [fieldsArr]);
 
   const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
   const toDate = new Date(year, month + 1, 0);
   const to = `${toDate.getFullYear()}-${String(toDate.getMonth() + 1).padStart(2, '0')}-${String(toDate.getDate()).padStart(2, '0')}`;
 
   const load = useCallback(async () => {
+    if (!fieldsArr.length) { setEvents([]); setLoading(false); return; }
     setLoading(true);
     try {
-      const [res, teamList] = await Promise.all([
-        fetchReservations(field.id, from, to),
+      const promises = [
         teams.length ? Promise.resolve(teams) : fetchTeams(),
-      ]);
-      setEvents(res);
+        ...fieldsArr.map(f => fetchReservations(f.id, from, to).catch(err => {
+          console.error(`Failed to load reservations for field ${f.id}`, err);
+          return [];
+        })),
+      ];
+      const [teamList, ...resultsPerField] = await Promise.all(promises);
+      const merged = resultsPerField.flat();
+      setEvents(merged);
       if (!teams.length) setTeams(teamList);
     } catch (err) { console.error('Failed to load reservations', err); }
     finally { setLoading(false); }
-  }, [field.id, from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fieldsArr, from, to]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
 
@@ -152,40 +214,105 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
     finally { setDeleting(null); }
   }
 
+  function openEdit(ev) {
+    const f = fieldsById[ev.location_id] || primaryField;
+    setEditingField(f);
+    setEditing(ev);
+    setShowForm(true);
+  }
+  function openCreate() {
+    setEditingField(primaryField);
+    setEditing(null);
+    setShowForm(true);
+  }
+
+  // ── Filter options & application ──────────────────────────────────────────
+  const teamOptions = useMemo(() => {
+    const m = new Map();
+    let hasNone = false;
+    events.forEach(ev => {
+      if (ev.team_id && ev.team_name) m.set(ev.team_id, ev.team_name);
+      else hasNone = true;
+    });
+    const arr = [...m.entries()].map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (hasNone) arr.push({ id: '__none__', name: '(No team)' });
+    return arr;
+  }, [events]);
+
+  const effectiveTeamIds = visibleTeamIds ?? new Set(teamOptions.map(t => t.id));
+
+  const filteredEvents = useMemo(() => events.filter(ev => {
+    if (!visibleFieldIds.has(ev.location_id)) return false;
+    if (!visibleTypes.has(ev.event_type)) return false;
+    const tid = ev.team_id || '__none__';
+    if (!effectiveTeamIds.has(tid)) return false;
+    return true;
+  }), [events, visibleFieldIds, visibleTypes, effectiveTeamIds]);
+
   // Group events by date
   const eventsByDate = {};
-  events.forEach(ev => {
+  filteredEvents.forEach(ev => {
     const d = typeof ev.event_date === 'string' ? ev.event_date.slice(0, 10) : ev.event_date;
     if (!eventsByDate[d]) eventsByDate[d] = [];
     eventsByDate[d].push(ev);
   });
-
-  // Sort events within each date by start_time
   Object.values(eventsByDate).forEach(arr => arr.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')));
 
   const monthDays = getMonthDays(year, month);
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
-  // All upcoming events sorted for list view
-  const upcomingEvents = [...events]
+  const upcomingEvents = [...filteredEvents]
     .sort((a, b) => (a.event_date + a.start_time).localeCompare(b.event_date + b.start_time));
+
+  // Color resolver: per-field color in multi mode, per-type color in single mode
+  function colorFor(ev) {
+    if (isMulti) {
+      return fieldColorMap[ev.location_id] || EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
+    }
+    return EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
+  }
+
+  // Toggle helpers
+  function toggleSetItem(setter, key) {
+    setter(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+  function toggleTeam(id) {
+    setVisibleTeamIds(prev => {
+      const base = prev ?? new Set(teamOptions.map(t => t.id));
+      const next = new Set(base);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  const headerTitle = isMulti
+    ? `Combined Calendar · ${fieldsArr.length} fields`
+    : (primaryField?.name || 'Field Calendar');
+  const headerSub = isMulti
+    ? fieldsArr.map(f => f.name).join(', ')
+    : (primaryField ? [primaryField.address, primaryField.city, primaryField.state].filter(Boolean).join(', ') : '');
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl my-4 text-gray-200 flex flex-col max-h-[90vh]">
+      <div className={`bg-gray-800 rounded-xl shadow-xl w-full ${isMulti ? 'max-w-6xl' : 'max-w-3xl'} my-4 text-gray-200 flex flex-col max-h-[90vh]`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0">
-          <div>
-            <h2 className="text-xl font-display font-bold text-white">{field.name}</h2>
-            <p className="text-xs text-gray-400">{[field.address, field.city, field.state].filter(Boolean).join(', ')}</p>
+          <div className="min-w-0">
+            <h2 className="text-xl font-display font-bold text-white truncate">{headerTitle}</h2>
+            <p className="text-xs text-gray-400 truncate">{headerSub}</p>
           </div>
-          <div className="flex items-center gap-2">
-            {editable && (
-              <Button onClick={() => { setEditing(null); setShowForm(true); }}>
+          <div className="flex items-center gap-2 shrink-0">
+            {editable && !isMulti && (
+              <Button onClick={openCreate}>
                 + Schedule
               </Button>
             )}
-            <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+            <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg" aria-label="Close">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -194,7 +321,7 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
         </div>
 
         {/* View toggle + month nav */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700 shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-gray-700 shrink-0">
           <div className="flex items-center gap-1">
             <button onClick={() => setView('month')}
               className={`lh-tab ${view === 'month' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
@@ -203,6 +330,11 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
             <button onClick={() => setView('list')}
               className={`lh-tab ${view === 'list' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
               List
+            </button>
+            <button onClick={() => setShowFilters(s => !s)}
+              className={`lh-tab ${showFilters ? 'lh-tab-active' : 'lh-tab-inactive'}`}
+              title="Toggle filter panel">
+              {showFilters ? 'Hide Filters' : 'Filters'}
             </button>
           </div>
           <div className="flex items-center gap-2">
@@ -217,8 +349,26 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        {/* Body: filter sidebar (when shown) + main content */}
+        <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row">
+          {showFilters && (
+            <FilterPanel
+              fieldsArr={fieldsArr}
+              fieldColorMap={fieldColorMap}
+              visibleFieldIds={visibleFieldIds}
+              onToggleField={(id) => toggleSetItem(setVisibleFieldIds, id)}
+              onSetAllFields={(all) => setVisibleFieldIds(all ? new Set(fieldsArr.map(f => f.id)) : new Set())}
+              visibleTypes={visibleTypes}
+              onToggleType={(t) => toggleSetItem(setVisibleTypes, t)}
+              onSetAllTypes={(all) => setVisibleTypes(all ? new Set(Object.keys(EVENT_LABELS)) : new Set())}
+              teamOptions={teamOptions}
+              effectiveTeamIds={effectiveTeamIds}
+              onToggleTeam={toggleTeam}
+              onSetAllTeams={(all) => setVisibleTeamIds(all ? new Set(teamOptions.map(t => t.id)) : new Set())}
+            />
+          )}
+
+          <div className="flex-1 px-5 py-4 min-w-0">
           {loading ? (
             <div className="py-12 text-center text-gray-400">Loading…</div>
           ) : view === 'month' ? (
@@ -248,7 +398,7 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
                       <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
                       <div className="space-y-0.5">
                         {dayEvents.slice(0, 3).map((ev, j) => {
-                          const c = EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
+                          const c = colorFor(ev);
                           return (
                             <div key={ev.id || j} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
                               {formatTime(ev.start_time)} {ev.title}
@@ -271,8 +421,8 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
                     <h3 className="text-sm font-bold text-white">
                       {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                     </h3>
-                    {editable && (
-                      <button onClick={() => { setEditing(null); setShowForm(true); }}
+                    {editable && !isMulti && (
+                      <button onClick={openCreate}
                         className="btn btn-xs btn-primary">
                         + Schedule
                       </button>
@@ -282,13 +432,19 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
                     <p className="text-sm text-gray-400">No events scheduled.</p>
                   ) : (
                     <div className="space-y-2">
-                      {(eventsByDate[selectedDate] || []).map(ev => (
-                        <EventCard key={ev.id} ev={ev} editable={editable && !ev.is_game}
-                          onEdit={() => { setEditing(ev); setShowForm(true); }}
-                          onDelete={() => handleDelete(ev)}
-                          onViewGame={onViewGame}
-                          deleting={deleting} />
-                      ))}
+                      {(eventsByDate[selectedDate] || []).map(ev => {
+                        const evField = fieldsById[ev.location_id];
+                        const canEditEv = evField ? canEditOrg(evField.org_id) : editable;
+                        return (
+                          <EventCard key={ev.id} ev={ev} editable={canEditEv && !ev.is_game}
+                            color={colorFor(ev)}
+                            fieldName={isMulti ? (evField?.name) : null}
+                            onEdit={() => openEdit(ev)}
+                            onDelete={() => handleDelete(ev)}
+                            onViewGame={onViewGame}
+                            deleting={deleting} />
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -301,13 +457,19 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
                 <p className="py-8 text-center text-gray-400">No upcoming events.</p>
               ) : (
                 <div className="space-y-2">
-                  {upcomingEvents.map(ev => (
-                    <EventCard key={ev.id} ev={ev} editable={editable && !ev.is_game} showDate
-                      onEdit={() => { setEditing(ev); setShowForm(true); }}
-                      onDelete={() => handleDelete(ev)}
-                      onViewGame={onViewGame}
-                      deleting={deleting} />
-                  ))}
+                  {upcomingEvents.map(ev => {
+                    const evField = fieldsById[ev.location_id];
+                    const canEditEv = evField ? canEditOrg(evField.org_id) : editable;
+                    return (
+                      <EventCard key={ev.id} ev={ev} editable={canEditEv && !ev.is_game} showDate
+                        color={colorFor(ev)}
+                        fieldName={isMulti ? (evField?.name) : null}
+                        onEdit={() => openEdit(ev)}
+                        onDelete={() => handleDelete(ev)}
+                        onViewGame={onViewGame}
+                        deleting={deleting} />
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -315,26 +477,36 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
 
           {/* Legend */}
           <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-700">
-            {Object.entries(EVENT_LABELS).map(([type, label]) => {
-              const c = EVENT_COLORS[type];
-              return (
-                <div key={type} className="flex items-center gap-1.5 text-xs text-gray-400">
-                  <span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} />
-                  {label}
+            {isMulti ? (
+              fieldsArr.filter(f => visibleFieldIds.has(f.id)).map(f => (
+                <div key={f.id} className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <span className={`w-2.5 h-2.5 rounded-full ${fieldColorMap[f.id].dot}`} />
+                  {f.name}
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              Object.entries(EVENT_LABELS).map(([type, label]) => {
+                const c = EVENT_COLORS[type];
+                return (
+                  <div key={type} className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} />
+                    {label}
+                  </div>
+                );
+              })
+            )}
+          </div>
           </div>
         </div>
 
-        {showForm && (
+        {showForm && editingField && (
           <ReservationForm
-            field={field}
+            field={editingField}
             reservation={editing}
             teams={teams}
             defaultDate={selectedDate}
-            onDone={() => { setShowForm(false); setEditing(null); load(); }}
-            onCancel={() => { setShowForm(false); setEditing(null); }}
+            onDone={() => { setShowForm(false); setEditing(null); setEditingField(null); load(); }}
+            onCancel={() => { setShowForm(false); setEditing(null); setEditingField(null); }}
           />
         )}
       </div>
@@ -342,8 +514,99 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
   );
 }
 
-function EventCard({ ev, editable, showDate, onEdit, onDelete, onViewGame, deleting }) {
-  const c = EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
+// ── Filter sidebar ──────────────────────────────────────────────────────────
+function FilterPanel({
+  fieldsArr, fieldColorMap, visibleFieldIds, onToggleField, onSetAllFields,
+  visibleTypes, onToggleType, onSetAllTypes,
+  teamOptions, effectiveTeamIds, onToggleTeam, onSetAllTeams,
+}) {
+  return (
+    <aside className="lg:w-56 shrink-0 border-b lg:border-b-0 lg:border-r border-gray-700 bg-gray-900/40 px-4 py-3 space-y-4">
+      {fieldsArr.length > 0 && (
+        <FilterSection
+          title="Calendars"
+          allChecked={fieldsArr.every(f => visibleFieldIds.has(f.id))}
+          onSetAll={onSetAllFields}
+        >
+          {fieldsArr.map(f => (
+            <label key={f.id} className="flex items-center gap-2 text-xs text-gray-200 cursor-pointer py-0.5 hover:text-white">
+              <input
+                type="checkbox"
+                checked={visibleFieldIds.has(f.id)}
+                onChange={() => onToggleField(f.id)}
+                className="rounded border-gray-600 bg-gray-800 text-chrome-500 focus:ring-chrome-500"
+              />
+              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${fieldColorMap[f.id].dot}`} />
+              <span className="truncate">{f.name}</span>
+            </label>
+          ))}
+        </FilterSection>
+      )}
+
+      <FilterSection
+        title="Event Types"
+        allChecked={Object.keys(EVENT_LABELS).every(t => visibleTypes.has(t))}
+        onSetAll={onSetAllTypes}
+      >
+        {Object.entries(EVENT_LABELS).map(([type, label]) => (
+          <label key={type} className="flex items-center gap-2 text-xs text-gray-200 cursor-pointer py-0.5 hover:text-white">
+            <input
+              type="checkbox"
+              checked={visibleTypes.has(type)}
+              onChange={() => onToggleType(type)}
+              className="rounded border-gray-600 bg-gray-800 text-chrome-500 focus:ring-chrome-500"
+            />
+            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${EVENT_COLORS[type].dot}`} />
+            <span>{label}</span>
+          </label>
+        ))}
+      </FilterSection>
+
+      {teamOptions.length > 0 && (
+        <FilterSection
+          title="Teams"
+          allChecked={teamOptions.every(t => effectiveTeamIds.has(t.id))}
+          onSetAll={onSetAllTeams}
+        >
+          <div className="max-h-48 overflow-y-auto pr-1">
+            {teamOptions.map(t => (
+              <label key={t.id} className="flex items-center gap-2 text-xs text-gray-200 cursor-pointer py-0.5 hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={effectiveTeamIds.has(t.id)}
+                  onChange={() => onToggleTeam(t.id)}
+                  className="rounded border-gray-600 bg-gray-800 text-chrome-500 focus:ring-chrome-500"
+                />
+                <span className="truncate">{t.name}</span>
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+      )}
+    </aside>
+  );
+}
+
+function FilterSection({ title, allChecked, onSetAll, children }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <h4 className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{title}</h4>
+        <button
+          type="button"
+          onClick={() => onSetAll(!allChecked)}
+          className="text-[10px] text-chrome-400 hover:text-chrome-300"
+        >
+          {allChecked ? 'None' : 'All'}
+        </button>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete, onViewGame, deleting }) {
+  const c = color || EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
   const label = EVENT_LABELS[ev.event_type] || ev.event_type;
   const gameClickable = ev.is_game && ev.game_id && onViewGame;
   return (
@@ -354,8 +617,11 @@ function EventCard({ ev, editable, showDate, onEdit, onDelete, onViewGame, delet
       onKeyDown={gameClickable ? (e) => { if (e.key === 'Enter') onViewGame(ev.game_id); } : undefined}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <span className={`text-[10px] font-bold uppercase tracking-wide ${c.text}`}>{label}</span>
+            {fieldName && (
+              <span className="text-[10px] text-gray-300 bg-gray-900/60 px-1.5 py-0.5 rounded">{fieldName}</span>
+            )}
             {showDate && (
               <span className="text-[10px] text-gray-400">
                 {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
