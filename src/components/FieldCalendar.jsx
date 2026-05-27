@@ -427,8 +427,16 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                       <div className="space-y-0.5">
                         {dayEvents.slice(0, 3).map((ev, j) => {
                           const c = colorFor(ev);
+                          const evField = fieldsById[ev.location_id];
+                          const tooltip = [
+                            `${formatTime(ev.start_time)}–${formatTime(ev.end_time)} — ${ev.title}`,
+                            evField?.name && `Field: ${evField.name}`,
+                            ev.team_name && `Team: ${ev.team_name}`,
+                            ev.notes,
+                          ].filter(Boolean).join('\n');
                           return (
-                            <div key={ev.id || j} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
+                            <div key={ev.id || j} title={tooltip}
+                              className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
                               {formatTime(ev.start_time)} {ev.title}
                             </div>
                           );
@@ -653,7 +661,7 @@ function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete,
             )}
             {showDate && (
               <span className="text-[10px] text-gray-400">
-                {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {new Date(String(ev.event_date).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </span>
             )}
             {gameClickable && (
