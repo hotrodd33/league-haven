@@ -4,6 +4,13 @@
  * view or the list view, hiding modal chrome and interactive controls.
  * ────────────────────────────────────────────────────────────────────────── */
 
+/* Screen: hide elements that exist only for print expansion */
+@media screen {
+  .fc-print-only {
+    display: none !important;
+  }
+}
+
 @media print {
   @page {
     margin: 0.4in;
@@ -126,11 +133,16 @@
     background: #fff !important;
     border: 1px solid #888 !important;
     min-height: 1.1in !important;
+    height: auto !important;
     padding: 2pt !important;
     page-break-inside: avoid;
     break-inside: avoid;
     box-shadow: none !important;
     ring: none !important;
+    overflow: visible !important;
+  }
+  .fc-print-grid > .fc-print-day > .space-y-0\.5 {
+    overflow: visible !important;
   }
   .fc-print-day-num {
     color: #000 !important;

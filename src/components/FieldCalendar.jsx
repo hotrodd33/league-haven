@@ -429,7 +429,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                       `}>
                       <div className={`fc-print-day-num text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
                       <div className="space-y-0.5">
-                        {dayEvents.slice(0, 3).map((ev, j) => {
+                        {dayEvents.map((ev, j) => {
                           const c = colorFor(ev);
                           const evField = fieldsById[ev.location_id];
                           const tooltip = [
@@ -438,15 +438,16 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                             ev.team_name && `Team: ${ev.team_name}`,
                             ev.notes,
                           ].filter(Boolean).join('\n');
+                          const isOverflow = j >= 3;
                           return (
                             <div key={ev.id || j} title={tooltip}
-                              className={`fc-print-event-chip text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
+                              className={`fc-print-event-chip ${isOverflow ? 'fc-print-only' : ''} text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
                               {formatTime(ev.start_time)} {ev.title}
                             </div>
                           );
                         })}
                         {dayEvents.length > 3 && (
-                          <div className="fc-print-event-chip-overflow text-[9px] text-gray-400">+{dayEvents.length - 3} more</div>
+                          <div className="fc-print-event-chip-overflow fc-print-hide text-[9px] text-gray-400">+{dayEvents.length - 3} more</div>
                         )}
                       </div>
                     </button>
