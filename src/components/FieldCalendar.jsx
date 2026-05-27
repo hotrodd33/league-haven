@@ -231,8 +231,14 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
     const m = new Map();
     let hasNone = false;
     events.forEach(ev => {
-      if (ev.team_id && ev.team_name) m.set(ev.team_id, ev.team_name);
-      else hasNone = true;
+      if (ev.is_game) {
+        if (ev.home_team_id && ev.home_team_name) m.set(ev.home_team_id, ev.home_team_name);
+        if (ev.away_team_id && ev.away_team_name) m.set(ev.away_team_id, ev.away_team_name);
+      } else if (ev.team_id && ev.team_name) {
+        m.set(ev.team_id, ev.team_name);
+      } else {
+        hasNone = true;
+      }
     });
     const arr = [...m.entries()].map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -245,8 +251,21 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
   const filteredEvents = useMemo(() => events.filter(ev => {
     if (!visibleFieldIds.has(ev.location_id)) return false;
     if (!visibleTypes.has(ev.event_type)) return false;
-    const tid = ev.team_id || '__none__';
-    if (!effectiveTeamIds.has(tid)) return false;
+    // Team filter: game holds match if either home or away team is visible;
+    // other events match by their single team_id (or '__none__').
+    if (ev.is_game) {
+      const ids = ev.team_ids && ev.team_ids.length
+        ? ev.team_ids
+        : [ev.home_team_id, ev.away_team_id].filter(Boolean);
+      if (ids.length === 0) {
+        if (!effectiveTeamIds.has('__none__')) return false;
+      } else if (!ids.some(id => effectiveTeamIds.has(id))) {
+        return false;
+      }
+    } else {
+      const tid = ev.team_id || '__none__';
+      if (!effectiveTeamIds.has(tid)) return false;
+    }
     return true;
   }), [events, visibleFieldIds, visibleTypes, effectiveTeamIds]);
 
