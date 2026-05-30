@@ -462,11 +462,14 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                           const evField = fieldsById[ev.location_id];
                           const abbr = EVENT_ABBR[ev.event_type] || '?';
                           const fAbbr = isMulti ? fieldAbbrev(evField?.name) : '';
+                          const teamInfo = ev.is_game
+                            ? [ev.home_team_name, ev.away_team_name].filter(Boolean).join(' vs ')
+                            : (ev.team_name || '');
                           const tooltip = [
                             `${formatTime(ev.start_time)}–${formatTime(ev.end_time)} — ${ev.title}`,
                             evField?.name && `Field: ${evField.name}`,
                             EVENT_LABELS[ev.event_type] && `Type: ${EVENT_LABELS[ev.event_type]}`,
-                            ev.team_name && `Team: ${ev.team_name}`,
+                            teamInfo && `Team: ${teamInfo}`,
                             ev.notes,
                           ].filter(Boolean).join('\n');
                           const isOverflow = j >= 3;
@@ -474,7 +477,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                             <div key={ev.id || j} title={tooltip}
                               className={`fc-print-event-chip ${isOverflow ? 'fc-print-only' : ''} text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
                               {fAbbr && <span className="font-bold mr-0.5">[{fAbbr}]</span>}
-                              {formatTimeChip(ev.start_time)}–{formatTimeChip(ev.end_time)} ({abbr})
+                              {formatTimeChip(ev.start_time)} ({abbr}){teamInfo ? ` ${teamInfo}` : ''}
                             </div>
                           );
                         })}
