@@ -289,12 +289,19 @@ export default function FieldPrep({ onNavigateToGame }) {
                         const c = fieldColorMap[fKey] || UNASSIGNED_COLOR;
                         const level = teamLevelLabel(g.home_age_group, g.home_level)
                                    || teamLevelLabel(g.away_age_group, g.away_level);
-                        const umps = (g.official_names || []).join(', ');
+                        const umps = (g.official_names || []);
+                        const umpRequired = g.home_ump_required !== false; // null/undefined → assume required
+                        const umpChipText = !umpRequired
+                          ? 'No Ump'
+                          : umps.length ? umps[0].split(' ').slice(-1)[0] : 'unassigned';
+                        const umpTooltip  = !umpRequired
+                          ? 'No umpire needed for this age group'
+                          : umps.length ? `Umpire(s): ${umps.join(', ')}` : 'Umpire: unassigned';
                         const tooltip = [
                           `${formatTime(g.game_time)} — ${g.home_team_name} vs ${g.away_team_name}`,
                           g.location_name && `Field: ${g.location_name}`,
                           level && `Level: ${level}`,
-                          umps ? `Umpire(s): ${umps}` : 'Umpire: unassigned',
+                          umpTooltip,
                           g.division_name && `Division: ${g.division_name}`,
                         ].filter(Boolean).join('\n');
                         return (
@@ -302,7 +309,7 @@ export default function FieldPrep({ onNavigateToGame }) {
                             onClick={(e) => { e.stopPropagation(); onNavigateToGame?.(g.id); }}
                             className={`fc-print-event-chip text-[9px] leading-tight truncate rounded px-1 py-0.5 cursor-pointer ${c.bg} ${c.text}`}>
                             <span className="font-bold mr-0.5">[{fieldAbbrev(g.location_name)}]</span>
-                            {formatTimeChip(g.game_time)}{level ? ` ${level}` : ''}{umps ? ` · ${umps.split(',')[0].trim()}` : ' · —'}
+                            {formatTimeChip(g.game_time)}{level ? ` ${level}` : ''} · {umpChipText}
                           </div>
                         );
                       })}
@@ -331,6 +338,7 @@ export default function FieldPrep({ onNavigateToGame }) {
                       const level = teamLevelLabel(g.home_age_group, g.home_level)
                                  || teamLevelLabel(g.away_age_group, g.away_level);
                       const umps = (g.official_names || []);
+                      const umpRequired = g.home_ump_required !== false;
                       return (
                         <div key={g.id}
                           onClick={() => onNavigateToGame?.(g.id)}
@@ -346,9 +354,11 @@ export default function FieldPrep({ onNavigateToGame }) {
                           <div className="text-sm text-white font-semibold mt-1">{g.home_team_name} <span className="text-gray-400">vs</span> {g.away_team_name}</div>
                           <div className="text-xs mt-1">
                             <span className="text-gray-400">Umpire:</span>{' '}
-                            {umps.length
-                              ? <span className="text-gray-200">{umps.join(', ')}</span>
-                              : <span className="text-amber-400 italic">unassigned</span>}
+                            {!umpRequired
+                              ? <span className="text-gray-400 italic">No Ump</span>
+                              : umps.length
+                                ? <span className="text-gray-200">{umps.join(', ')}</span>
+                                : <span className="text-amber-400 italic">unassigned</span>}
                           </div>
                         </div>
                       );

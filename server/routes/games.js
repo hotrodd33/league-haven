@@ -180,13 +180,15 @@ const SLIM_SELECT = `
     fl.address AS location_address, fl.city AS location_city,
     fl.latitude AS location_lat, fl.longitude AS location_lon,
     gd.division_name, gd.division_sort,
-    goa.official_names
+    goa.official_names,
+    hag.ump_required AS home_ump_required
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
   LEFT JOIN teams at ON at.id = g.away_team_id
   LEFT JOIN organizations ao ON ao.id = at.org_id
   LEFT JOIN field_locations fl ON fl.id = g.location_id
+  LEFT JOIN league_age_groups hag ON hag.name = ht.age_group
   LEFT JOIN LATERAL (
     SELECT ld.id AS division_id, ld.name AS division_name, ld.sort_order AS division_sort
     FROM team_divisions htd
@@ -305,6 +307,7 @@ function enrichGameSlim(row) {
     location_lat: row.location_lat || null,
     location_lon: row.location_lon || null,
     division_name: row.division_name || null,
+    home_ump_required: row.home_ump_required === null || row.home_ump_required === undefined ? null : !!row.home_ump_required,
     is_gamechanger_imported: false, // not in SLIM_SELECT — omitted intentionally
     // Fields used by umpire interest & official assignment display
     official_ids: [],
