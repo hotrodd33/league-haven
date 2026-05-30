@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { fetchOrganizations, fetchTeams, fetchGames, fetchSeasons } from '../api/index.js';
+import './FieldCalendar.print.css';
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -191,13 +192,14 @@ export default function FieldPrep({ onNavigateToGame }) {
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="fc-print-root space-y-4">
+      <div className="fc-print-panel space-y-4">
+      <div className="fc-print-header flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-display font-bold text-white">Field Prep Schedule</h1>
+          <h2 className="text-2xl font-display font-bold text-white">Field Prep Schedule</h2>
           <p className="text-xs text-gray-400 mt-1">{headerSub}</p>
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="fc-print-hide flex flex-wrap gap-2 items-center">
           <select
             value={orgId || ''}
             onChange={(e) => setOrgId(Number(e.target.value) || null)}
@@ -219,21 +221,21 @@ export default function FieldPrep({ onNavigateToGame }) {
       </div>
 
       {/* Month nav */}
-      <div className="flex items-center justify-between border-y border-gray-800 py-2">
+      <div className="fc-print-month-bar flex items-center justify-between border-y border-gray-800 py-2">
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="px-2 py-1 text-sm text-gray-300 hover:bg-gray-700 rounded">←</button>
-          <button onClick={goToday} className="px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 rounded">Today</button>
-          <span className="text-base font-semibold text-white min-w-[160px] text-center">{MONTH_NAMES[month]} {year}</span>
-          <button onClick={nextMonth} className="px-2 py-1 text-sm text-gray-300 hover:bg-gray-700 rounded">→</button>
+          <button onClick={prevMonth} className="fc-print-hide px-2 py-1 text-sm text-gray-300 hover:bg-gray-700 rounded">←</button>
+          <button onClick={goToday} className="fc-print-hide px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 rounded">Today</button>
+          <span className="fc-print-month-label text-base font-semibold text-white min-w-[160px] text-center">{MONTH_NAMES[month]} {year}</span>
+          <button onClick={nextMonth} className="fc-print-hide px-2 py-1 text-sm text-gray-300 hover:bg-gray-700 rounded">→</button>
         </div>
-        {loading && <span className="text-xs text-gray-500">Loading…</span>}
+        {loading && <span className="fc-print-hide text-xs text-gray-500">Loading…</span>}
       </div>
 
       {error && <div className="lh-alert-error">{error}</div>}
       {!orgId && <p className="py-8 text-center text-gray-400">Select an organization to view its field schedule.</p>}
 
       {orgId && (
-        <div className="flex flex-col lg:flex-row gap-4">
+        <div className="fc-print-body flex flex-col lg:flex-row gap-4">
           {/* Filter sidebar */}
           {fields.length > 0 && (
             <aside className="lg:w-56 shrink-0 border lg:border-r border-gray-700 bg-gray-900/40 rounded px-3 py-3 space-y-3">
@@ -261,15 +263,15 @@ export default function FieldPrep({ onNavigateToGame }) {
           )}
 
           {/* Calendar grid */}
-          <div className="flex-1 min-w-0">
-            <div className="grid grid-cols-7 gap-px mb-1">
+          <div className="fc-print-content flex-1 min-w-0">
+            <div className="fc-print-grid-header grid grid-cols-7 gap-px mb-1">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                 <div key={d} className="text-center text-[10px] font-bold uppercase text-gray-500 py-1">{d}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-px">
+            <div className="fc-print-grid grid grid-cols-7 gap-px">
               {monthDays.map((day, i) => {
-                if (day === null) return <div key={`pad-${i}`} className="min-h-[80px]" />;
+                if (day === null) return <div key={`pad-${i}`} className="fc-print-day min-h-[80px]" />;
                 const dk = dateKey(year, month, day);
                 const dayGames = gamesByDate[dk] || [];
                 const isToday = dk === todayKey;
@@ -277,35 +279,42 @@ export default function FieldPrep({ onNavigateToGame }) {
                 return (
                   <button key={dk} type="button"
                     onClick={() => setSelectedDate(isSelected ? null : dk)}
-                    className={`min-h-[80px] p-1 text-left rounded transition-colors
+                    className={`fc-print-day min-h-[80px] p-1 text-left rounded transition-colors
                       ${isToday ? 'ring-1 ring-action-500' : ''}
                       ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}`}>
-                    <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-action-300' : 'text-gray-300'}`}>{day}</div>
+                    <div className={`fc-print-day-num text-xs font-semibold mb-0.5 ${isToday ? 'text-action-300' : 'text-gray-300'}`}>{day}</div>
                     <div className="space-y-0.5">
                       {dayGames.slice(0, 4).map(g => {
                         const fKey = g.location_name || '__none__';
                         const c = fieldColorMap[fKey] || UNASSIGNED_COLOR;
                         const level = teamLevelLabel(g.home_age_group, g.home_level)
                                    || teamLevelLabel(g.away_age_group, g.away_level);
-                        const umps = (g.official_names || []).join(', ');
+                        const umps = (g.official_names || []);
+                        const umpRequired = g.home_ump_required !== false; // null/undefined → assume required
+                        const umpChipText = !umpRequired
+                          ? 'No Ump'
+                          : umps.length ? umps[0].split(' ').slice(-1)[0] : 'unassigned';
+                        const umpTooltip  = !umpRequired
+                          ? 'No umpire needed for this age group'
+                          : umps.length ? `Umpire(s): ${umps.join(', ')}` : 'Umpire: unassigned';
                         const tooltip = [
                           `${formatTime(g.game_time)} — ${g.home_team_name} vs ${g.away_team_name}`,
                           g.location_name && `Field: ${g.location_name}`,
                           level && `Level: ${level}`,
-                          umps ? `Umpire(s): ${umps}` : 'Umpire: unassigned',
+                          umpTooltip,
                           g.division_name && `Division: ${g.division_name}`,
                         ].filter(Boolean).join('\n');
                         return (
                           <div key={g.id} title={tooltip}
                             onClick={(e) => { e.stopPropagation(); onNavigateToGame?.(g.id); }}
-                            className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 cursor-pointer ${c.bg} ${c.text}`}>
+                            className={`fc-print-event-chip text-[9px] leading-tight truncate rounded px-1 py-0.5 cursor-pointer ${c.bg} ${c.text}`}>
                             <span className="font-bold mr-0.5">[{fieldAbbrev(g.location_name)}]</span>
-                            {formatTimeChip(g.game_time)}{level ? ` ${level}` : ''}{umps ? ` · ${umps.split(',')[0].trim()}` : ' · —'}
+                            {formatTimeChip(g.game_time)}{level ? ` ${level}` : ''} · {umpChipText}
                           </div>
                         );
                       })}
                       {dayGames.length > 4 && (
-                        <div className="text-[9px] text-gray-400">+{dayGames.length - 4} more</div>
+                        <div className="fc-print-event-chip-overflow text-[9px] text-gray-400">+{dayGames.length - 4} more</div>
                       )}
                     </div>
                   </button>
@@ -315,7 +324,7 @@ export default function FieldPrep({ onNavigateToGame }) {
 
             {/* Selected day detail */}
             {selectedDate && (
-              <div className="mt-4 border-t border-gray-700 pt-4">
+              <div className="fc-print-selected-day mt-4 border-t border-gray-700 pt-4">
                 <h3 className="text-sm font-bold text-white mb-2">
                   {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                 </h3>
@@ -329,6 +338,7 @@ export default function FieldPrep({ onNavigateToGame }) {
                       const level = teamLevelLabel(g.home_age_group, g.home_level)
                                  || teamLevelLabel(g.away_age_group, g.away_level);
                       const umps = (g.official_names || []);
+                      const umpRequired = g.home_ump_required !== false;
                       return (
                         <div key={g.id}
                           onClick={() => onNavigateToGame?.(g.id)}
@@ -344,9 +354,11 @@ export default function FieldPrep({ onNavigateToGame }) {
                           <div className="text-sm text-white font-semibold mt-1">{g.home_team_name} <span className="text-gray-400">vs</span> {g.away_team_name}</div>
                           <div className="text-xs mt-1">
                             <span className="text-gray-400">Umpire:</span>{' '}
-                            {umps.length
-                              ? <span className="text-gray-200">{umps.join(', ')}</span>
-                              : <span className="text-amber-400 italic">unassigned</span>}
+                            {!umpRequired
+                              ? <span className="text-gray-400 italic">No Ump</span>
+                              : umps.length
+                                ? <span className="text-gray-200">{umps.join(', ')}</span>
+                                : <span className="text-amber-400 italic">unassigned</span>}
                           </div>
                         </div>
                       );
@@ -358,7 +370,7 @@ export default function FieldPrep({ onNavigateToGame }) {
 
             {/* Legend */}
             {fields.length > 0 && (
-              <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-700">
+              <div className="fc-print-legend flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-700">
                 {fields.map(f => (
                   <div key={f.id} className="flex items-center gap-1.5 text-xs text-gray-400">
                     <span className={`w-2.5 h-2.5 rounded-full ${fieldColorMap[f.id].dot}`} />
@@ -371,6 +383,7 @@ export default function FieldPrep({ onNavigateToGame }) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

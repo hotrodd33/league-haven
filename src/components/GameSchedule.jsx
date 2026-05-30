@@ -803,6 +803,11 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                               ))}
                             </div>
                           )}
+                          {!game.officials?.length && (
+                            game.home_ump_required === false
+                              ? <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-gray-700/60 text-gray-400 italic" title="No umpire needed for this age group">No Ump</span>
+                              : <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-amber-900/40 text-amber-300" title="No umpire assigned">Ump: unassigned</span>
+                          )}
                           <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                             {game.status_label}
                           </span>
@@ -940,6 +945,13 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           {game.officials.map((o, i) => (
                             <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-action-900/50 text-action-300">{o.name}</span>
                           ))}
+                        </div>
+                      )}
+                      {!game.officials?.length && (
+                        <div className="mb-1" onClick={(e) => e.stopPropagation()}>
+                          {game.home_ump_required === false
+                            ? <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-gray-700/60 text-gray-400 italic">No Ump</span>
+                            : <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-amber-900/40 text-amber-300">Ump: unassigned</span>}
                         </div>
                       )}
                       {game.notes && <div className="text-xs text-gray-400 italic">{game.notes}</div>}

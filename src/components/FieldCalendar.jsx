@@ -499,11 +499,23 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                             ? (teamLevelLabel(ev.home_team_age_group, ev.home_team_level)
                                 || teamLevelLabel(ev.away_team_age_group, ev.away_team_level))
                             : teamLevelLabel(ev.team_age_group, ev.team_level);
+                          // Umpire info (games only)
+                          const umps = ev.is_game ? (ev.official_names || []) : [];
+                          const umpRequired = ev.is_game ? ev.home_ump_required !== false : true;
+                          const umpChipText = !ev.is_game ? null
+                            : !umpRequired ? 'No Ump'
+                            : umps.length ? umps[0].split(' ').slice(-1)[0]
+                            : 'unassigned';
+                          const umpTooltip = !ev.is_game ? null
+                            : !umpRequired ? 'No umpire needed for this age group'
+                            : umps.length ? `Umpire(s): ${umps.join(', ')}`
+                            : 'Umpire: unassigned';
                           const tooltip = [
                             `${formatTime(ev.start_time)}–${formatTime(ev.end_time)} — ${ev.title}`,
                             evField?.name && `Field: ${evField.name}`,
                             EVENT_LABELS[ev.event_type] && `Type: ${EVENT_LABELS[ev.event_type]}`,
                             teamInfo && `Team: ${teamInfo}`,
+                            umpTooltip,
                             ev.notes,
                           ].filter(Boolean).join('\n');
                           const isOverflow = j >= 3;
@@ -511,7 +523,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                             <div key={ev.id || j} title={tooltip}
                               className={`fc-print-event-chip ${isOverflow ? 'fc-print-only' : ''} text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
                               {fAbbr && <span className="font-bold mr-0.5">[{fAbbr}]</span>}
-                              {formatTimeChip(ev.start_time)} ({abbr}){chipLevel ? ` ${chipLevel}` : ''}
+                              {formatTimeChip(ev.start_time)} ({abbr}){chipLevel ? ` ${chipLevel}` : ''}{umpChipText ? ` · ${umpChipText}` : ''}
                             </div>
                           );
                         })}
@@ -814,6 +826,20 @@ function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete,
             {formatTime(ev.start_time)} – {formatTime(ev.end_time)}
             {ev.team_name && <span className="text-gray-400 ml-2">• {ev.team_name}</span>}
           </div>
+          {ev.is_game && (() => {
+            const umps = ev.official_names || [];
+            const umpRequired = ev.home_ump_required !== false;
+            return (
+              <div className="text-xs mt-0.5">
+                <span className="text-gray-400">Umpire:</span>{' '}
+                {!umpRequired
+                  ? <span className="text-gray-400 italic">No Ump</span>
+                  : umps.length
+                    ? <span className="text-action-300 font-medium">{umps.join(', ')}</span>
+                    : <span className="text-amber-400 italic">unassigned</span>}
+              </div>
+            );
+          })()}
           {ev.created_by_name && !ev.is_game && (
             <div className="text-[10px] text-gray-500 mt-0.5">
               Booked by {ev.created_by_name}
