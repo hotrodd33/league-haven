@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
        FROM games g
        JOIN teams ht ON ht.id = g.home_team_id
        JOIN teams at ON at.id = g.away_team_id
-       LEFT JOIN league_age_groups hag ON hag.name = ht.age_group
+       LEFT JOIN league_age_groups hag ON LOWER(TRIM(hag.name)) = LOWER(TRIM(ht.age_group))
        LEFT JOIN LATERAL (
          SELECT COALESCE(array_agg(o.name ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::TEXT[]) AS official_names
          FROM game_official_assignments go

@@ -188,7 +188,7 @@ const SLIM_SELECT = `
   LEFT JOIN teams at ON at.id = g.away_team_id
   LEFT JOIN organizations ao ON ao.id = at.org_id
   LEFT JOIN field_locations fl ON fl.id = g.location_id
-  LEFT JOIN league_age_groups hag ON hag.name = ht.age_group
+  LEFT JOIN league_age_groups hag ON LOWER(TRIM(hag.name)) = LOWER(TRIM(ht.age_group))
   LEFT JOIN LATERAL (
     SELECT ld.id AS division_id, ld.name AS division_name, ld.sort_order AS division_sort
     FROM team_divisions htd
