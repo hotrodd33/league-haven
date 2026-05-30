@@ -23,6 +23,14 @@ const EVENT_LABELS = {
   maintenance: 'Maintenance',
 };
 
+// Short single-letter codes for the calendar chip (colorblind-friendly cue)
+const EVENT_ABBR = {
+  game_hold: 'G',
+  practice: 'P',
+  event: 'E',
+  maintenance: 'M',
+};
+
 // Color palette assigned per field in combined view (Outlook-style)
 const FIELD_COLORS = [
   { bg: 'bg-blue-900/40', border: 'border-blue-500', text: 'text-blue-300', dot: 'bg-blue-500' },
@@ -53,6 +61,26 @@ function formatTime(t) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+// Compact time used in day-cell chips: "6P", "6:30P", "12A"
+function formatTimeChip(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const ap = h >= 12 ? 'P' : 'A';
+  const h12 = h % 12 || 12;
+  return m === 0 ? `${h12}${ap}` : `${h12}:${String(m).padStart(2, '0')}${ap}`;
+}
+
+// Short field code for colorblind accessibility in combined view.
+// Uses up to 3 initials of multi-word names, else first 3 letters.
+function fieldAbbrev(name) {
+  if (!name) return '';
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return words.slice(0, 3).map(w => w[0].toUpperCase()).join('');
+  }
+  return String(name).slice(0, 3).toUpperCase();
 }
 
 function toMinutes(hhmm) {
@@ -432,9 +460,12 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                         {dayEvents.map((ev, j) => {
                           const c = colorFor(ev);
                           const evField = fieldsById[ev.location_id];
+                          const abbr = EVENT_ABBR[ev.event_type] || '?';
+                          const fAbbr = isMulti ? fieldAbbrev(evField?.name) : '';
                           const tooltip = [
                             `${formatTime(ev.start_time)}–${formatTime(ev.end_time)} — ${ev.title}`,
                             evField?.name && `Field: ${evField.name}`,
+                            EVENT_LABELS[ev.event_type] && `Type: ${EVENT_LABELS[ev.event_type]}`,
                             ev.team_name && `Team: ${ev.team_name}`,
                             ev.notes,
                           ].filter(Boolean).join('\n');
@@ -442,7 +473,8 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                           return (
                             <div key={ev.id || j} title={tooltip}
                               className={`fc-print-event-chip ${isOverflow ? 'fc-print-only' : ''} text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
-                              {formatTime(ev.start_time)} {ev.title}
+                              {fAbbr && <span className="font-bold mr-0.5">[{fAbbr}]</span>}
+                              {formatTimeChip(ev.start_time)}–{formatTimeChip(ev.end_time)} ({abbr})
                             </div>
                           );
                         })}
@@ -555,6 +587,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
               fieldsArr.filter(f => visibleFieldIds.has(f.id)).map(f => (
                 <div key={f.id} className="flex items-center gap-1.5 text-xs text-gray-400">
                   <span className={`w-2.5 h-2.5 rounded-full ${fieldColorMap[f.id].dot}`} />
+                  <span className="font-bold text-gray-300">[{fieldAbbrev(f.name)}]</span>
                   {f.name}
                 </div>
               ))
@@ -568,6 +601,13 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                   </div>
                 );
               })
+            )}
+            {isMulti && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 ml-auto">
+                {Object.entries(EVENT_LABELS).map(([type, label]) => (
+                  <span key={type}><span className="font-bold text-gray-300">({EVENT_ABBR[type]})</span> {label}</span>
+                )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, <span key={`sep-${i}`} className="text-gray-600">·</span>, el], [])}
+              </div>
             )}
           </div>
           </div>
