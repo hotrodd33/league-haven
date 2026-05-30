@@ -83,6 +83,14 @@ function fieldAbbrev(name) {
   return String(name).slice(0, 3).toUpperCase();
 }
 
+// Extract just the age-level token (e.g. "U12", "12U", "8U") from a team
+// name so day-cell chips stay scannable. Falls back to '' if none found.
+function extractLevel(name) {
+  if (!name) return '';
+  const m = String(name).match(/\b(\d{1,2}U|U\d{1,2})\b/i);
+  return m ? m[1].toUpperCase() : '';
+}
+
 function toMinutes(hhmm) {
   const [h, m] = String(hhmm).split(':').map(Number);
   return (h * 60) + m;
@@ -465,6 +473,11 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                           const teamInfo = ev.is_game
                             ? [ev.home_team_name, ev.away_team_name].filter(Boolean).join(' vs ')
                             : (ev.team_name || '');
+                          // Compact level shown on the chip (scannable);
+                          // full team names remain in the tooltip.
+                          const chipLevel = ev.is_game
+                            ? (extractLevel(ev.home_team_name) || extractLevel(ev.away_team_name))
+                            : extractLevel(ev.team_name);
                           const tooltip = [
                             `${formatTime(ev.start_time)}–${formatTime(ev.end_time)} — ${ev.title}`,
                             evField?.name && `Field: ${evField.name}`,
@@ -477,7 +490,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                             <div key={ev.id || j} title={tooltip}
                               className={`fc-print-event-chip ${isOverflow ? 'fc-print-only' : ''} text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
                               {fAbbr && <span className="font-bold mr-0.5">[{fAbbr}]</span>}
-                              {formatTimeChip(ev.start_time)} ({abbr}){teamInfo ? ` ${teamInfo}` : ''}
+                              {formatTimeChip(ev.start_time)} ({abbr}){chipLevel ? ` ${chipLevel}` : ''}
                             </div>
                           );
                         })}
