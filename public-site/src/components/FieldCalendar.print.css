@@ -147,6 +147,12 @@
   }
   .fc-print-grid {
     gap: 0 !important;
+    /* No page-break-inside:avoid here — the public Field Prep view has more
+       vertical content than the admin modal, and forcing the whole month
+       grid onto a single page produces an empty first page. */
+  }
+  /* Allow individual week rows to stay together instead of the whole grid */
+  .fc-print-grid > .fc-print-day {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }

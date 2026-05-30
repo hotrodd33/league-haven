@@ -284,7 +284,7 @@ export default function FieldPrep({ onNavigateToGame }) {
                       ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}`}>
                     <div className={`fc-print-day-num text-xs font-semibold mb-0.5 ${isToday ? 'text-action-300' : 'text-gray-300'}`}>{day}</div>
                     <div className="space-y-0.5">
-                      {dayGames.slice(0, 4).map(g => {
+                      {dayGames.map((g, j) => {
                         const fKey = g.location_name || '__none__';
                         const c = fieldColorMap[fKey] || UNASSIGNED_COLOR;
                         const level = teamLevelLabel(g.home_age_group, g.home_level)
@@ -304,17 +304,19 @@ export default function FieldPrep({ onNavigateToGame }) {
                           umpTooltip,
                           g.division_name && `Division: ${g.division_name}`,
                         ].filter(Boolean).join('\n');
+                        const isOverflow = j >= 4;
                         return (
                           <div key={g.id} title={tooltip}
                             onClick={(e) => { e.stopPropagation(); onNavigateToGame?.(g.id); }}
-                            className={`fc-print-event-chip text-[9px] leading-tight truncate rounded px-1 py-0.5 cursor-pointer ${c.bg} ${c.text}`}>
+                            className={`fc-print-event-chip ${isOverflow ? 'fc-print-only' : ''} text-[9px] leading-tight truncate rounded px-1 py-0.5 cursor-pointer ${c.bg} ${c.text}`}>
                             <span className="font-bold mr-0.5">[{fieldAbbrev(g.location_name)}]</span>
-                            {formatTimeChip(g.game_time)}{level ? ` ${level}` : ''} · {umpChipText}
+                            {formatTimeChip(g.game_time)}{level ? ` ${level}` : ''}
+                            <span className="fc-print-hide"> · {umpChipText}</span>
                           </div>
                         );
                       })}
                       {dayGames.length > 4 && (
-                        <div className="fc-print-event-chip-overflow text-[9px] text-gray-400">+{dayGames.length - 4} more</div>
+                        <div className="fc-print-hide text-[9px] text-gray-400">+{dayGames.length - 4} more</div>
                       )}
                     </div>
                   </button>
