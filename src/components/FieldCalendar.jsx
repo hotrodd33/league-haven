@@ -7,6 +7,7 @@ import {
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Button, Input, Select, Modal } from './ui';
+import GameDetail from './GameDetail.jsx';
 import './FieldCalendar.print.css';
 
 const EVENT_COLORS = {
@@ -187,6 +188,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
   const [deleting, setDeleting] = useState(null);
   const [teams, setTeams] = useState([]);
   const [view, setView] = useState('month'); // 'month' | 'list'
+  const [viewingGameId, setViewingGameId] = useState(null); // in-modal game viewer
 
   // Filter state: which calendars/types/teams are visible
   const [visibleFieldIds, setVisibleFieldIds] = useState(() => new Set(fieldsArr.map(f => f.id)));
@@ -272,15 +274,34 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
   }
 
   // ── Filter options & application ──────────────────────────────────────────
+  // Only allow filtering by teams that belong to one of the organizations
+  // that owns a field currently in view (visibleFieldIds). Falls back to all
+  // orgs of the configured fields when no field info is available.
+  const orgsInView = useMemo(() => {
+    const s = new Set();
+    fieldsArr.forEach(f => { if (visibleFieldIds.has(f.id) && f.org_id != null) s.add(f.org_id); });
+    return s;
+  }, [fieldsArr, visibleFieldIds]);
+
   const teamOptions = useMemo(() => {
+    // Map of teamId -> team record (with org_id) for org filtering
+    const teamsById = new Map();
+    teams.forEach(t => teamsById.set(t.id, t));
+    const isAllowed = (teamId) => {
+      if (!orgsInView.size) return true;
+      const t = teamsById.get(teamId);
+      if (!t || t.org_id == null) return false;
+      return orgsInView.has(t.org_id);
+    };
+
     const m = new Map();
     let hasNone = false;
     events.forEach(ev => {
       if (ev.is_game) {
-        if (ev.home_team_id && ev.home_team_name) m.set(ev.home_team_id, ev.home_team_name);
-        if (ev.away_team_id && ev.away_team_name) m.set(ev.away_team_id, ev.away_team_name);
+        if (ev.home_team_id && ev.home_team_name && isAllowed(ev.home_team_id)) m.set(ev.home_team_id, ev.home_team_name);
+        if (ev.away_team_id && ev.away_team_name && isAllowed(ev.away_team_id)) m.set(ev.away_team_id, ev.away_team_name);
       } else if (ev.team_id && ev.team_name) {
-        m.set(ev.team_id, ev.team_name);
+        if (isAllowed(ev.team_id)) m.set(ev.team_id, ev.team_name);
       } else {
         hasNone = true;
       }
@@ -289,7 +310,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
       .sort((a, b) => a.name.localeCompare(b.name));
     if (hasNone) arr.push({ id: '__none__', name: '(No team)' });
     return arr;
-  }, [events]);
+  }, [events, teams, orgsInView]);
 
   const effectiveTeamIds = visibleTeamIds ?? new Set(teamOptions.map(t => t.id));
 
@@ -530,7 +551,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                             fieldName={isMulti ? (evField?.name) : null}
                             onEdit={() => openEdit(ev)}
                             onDelete={() => handleDelete(ev)}
-                            onViewGame={onViewGame}
+                            onViewGame={(id) => setViewingGameId(id)}
                             deleting={deleting} />
                         );
                       })}
@@ -556,7 +577,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                           fieldName={isMulti ? (evField?.name) : null}
                           onEdit={() => openEdit(ev)}
                           onDelete={() => handleDelete(ev)}
-                          onViewGame={onViewGame}
+                          onViewGame={(id) => setViewingGameId(id)}
                           deleting={deleting} />
                       );
                     })}
@@ -641,6 +662,32 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
           />
         )}
       </div>
+      {/* In-modal game viewer: keeps the calendar/filters intact behind it */}
+      {viewingGameId && (
+        <div className="fc-print-hide fixed inset-0 z-60 bg-black/70 flex items-start justify-center p-2 sm:p-4 overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) setViewingGameId(null); }}>
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-5xl my-4 text-gray-200 flex flex-col max-h-[92vh]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 shrink-0">
+              <h3 className="text-sm font-semibold text-gray-300">Game Details</h3>
+              <button
+                onClick={() => setViewingGameId(null)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
+                aria-label="Close game viewer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <GameDetail
+                gameId={viewingGameId}
+                onBack={() => { setViewingGameId(null); load(); }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
