@@ -6,6 +6,7 @@ import Scores from './components/Scores.jsx';
 import TeamDetail from './components/TeamDetail.jsx';
 import GameDetail from './components/GameDetail.jsx';
 import TravelMatrix from './components/TravelMatrix.jsx';
+import FieldPrep from './components/FieldPrep.jsx';
 import { fetchBranding, fetchTeams } from './api/index.js';
 
 class SiteErrorBoundary extends Component {
@@ -41,6 +42,7 @@ const TABS = [
   { key: 'scores',    label: 'Scores'    },
   { key: 'teams',     label: 'Teams'     },
   { key: 'travel',    label: 'Travel'    },
+  { key: 'prep',      label: 'Field Prep' },
 ];
 
 function toSlug(name) {
@@ -219,6 +221,7 @@ export default function App() {
             {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} />}
             {nav.tab === 'teams'     && <Teams     onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'travel'    && <TravelMatrix />}
+            {nav.tab === 'prep'      && <FieldPrep  onNavigateToGame={navigateToGame} />}
           </SiteErrorBoundary>
         )}
       </main>

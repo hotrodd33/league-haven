@@ -179,7 +179,8 @@ const SLIM_SELECT = `
     fl.name AS location_name,
     fl.address AS location_address, fl.city AS location_city,
     fl.latitude AS location_lat, fl.longitude AS location_lon,
-    gd.division_name, gd.division_sort
+    gd.division_name, gd.division_sort,
+    goa.official_names
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
@@ -195,6 +196,12 @@ const SLIM_SELECT = `
     ORDER BY ld.sort_order
     LIMIT 1
   ) gd ON true
+  LEFT JOIN LATERAL (
+    SELECT COALESCE(array_agg(o.name ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::TEXT[]) AS official_names
+    FROM game_official_assignments go
+    JOIN officials o ON o.id = go.official_id
+    WHERE go.game_id = g.id
+  ) goa ON true
 `;
 
 function enrichGame(row) {
@@ -301,7 +308,7 @@ function enrichGameSlim(row) {
     is_gamechanger_imported: false, // not in SLIM_SELECT — omitted intentionally
     // Fields used by umpire interest & official assignment display
     official_ids: [],
-    official_names: [],
+    official_names: row.official_names || [],
     officials: [],
     interested_official_ids: [],
     interested_umpire_names: [],
