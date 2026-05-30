@@ -47,10 +47,19 @@ router.get('/', async (req, res) => {
               g.home_team_id, g.away_team_id,
               ht.name AS home_team_name, at.name AS away_team_name,
               ht.age_group AS home_team_age_group, ht.level AS home_team_level,
-              at.age_group AS away_team_age_group, at.level AS away_team_level
+              at.age_group AS away_team_age_group, at.level AS away_team_level,
+              hag.ump_required AS home_ump_required,
+              goa.official_names
        FROM games g
        JOIN teams ht ON ht.id = g.home_team_id
        JOIN teams at ON at.id = g.away_team_id
+       LEFT JOIN league_age_groups hag ON hag.name = ht.age_group
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(array_agg(o.name ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::TEXT[]) AS official_names
+         FROM game_official_assignments go
+         JOIN officials o ON o.id = go.official_id
+         WHERE go.game_id = g.id
+       ) goa ON true
        WHERE g.location_id = $1
          AND g.game_date >= $2 AND g.game_date <= $3
          AND g.status IN ('scheduled', 'in_progress')
@@ -92,6 +101,8 @@ router.get('/', async (req, res) => {
         home_team_level: g.home_team_level,
         away_team_age_group: g.away_team_age_group,
         away_team_level: g.away_team_level,
+        home_ump_required: g.home_ump_required === null || g.home_ump_required === undefined ? null : !!g.home_ump_required,
+        official_names: g.official_names || [],
         title: `${g.home_team_name} vs ${g.away_team_name}`,
         event_type: 'game_hold',
         event_date: g.game_date,
