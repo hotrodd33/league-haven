@@ -30,6 +30,7 @@ router.get('/', async (req, res) => {
     // 1) Manual reservations (practices, events, maintenance)
     const { rows: reservations } = await pool.query(
       `SELECT r.*, t.name AS team_name,
+              t.age_group AS team_age_group, t.level AS team_level,
               u.name AS created_by_name, u.email AS created_by_email
        FROM field_reservations r
        LEFT JOIN teams t ON t.id = r.team_id
@@ -44,7 +45,9 @@ router.get('/', async (req, res) => {
     const { rows: games } = await pool.query(
       `SELECT g.id AS game_id, g.game_date, g.game_time, g.status, g.game_duration_minutes,
               g.home_team_id, g.away_team_id,
-              ht.name AS home_team_name, at.name AS away_team_name
+              ht.name AS home_team_name, at.name AS away_team_name,
+              ht.age_group AS home_team_age_group, ht.level AS home_team_level,
+              at.age_group AS away_team_age_group, at.level AS away_team_level
        FROM games g
        JOIN teams ht ON ht.id = g.home_team_id
        JOIN teams at ON at.id = g.away_team_id
@@ -85,6 +88,10 @@ router.get('/', async (req, res) => {
         away_team_id: g.away_team_id,
         home_team_name: g.home_team_name,
         away_team_name: g.away_team_name,
+        home_team_age_group: g.home_team_age_group,
+        home_team_level: g.home_team_level,
+        away_team_age_group: g.away_team_age_group,
+        away_team_level: g.away_team_level,
         title: `${g.home_team_name} vs ${g.away_team_name}`,
         event_type: 'game_hold',
         event_date: g.game_date,
@@ -93,6 +100,8 @@ router.get('/', async (req, res) => {
         game_id: g.game_id,
         notes: `Game at ${fmt12(gameTime)}`,
         team_name: g.home_team_name,
+        team_age_group: g.home_team_age_group,
+        team_level: g.home_team_level,
         is_game: true,
       };
     });
