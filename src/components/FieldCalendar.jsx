@@ -83,12 +83,11 @@ function fieldAbbrev(name) {
   return String(name).slice(0, 3).toUpperCase();
 }
 
-// Extract just the age-level token (e.g. "U12", "12U", "8U") from a team
-// name so day-cell chips stay scannable. Falls back to '' if none found.
-function extractLevel(name) {
-  if (!name) return '';
-  const m = String(name).match(/\b(\d{1,2}U|U\d{1,2})\b/i);
-  return m ? m[1].toUpperCase() : '';
+// Build a short level/age label from a team's stored attributes
+// (preferred over parsing the display name). Combines age_group + level
+// when both exist, e.g. "12U AAA"; falls back gracefully.
+function teamLevelLabel(ageGroup, level) {
+  return [ageGroup, level].filter(Boolean).map(s => String(s).trim()).join(' ').trim();
 }
 
 function toMinutes(hhmm) {
@@ -476,8 +475,9 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                           // Compact level shown on the chip (scannable);
                           // full team names remain in the tooltip.
                           const chipLevel = ev.is_game
-                            ? (extractLevel(ev.home_team_name) || extractLevel(ev.away_team_name))
-                            : extractLevel(ev.team_name);
+                            ? (teamLevelLabel(ev.home_team_age_group, ev.home_team_level)
+                                || teamLevelLabel(ev.away_team_age_group, ev.away_team_level))
+                            : teamLevelLabel(ev.team_age_group, ev.team_level);
                           const tooltip = [
                             `${formatTime(ev.start_time)}–${formatTime(ev.end_time)} — ${ev.title}`,
                             evField?.name && `Field: ${evField.name}`,
