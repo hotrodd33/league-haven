@@ -25,6 +25,13 @@
         { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
         { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self' https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://vercel.live wss://*.pusher.com https://*.pusher.com wss://*.pusherapp.com https://*.pusherapp.com; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" }
       ]
+    },
+    {
+      "source": "/site/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "ALLOWALL" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://portal.zvbl.org https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://zvbl.org https://www.zvbl.org; upgrade-insecure-requests" }
+      ]
     }
   ],
   "rewrites": [
