@@ -81,6 +81,19 @@ function getRestDays(pitchCount, rules) {
   return 0;
 }
 
+// Count consecutive calendar days ENDING on the day before `targetDate` on which
+// the player pitched (any number of pitches). E.g. pitched Sat+Sun, targetDate=Mon
+// returns 2. Used to enforce maxConsecutiveDays.
+function consecutiveDaysBefore(dateMap, targetDate) {
+  let count = 0;
+  let cursor = datePlusDays(targetDate, -1);
+  while (dateMap[cursor]) {
+    count += 1;
+    cursor = datePlusDays(cursor, -1);
+  }
+  return count;
+}
+
 function datePlusDays(dateStr, days) {
   const d = new Date(dateStr + 'T00:00:00');
   if (isNaN(d.getTime())) throw new RangeError(`Invalid date: ${dateStr}`);
@@ -201,10 +214,13 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
         }
       }
 
-      // 3 consecutive calendar days
-      if (dateMap[yesterday] && dateMap[dayBefore]) {
+      // Consecutive calendar days cap
+      const consec = consecutiveDaysBefore(dateMap, gd);
+      if (rules.maxConsecutiveDays != null && consec >= rules.maxConsecutiveDays) {
         result.eligible = false;
-        result.reasons.push('Cannot pitch 3 consecutive calendar days');
+        result.reasons.push(
+          `Cannot pitch more than ${rules.maxConsecutiveDays} consecutive day${rules.maxConsecutiveDays !== 1 ? 's' : ''} (already pitched ${consec} in a row)`
+        );
       }
 
       return result;
@@ -390,10 +406,13 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
         result.next_available_after_today = datePlusDays(today, restAfterToday + 1);
       }
 
-      // 3 consecutive days
-      if (dateMap[yesterday] && dateMap[dayBefore]) {
+      // Consecutive calendar days cap
+      const consec = consecutiveDaysBefore(dateMap, today);
+      if (rules.maxConsecutiveDays != null && consec >= rules.maxConsecutiveDays) {
         result.eligible_today = false;
-        result.reasons.push('Cannot pitch 3 consecutive calendar days');
+        result.reasons.push(
+          `Cannot pitch more than ${rules.maxConsecutiveDays} consecutive day${rules.maxConsecutiveDays !== 1 ? 's' : ''} (already pitched ${consec} in a row)`
+        );
       }
 
       return result;
@@ -498,6 +517,10 @@ router.get('/all-rest', authMiddleware, async (req, res) => {
         }
 
         if (dateMap[yesterday] && dateMap[dayBefore]) eligible = false;
+        if (rules.maxConsecutiveDays != null) {
+          const consec = consecutiveDaysBefore(dateMap, today);
+          if (consec >= rules.maxConsecutiveDays) eligible = false;
+        }
       }
 
       // Only include players who have actually pitched recently (skip those with no data)
