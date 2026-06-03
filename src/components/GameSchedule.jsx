@@ -1455,14 +1455,11 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     fetchAssignableOfficials(homeOrgId).then((rows) => {
       const list = rows || [];
       setOfficials(list);
-      const validIds = new Set(list.map((o) => String(o.id)));
-      setForm((prev) => ({
-        ...prev,
-        official_ids: (prev.official_ids || []).filter((id) => validIds.has(String(id))),
-      }));
+      // Do NOT auto-strip official_ids based on the assignable pool. A previously
+      // assigned umpire may be league-level or from another org and still be a valid
+      // existing assignment. handleChange already clears official_ids on team change.
     }).catch(() => {
       setOfficials([]);
-      setForm((prev) => ({ ...prev, official_ids: [] }));
     });
   }, [homeOrgId]);
 
@@ -1541,6 +1538,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
         ...prev,
         home_team_id: value,
         location_id: nextOrgId !== prevOrgId ? '' : prev.location_id,
+        official_ids: nextOrgId !== prevOrgId ? [] : prev.official_ids,
       }));
       return;
     }
