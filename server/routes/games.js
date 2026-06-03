@@ -312,7 +312,7 @@ function enrichGameSlim(row) {
     // Fields used by umpire interest & official assignment display
     official_ids: [],
     official_names: row.official_names || [],
-    officials: [],
+    officials: (row.official_names || []).map((name) => ({ name })),
     interested_official_ids: [],
     interested_umpire_names: [],
     interested_umpires: [],
