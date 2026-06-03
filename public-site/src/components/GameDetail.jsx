@@ -27,7 +27,7 @@ const STATUS_LABELS = {
   completed: 'Final',     cancelled: 'Cancelled', postponed: 'Postponed',
 };
 
-export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
+export default function GameDetail({ gameId, onBack, onNavigateToTeam, officialsEnabled = true }) {
   const [game, setGame]             = useState(null);
   const [pitchCounts, setPitchCounts] = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -171,7 +171,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam }) {
       </div>
 
       {/* Umpires */}
-      {!!game.officials?.length && (
+      {officialsEnabled && !!game.officials?.length && (
         <div className="bg-gray-800 border border-gray-700 rounded-card-sm p-4 mb-4">
           <h3 className="eyebrow mb-2">Umpires</h3>
           <div className="flex flex-wrap gap-2">

@@ -6,6 +6,7 @@ import {
   checkGameConflicts,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useBranding } from '../hooks/useBranding.js';
 import { Button, Input, Select, Modal } from './ui';
 import GameDetail from './GameDetail.jsx';
 import './FieldCalendar.print.css';
@@ -152,7 +153,9 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
 export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
-  const { canEditOrg } = useAuth();
+  const { canEditOrg, isAuthenticated } = useAuth();
+  const { features } = useBranding(isAuthenticated);
+  const officialsFeatureEnabled = features.feature_officials !== false;
 
   // Normalize to an array of fields. `field` (single) is the legacy/primary mode.
   const fieldsArr = useMemo(() => {
@@ -502,11 +505,11 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                           // Umpire info (games only)
                           const umps = ev.is_game ? (ev.official_names || []) : [];
                           const umpRequired = ev.is_game ? ev.home_ump_required !== false : true;
-                          const umpChipText = !ev.is_game ? null
+                          const umpChipText = !ev.is_game || !officialsFeatureEnabled ? null
                             : !umpRequired ? 'No Ump'
                             : umps.length ? umps[0].split(' ').slice(-1)[0]
                             : 'unassigned';
-                          const umpTooltip = !ev.is_game ? null
+                          const umpTooltip = !ev.is_game || !officialsFeatureEnabled ? null
                             : !umpRequired ? 'No umpire needed for this age group'
                             : umps.length ? `Umpire(s): ${umps.join(', ')}`
                             : 'Umpire: unassigned';
@@ -826,7 +829,7 @@ function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete,
             {formatTime(ev.start_time)} – {formatTime(ev.end_time)}
             {ev.team_name && <span className="text-gray-400 ml-2">• {ev.team_name}</span>}
           </div>
-          {ev.is_game && (() => {
+          {ev.is_game && officialsFeatureEnabled && (() => {
             const umps = ev.official_names || [];
             const umpRequired = ev.home_ump_required !== false;
             return (

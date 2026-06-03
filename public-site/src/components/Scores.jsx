@@ -31,7 +31,7 @@ const STATUS_LABELS = {
   postponed:   'Postponed',
 };
 
-export default function Scores({ onNavigateToTeam, onNavigateToGame }) {
+export default function Scores({ onNavigateToTeam, onNavigateToGame, officialsEnabled = true }) {
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState('');
   const [filter, setFilter] = useState('all');
@@ -267,7 +267,7 @@ export default function Scores({ onNavigateToTeam, onNavigateToGame }) {
                                 </div>
                               );
                             })()}
-                            {!!g.official_names?.length && (
+                            {officialsEnabled && !!g.official_names?.length && (
                               <div className="text-xs text-gray-500 text-center">
                                 {g.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {g.official_names.join(', ')}
                               </div>

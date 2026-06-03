@@ -67,7 +67,7 @@ function buildMonthDays(year, month) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────
-export default function FieldPrep({ onNavigateToGame }) {
+export default function FieldPrep({ onNavigateToGame, officialsEnabled = true }) {
   const today = new Date();
   const [year, setYear]   = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -291,11 +291,11 @@ export default function FieldPrep({ onNavigateToGame }) {
                                    || teamLevelLabel(g.away_age_group, g.away_level);
                         const umps = (g.official_names || []);
                         const umpRequired = g.home_ump_required !== false; // null/undefined → assume required
-                        const umpChipText = !umpRequired
-                          ? 'No Ump'
+                        const umpChipText = !officialsEnabled ? null
+                          : !umpRequired ? 'No Ump'
                           : umps.length ? umps[0].split(' ').slice(-1)[0] : 'unassigned';
-                        const umpTooltip  = !umpRequired
-                          ? 'No umpire needed for this age group'
+                        const umpTooltip  = !officialsEnabled ? null
+                          : !umpRequired ? 'No umpire needed for this age group'
                           : umps.length ? `Umpire(s): ${umps.join(', ')}` : 'Umpire: unassigned';
                         const tooltip = [
                           `${formatTime(g.game_time)} — ${g.home_team_name} vs ${g.away_team_name}`,
@@ -311,7 +311,7 @@ export default function FieldPrep({ onNavigateToGame }) {
                             className={`fc-print-event-chip ${isOverflow ? 'fc-print-only' : ''} text-[9px] leading-tight truncate rounded px-1 py-0.5 cursor-pointer ${c.bg} ${c.text}`}>
                             <span className="font-bold mr-0.5">[{fieldAbbrev(g.location_name)}]</span>
                             {formatTimeChip(g.game_time)}{level ? ` ${level}` : ''}
-                            <span className="fc-print-hide"> · {umpChipText}</span>
+                            {umpChipText && <span className="fc-print-hide"> · {umpChipText}</span>}
                           </div>
                         );
                       })}
@@ -354,6 +354,7 @@ export default function FieldPrep({ onNavigateToGame }) {
                             <span className="text-xs text-gray-300">{formatTime(g.game_time)}</span>
                           </div>
                           <div className="text-sm text-white font-semibold mt-1">{g.home_team_name} <span className="text-gray-400">vs</span> {g.away_team_name}</div>
+                          {officialsEnabled && (
                           <div className="text-xs mt-1">
                             <span className="text-gray-400">Umpire:</span>{' '}
                             {!umpRequired
@@ -362,6 +363,7 @@ export default function FieldPrep({ onNavigateToGame }) {
                                 ? <span className="text-gray-200">{umps.join(', ')}</span>
                                 : <span className="text-amber-400 italic">unassigned</span>}
                           </div>
+                          )}
                         </div>
                       );
                     })}

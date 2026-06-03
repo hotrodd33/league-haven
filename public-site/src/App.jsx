@@ -62,12 +62,16 @@ function parsePath(pathname) {
 export default function App() {
   const [nav, setNav]           = useState(() => parsePath(window.location.pathname));
   const [menuOpen, setMenuOpen] = useState(false);
-  const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null });
+  const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null, feature_officials: true });
   const [allTeams, setAllTeams] = useState([]);
 
   useEffect(() => {
     fetchBranding()
-      .then(data => setBranding({ app_name: data?.app_name || 'LeagueHaven', logo_url: data?.logo_url || null }))
+      .then(data => setBranding({
+        app_name: data?.app_name || 'LeagueHaven',
+        logo_url: data?.logo_url || null,
+        feature_officials: data?.feature_officials !== false,
+      }))
       .catch(() => {});
     fetchTeams().then(setAllTeams).catch(() => {});
   }, []);
@@ -204,6 +208,7 @@ export default function App() {
             gameId={nav.gameId}
             onBack={() => window.history.back()}
             onNavigateToTeam={navigateToTeam}
+            officialsEnabled={branding.feature_officials !== false}
           />
         ) : nav.view === 'team' ? (
           resolvedTeamId
@@ -218,10 +223,10 @@ export default function App() {
           <SiteErrorBoundary>
             {nav.tab === 'home'      && <Home      onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} onNavigateToTab={navigateToTab} />}
             {nav.tab === 'standings' && <Standings onNavigateToTeam={navigateToTeam} />}
-            {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} />}
+            {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} officialsEnabled={branding.feature_officials !== false} />}
             {nav.tab === 'teams'     && <Teams     onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'travel'    && <TravelMatrix />}
-            {nav.tab === 'prep'      && <FieldPrep  onNavigateToGame={navigateToGame} />}
+            {nav.tab === 'prep'      && <FieldPrep  onNavigateToGame={navigateToGame} officialsEnabled={branding.feature_officials !== false} />}
           </SiteErrorBoundary>
         )}
       </main>
