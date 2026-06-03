@@ -202,7 +202,9 @@ const SLIM_SELECT = `
     LIMIT 1
   ) gd ON true
   LEFT JOIN LATERAL (
-    SELECT COALESCE(array_agg(o.name ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::TEXT[]) AS official_names
+    SELECT
+      COALESCE(array_agg(o.id ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::INTEGER[]) AS official_ids,
+      COALESCE(array_agg(o.name ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::TEXT[]) AS official_names
     FROM game_official_assignments go
     JOIN officials o ON o.id = go.official_id
     WHERE go.game_id = g.id
@@ -315,7 +317,7 @@ function enrichGameSlim(row) {
     home_ump_required: row.home_ump_required === null || row.home_ump_required === undefined ? null : !!row.home_ump_required,
     is_gamechanger_imported: false, // not in SLIM_SELECT — omitted intentionally
     // Fields used by umpire interest & official assignment display
-    official_ids: [],
+    official_ids: row.official_ids || [],
     official_names: row.official_names || [],
     officials: (row.official_names || []).map((name) => ({ name })),
     interested_official_ids: [],
