@@ -243,6 +243,8 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   });
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
+  const [filterHostOrg, setFilterHostOrg] = useState('');
+  const [filterNeedsUmp, setFilterNeedsUmp] = useState(false);
   const [filterEventType, setFilterEventType] = useState('games');
   const [sortOrder] = useState('asc');
   // For non-admins: block the games query until we know which teams to filter on.
@@ -449,13 +451,33 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   }
   const sortedDivisions = Array.from(divisions).sort();
 
-  // Filter games by division if selected
-  const filteredGames = filterDivision
-    ? games.filter(g => {
-        const divLabel = g.division_name || ([g.home_age_group, g.home_level].filter(Boolean).join(' ')) || null;
-        return divLabel === filterDivision;
-      })
-    : games;
+  // Build host-org options from games' location org (resolve names via teams list)
+  const orgIdToName = new Map();
+  for (const t of teams) {
+    if (t.org_id && t.org_name) orgIdToName.set(t.org_id, t.org_name);
+  }
+  const hostOrgIds = new Set();
+  for (const g of games) {
+    if (g.location_org_id) hostOrgIds.add(g.location_org_id);
+  }
+  const sortedHostOrgs = Array.from(hostOrgIds)
+    .map(id => ({ id, name: orgIdToName.get(id) || `Org #${id}` }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Filter games by division, host org, and "needs ump" toggle
+  const filteredGames = games.filter(g => {
+    if (filterDivision) {
+      const divLabel = g.division_name || ([g.home_age_group, g.home_level].filter(Boolean).join(' ')) || null;
+      if (divLabel !== filterDivision) return false;
+    }
+    if (filterHostOrg && String(g.location_org_id || '') !== String(filterHostOrg)) return false;
+    if (filterNeedsUmp) {
+      const required = g.home_ump_required !== false;
+      const assigned = (g.official_names?.length || g.officials?.length) > 0;
+      if (!required || assigned) return false;
+    }
+    return true;
+  });
 
   // Build merged items list based on event type filter
   const mergedItems = useMemo(() => {
@@ -512,7 +534,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
       const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
       window.scrollTo({ top, behavior: 'smooth' });
     });
-  }, [anchorDateKey, loading, filterSeason, filterTeam, filterStatus, filterDivision]);
+  }, [anchorDateKey, loading, filterSeason, filterTeam, filterStatus, filterDivision, filterHostOrg, filterNeedsUmp]);
 
   function gameDivisionLevelLabel(game) {
     if (game.division_name) return game.division_name;
@@ -622,7 +644,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
 
         {/* ── Filter bar — hidden on mobile until toggled, always shown md+ ── */}
         <div className={`${showFilters ? 'block' : 'hidden md:block'} mt-2`}>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             <select value={filterSeason} onChange={(e) => {
               setFilterSeason(e.target.value);
               if (!isAdmin && myTeamIds.length === 1) setFilterTeam(String(myTeamIds[0]));
@@ -669,7 +691,28 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                 <option key={div} value={div}>{div}</option>
               ))}
             </select>
+            <select value={filterHostOrg} onChange={(e) => setFilterHostOrg(e.target.value)}
+              className="lh-select text-sm"
+              title="Show only games at a specific organization's fields">
+              <option value="">All Fields</option>
+              {sortedHostOrgs.map(o => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
           </div>
+          {officialsFeatureEnabled && (
+            <div className="mt-2 flex items-center gap-2">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={filterNeedsUmp}
+                  onChange={(e) => setFilterNeedsUmp(e.target.checked)}
+                  className="lh-checkbox"
+                />
+                <span>Needs Ump (required &amp; unassigned)</span>
+              </label>
+            </div>
+          )}
         </div>
 
       </div>

@@ -38,6 +38,7 @@ const BASE_SELECT = `
     fl.name AS location_name, fl.address AS location_address,
     fl.city AS location_city, fl.state AS location_state,
     fl.latitude AS location_lat, fl.longitude AS location_lon,
+    fl.org_id AS location_org_id,
     ls.name AS season_name, ls.year AS season_year,
     gd.division_id, gd.division_name, gd.division_sort,
     gil.is_gamechanger_imported,
@@ -179,6 +180,7 @@ const SLIM_SELECT = `
     fl.name AS location_name,
     fl.address AS location_address, fl.city AS location_city,
     fl.latitude AS location_lat, fl.longitude AS location_lon,
+    fl.org_id AS location_org_id,
     gd.division_name, gd.division_sort,
     goa.official_names,
     hag.ump_required AS home_ump_required
@@ -306,6 +308,7 @@ function enrichGameSlim(row) {
     location_city: row.location_city || null,
     location_lat: row.location_lat || null,
     location_lon: row.location_lon || null,
+    location_org_id: row.location_org_id || null,
     division_name: row.division_name || null,
     home_ump_required: row.home_ump_required === null || row.home_ump_required === undefined ? null : !!row.home_ump_required,
     is_gamechanger_imported: false, // not in SLIM_SELECT — omitted intentionally
