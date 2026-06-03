@@ -162,6 +162,7 @@ const SLIM_SELECT = `
     g.id, g.season_id, g.home_team_id, g.away_team_id,
     g.game_date, g.game_time, g.status,
     g.home_score, g.away_score,
+    g.location_id,
     g.deleted_at,
     ht.name AS home_team_name, ht.logo_url AS home_team_logo,
     ht.org_id AS home_org_id,
@@ -309,6 +310,7 @@ function enrichGameSlim(row) {
     location_lat: row.location_lat || null,
     location_lon: row.location_lon || null,
     location_org_id: row.location_org_id || null,
+    location_id: row.location_id || null,
     division_name: row.division_name || null,
     home_ump_required: row.home_ump_required === null || row.home_ump_required === undefined ? null : !!row.home_ump_required,
     is_gamechanger_imported: false, // not in SLIM_SELECT — omitted intentionally
