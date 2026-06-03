@@ -19,6 +19,7 @@ async function getBranding() {
   if (cached) return cached;
   const { rows } = await pool.query(
     `SELECT app_name, logo_url, public_site_url, game_start_time, game_end_time, game_time_increment_minutes,
+            default_game_duration_minutes,
             feature_live_scoring, feature_pitch_tracking, feature_officials,
             feature_stats, feature_documents, feature_financials,
             feature_registration, feature_public_site, feature_push_notifications,
@@ -161,6 +162,7 @@ router.get('/schedule-settings', async (req, res) => {
       game_start_time: formatTime(branding.game_start_time) || '08:00',
       game_end_time: formatTime(branding.game_end_time) || '20:00',
       game_time_increment_minutes: Number(branding.game_time_increment_minutes) || 30,
+      default_game_duration_minutes: Number(branding.default_game_duration_minutes) || 150,
     });
   } catch (err) {
     console.error(err);
@@ -173,6 +175,8 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
     const start = String(req.body?.game_start_time || '').trim();
     const end = String(req.body?.game_end_time || '').trim();
     const increment = Number(req.body?.game_time_increment_minutes);
+    const hasDuration = req.body?.default_game_duration_minutes !== undefined;
+    const duration = hasDuration ? Number(req.body.default_game_duration_minutes) : null;
 
     if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(start)) {
       return res.status(400).json({ error: 'Start time must be HH:MM (24-hour)' });
@@ -183,6 +187,9 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
     if (!Number.isInteger(increment) || increment < 5 || increment > 120) {
       return res.status(400).json({ error: 'Increment must be between 5 and 120 minutes' });
     }
+    if (hasDuration && (!Number.isInteger(duration) || duration < 30 || duration > 480)) {
+      return res.status(400).json({ error: 'Default game duration must be between 30 and 480 minutes' });
+    }
     if (toMinutes(start) >= toMinutes(end)) {
       return res.status(400).json({ error: 'End time must be later than start time' });
     }
@@ -192,9 +199,10 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
        SET game_start_time = $1,
            game_end_time = $2,
            game_time_increment_minutes = $3,
+           default_game_duration_minutes = COALESCE($4, default_game_duration_minutes),
            updated_at = NOW()
        WHERE id = 1`,
-      [start, end, increment]
+      [start, end, increment, hasDuration ? duration : null]
     );
     cache.del(BRANDING_KEY);
     const branding = await getBranding();
@@ -202,6 +210,7 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
       game_start_time: formatTime(branding.game_start_time),
       game_end_time: formatTime(branding.game_end_time),
       game_time_increment_minutes: Number(branding.game_time_increment_minutes),
+      default_game_duration_minutes: Number(branding.default_game_duration_minutes) || 150,
     });
   } catch (err) {
     console.error(err);

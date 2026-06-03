@@ -929,7 +929,7 @@ function ReservationForm({ field, fieldChoices, reservation, teams, defaultDate,
     home_team_id: '',
     away_team_id: '',
     game_time: '',
-    game_duration_minutes: 150,
+    game_duration_minutes: null,
     status: 'scheduled',
   });
   const [seasons, setSeasons] = useState([]);
@@ -938,6 +938,7 @@ function ReservationForm({ field, fieldChoices, reservation, teams, defaultDate,
     game_start_time: '08:00',
     game_end_time: '20:00',
     game_time_increment_minutes: 30,
+    default_game_duration_minutes: 150,
   });
   const [fieldConflicts, setFieldConflicts] = useState(null);
   const [confirmSave, setConfirmSave] = useState(false);
@@ -958,7 +959,10 @@ function ReservationForm({ field, fieldChoices, reservation, teams, defaultDate,
         game_start_time: settings?.game_start_time || '08:00',
         game_end_time: settings?.game_end_time || '20:00',
         game_time_increment_minutes: Number(settings?.game_time_increment_minutes) || 30,
+        default_game_duration_minutes: Number(settings?.default_game_duration_minutes) || 150,
       });
+      const def = Number(settings?.default_game_duration_minutes) || 150;
+      setGameForm((prev) => prev.game_duration_minutes ? prev : { ...prev, game_duration_minutes: def });
     }).catch(() => {});
   }, [isGame]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1009,7 +1013,7 @@ function ReservationForm({ field, fieldChoices, reservation, teams, defaultDate,
         location_id: activeField.id,
         game_date: form.event_date,
         game_time: gameForm.game_time || null,
-        game_duration_minutes: Number(gameForm.game_duration_minutes) || 150,
+        game_duration_minutes: Number(gameForm.game_duration_minutes) || Number(scheduleSettings.default_game_duration_minutes) || 150,
         status: gameForm.status,
         home_score: null,
         away_score: null,

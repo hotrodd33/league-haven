@@ -1342,6 +1342,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     game_start_time: '08:00',
     game_end_time: '20:00',
     game_time_increment_minutes: 30,
+    default_game_duration_minutes: 150,
   });
   const initialStatus = game?.status || 'unscheduled';
   const initialGameDate = game?.game_date || new Date().toISOString().slice(0, 10);
@@ -1352,7 +1353,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     location_id: game?.location_id || '',
     game_date: initialGameDate,
     game_time: game?.game_time?.slice(0, 5) || '',
-    game_duration_minutes: game?.game_duration_minutes || 150,
+    game_duration_minutes: game?.game_duration_minutes || null,
     status: initialStatus,
     home_score: game?.home_score ?? '',
     away_score: game?.away_score ?? '',
@@ -1417,11 +1418,15 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
 
   useEffect(() => {
     fetchScheduleSettings().then((data) => {
+      const def = Number(data?.default_game_duration_minutes) || 150;
       setScheduleSettings({
         game_start_time: data?.game_start_time || '08:00',
         game_end_time: data?.game_end_time || '20:00',
         game_time_increment_minutes: Number(data?.game_time_increment_minutes) || 30,
+        default_game_duration_minutes: def,
       });
+      // Backfill duration on new-game form once league default is known
+      setForm((prev) => prev.game_duration_minutes ? prev : { ...prev, game_duration_minutes: def });
     }).catch(() => {});
   }, []);
 
@@ -1653,7 +1658,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       location_id: form.location_id ? Number(form.location_id) : null,
       game_date: form.game_date || null,
       game_time: form.game_time || null,
-      game_duration_minutes: Number(form.game_duration_minutes) || 150,
+      game_duration_minutes: Number(form.game_duration_minutes) || Number(scheduleSettings.default_game_duration_minutes) || 150,
       status: form.status,
       home_score: form.home_score !== '' ? Number(form.home_score) : null,
       away_score: form.away_score !== '' ? Number(form.away_score) : null,
