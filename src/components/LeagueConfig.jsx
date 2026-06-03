@@ -643,6 +643,84 @@ function SeasonList() {
 }
 
 // ── Age Group Config with Umpire Rate ──
+const DEFAULT_THRESHOLDS = [
+  { min: 56, days: 3 },
+  { min: 41, days: 2 },
+  { min: 21, days: 1 },
+  { min: 1,  days: 0 },
+];
+
+function PitchRuleEditor({ dailyLimit, setDailyLimit, thresholds, setThresholds, maxConsec, setMaxConsec }) {
+  function updateRow(i, field, value) {
+    const next = thresholds.slice();
+    next[i] = { ...next[i], [field]: value };
+    setThresholds(next);
+  }
+  function removeRow(i) {
+    setThresholds(thresholds.filter((_, idx) => idx !== i));
+  }
+  function addRow() {
+    setThresholds([...thresholds, { min: '', days: '' }]);
+  }
+  function applyDefault() {
+    setDailyLimit('50');
+    setThresholds(DEFAULT_THRESHOLDS.map(t => ({ ...t })));
+    setMaxConsec('2');
+  }
+  function clearAll() {
+    setDailyLimit('');
+    setThresholds([]);
+    setMaxConsec('2');
+  }
+
+  return (
+    <div className="mt-2 p-3 bg-gray-900 border border-gray-700 rounded">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-semibold text-gray-300 uppercase tracking-wide">Pitch Count Rules</h4>
+        <div className="flex gap-1">
+          <button type="button" onClick={applyDefault} className="text-xs px-2 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-200">Default</button>
+          <button type="button" onClick={clearAll} className="text-xs px-2 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-200">Clear</button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 mb-3">
+        <label className="flex flex-col text-xs text-gray-400">
+          <span>Daily limit (pitches)</span>
+          <input type="number" min="0" step="1" value={dailyLimit} onChange={e => setDailyLimit(e.target.value)}
+                 placeholder="—" className="w-28 lh-input mt-1" />
+        </label>
+        <label className="flex flex-col text-xs text-gray-400">
+          <span>Max consecutive days</span>
+          <input type="number" min="1" max="7" step="1" value={maxConsec} onChange={e => setMaxConsec(e.target.value)}
+                 className="w-28 lh-input mt-1" />
+        </label>
+      </div>
+
+      <div className="text-xs text-gray-400 mb-1">Rest day thresholds <span className="text-gray-500">(min pitches → required rest days)</span></div>
+      {thresholds.length === 0 ? (
+        <div className="text-xs text-gray-500 italic py-2">No thresholds defined — no rest enforcement.</div>
+      ) : (
+        <div className="space-y-1">
+          {thresholds.map((t, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input type="number" min="0" step="1" value={t.min} onChange={e => updateRow(i, 'min', e.target.value)}
+                     placeholder="min" className="w-20 lh-input" />
+              <span className="text-gray-500 text-xs">→</span>
+              <input type="number" min="0" max="30" step="1" value={t.days} onChange={e => updateRow(i, 'days', e.target.value)}
+                     placeholder="days" className="w-20 lh-input" />
+              <span className="text-xs text-gray-500">rest day{Number(t.days) !== 1 ? 's' : ''}</span>
+              <button type="button" onClick={() => removeRow(i)}
+                      className="ml-auto text-xs px-2 py-0.5 rounded bg-red-900/40 hover:bg-red-900/70 text-red-200">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <button type="button" onClick={addRow}
+              className="mt-2 text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-200">+ Add threshold</button>
+    </div>
+  );
+}
+
 function AgeGroupConfig() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -651,6 +729,9 @@ function AgeGroupConfig() {
   const [newRate, setNewRate] = useState('50');
   const [newLeagueFee, setNewLeagueFee] = useState('');
   const [newUmpRequired, setNewUmpRequired] = useState(true);
+  const [newDailyLimit, setNewDailyLimit] = useState('');
+  const [newThresholds, setNewThresholds] = useState([]);
+  const [newMaxConsec, setNewMaxConsec] = useState('2');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
@@ -658,6 +739,9 @@ function AgeGroupConfig() {
   const [editRate, setEditRate] = useState('50');
   const [editLeagueFee, setEditLeagueFee] = useState('');
   const [editUmpRequired, setEditUmpRequired] = useState(true);
+  const [editDailyLimit, setEditDailyLimit] = useState('');
+  const [editThresholds, setEditThresholds] = useState([]);
+  const [editMaxConsec, setEditMaxConsec] = useState('2');
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -670,16 +754,36 @@ function AgeGroupConfig() {
 
   useEffect(() => { load(); }, [load]);
 
+  function buildPitchPayload(dailyLimit, thresholds, maxConsec) {
+    return {
+      daily_pitch_limit: dailyLimit !== '' ? Number(dailyLimit) : null,
+      rest_thresholds: thresholds
+        .map(t => ({ min: Number(t.min), days: Number(t.days) }))
+        .filter(t => Number.isFinite(t.min) && Number.isFinite(t.days)),
+      max_consecutive_days: maxConsec !== '' ? Number(maxConsec) : 2,
+    };
+  }
+
   async function handleAdd(e) {
     e.preventDefault();
     if (!newName.trim()) return;
     setAdding(true); setError(null);
     try {
-      await createAgeGroup({ name: newName.trim(), sort_order: items.length, umpire_rate: newUmpRequired ? (Number(newRate) || 50) : 0, ump_required: newUmpRequired, league_fee: newLeagueFee !== '' ? Number(newLeagueFee) : null });
+      await createAgeGroup({
+        name: newName.trim(),
+        sort_order: items.length,
+        umpire_rate: newUmpRequired ? (Number(newRate) || 50) : 0,
+        ump_required: newUmpRequired,
+        league_fee: newLeagueFee !== '' ? Number(newLeagueFee) : null,
+        ...buildPitchPayload(newDailyLimit, newThresholds, newMaxConsec),
+      });
       setNewName('');
       setNewRate('50');
       setNewLeagueFee('');
       setNewUmpRequired(true);
+      setNewDailyLimit('');
+      setNewThresholds([]);
+      setNewMaxConsec('2');
       await load();
     } catch (err) { setError(err.message); }
     finally { setAdding(false); }
@@ -692,13 +796,25 @@ function AgeGroupConfig() {
     setEditRate(String(item.umpire_rate ?? 50));
     setEditLeagueFee(item.league_fee != null ? String(item.league_fee) : '');
     setEditUmpRequired(item.ump_required !== false);
+    setEditDailyLimit(item.daily_pitch_limit != null ? String(item.daily_pitch_limit) : '');
+    setEditThresholds(Array.isArray(item.rest_thresholds)
+      ? item.rest_thresholds.map(t => ({ min: t.min, days: t.days }))
+      : []);
+    setEditMaxConsec(String(item.max_consecutive_days ?? 2));
   }
 
   async function handleSaveEdit() {
     if (!editName.trim()) return;
     setSavingEdit(true); setError(null);
     try {
-      await updateAgeGroup(editingId, { name: editName.trim(), sort_order: editOrder, umpire_rate: editUmpRequired ? (Number(editRate) || 50) : 0, ump_required: editUmpRequired, league_fee: editLeagueFee !== '' ? Number(editLeagueFee) : null });
+      await updateAgeGroup(editingId, {
+        name: editName.trim(),
+        sort_order: editOrder,
+        umpire_rate: editUmpRequired ? (Number(editRate) || 50) : 0,
+        ump_required: editUmpRequired,
+        league_fee: editLeagueFee !== '' ? Number(editLeagueFee) : null,
+        ...buildPitchPayload(editDailyLimit, editThresholds, editMaxConsec),
+      });
       setEditingId(null);
       await load();
     } catch (err) { setError(err.message); }
@@ -722,35 +838,42 @@ function AgeGroupConfig() {
       {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
 
       {/* Add form */}
-      <form onSubmit={handleAdd} className="flex flex-wrap gap-2 mb-4 items-center">
-        <input
-          type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
-          placeholder="e.g. 8U, 10U, 12U, 14U" className="flex-1 min-w-[120px] lh-input"
-        />
-        {newUmpRequired && (
+      <form onSubmit={handleAdd} className="mb-4">
+        <div className="flex flex-wrap gap-2 items-center">
+          <input
+            type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
+            placeholder="e.g. 8U, 10U, 12U, 14U" className="flex-1 min-w-[120px] lh-input"
+          />
+          {newUmpRequired && (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-gray-400">Ump $</span>
+              <input
+                type="number" min="0" step="0.01" value={newRate} onChange={(e) => setNewRate(e.target.value)}
+                placeholder="50" className="w-20 lh-input" title="Umpire rate per game"
+              />
+            </div>
+          )}
           <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-400">Ump $</span>
+            <span className="text-xs text-gray-400">Fee $</span>
             <input
-              type="number" min="0" step="0.01" value={newRate} onChange={(e) => setNewRate(e.target.value)}
-              placeholder="50" className="w-20 lh-input" title="Umpire rate per game"
+              type="number" min="0" step="0.01" value={newLeagueFee} onChange={(e) => setNewLeagueFee(e.target.value)}
+              placeholder="—" className="w-20 lh-input" title="League registration fee"
             />
           </div>
-        )}
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-gray-400">Fee $</span>
-          <input
-            type="number" min="0" step="0.01" value={newLeagueFee} onChange={(e) => setNewLeagueFee(e.target.value)}
-            placeholder="—" className="w-20 lh-input" title="League registration fee"
-          />
+          <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
+            <input type="checkbox" checked={newUmpRequired} onChange={(e) => setNewUmpRequired(e.target.checked)}
+              className="rounded border-gray-600" />
+            Ump Required
+          </label>
+          <Button type="submit" disabled={adding || !newName.trim()} loading={adding}>
+            {adding ? '…' : '+ Add'}
+          </Button>
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
-          <input type="checkbox" checked={newUmpRequired} onChange={(e) => setNewUmpRequired(e.target.checked)}
-            className="rounded border-gray-600" />
-          Ump Required
-        </label>
-        <Button type="submit" disabled={adding || !newName.trim()} loading={adding}>
-          {adding ? '…' : '+ Add'}
-        </Button>
+        <PitchRuleEditor
+          dailyLimit={newDailyLimit} setDailyLimit={setNewDailyLimit}
+          thresholds={newThresholds} setThresholds={setNewThresholds}
+          maxConsec={newMaxConsec} setMaxConsec={setNewMaxConsec}
+        />
       </form>
 
       {items.length === 0 ? (
@@ -760,7 +883,8 @@ function AgeGroupConfig() {
           {items.map((item) => (
             <div key={item.id} className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3">
               {editingId === item.id ? (
-                <div className="flex-1 flex flex-col sm:flex-row gap-2">
+                <div className="flex-1 flex flex-col gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
                     className="flex-1 lh-input" autoFocus
@@ -802,6 +926,12 @@ function AgeGroupConfig() {
                       Cancel
                     </Button>
                   </div>
+                  </div>
+                  <PitchRuleEditor
+                    dailyLimit={editDailyLimit} setDailyLimit={setEditDailyLimit}
+                    thresholds={editThresholds} setThresholds={setEditThresholds}
+                    maxConsec={editMaxConsec} setMaxConsec={setEditMaxConsec}
+                  />
                 </div>
               ) : (
                 <>
@@ -822,6 +952,15 @@ function AgeGroupConfig() {
                       <Badge variant="neutral">No Ump</Badge>
                     ) : (
                       <Badge variant="success">Ump Required</Badge>
+                    )}
+                    {item.daily_pitch_limit != null && (
+                      <span title={
+                        Array.isArray(item.rest_thresholds) && item.rest_thresholds.length
+                          ? `Rest: ${item.rest_thresholds.map(t => `${t.min}+→${t.days}d`).join(', ')}`
+                          : 'No rest thresholds'
+                      }>
+                        <Badge variant="info">{item.daily_pitch_limit} pitch/day</Badge>
+                      </span>
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">

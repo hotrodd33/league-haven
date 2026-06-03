@@ -266,7 +266,14 @@ router.get('/age-groups', authMiddleware, async (req, res) => {
     }
     const canSeeFinancials = ['super_admin', 'accountant', 'org_admin'].includes(req.user.role);
     res.json(rows.map(r => {
-      const result = { ...r, umpire_rate: r.umpire_rate != null ? Number(r.umpire_rate) : 50, league_fee: r.league_fee != null ? Number(r.league_fee) : null };
+      const result = {
+        ...r,
+        umpire_rate: r.umpire_rate != null ? Number(r.umpire_rate) : 50,
+        league_fee: r.league_fee != null ? Number(r.league_fee) : null,
+        daily_pitch_limit: r.daily_pitch_limit != null ? Number(r.daily_pitch_limit) : null,
+        rest_thresholds: r.rest_thresholds ?? null,
+        max_consecutive_days: r.max_consecutive_days != null ? Number(r.max_consecutive_days) : 2,
+      };
       if (!canSeeFinancials) {
         delete result.umpire_rate;
         delete result.league_fee;
@@ -279,6 +286,34 @@ router.get('/age-groups', authMiddleware, async (req, res) => {
   }
 });
 
+function parsePitchRuleFields(body) {
+  const errors = [];
+  let daily = null;
+  if (body.daily_pitch_limit !== undefined && body.daily_pitch_limit !== '' && body.daily_pitch_limit !== null) {
+    daily = Number(body.daily_pitch_limit);
+    if (!Number.isInteger(daily) || daily < 0 || daily > 500) errors.push('Daily pitch limit must be an integer 0–500');
+  }
+  let thresholds = null;
+  if (body.rest_thresholds !== undefined && body.rest_thresholds !== null && body.rest_thresholds !== '') {
+    if (!Array.isArray(body.rest_thresholds)) {
+      errors.push('rest_thresholds must be an array');
+    } else {
+      thresholds = body.rest_thresholds
+        .map(t => ({ min: Number(t?.min), days: Number(t?.days) }))
+        .filter(t => Number.isFinite(t.min) && Number.isFinite(t.days));
+      if (thresholds.some(t => t.min < 0 || t.days < 0 || t.days > 30)) errors.push('Each threshold needs non-negative min and days (0–30)');
+      thresholds.sort((a, b) => b.min - a.min); // descending
+      if (thresholds.length === 0) thresholds = null;
+    }
+  }
+  let consec = 2;
+  if (body.max_consecutive_days !== undefined && body.max_consecutive_days !== '' && body.max_consecutive_days !== null) {
+    consec = Number(body.max_consecutive_days);
+    if (!Number.isInteger(consec) || consec < 1 || consec > 7) errors.push('Max consecutive days must be an integer 1–7');
+  }
+  return { daily, thresholds, consec, errors };
+}
+
 router.post('/age-groups', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { name, sort_order, umpire_rate, ump_required, league_fee } = req.body;
@@ -287,13 +322,21 @@ router.post('/age-groups', authMiddleware, requireAdmin, async (req, res) => {
     if (!Number.isFinite(rate) || rate < 0) return res.status(400).json({ error: 'Umpire rate must be a non-negative number' });
     const parsedLeagueFee = league_fee != null && league_fee !== '' ? Number(league_fee) : null;
     if (parsedLeagueFee != null && (!Number.isFinite(parsedLeagueFee) || parsedLeagueFee < 0)) return res.status(400).json({ error: 'League fee must be a non-negative number' });
+    const pr = parsePitchRuleFields(req.body);
+    if (pr.errors.length) return res.status(400).json({ error: pr.errors.join('; ') });
     const { rows } = await pool.query(
-      'INSERT INTO league_age_groups (name, sort_order, umpire_rate, ump_required, league_fee) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null]
+      'INSERT INTO league_age_groups (name, sort_order, umpire_rate, ump_required, league_fee, daily_pitch_limit, rest_thresholds, max_consecutive_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null, pr.daily, pr.thresholds ? JSON.stringify(pr.thresholds) : null, pr.consec]
     );
     const r = rows[0];
     cache.del(AGE_GROUPS_KEY);
-    res.status(201).json({ ...r, umpire_rate: Number(r.umpire_rate), league_fee: r.league_fee != null ? Number(r.league_fee) : null });
+    res.status(201).json({
+      ...r,
+      umpire_rate: Number(r.umpire_rate),
+      league_fee: r.league_fee != null ? Number(r.league_fee) : null,
+      daily_pitch_limit: r.daily_pitch_limit != null ? Number(r.daily_pitch_limit) : null,
+      max_consecutive_days: Number(r.max_consecutive_days ?? 2),
+    });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Age group already exists' });
     console.error(err);
@@ -309,14 +352,22 @@ router.put('/age-groups/:id', authMiddleware, requireAdmin, async (req, res) => 
     if (!Number.isFinite(rate) || rate < 0) return res.status(400).json({ error: 'Umpire rate must be a non-negative number' });
     const parsedLeagueFee = league_fee != null && league_fee !== '' ? Number(league_fee) : null;
     if (parsedLeagueFee != null && (!Number.isFinite(parsedLeagueFee) || parsedLeagueFee < 0)) return res.status(400).json({ error: 'League fee must be a non-negative number' });
+    const pr = parsePitchRuleFields(req.body);
+    if (pr.errors.length) return res.status(400).json({ error: pr.errors.join('; ') });
     const { rows } = await pool.query(
-      'UPDATE league_age_groups SET name = $1, sort_order = $2, umpire_rate = $3, ump_required = $4, league_fee = $5 WHERE id = $6 RETURNING *',
-      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null, req.params.id]
+      'UPDATE league_age_groups SET name = $1, sort_order = $2, umpire_rate = $3, ump_required = $4, league_fee = $5, daily_pitch_limit = $6, rest_thresholds = $7, max_consecutive_days = $8 WHERE id = $9 RETURNING *',
+      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null, pr.daily, pr.thresholds ? JSON.stringify(pr.thresholds) : null, pr.consec, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     const r = rows[0];
     cache.del(AGE_GROUPS_KEY);
-    res.json({ ...r, umpire_rate: Number(r.umpire_rate), league_fee: r.league_fee != null ? Number(r.league_fee) : null });
+    res.json({
+      ...r,
+      umpire_rate: Number(r.umpire_rate),
+      league_fee: r.league_fee != null ? Number(r.league_fee) : null,
+      daily_pitch_limit: r.daily_pitch_limit != null ? Number(r.daily_pitch_limit) : null,
+      max_consecutive_days: Number(r.max_consecutive_days ?? 2),
+    });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Age group already exists' });
     console.error(err);

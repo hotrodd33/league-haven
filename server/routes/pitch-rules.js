@@ -4,37 +4,77 @@ const { authMiddleware } = require('../auth');
 
 const router = express.Router();
 
-// ── Pitch Count Rules ──
-const RULES = {
-  '9u-12u': {
-    dailyLimit: 50,
-    restThresholds: [
-      { min: 56, days: 3 },
-      { min: 41, days: 2 },
-      { min: 21, days: 1 },
-      { min: 1, days: 0 },
-    ],
-  },
-  '13u-15u': {
-    dailyLimit: 65,
-    restThresholds: [
-      { min: 61, days: 3 },
-      { min: 41, days: 2 },
-      { min: 26, days: 1 },
-      { min: 1, days: 0 },
-    ],
-  },
-};
+// ── Pitch Count Rules (per age group, loaded from league_age_groups) ──
+//
+// Each rules object: { dailyLimit, restThresholds: [{min, days}, ...], maxConsecutiveDays }
+// `restThresholds` MUST be sorted descending by `min`. `null` rules ⇒ no enforcement.
 
-function getAgeCategory(ageGroup) {
-  if (!ageGroup) return null;
-  const ag = ageGroup.toLowerCase().replace(/\s+/g, '');
-  if (['8u', '9u', '10u', '11u', '12u'].includes(ag)) return '9u-12u';
-  if (['13u', '14u', '15u', '14/15u'].includes(ag)) return '13u-15u';
-  return null;
+function normaliseRules(row) {
+  if (!row) return null;
+  const dailyLimit = row.daily_pitch_limit != null ? Number(row.daily_pitch_limit) : null;
+  let thresholds = row.rest_thresholds;
+  if (typeof thresholds === 'string') {
+    try { thresholds = JSON.parse(thresholds); } catch { thresholds = null; }
+  }
+  if (!Array.isArray(thresholds)) thresholds = null;
+  else thresholds = thresholds
+    .map(t => ({ min: Number(t?.min), days: Number(t?.days) }))
+    .filter(t => Number.isFinite(t.min) && Number.isFinite(t.days))
+    .sort((a, b) => b.min - a.min);
+  if (dailyLimit == null && (!thresholds || thresholds.length === 0)) return null;
+  return {
+    dailyLimit, // may be null ⇒ no daily limit enforced
+    restThresholds: thresholds || [],
+    maxConsecutiveDays: row.max_consecutive_days != null ? Number(row.max_consecutive_days) : 2,
+    ageGroupName: row.name || null,
+  };
+}
+
+// Load rules for the given team ids → Map<team_id, rules|null>
+async function loadRulesForTeams(teamIds) {
+  const map = new Map();
+  if (!teamIds || teamIds.length === 0) return map;
+  const { rows } = await pool.query(
+    `SELECT t.id AS team_id, ag.name, ag.daily_pitch_limit, ag.rest_thresholds, ag.max_consecutive_days
+       FROM teams t
+       LEFT JOIN league_age_groups ag
+         ON LOWER(TRIM(ag.name)) = LOWER(TRIM(t.age_group))
+      WHERE t.id = ANY($1)`,
+    [teamIds]
+  );
+  for (const r of rows) map.set(r.team_id, normaliseRules(r));
+  return map;
+}
+
+async function loadRulesForTeam(teamId) {
+  const map = await loadRulesForTeams([teamId]);
+  return map.get(Number(teamId)) ?? null;
+}
+
+// Load rules for *every* age group → Map<lowercased+trimmed age_group name, rules|null>
+async function loadAllAgeGroupRules() {
+  const { rows } = await pool.query(
+    `SELECT name, daily_pitch_limit, rest_thresholds, max_consecutive_days FROM league_age_groups`
+  );
+  const map = new Map();
+  for (const r of rows) {
+    const key = String(r.name || '').toLowerCase().trim();
+    if (key) map.set(key, normaliseRules(r));
+  }
+  return map;
+}
+
+function rulesToWire(rules) {
+  if (!rules) return null;
+  return {
+    daily_limit: rules.dailyLimit,
+    rest_thresholds: rules.restThresholds,
+    max_consecutive_days: rules.maxConsecutiveDays,
+  };
 }
 
 function getRestDays(pitchCount, rules) {
+  if (!rules?.restThresholds) return 0;
   for (const t of rules.restThresholds) {
     if (pitchCount >= t.min) return t.days;
   }
@@ -59,12 +99,12 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
   }
 
   try {
-    // Team's age group
+    // Team's age group + rules
     const { rows: [team] } = await pool.query('SELECT age_group FROM teams WHERE id = $1', [team_id]);
     if (!team) return res.status(404).json({ error: 'Team not found' });
 
-    const ageCategory = getAgeCategory(team.age_group);
-    const rules = ageCategory ? RULES[ageCategory] : null;
+    const rules = await loadRulesForTeam(team_id);
+    const ageCategory = team.age_group || null;
 
     // Team players
     const { rows: players } = await pool.query(
@@ -126,7 +166,7 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
         reasons: [],
         daily_limit: rules?.dailyLimit ?? null,
         today_pitches: todayPitches,
-        remaining_today: rules ? Math.max(0, rules.dailyLimit - todayPitches) : null,
+        remaining_today: (rules && rules.dailyLimit != null) ? Math.max(0, rules.dailyLimit - todayPitches) : null,
         rest_days_required: 0,
         available_date: gd,
         recent_games: recentPC
@@ -137,7 +177,7 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
       if (!rules) return result;
 
       // Already at daily limit from other games today
-      if (todayPitches >= rules.dailyLimit) {
+      if (rules.dailyLimit != null && todayPitches >= rules.dailyLimit) {
         result.eligible = false;
         result.reasons.push(`Already at daily limit (${todayPitches}/${rules.dailyLimit} pitches today)`);
       }
@@ -175,11 +215,7 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
       game_date: gd,
       age_category: ageCategory,
       daily_limit: rules?.dailyLimit ?? null,
-      rules: rules ? {
-        daily_limit: rules.dailyLimit,
-        rest_thresholds: rules.restThresholds,
-        max_consecutive_days: 2,
-      } : null,
+      rules: rulesToWire(rules),
       players: eligibility,
     });
   } catch (err) {
@@ -200,12 +236,12 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
     const yesterday = datePlusDays(today, -1);
     const dayBefore = datePlusDays(today, -2);
 
-    // Team info
+    // Team info + rules
     const { rows: [team] } = await pool.query('SELECT age_group FROM teams WHERE id = $1', [team_id]);
     if (!team) return res.status(404).json({ error: 'Team not found' });
 
-    const ageCategory = getAgeCategory(team.age_group);
-    const rules = ageCategory ? RULES[ageCategory] : null;
+    const rules = await loadRulesForTeam(team_id);
+    const ageCategory = team.age_group || null;
 
     // Active season
     const { rows: [season] } = await pool.query(
@@ -227,7 +263,7 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
         today,
         age_category: ageCategory,
         daily_limit: rules?.dailyLimit ?? null,
-        rules: rules ? { daily_limit: rules.dailyLimit, rest_thresholds: rules.restThresholds, max_consecutive_days: 2 } : null,
+        rules: rulesToWire(rules),
         season: season || null,
         players: [],
       });
@@ -306,7 +342,7 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
         rest_days_required: 0,
         available_date: today,
         today_pitches: todayPitches,
-        remaining_today: rules ? Math.max(0, rules.dailyLimit - todayPitches) : null,
+        remaining_today: (rules && rules.dailyLimit != null) ? Math.max(0, rules.dailyLimit - todayPitches) : null,
         // Recent 7 days
         last_7_days: pitchDates.map(d => ({
           date: d,
@@ -323,7 +359,7 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
       if (!rules) return result;
 
       // Daily limit check
-      if (todayPitches >= rules.dailyLimit) {
+      if (rules.dailyLimit != null && todayPitches >= rules.dailyLimit) {
         result.eligible_today = false;
         result.reasons.push(`Already at daily limit (${todayPitches}/${rules.dailyLimit} pitches today)`);
       }
@@ -368,7 +404,7 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
       today,
       age_category: ageCategory,
       daily_limit: rules?.dailyLimit ?? null,
-      rules: rules ? { daily_limit: rules.dailyLimit, rest_thresholds: rules.restThresholds, max_consecutive_days: 2 } : null,
+      rules: rulesToWire(rules),
       season: season || null,
       players: stats,
     });
@@ -397,14 +433,19 @@ router.get('/all-rest', authMiddleware, async (req, res) => {
     const playerIds = [...new Set(playerTeams.map(r => r.player_id))];
     if (playerIds.length === 0) return res.json({});
 
-    // Build player → rules map (use most restrictive age category if on multiple teams)
+    // Build player → rules map (use most restrictive: lowest dailyLimit wins) using DB-loaded rules
+    const ageGroupRules = await loadAllAgeGroupRules();
     const playerRulesMap = {};
     for (const pt of playerTeams) {
-      const cat = getAgeCategory(pt.age_group);
-      if (!cat) continue;
+      const key = String(pt.age_group || '').toLowerCase().trim();
+      if (!key) continue;
+      const rules = ageGroupRules.get(key);
+      if (!rules) continue;
       const existing = playerRulesMap[pt.player_id];
-      if (!existing || (cat === '9u-12u' && existing !== '9u-12u')) {
-        playerRulesMap[pt.player_id] = cat;
+      const existingLimit = existing?.dailyLimit ?? Infinity;
+      const newLimit = rules.dailyLimit ?? Infinity;
+      if (!existing || newLimit < existingLimit) {
+        playerRulesMap[pt.player_id] = rules;
       }
     }
 
@@ -433,8 +474,7 @@ router.get('/all-rest', authMiddleware, async (req, res) => {
     for (const pid of playerIds) {
       const dateMap = byPlayer[pid] || {};
       const pitchDates = Object.keys(dateMap).sort().reverse();
-      const cat = playerRulesMap[pid];
-      const rules = cat ? RULES[cat] : null;
+      const rules = playerRulesMap[pid] || null;
 
       let eligible = true;
       let availableDate = today;
@@ -442,7 +482,7 @@ router.get('/all-rest', authMiddleware, async (req, res) => {
 
       if (rules) {
         const todayPitches = dateMap[today] || 0;
-        if (todayPitches >= rules.dailyLimit) eligible = false;
+        if (rules.dailyLimit != null && todayPitches >= rules.dailyLimit) eligible = false;
 
         const priorDates = pitchDates.filter(d => d < today);
         if (priorDates.length > 0) {

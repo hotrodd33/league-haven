@@ -710,6 +710,28 @@ async function migrate() {
   // ── League fee per age group ──
   await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS league_fee NUMERIC(10, 2);`);
 
+  // ── Per-age-group pitch count rules ──
+  await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS daily_pitch_limit INTEGER;`);
+  await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS rest_thresholds JSONB;`);
+  await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS max_consecutive_days INTEGER NOT NULL DEFAULT 2;`);
+  // Seed historical defaults (only if not yet customised). Pattern matches existing 8U–15U names.
+  await pool.query(`
+    UPDATE league_age_groups
+       SET daily_pitch_limit = 50,
+           rest_thresholds   = '[{"min":56,"days":3},{"min":41,"days":2},{"min":21,"days":1},{"min":1,"days":0}]'::jsonb
+     WHERE daily_pitch_limit IS NULL
+       AND rest_thresholds   IS NULL
+       AND LOWER(REGEXP_REPLACE(name, '\\s+', '', 'g')) IN ('8u','9u','10u','11u','12u');
+  `);
+  await pool.query(`
+    UPDATE league_age_groups
+       SET daily_pitch_limit = 65,
+           rest_thresholds   = '[{"min":61,"days":3},{"min":41,"days":2},{"min":26,"days":1},{"min":1,"days":0}]'::jsonb
+     WHERE daily_pitch_limit IS NULL
+       AND rest_thresholds   IS NULL
+       AND LOWER(REGEXP_REPLACE(name, '\\s+', '', 'g')) IN ('13u','14u','15u','14/15u');
+  `);
+
   // ── Official ↔ Organization many-to-many ──
   await pool.query(`
     CREATE TABLE IF NOT EXISTS official_organizations (
