@@ -162,6 +162,10 @@ const SLIM_SELECT = `
     g.id, g.season_id, g.home_team_id, g.away_team_id,
     g.game_date, g.game_time, g.status,
     g.home_score, g.away_score,
+    g.location_id,
+    g.game_duration_minutes,
+    g.innings_played,
+    g.notes,
     g.deleted_at,
     ht.name AS home_team_name, ht.logo_url AS home_team_logo,
     ht.org_id AS home_org_id,
@@ -201,7 +205,9 @@ const SLIM_SELECT = `
     LIMIT 1
   ) gd ON true
   LEFT JOIN LATERAL (
-    SELECT COALESCE(array_agg(o.name ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::TEXT[]) AS official_names
+    SELECT
+      COALESCE(array_agg(o.id ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::INTEGER[]) AS official_ids,
+      COALESCE(array_agg(o.name ORDER BY o.name) FILTER (WHERE o.id IS NOT NULL), ARRAY[]::TEXT[]) AS official_names
     FROM game_official_assignments go
     JOIN officials o ON o.id = go.official_id
     WHERE go.game_id = g.id
@@ -309,11 +315,15 @@ function enrichGameSlim(row) {
     location_lat: row.location_lat || null,
     location_lon: row.location_lon || null,
     location_org_id: row.location_org_id || null,
+    location_id: row.location_id || null,
+    game_duration_minutes: row.game_duration_minutes ?? null,
+    innings_played: row.innings_played ?? null,
+    notes: row.notes ?? null,
     division_name: row.division_name || null,
     home_ump_required: row.home_ump_required === null || row.home_ump_required === undefined ? null : !!row.home_ump_required,
     is_gamechanger_imported: false, // not in SLIM_SELECT — omitted intentionally
     // Fields used by umpire interest & official assignment display
-    official_ids: [],
+    official_ids: row.official_ids || [],
     official_names: row.official_names || [],
     officials: (row.official_names || []).map((name) => ({ name })),
     interested_official_ids: [],

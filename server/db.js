@@ -288,6 +288,7 @@ async function migrate() {
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS game_end_time TIME NOT NULL DEFAULT '20:00';`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS game_time_increment_minutes INTEGER NOT NULL DEFAULT 30;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'America/Chicago';`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS default_game_duration_minutes INTEGER NOT NULL DEFAULT 150;`);
 
   // Add parent_id to league_divisions if missing (hierarchy support)
   await pool.query(`

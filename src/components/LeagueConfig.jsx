@@ -409,6 +409,7 @@ function SchedulingConfig() {
     game_start_time: '08:00',
     game_end_time: '20:00',
     game_time_increment_minutes: 30,
+    default_game_duration_minutes: 150,
   });
 
   const load = useCallback(async () => {
@@ -420,6 +421,7 @@ function SchedulingConfig() {
         game_start_time: data?.game_start_time || '08:00',
         game_end_time: data?.game_end_time || '20:00',
         game_time_increment_minutes: Number(data?.game_time_increment_minutes) || 30,
+        default_game_duration_minutes: Number(data?.default_game_duration_minutes) || 150,
       });
     } catch (err) {
       setError(err.message);
@@ -439,11 +441,13 @@ function SchedulingConfig() {
         game_start_time: form.game_start_time,
         game_end_time: form.game_end_time,
         game_time_increment_minutes: Number(form.game_time_increment_minutes),
+        default_game_duration_minutes: Number(form.default_game_duration_minutes),
       });
       setForm({
         game_start_time: updated?.game_start_time || form.game_start_time,
         game_end_time: updated?.game_end_time || form.game_end_time,
         game_time_increment_minutes: Number(updated?.game_time_increment_minutes) || Number(form.game_time_increment_minutes),
+        default_game_duration_minutes: Number(updated?.default_game_duration_minutes) || Number(form.default_game_duration_minutes),
       });
     } catch (err) {
       setError(err.message);
@@ -496,6 +500,24 @@ function SchedulingConfig() {
                 <option key={n} value={n}>{n} min</option>
               ))}
             </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="lh-eyebrow block mb-1">Default Game Length</label>
+            <select
+              value={form.default_game_duration_minutes}
+              onChange={(e) => setForm((prev) => ({ ...prev, default_game_duration_minutes: Number(e.target.value) }))}
+              className="lh-select"
+            >
+              {[60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 240].map((n) => (
+                <option key={n} value={n}>
+                  {Math.floor(n / 60)}h {n % 60 ? `${n % 60}m` : ''} ({n} min)
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Pre-fills duration when scheduling a new game.</p>
           </div>
         </div>
 
