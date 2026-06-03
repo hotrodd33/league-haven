@@ -236,7 +236,7 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
     });
   } catch (err) {
     console.error('Pitch rules eligibility error:', err);
-    res.status(500).json({ error: 'Failed to check eligibility' });
+    res.status(500).json({ error: 'Failed to check eligibility', detail: err.message });
   }
 });
 
@@ -429,7 +429,7 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
     });
   } catch (err) {
     console.error('Pitch rules team-stats error:', err);
-    res.status(500).json({ error: 'Failed to fetch team stats' });
+    res.status(500).json({ error: 'Failed to fetch team stats', detail: err.message });
   }
 });
 
@@ -554,7 +554,7 @@ router.get('/all-rest', authMiddleware, async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Pitch rules all-rest error:', err);
-    res.status(500).json({ error: 'Failed to fetch rest data' });
+    res.status(500).json({ error: 'Failed to fetch rest data', detail: err.message });
   }
 });
 
