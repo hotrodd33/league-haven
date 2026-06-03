@@ -191,6 +191,7 @@ function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCou
 export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport, onViewPlayer }) {
   const { isAdmin, isSuperAdmin, isOrgAdmin, isTeamManager, isAuthenticated, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
   const { features } = useBranding(isAuthenticated);
+  const officialsFeatureEnabled = features.feature_officials !== false;
   const queryClient = useQueryClient();
   const gameDeleteEnabled = features.feature_game_delete === true;
   const canShowDelete = (game) =>
@@ -796,14 +797,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                               </span>
                             );
                           })()}
-                          {!!game.officials?.length && (
+                          {officialsFeatureEnabled && !!game.officials?.length && (
                             <div className="hidden lg:flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
                               {game.officials.map((o, i) => (
                                 <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-action-900/50 text-action-300">{o.name}</span>
                               ))}
                             </div>
                           )}
-                          {!game.officials?.length && (
+                          {officialsFeatureEnabled && !game.officials?.length && (
                             game.home_ump_required === false
                               ? <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-gray-700/60 text-gray-400 italic" title="No umpire needed for this age group">No Ump</span>
                               : <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-amber-900/40 text-amber-300" title="No umpire assigned">Ump: unassigned</span>
@@ -940,14 +941,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                           </div>
                         );
                       })()}
-                      {!!game.officials?.length && (
+                      {officialsFeatureEnabled && !!game.officials?.length && (
                         <div className="flex flex-wrap gap-1 mb-1" onClick={(e) => e.stopPropagation()}>
                           {game.officials.map((o, i) => (
                             <span key={i} className="text-xs px-1.5 py-0.5 rounded font-medium bg-action-900/50 text-action-300">{o.name}</span>
                           ))}
                         </div>
                       )}
-                      {!game.officials?.length && (
+                      {officialsFeatureEnabled && !game.officials?.length && (
                         <div className="mb-1" onClick={(e) => e.stopPropagation()}>
                           {game.home_ump_required === false
                             ? <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-gray-700/60 text-gray-400 italic">No Ump</span>
@@ -1282,7 +1283,9 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
 
 export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTeamId, defaultEventType, onDone, onCancel, onTeamsChanged }) {
   const isEditing = !!game;
-  const { isSuperAdmin, isOrgAdmin, isTeamManager, permissions, role, canEditOrg } = useAuth();
+  const { isSuperAdmin, isOrgAdmin, isTeamManager, permissions, role, canEditOrg, isAuthenticated } = useAuth();
+  const { features } = useBranding(isAuthenticated);
+  const officialsFeatureEnabled = features.feature_officials !== false;
   const [saving, setSaving] = useState(false);
   const [addingLocation, setAddingLocation] = useState(false);
   const [showAddLocationForm, setShowAddLocationForm] = useState(false);
@@ -1357,7 +1360,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const homeOrgId = selectedHomeTeam?.org_id || null;
   const awayOrgId = selectedAwayTeam?.org_id || null;
   const orgOfficialsEnabled = homeOrgId ? !!orgSettings[homeOrgId]?.officials_enabled : false;
-  const officialsEnabled = orgOfficialsEnabled || officials.length > 0;
+  const officialsEnabled = officialsFeatureEnabled && (orgOfficialsEnabled || officials.length > 0);
 
   useEffect(() => {
     fetchOrganizations().then((orgs) => {

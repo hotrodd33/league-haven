@@ -12,6 +12,8 @@ import {
   fetchVolunteerRoles, createVolunteerRole, updateVolunteerRole, deleteVolunteerRole,
 } from '../api/index.js';
 import { Button, Badge } from './ui/index.js';
+import { useBranding } from '../hooks/useBranding.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function LeagueConfig({ onBack }) {
   const [tab, setTab] = useState('age_groups');
@@ -722,6 +724,9 @@ function PitchRuleEditor({ dailyLimit, setDailyLimit, thresholds, setThresholds,
 }
 
 function AgeGroupConfig() {
+  const { isAuthenticated } = useAuth();
+  const { features } = useBranding(isAuthenticated);
+  const officialsFeatureEnabled = features.feature_officials !== false;
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -844,7 +849,7 @@ function AgeGroupConfig() {
             type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
             placeholder="e.g. 8U, 10U, 12U, 14U" className="flex-1 min-w-[120px] lh-input"
           />
-          {newUmpRequired && (
+          {officialsFeatureEnabled && newUmpRequired && (
             <div className="flex items-center gap-1">
               <span className="text-xs text-gray-400">Ump $</span>
               <input
@@ -860,11 +865,13 @@ function AgeGroupConfig() {
               placeholder="—" className="w-20 lh-input" title="League registration fee"
             />
           </div>
+          {officialsFeatureEnabled && (
           <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
             <input type="checkbox" checked={newUmpRequired} onChange={(e) => setNewUmpRequired(e.target.checked)}
               className="rounded border-gray-600" />
             Ump Required
           </label>
+          )}
           <Button type="submit" disabled={adding || !newName.trim()} loading={adding}>
             {adding ? '…' : '+ Add'}
           </Button>
@@ -897,7 +904,7 @@ function AgeGroupConfig() {
                       className="w-20 lh-input"
                     />
                   </div>
-                  {editUmpRequired && (
+                  {officialsFeatureEnabled && editUmpRequired && (
                     <div className="flex items-center gap-2">
                       <label className="text-xs text-gray-400 whitespace-nowrap">Ump $:</label>
                       <input
@@ -913,11 +920,13 @@ function AgeGroupConfig() {
                       placeholder="—" className="w-24 lh-input"
                     />
                   </div>
+                  {officialsFeatureEnabled && (
                   <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
                     <input type="checkbox" checked={editUmpRequired} onChange={(e) => setEditUmpRequired(e.target.checked)}
                       className="rounded border-gray-600" />
                     Ump Required
                   </label>
+                  )}
                   <div className="flex gap-1">
                     <Button size="xs" onClick={handleSaveEdit} disabled={savingEdit} loading={savingEdit}>
                       {savingEdit ? '…' : 'Save'}
@@ -938,7 +947,7 @@ function AgeGroupConfig() {
                   <div className="flex-1 flex items-center gap-2">
                     <span className="font-semibold text-sm">{item.name}</span>
                     <span className="text-xs text-gray-400">#{item.sort_order ?? 0}</span>
-                    {item.ump_required !== false && (
+                    {officialsFeatureEnabled && item.ump_required !== false && (
                       <Badge variant="success">
                         Ump ${Number(item.umpire_rate ?? 50).toFixed(2)}/game
                       </Badge>
@@ -948,11 +957,11 @@ function AgeGroupConfig() {
                         Fee ${Number(item.league_fee).toFixed(2)}
                       </Badge>
                     )}
-                    {item.ump_required === false ? (
+                    {officialsFeatureEnabled && (item.ump_required === false ? (
                       <Badge variant="neutral">No Ump</Badge>
                     ) : (
                       <Badge variant="success">Ump Required</Badge>
-                    )}
+                    ))}
                     {item.daily_pitch_limit != null && (
                       <span title={
                         Array.isArray(item.rest_thresholds) && item.rest_thresholds.length

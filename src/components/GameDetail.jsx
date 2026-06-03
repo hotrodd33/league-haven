@@ -7,6 +7,7 @@ import {
   fetchWeather, fetchWeatherForecast,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useBranding } from '../hooks/useBranding.js';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import BoxScoreView from './BoxScoreView.jsx';
@@ -35,7 +36,9 @@ function formatTime(timeStr) {
 }
 
 export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImport, onViewPlayer }) {
-  const { isAdmin, canEditTeam, canScoreGame } = useAuth();
+  const { isAdmin, canEditTeam, canScoreGame, isAuthenticated } = useAuth();
+  const { features } = useBranding(isAuthenticated);
+  const officialsFeatureEnabled = features.feature_officials !== false;
   const [game, setGame] = useState(null);
   useGameHeartbeat(gameId, game?.status === 'in_progress');
   const [pitchCounts, setPitchCounts] = useState([]);
@@ -375,7 +378,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
           </div>
         )}
 
-        {!!game.official_names?.length && (
+        {officialsFeatureEnabled && !!game.official_names?.length && (
           <div className="text-xs text-gray-400 text-center mt-1">
             {game.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {game.official_names.join(', ')}
           </div>
