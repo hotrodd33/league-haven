@@ -1404,7 +1404,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const homeOrgId = selectedHomeTeam?.org_id || null;
   const awayOrgId = selectedAwayTeam?.org_id || null;
   const orgOfficialsEnabled = homeOrgId ? !!orgSettings[homeOrgId]?.officials_enabled : false;
-  const officialsEnabled = officialsFeatureEnabled && (orgOfficialsEnabled || officials.length > 0);
+  const officialsEnabled = officialsFeatureEnabled && (orgOfficialsEnabled || officials.length > 0 || (game?.officials?.length || 0) > 0);
 
   useEffect(() => {
     fetchOrganizations().then((orgs) => {
@@ -1912,32 +1912,48 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
               {officialsEnabled && (
                 <div>
                   <label className="lh-eyebrow block mb-1">Umpire Assignment</label>
-                  {officials.length === 0 ? (
-                    <p className="text-xs text-gray-400">No officials available for this organization. Add officials in the Officials module.</p>
-                  ) : (
-                    <div className="space-y-1 bg-gray-900 border border-gray-700 rounded-lg p-3 max-h-52 overflow-y-auto">
-                      {officials.map((official) => {
-                        const checked = (form.official_ids || []).some((id) => String(id) === String(official.id));
-                        const interested = interestedOfficialSet.has(Number(official.id));
-                        const rowCls = checked
-                          ? 'border border-action-500/40 bg-action-900/20'
-                          : interested
-                            ? 'border border-amber-400/50 bg-amber-500/10'
-                            : 'border border-signal-500/20 bg-signal-900/10';
-                        const dotCls = checked ? 'bg-action-400' : interested ? 'bg-amber-300' : 'bg-signal-500';
-                        return (
-                          <label key={official.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${rowCls}`}>
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
-                            <span className="flex-1 text-sm text-gray-200 truncate">
-                              {official.name}
-                              <span className="text-xs text-gray-400 ml-1">({official.org_ids?.length ? 'Org' : 'League'})</span>
-                            </span>
-                            <input type="checkbox" checked={checked} onChange={() => toggleOfficial(official.id)} className="accent-green-500" />
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {(() => {
+                    // Merge currently-assigned officials into the picker so they always
+                    // appear (and can be unchecked) even if they aren't in the home org's
+                    // assignable pool (e.g., league-level or other-org assignments).
+                    const byId = new Map();
+                    for (const o of officials) byId.set(String(o.id), o);
+                    for (const a of (game?.officials || [])) {
+                      if (a?.id && !byId.has(String(a.id))) {
+                        byId.set(String(a.id), { id: a.id, name: a.name, org_ids: a.org_ids || [] });
+                      }
+                    }
+                    const displayed = Array.from(byId.values()).sort((a, b) =>
+                      String(a.name || '').localeCompare(String(b.name || ''))
+                    );
+                    if (displayed.length === 0) {
+                      return <p className="text-xs text-gray-400">No officials available for this organization. Add officials in the Officials module.</p>;
+                    }
+                    return (
+                      <div className="space-y-1 bg-gray-900 border border-gray-700 rounded-lg p-3 max-h-52 overflow-y-auto">
+                        {displayed.map((official) => {
+                          const checked = (form.official_ids || []).some((id) => String(id) === String(official.id));
+                          const interested = interestedOfficialSet.has(Number(official.id));
+                          const rowCls = checked
+                            ? 'border border-action-500/40 bg-action-900/20'
+                            : interested
+                              ? 'border border-amber-400/50 bg-amber-500/10'
+                              : 'border border-signal-500/20 bg-signal-900/10';
+                          const dotCls = checked ? 'bg-action-400' : interested ? 'bg-amber-300' : 'bg-signal-500';
+                          return (
+                            <label key={official.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${rowCls}`}>
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
+                              <span className="flex-1 text-sm text-gray-200 truncate">
+                                {official.name}
+                                <span className="text-xs text-gray-400 ml-1">({official.org_ids?.length ? 'Org' : 'League'})</span>
+                              </span>
+                              <input type="checkbox" checked={checked} onChange={() => toggleOfficial(official.id)} className="accent-green-500" />
+                            </label>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                   <div className="flex gap-4 mt-1.5 text-xs text-gray-400">
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-action-400 inline-block" /> Assigned</span>
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-300 inline-block" /> Interested</span>
