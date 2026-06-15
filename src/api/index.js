@@ -762,6 +762,25 @@ export async function fetchPrepUsers() {
   return apiFetch('/prep-staff/prep-users');
 }
 
+// ── Payments Report (unified umpire + prep) ──
+
+export async function fetchPaymentsReport(filters = {}) {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) {
+    if (v !== null && v !== undefined && v !== '') params.set(k, v);
+  }
+  // Cache-buster so accounting numbers are always fresh.
+  params.set('_', String(Date.now()));
+  return apiFetch(`/payments?${params.toString()}`, { headers: { 'Cache-Control': 'no-store' } });
+}
+
+export async function bulkMarkPaid(entries) {
+  return apiFetch('/payments/bulk-paid', {
+    method: 'POST',
+    body: JSON.stringify({ entries }),
+  });
+}
+
 // ── Prep Task Types (config) ──
 
 export async function fetchPrepTaskTypes() {

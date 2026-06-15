@@ -77,6 +77,9 @@ export default function Sidebar({
   if ((isAdmin || isAccountant) && ft('feature_financials')) {
     adminItems.push({ key: 'fees', label: 'League Fees', icon: CurrencyDollarIcon });
   }
+  if (isAdmin || isAccountant || isOrgAdmin) {
+    adminItems.push({ key: 'payments', label: 'Payments', icon: CurrencyDollarIcon });
+  }
   if (isAdmin) {
     adminItems.push({ key: 'data', label: 'Data Manager', icon: DatabaseIcon });
   }
