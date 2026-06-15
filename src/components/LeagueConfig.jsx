@@ -1620,16 +1620,31 @@ function PrepTaskTypeConfig() {
     if (!payload.name) return setError('Name is required');
     if (!Number.isFinite(payload.default_rate) || payload.default_rate < 0) return setError('Default rate must be a non-negative number');
     try {
-      if (editingId) await updatePrepTaskType(editingId, payload);
-      else await createPrepTaskType(payload);
+      let updated;
+      if (editingId) {
+        updated = await updatePrepTaskType(editingId, payload);
+      } else {
+        updated = await createPrepTaskType(payload);
+      }
+      // Server cache is in-process per Vercel lambda — a re-fetch may hit a different
+      // instance with stale data. Patch state from the write response instead.
+      setItems(prev => {
+        if (editingId) {
+          return prev.map(it => it.id === editingId ? { ...it, ...updated, default_rate: Number(updated.default_rate) } : it);
+        }
+        const next = [...prev, { ...updated, default_rate: Number(updated.default_rate) }];
+        return next.sort((a, b) => (a.sort_order - b.sort_order) || String(a.name).localeCompare(String(b.name)));
+      });
       cancelForm();
-      load();
     } catch (err) { setError(err.message); }
   }
 
   async function remove(id) {
     if (!window.confirm('Delete this task type? Any historical game assignments using it will be removed.')) return;
-    try { await deletePrepTaskType(id); load(); }
+    try {
+      await deletePrepTaskType(id);
+      setItems(prev => prev.filter(it => it.id !== id));
+    }
     catch (err) { setError(err.message); }
   }
 
