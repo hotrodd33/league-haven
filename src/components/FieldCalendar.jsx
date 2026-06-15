@@ -567,6 +567,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                             onEdit={() => openEdit(ev)}
                             onDelete={() => handleDelete(ev)}
                             onViewGame={(id) => setViewingGameId(id)}
+                            officialsFeatureEnabled={officialsFeatureEnabled}
                             deleting={deleting} />
                         );
                       })}
@@ -593,6 +594,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                           onEdit={() => openEdit(ev)}
                           onDelete={() => handleDelete(ev)}
                           onViewGame={(id) => setViewingGameId(id)}
+                          officialsFeatureEnabled={officialsFeatureEnabled}
                           deleting={deleting} />
                       );
                     })}
@@ -798,7 +800,7 @@ function FilterSection({ title, allChecked, onSetAll, children }) {
   );
 }
 
-function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete, onViewGame, deleting }) {
+function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete, onViewGame, deleting, officialsFeatureEnabled = true }) {
   const c = color || EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
   const label = EVENT_LABELS[ev.event_type] || ev.event_type;
   const gameClickable = ev.is_game && ev.game_id && onViewGame;
