@@ -11,6 +11,7 @@ import {
   checkGameConflicts, createTeam, fetchAgeGroups, fetchLevels,
   fetchWeather, fetchWeatherForecast,
   createReservation, fetchAllPractices, updateReservation, deleteReservation,
+  fetchPrepTaskTypes, fetchAssignablePrepStaff,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useBranding } from '../hooks/useBranding.js';
@@ -192,6 +193,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const { isAdmin, isSuperAdmin, isOrgAdmin, isTeamManager, isAuthenticated, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
   const { features } = useBranding(isAuthenticated);
   const officialsFeatureEnabled = features.feature_officials !== false;
+  const prepFeatureEnabled = features.feature_field_prep !== false;
   const queryClient = useQueryClient();
   const gameDeleteEnabled = features.feature_game_delete === true;
   const canShowDelete = (game) =>
@@ -245,6 +247,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   const [filterDivision, setFilterDivision] = useState('');
   const [filterHostOrg, setFilterHostOrg] = useState('');
   const [filterNeedsUmp, setFilterNeedsUmp] = useState(false);
+  const [filterNeedsPrep, setFilterNeedsPrep] = useState(false);
   const [filterEventType, setFilterEventType] = useState('games');
   const [sortOrder] = useState('asc');
   // For non-admins: block the games query until we know which teams to filter on.
@@ -476,6 +479,14 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
       const assigned = (g.official_names?.length || g.officials?.length) > 0;
       if (!required || assigned) return false;
     }
+    if (filterNeedsPrep) {
+      const required = g.prep_required !== false;
+      const taskCount = Number(g.prep_task_count || 0);
+      const assignmentCount = Number(g.prep_assignment_count || 0);
+      // Needs prep = required AND (no tasks configured OR no crew assigned to any task yet)
+      if (!required) return false;
+      if (taskCount > 0 && assignmentCount >= taskCount) return false;
+    }
     return true;
   });
 
@@ -534,7 +545,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
       const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
       window.scrollTo({ top, behavior: 'smooth' });
     });
-  }, [anchorDateKey, loading, filterSeason, filterTeam, filterStatus, filterDivision, filterHostOrg, filterNeedsUmp]);
+  }, [anchorDateKey, loading, filterSeason, filterTeam, filterStatus, filterDivision, filterHostOrg, filterNeedsUmp, filterNeedsPrep]);
 
   function gameDivisionLevelLabel(game) {
     if (game.division_name) return game.division_name;
@@ -701,7 +712,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
             </select>
           </div>
           {officialsFeatureEnabled && (
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-4">
               <label className="inline-flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -710,6 +721,30 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                   className="lh-checkbox"
                 />
                 <span>Needs Ump (required &amp; unassigned)</span>
+              </label>
+              {prepFeatureEnabled && (
+                <label className="inline-flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={filterNeedsPrep}
+                    onChange={(e) => setFilterNeedsPrep(e.target.checked)}
+                    className="lh-checkbox"
+                  />
+                  <span>Needs Prep (required &amp; crew incomplete)</span>
+                </label>
+              )}
+            </div>
+          )}
+          {!officialsFeatureEnabled && prepFeatureEnabled && (
+            <div className="mt-2 flex items-center gap-2">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={filterNeedsPrep}
+                  onChange={(e) => setFilterNeedsPrep(e.target.checked)}
+                  className="lh-checkbox"
+                />
+                <span>Needs Prep (required &amp; crew incomplete)</span>
               </label>
             </div>
           )}
@@ -851,6 +886,23 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                             game.home_ump_required === false
                               ? <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-gray-700/60 text-gray-400 italic" title="No umpire needed for this age group">No Ump</span>
                               : <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-amber-900/40 text-amber-300" title="No umpire assigned">Ump: unassigned</span>
+                          )}
+                          {prepFeatureEnabled && game.prep_required !== false && Number(game.prep_task_count || 0) > 0 && (
+                            (() => {
+                              const tc = Number(game.prep_task_count || 0);
+                              const ac = Number(game.prep_assignment_count || 0);
+                              const names = (game.prep_assigned_staff_names || []).filter(Boolean);
+                              if (ac === 0) {
+                                return <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-amber-900/40 text-amber-300" title="Field prep crew not assigned">Prep: unassigned</span>;
+                              }
+                              if (ac < tc) {
+                                return <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-amber-900/40 text-amber-300" title={`Prep crew: ${names.join(', ') || 'partial'}`}>Prep: partial</span>;
+                              }
+                              return <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-action-900/50 text-action-300" title={names.join(', ')}>Prep ✓</span>;
+                            })()
+                          )}
+                          {prepFeatureEnabled && game.prep_required === false && (
+                            <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-gray-700/60 text-gray-400 italic" title="No field prep required">No Prep</span>
                           )}
                           <span className={`lh-badge ${STATUS_COLORS[game.status] || 'bg-gray-800'}`}>
                             {game.status_label}
@@ -1329,6 +1381,7 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const { isSuperAdmin, isOrgAdmin, isTeamManager, permissions, role, canEditOrg, isAuthenticated } = useAuth();
   const { features } = useBranding(isAuthenticated);
   const officialsFeatureEnabled = features.feature_officials !== false;
+  const prepFeatureEnabled = features.feature_field_prep !== false;
   const [saving, setSaving] = useState(false);
   const [addingLocation, setAddingLocation] = useState(false);
   const [showAddLocationForm, setShowAddLocationForm] = useState(false);
@@ -1337,6 +1390,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const [locations, setLocations] = useState([]);
   const [orgSettings, setOrgSettings] = useState({});
   const [officials, setOfficials] = useState([]);
+  const [prepTaskTypes, setPrepTaskTypes] = useState([]); // all active league task types
+  const [prepStaffByTask, setPrepStaffByTask] = useState({}); // { taskTypeId: [staff,...] }
   const [eventType, setEventType] = useState(defaultEventType || 'game'); // 'game' | 'practice' | 'event' | 'maintenance'
   const [scheduleSettings, setScheduleSettings] = useState({
     game_start_time: '08:00',
@@ -1359,6 +1414,16 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     away_score: game?.away_score ?? '',
     innings_played: game?.innings_played ?? '',
     official_ids: game?.official_ids || [],
+    prep_required: game?.prep_required === undefined ? true : !!game.prep_required,
+    prep_task_type_ids: (game?.prep_tasks || []).map((t) => Number(t.task_type_id)),
+    prep_assignments: (game?.prep_assignments || []).map((a) => ({
+      task_type_id: Number(a.task_type_id),
+      staff_id: Number(a.staff_id),
+      staff_name: a.staff_name,
+      is_paid: !!a.is_paid,
+      no_show: !!a.no_show,
+      fee_override: a.fee_override != null ? a.fee_override : null,
+    })),
     notes: game?.notes || '',
   });
 
@@ -1405,6 +1470,8 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
   const awayOrgId = selectedAwayTeam?.org_id || null;
   const orgOfficialsEnabled = homeOrgId ? !!orgSettings[homeOrgId]?.officials_enabled : false;
   const officialsEnabled = officialsFeatureEnabled && (orgOfficialsEnabled || officials.length > 0 || (game?.officials?.length || 0) > 0);
+  const orgPrepEnabled = homeOrgId ? !!orgSettings[homeOrgId]?.field_prep_enabled : false;
+  const prepEnabled = prepFeatureEnabled && (orgPrepEnabled || (game?.prep_tasks?.length || 0) > 0 || (game?.prep_assignments?.length || 0) > 0);
 
   useEffect(() => {
     fetchOrganizations().then((orgs) => {
@@ -1462,6 +1529,32 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       setOfficials([]);
     });
   }, [homeOrgId]);
+
+  // Load active prep task types (league-wide) once
+  useEffect(() => {
+    if (!prepFeatureEnabled) return;
+    fetchPrepTaskTypes()
+      .then((rows) => setPrepTaskTypes((rows || []).filter(t => t.active)))
+      .catch(() => setPrepTaskTypes([]));
+  }, [prepFeatureEnabled]);
+
+  // Load assignable prep staff per selected task type whenever home org or task list changes
+  useEffect(() => {
+    if (!prepEnabled || !homeOrgId) { setPrepStaffByTask({}); return; }
+    const taskIds = form.prep_task_type_ids || [];
+    if (!taskIds.length) { setPrepStaffByTask({}); return; }
+    let cancelled = false;
+    Promise.all(taskIds.map(tid =>
+      fetchAssignablePrepStaff(homeOrgId, tid).then(list => [tid, list || []]).catch(() => [tid, []])
+    )).then((entries) => {
+      if (cancelled) return;
+      const map = {};
+      for (const [tid, list] of entries) map[tid] = list;
+      setPrepStaffByTask(map);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prepEnabled, homeOrgId, form.prep_task_type_ids.join(',')]);
 
   // Load away team's org locations when doubleheader is toggled on
   useEffect(() => {
@@ -1572,6 +1665,37 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
     });
   }
 
+  function togglePrepTaskType(taskTypeId) {
+    const tid = Number(taskTypeId);
+    setForm((prev) => {
+      const has = (prev.prep_task_type_ids || []).some((id) => Number(id) === tid);
+      const nextIds = has
+        ? prev.prep_task_type_ids.filter((id) => Number(id) !== tid)
+        : [...(prev.prep_task_type_ids || []), tid];
+      // Drop any assignments tied to a removed task type
+      const nextAssignments = has
+        ? (prev.prep_assignments || []).filter((a) => Number(a.task_type_id) !== tid)
+        : (prev.prep_assignments || []);
+      return { ...prev, prep_task_type_ids: nextIds, prep_assignments: nextAssignments };
+    });
+  }
+
+  function togglePrepAssignment(taskTypeId, staffId, staffName) {
+    const tid = Number(taskTypeId);
+    const sid = Number(staffId);
+    setForm((prev) => {
+      const list = prev.prep_assignments || [];
+      const idx = list.findIndex((a) => Number(a.task_type_id) === tid && Number(a.staff_id) === sid);
+      if (idx >= 0) {
+        return { ...prev, prep_assignments: list.filter((_, i) => i !== idx) };
+      }
+      return {
+        ...prev,
+        prep_assignments: [...list, { task_type_id: tid, staff_id: sid, staff_name: staffName, is_paid: false, no_show: false, fee_override: null }],
+      };
+    });
+  }
+
   async function handleAddLocation(e) {
     e.preventDefault();
     if (!homeOrgId) {
@@ -1662,6 +1786,17 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
       away_score: form.away_score !== '' ? Number(form.away_score) : null,
       innings_played: form.innings_played !== '' ? Number(form.innings_played) : null,
       official_ids: form.official_ids || [],
+      prep_required: !!form.prep_required,
+      prep_task_type_ids: form.prep_required ? (form.prep_task_type_ids || []) : [],
+      prep_assignments: form.prep_required
+        ? (form.prep_assignments || []).map((a) => ({
+            task_type_id: Number(a.task_type_id),
+            staff_id: Number(a.staff_id),
+            is_paid: !!a.is_paid,
+            no_show: !!a.no_show,
+            fee_override: a.fee_override === '' || a.fee_override == null ? null : Number(a.fee_override),
+          }))
+        : [],
       notes: form.notes.trim() || null,
     };
 
@@ -1959,6 +2094,106 @@ export function GameForm({ game, teams, seasons, defaultSeasonId, defaultHomeTea
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-300 inline-block" /> Interested</span>
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-signal-500 inline-block" /> No status</span>
                   </div>
+                </div>
+              )}
+
+              {prepEnabled && (
+                <div className="border border-gray-700 rounded-lg p-3 bg-gray-900/40">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="lh-eyebrow !mb-0">Field Prep</label>
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!form.prep_required}
+                        onChange={(e) => setForm(prev => ({ ...prev, prep_required: e.target.checked }))}
+                        className="accent-green-500"
+                      />
+                      Needs Prep
+                    </label>
+                  </div>
+                  {!form.prep_required ? (
+                    <p className="text-xs text-gray-400">Prep not required for this game.</p>
+                  ) : prepTaskTypes.length === 0 ? (
+                    <p className="text-xs text-gray-400">No prep tasks configured. Add task types in League Config &rarr; Field Prep.</p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-gray-400 mb-2">Select which prep tasks apply, then assign crew. Pay per person = task rate ÷ assigned crew (or override per assignment after the game).</p>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {prepTaskTypes.map((tt) => {
+                          const selected = (form.prep_task_type_ids || []).some(id => Number(id) === Number(tt.id));
+                          return (
+                            <button
+                              key={tt.id}
+                              type="button"
+                              onClick={() => togglePrepTaskType(tt.id)}
+                              className={`px-2.5 py-1 rounded-full text-xs border transition ${selected ? 'bg-action-600/30 border-action-500 text-action-100' : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-500'}`}
+                            >
+                              {tt.name} <span className="opacity-70">(${Number(tt.default_rate).toFixed(2)})</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="space-y-3">
+                        {(form.prep_task_type_ids || []).map((tid) => {
+                          const tt = prepTaskTypes.find(t => Number(t.id) === Number(tid));
+                          if (!tt) return null;
+                          const pool = prepStaffByTask[tid] || [];
+                          const assignedForTask = (form.prep_assignments || []).filter(a => Number(a.task_type_id) === Number(tid));
+                          const activeCount = assignedForTask.filter(a => !a.no_show).length;
+                          const sharePer = activeCount > 0 ? (Number(tt.default_rate) / activeCount) : Number(tt.default_rate);
+                          // Merge previously-assigned staff not in the assignable pool so they remain togglable
+                          const byId = new Map();
+                          for (const s of pool) byId.set(String(s.id), s);
+                          for (const a of assignedForTask) {
+                            if (!byId.has(String(a.staff_id))) {
+                              byId.set(String(a.staff_id), { id: a.staff_id, name: a.staff_name || `Staff #${a.staff_id}` });
+                            }
+                          }
+                          const displayed = Array.from(byId.values()).sort((a,b) => String(a.name||'').localeCompare(String(b.name||'')));
+                          return (
+                            <div key={tid} className="border border-gray-700 rounded-md p-2.5 bg-gray-900/60">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="text-sm font-medium text-gray-100">
+                                  {tt.name} <span className="text-xs text-gray-400 font-normal">(${Number(tt.default_rate).toFixed(2)} total)</span>
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  {activeCount > 0
+                                    ? <>Share/person: <span className="text-action-300">${sharePer.toFixed(2)}</span></>
+                                    : <>No crew assigned</>}
+                                </div>
+                              </div>
+                              {displayed.length === 0 ? (
+                                <p className="text-xs text-gray-400">No eligible prep staff for this task. Add staff in Field Prep Crew.</p>
+                              ) : (
+                                <div className="space-y-1 max-h-44 overflow-y-auto">
+                                  {displayed.map((staff) => {
+                                    const checked = assignedForTask.some(a => Number(a.staff_id) === Number(staff.id));
+                                    return (
+                                      <label
+                                        key={staff.id}
+                                        className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-sm ${checked ? 'border border-action-500/40 bg-action-900/20' : 'border border-gray-700/50 bg-gray-900/30 hover:border-gray-600'}`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => togglePrepAssignment(tid, staff.id, staff.name)}
+                                          className="accent-green-500"
+                                        />
+                                        <span className="flex-1 text-gray-200 truncate">{staff.name}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {(form.prep_task_type_ids || []).length === 0 && (
+                          <p className="text-xs text-gray-400">Select one or more task types above to assign crew.</p>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

@@ -23,7 +23,7 @@ async function getBranding() {
             feature_live_scoring, feature_pitch_tracking, feature_officials,
             feature_stats, feature_documents, feature_financials,
             feature_registration, feature_public_site, feature_push_notifications,
-            feature_game_delete, feature_chat, timezone, email_redirect
+            feature_game_delete, feature_chat, feature_field_prep, timezone, email_redirect
      FROM app_branding WHERE id = 1`
   );
   const result = rows[0] || { app_name: 'LeagueHaven', logo_url: null };
@@ -224,7 +224,7 @@ const FEATURE_KEYS = [
   'feature_live_scoring', 'feature_pitch_tracking', 'feature_officials',
   'feature_stats', 'feature_documents', 'feature_financials',
   'feature_registration', 'feature_public_site', 'feature_push_notifications',
-  'feature_game_delete', 'feature_chat',
+  'feature_game_delete', 'feature_chat', 'feature_field_prep',
 ];
 
 router.get('/features', async (req, res) => {
@@ -665,6 +665,105 @@ router.delete('/volunteer-roles/:id', authMiddleware, requireAdmin, async (req, 
   try {
     const { rows } = await pool.query('DELETE FROM volunteer_roles WHERE id = $1 RETURNING id', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Field Prep Task Types ──
+
+const PREP_TASK_TYPES_KEY = 'league-config:prep-task-types';
+
+router.get('/prep-task-types', authMiddleware, async (req, res) => {
+  try {
+    let rows = cache.get(PREP_TASK_TYPES_KEY);
+    if (!rows) {
+      ({ rows } = await pool.query(
+        'SELECT id, name, default_rate, sort_order, active FROM prep_task_types ORDER BY sort_order, name'
+      ));
+      cache.set(PREP_TASK_TYPES_KEY, rows, CONFIG_TTL);
+    }
+    res.json(rows.map(r => ({ ...r, default_rate: Number(r.default_rate) })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/prep-task-types', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    const defaultRate = Number(req.body?.default_rate);
+    if (!Number.isFinite(defaultRate) || defaultRate < 0 || defaultRate > 10000) {
+      return res.status(400).json({ error: 'default_rate must be between 0 and 10000' });
+    }
+    const sortOrder = Number.isInteger(Number(req.body?.sort_order)) ? Number(req.body.sort_order) : 0;
+    const { rows } = await pool.query(
+      `INSERT INTO prep_task_types (name, default_rate, sort_order)
+       VALUES ($1, $2, $3) RETURNING id, name, default_rate, sort_order, active`,
+      [name.slice(0, 64), defaultRate, sortOrder]
+    );
+    cache.del(PREP_TASK_TYPES_KEY);
+    res.status(201).json({ ...rows[0], default_rate: Number(rows[0].default_rate) });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A task type with that name already exists' });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/prep-task-types/:id', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid id' });
+    const sets = [];
+    const vals = [];
+    let idx = 1;
+    if (req.body?.name !== undefined) {
+      const name = String(req.body.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Name cannot be empty' });
+      sets.push(`name = $${idx++}`); vals.push(name.slice(0, 64));
+    }
+    if (req.body?.default_rate !== undefined) {
+      const r = Number(req.body.default_rate);
+      if (!Number.isFinite(r) || r < 0 || r > 10000) return res.status(400).json({ error: 'default_rate out of range' });
+      sets.push(`default_rate = $${idx++}`); vals.push(r);
+    }
+    if (req.body?.sort_order !== undefined) {
+      const so = Number(req.body.sort_order);
+      if (!Number.isInteger(so)) return res.status(400).json({ error: 'sort_order must be integer' });
+      sets.push(`sort_order = $${idx++}`); vals.push(so);
+    }
+    if (req.body?.active !== undefined) {
+      sets.push(`active = $${idx++}`); vals.push(!!req.body.active);
+    }
+    if (!sets.length) return res.status(400).json({ error: 'No fields to update' });
+    vals.push(id);
+    const { rows } = await pool.query(
+      `UPDATE prep_task_types SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${idx}
+       RETURNING id, name, default_rate, sort_order, active`,
+      vals
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    cache.del(PREP_TASK_TYPES_KEY);
+    res.json({ ...rows[0], default_rate: Number(rows[0].default_rate) });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A task type with that name already exists' });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/prep-task-types/:id', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid id' });
+    const { rowCount } = await pool.query('DELETE FROM prep_task_types WHERE id = $1', [id]);
+    if (!rowCount) return res.status(404).json({ error: 'Not found' });
+    cache.del(PREP_TASK_TYPES_KEY);
     res.json({ success: true });
   } catch (err) {
     console.error(err);

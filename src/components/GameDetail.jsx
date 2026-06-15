@@ -383,6 +383,15 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
             {game.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {game.official_names.join(', ')}
           </div>
         )}
+        {(features.feature_field_prep !== false) && game.prep_required !== false && Number(game.prep_tasks?.length || 0) > 0 && (
+          <div className="text-xs text-gray-400 text-center mt-1">
+            {(() => {
+              const names = (game.prep_assigned_staff_names || []).filter(Boolean);
+              if (!names.length) return <>Prep Crew: <span className="text-amber-300">unassigned</span></>;
+              return <>Prep Crew: <span className="text-action-300">{names.join(', ')}</span></>;
+            })()}
+          </div>
+        )}
         {game.notes && <div className="text-xs text-gray-400 italic text-center mt-1">{game.notes}</div>}
       </div>
 

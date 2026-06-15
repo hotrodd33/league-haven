@@ -708,6 +708,74 @@ export async function unassignOfficialFromGame(officialId, gameId) {
   return apiFetch(`/officials/${officialId}/games/${gameId}/assign`, { method: 'DELETE' });
 }
 
+// ── Field Prep Staff ──
+
+export async function fetchPrepStaff(filters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, val] of Object.entries(filters)) {
+    if (val != null && val !== '') params.append(key, val);
+  }
+  const qs = params.toString();
+  return apiFetch(`/prep-staff${qs ? '?' + qs : ''}`);
+}
+
+export async function fetchAssignablePrepStaff(orgId, taskTypeId) {
+  const params = new URLSearchParams();
+  if (orgId) params.append('org_id', orgId);
+  if (taskTypeId) params.append('task_type_id', taskTypeId);
+  return apiFetch(`/prep-staff/assignable?${params.toString()}`);
+}
+
+export async function createPrepStaff(data) {
+  return apiFetch('/prep-staff', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updatePrepStaff(id, data) {
+  return apiFetch(`/prep-staff/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deletePrepStaff(id) {
+  return apiFetch(`/prep-staff/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchPrepStaffDetail(id) {
+  return apiFetch(`/prep-staff/${id}/detail`);
+}
+
+export async function fetchPrepStaffGames(id) {
+  return apiFetch(`/prep-staff/${id}/games`);
+}
+
+export async function updatePrepTaskPayment(staffId, gameId, taskTypeId, data) {
+  return apiFetch(`/prep-staff/${staffId}/games/${gameId}/tasks/${taskTypeId}/payment`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchPrepUsers() {
+  return apiFetch('/prep-staff/prep-users');
+}
+
+// ── Prep Task Types (config) ──
+
+export async function fetchPrepTaskTypes() {
+  return apiFetch('/league-config/prep-task-types');
+}
+
+export async function createPrepTaskType(data) {
+  return apiFetch('/league-config/prep-task-types', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updatePrepTaskType(id, data) {
+  return apiFetch(`/league-config/prep-task-types/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deletePrepTaskType(id) {
+  return apiFetch(`/league-config/prep-task-types/${id}`, { method: 'DELETE' });
+}
+
 // ── Field Locations ──
 
 export async function fetchLocations(orgId) {

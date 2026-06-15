@@ -56,6 +56,9 @@ export default function Sidebar({
   if ((isAdmin || isOrgAdmin || isAccountant) && ft('feature_officials')) {
     rosterItems.push({ key: 'officials', label: 'Officials', icon: ShieldCheckIcon });
   }
+  if ((isAdmin || isOrgAdmin || isAccountant) && ft('feature_field_prep')) {
+    rosterItems.push({ key: 'prep_staff', label: 'Field Prep Crew', icon: ShieldCheckIcon });
+  }
   rosterItems.push({ key: 'directory', label: 'Contacts', icon: BookOpenIcon });
 
   // ADMIN — configuration, management, infrequent tools
