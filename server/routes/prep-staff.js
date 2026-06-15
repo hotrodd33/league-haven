@@ -195,11 +195,11 @@ router.get('/', authMiddleware, async (req, res) => {
        ) pe_agg ON true
        LEFT JOIN LATERAL (
          SELECT
-           COUNT(DISTINCT a.game_id) FILTER (WHERE g.status != 'completed') AS assigned_games,
-           COUNT(DISTINCT a.game_id) FILTER (WHERE g.status = 'completed') AS completed_games,
+           COUNT(DISTINCT a.game_id) FILTER (WHERE NOT (g.status = 'completed' OR g.game_date < CURRENT_DATE)) AS assigned_games,
+           COUNT(DISTINCT a.game_id) FILTER (WHERE g.status = 'completed' OR g.game_date < CURRENT_DATE) AS completed_games,
            COALESCE(SUM(
              CASE
-               WHEN g.status = 'completed' AND NOT a.is_paid AND NOT a.no_show THEN
+               WHEN (g.status = 'completed' OR g.game_date < CURRENT_DATE) AND NOT a.is_paid AND NOT a.no_show THEN
                  COALESCE(
                    a.fee_override,
                    t.rate / NULLIF((SELECT COUNT(*) FROM game_prep_task_assignments aa
@@ -523,6 +523,7 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
          g.game_date,
          g.game_time,
          g.status,
+         (g.status = 'completed' OR g.game_date < CURRENT_DATE) AS is_prep_complete,
          g.home_score,
          g.away_score,
          g.season_id,
@@ -573,12 +574,13 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
         share: computedShare,
         is_paid: !!r.is_paid,
         no_show: !!r.no_show,
+        is_prep_complete: !!r.is_prep_complete,
         game_date: r.game_date instanceof Date ? r.game_date.toISOString().slice(0, 10) : (r.game_date || '').slice(0, 10),
       };
     });
 
     // Group by game for summary display
-    const completed = items.filter(i => i.status === 'completed' && !i.no_show);
+    const completed = items.filter(i => i.is_prep_complete && !i.no_show);
     const totalEarnings = completed.reduce((sum, i) => sum + i.share, 0);
     const totalPayments = completed.filter(i => i.is_paid).reduce((sum, i) => sum + i.share, 0);
 

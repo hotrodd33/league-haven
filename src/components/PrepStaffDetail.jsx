@@ -76,8 +76,8 @@ export default function PrepStaffDetail({ staffId, taskTypes = [], onBack }) {
   if (!staff) return null;
 
   const assignments = data.assignments || [];
-  const upcoming = assignments.filter(a => a.status !== 'completed' && a.status !== 'cancelled');
-  const completed = assignments.filter(a => a.status === 'completed');
+  const upcoming = assignments.filter(a => !a.is_prep_complete && a.status !== 'cancelled');
+  const completed = assignments.filter(a => a.is_prep_complete);
   const list = activeTab === 'upcoming' ? upcoming : completed;
 
   return (
@@ -170,7 +170,7 @@ export default function PrepStaffDetail({ staffId, taskTypes = [], onBack }) {
                     </td>
                     {canEdit && (
                       <td className="px-3 py-2 text-right space-y-1">
-                        {row.status === 'completed' && (
+                        {row.is_prep_complete && (
                           <>
                             <Button size="xs" variant={row.is_paid ? 'secondary' : 'primary'} onClick={() => patch(row, { is_paid: !row.is_paid })} disabled={busy}>
                               {row.is_paid ? 'Mark Unpaid' : 'Mark Paid'}
