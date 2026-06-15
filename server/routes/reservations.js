@@ -66,7 +66,7 @@ router.get('/', async (req, res) => {
          SELECT
            COUNT(DISTINCT gpt2.task_type_id)::int AS prep_task_count,
            COUNT(DISTINCT gpta2.staff_id)::int AS prep_assignment_count,
-           COALESCE(array_agg(DISTINCT fps.display_name) FILTER (WHERE fps.id IS NOT NULL), ARRAY[]::TEXT[]) AS prep_assigned_staff_names
+           COALESCE(array_agg(DISTINCT fps.name) FILTER (WHERE fps.id IS NOT NULL), ARRAY[]::TEXT[]) AS prep_assigned_staff_names
          FROM game_prep_tasks gpt2
          LEFT JOIN game_prep_task_assignments gpta2 ON gpta2.game_id = gpt2.game_id AND gpta2.task_type_id = gpt2.task_type_id
          LEFT JOIN field_prep_staff fps ON fps.id = gpta2.staff_id
