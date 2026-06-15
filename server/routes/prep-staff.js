@@ -665,7 +665,38 @@ router.put('/:id/games/:gameId/tasks/:taskTypeId/payment', authMiddleware, async
     );
 
     cache.invalidatePrefix('prep-staff:');
-    res.json({ success: true });
+
+    // Return the freshly-updated row plus its current share so the client can patch
+    // local state without a second round-trip (avoids any GET-cache staleness).
+    const { rows: updatedRows } = await pool.query(
+      `SELECT a.game_id, a.task_type_id, a.staff_id, a.is_paid, a.paid_at, a.no_show, a.fee_override,
+              t.rate AS task_rate,
+              (SELECT COUNT(*) FROM game_prep_task_assignments aa
+               WHERE aa.game_id = a.game_id AND aa.task_type_id = a.task_type_id AND NOT aa.no_show) AS active_helpers
+       FROM game_prep_task_assignments a
+       JOIN game_prep_tasks t ON t.game_id = a.game_id AND t.task_type_id = a.task_type_id
+       WHERE a.game_id = $1 AND a.task_type_id = $2 AND a.staff_id = $3`,
+      [gameId, taskTypeId, id]
+    );
+    const u = updatedRows[0];
+    const taskRate = Number(u.task_rate);
+    const helpers = Math.max(1, Number(u.active_helpers) || 1);
+    const share = u.no_show ? 0 : (u.fee_override != null ? Number(u.fee_override) : Math.round((taskRate / helpers) * 100) / 100);
+    res.json({
+      success: true,
+      assignment: {
+        game_id: Number(u.game_id),
+        task_type_id: Number(u.task_type_id),
+        staff_id: Number(u.staff_id),
+        is_paid: !!u.is_paid,
+        paid_at: u.paid_at,
+        no_show: !!u.no_show,
+        fee_override: u.fee_override != null ? Number(u.fee_override) : null,
+        task_rate: taskRate,
+        active_helpers: Number(u.active_helpers),
+        share,
+      },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

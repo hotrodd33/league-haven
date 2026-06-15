@@ -63,11 +63,38 @@ export default function PrepStaffDetail({ staffId, taskTypes = [], onBack }) {
   async function patch(row, fields) {
     const key = `${row.game_id}:${row.task_type_id}`;
     setUpdatingKey(key);
+    // Optimistic update — flip the local row immediately so the UI feels instant.
+    setData(prev => ({
+      ...prev,
+      assignments: (prev.assignments || []).map(a =>
+        a.game_id === row.game_id && a.task_type_id === row.task_type_id && Number(a.staff_id ?? staffId) === Number(staffId)
+          ? { ...a, ...fields }
+          : a
+      ),
+    }));
     try {
-      await updatePrepTaskPayment(staffId, row.game_id, row.task_type_id, fields);
+      const resp = await updatePrepTaskPayment(staffId, row.game_id, row.task_type_id, fields);
+      // Reconcile from server response (handles share recalc when no_show flips).
+      if (resp?.assignment) {
+        const a = resp.assignment;
+        setData(prev => ({
+          ...prev,
+          assignments: (prev.assignments || []).map(item =>
+            item.game_id === a.game_id && item.task_type_id === a.task_type_id
+              ? { ...item, ...a }
+              : item
+          ),
+        }));
+      }
+      // Refresh summary totals + sibling shares from authoritative source.
       const gd = await fetchPrepStaffGames(staffId);
       setData(gd);
-    } catch (err) { alert(`Failed: ${err.message}`); }
+    } catch (err) {
+      // Roll back optimistic update on failure.
+      const gd = await fetchPrepStaffGames(staffId).catch(() => null);
+      if (gd) setData(gd);
+      alert(`Failed: ${err.message}`);
+    }
     finally { setUpdatingKey(null); }
   }
 

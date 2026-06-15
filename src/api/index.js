@@ -743,7 +743,11 @@ export async function fetchPrepStaffDetail(id) {
 }
 
 export async function fetchPrepStaffGames(id) {
-  return apiFetch(`/prep-staff/${id}/games`);
+  // Cache-buster query param prevents browser/CDN GET caching from masking
+  // recent payment/no-show updates (which we expect to be reflected immediately).
+  return apiFetch(`/prep-staff/${id}/games?_=${Date.now()}`, {
+    headers: { 'Cache-Control': 'no-store' },
+  });
 }
 
 export async function updatePrepTaskPayment(staffId, gameId, taskTypeId, data) {
