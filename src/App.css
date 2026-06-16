@@ -404,6 +404,35 @@ body {
 .lh-input::placeholder { color: #64748b; }
 .lh-textarea { height: auto; min-height: 88px; padding: 10px 12px; resize: vertical; }
 
+/* Native date/time picker icon — WebKit/Blink renders a near-black calendar icon
+   by default, which is invisible on our dark input background. Invert it so it
+   shows up as light gray, and brighten on hover/focus. (color-scheme also coaxes
+   the OS picker into using its dark variant.) */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"],
+input[type="week"] {
+  color-scheme: dark;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator,
+input[type="week"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(0.85);
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 150ms;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover,
+input[type="month"]::-webkit-calendar-picker-indicator:hover,
+input[type="week"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 /* ═══════════════════════════════════════════════════════
    Component Classes — Semantic Typography
    ═══════════════════════════════════════════════════════ */
