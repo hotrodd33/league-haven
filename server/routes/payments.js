@@ -68,7 +68,8 @@ router.get('/', authMiddleware, requireRole('super_admin', 'accountant', 'org_ad
 
     if (kind === 'all' || kind === 'umpire') {
       const noShowClause = includeNoShow ? '' : ' AND NOT goa.no_show';
-      const statusClause = status === 'paid' ? ' AND goa.is_paid' : status === 'unpaid' ? ' AND NOT goa.is_paid' : '';
+      // Status filter is applied in JS so the summary always reflects all
+      // matching activity (paid + unpaid) for the period.
       const personClause = (kind === 'umpire' && personId) ? ` AND goa.official_id = $${++p}` : '';
       if (kind === 'umpire' && personId) params.push(personId);
 
@@ -113,7 +114,6 @@ router.get('/', authMiddleware, requireRole('super_admin', 'accountant', 'org_ad
          WHERE g.game_date BETWEEN $1 AND $2
            ${filters}
            ${noShowClause}
-           ${statusClause}
            ${personClause}`,
         params.slice()
       ));
@@ -136,7 +136,7 @@ router.get('/', authMiddleware, requireRole('super_admin', 'accountant', 'org_ad
 
       const filters2 = buildCommonFilters2('ht.org_id', 'g.season_id');
       const noShowClause = includeNoShow ? '' : ' AND NOT a.no_show';
-      const statusClause = status === 'paid' ? ' AND a.is_paid' : status === 'unpaid' ? ' AND NOT a.is_paid' : '';
+      // Status filter is applied in JS (see above).
       const personClause = (kind === 'prep' && personId) ? ` AND a.staff_id = $${++p2}` : '';
       if (kind === 'prep' && personId) params2.push(personId);
 
@@ -183,14 +183,13 @@ router.get('/', authMiddleware, requireRole('super_admin', 'accountant', 'org_ad
          WHERE g.game_date BETWEEN $1 AND $2
            ${filters2}
            ${noShowClause}
-           ${statusClause}
            ${personClause}`,
         params2
       ));
     }
 
     const results = await Promise.all(queries);
-    const rows = results
+    const allRows = results
       .flatMap(r => r.rows)
       .map(r => ({
         ...r,
@@ -208,7 +207,10 @@ router.get('/', authMiddleware, requireRole('super_admin', 'accountant', 'org_ad
         return a.kind.localeCompare(b.kind);
       });
 
-    const summary = rows.reduce((acc, r) => {
+    // Summary is computed over ALL rows in the period (status-agnostic) so
+    // marking rows paid is reflected in Total Paid even when the row list is
+    // filtered to "Unpaid only".
+    const summary = allRows.reduce((acc, r) => {
       const amt = r.no_show ? 0 : r.amount;
       acc.total_assignments += 1;
       if (r.no_show) acc.no_show_count += 1;
@@ -221,6 +223,13 @@ router.get('/', authMiddleware, requireRole('super_admin', 'accountant', 'org_ad
       else if (r.kind === 'prep') acc.prep_count += 1;
       return acc;
     }, emptySummary());
+
+    // Apply the status filter for the displayed row list only.
+    const rows = status === 'paid'
+      ? allRows.filter(r => r.is_paid)
+      : status === 'unpaid'
+        ? allRows.filter(r => !r.is_paid)
+        : allRows;
 
     res.json({
       filters: { from, to, kind, status, org_id: orgId, season_id: seasonId, person_id: personId, include_no_show: includeNoShow },
