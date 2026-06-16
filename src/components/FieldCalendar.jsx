@@ -156,6 +156,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
   const { canEditOrg, isAuthenticated } = useAuth();
   const { features } = useBranding(isAuthenticated);
   const officialsFeatureEnabled = features.feature_officials !== false;
+  const prepFeatureEnabled = features.feature_field_prep !== false;
 
   // Normalize to an array of fields. `field` (single) is the legacy/primary mode.
   const fieldsArr = useMemo(() => {
@@ -568,6 +569,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                             onDelete={() => handleDelete(ev)}
                             onViewGame={(id) => setViewingGameId(id)}
                             officialsFeatureEnabled={officialsFeatureEnabled}
+                            prepFeatureEnabled={prepFeatureEnabled}
                             deleting={deleting} />
                         );
                       })}
@@ -595,6 +597,7 @@ export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
                           onDelete={() => handleDelete(ev)}
                           onViewGame={(id) => setViewingGameId(id)}
                           officialsFeatureEnabled={officialsFeatureEnabled}
+                          prepFeatureEnabled={prepFeatureEnabled}
                           deleting={deleting} />
                       );
                     })}
@@ -800,7 +803,7 @@ function FilterSection({ title, allChecked, onSetAll, children }) {
   );
 }
 
-function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete, onViewGame, deleting, officialsFeatureEnabled = true }) {
+function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete, onViewGame, deleting, officialsFeatureEnabled = true, prepFeatureEnabled = true }) {
   const c = color || EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
   const label = EVENT_LABELS[ev.event_type] || ev.event_type;
   const gameClickable = ev.is_game && ev.game_id && onViewGame;
@@ -842,6 +845,31 @@ function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete,
                   : umps.length
                     ? <span className="text-action-300 font-medium">{umps.join(', ')}</span>
                     : <span className="text-amber-400 italic">unassigned</span>}
+              </div>
+            );
+          })()}
+          {ev.is_game && prepFeatureEnabled && (() => {
+            const prepRequired = ev.prep_required !== false;
+            if (!prepRequired) {
+              return (
+                <div className="text-xs mt-0.5">
+                  <span className="text-gray-400">Prep:</span>{' '}
+                  <span className="text-gray-400 italic">No Prep</span>
+                </div>
+              );
+            }
+            const names = (ev.prep_assigned_staff_names || []).filter(Boolean);
+            const taskCount = Number(ev.prep_task_count || 0);
+            const assignmentCount = Number(ev.prep_assignment_count || 0);
+            if (taskCount === 0) return null;
+            return (
+              <div className="text-xs mt-0.5">
+                <span className="text-gray-400">Prep Crew:</span>{' '}
+                {assignmentCount === 0
+                  ? <span className="text-amber-400 italic">unassigned</span>
+                  : assignmentCount < taskCount
+                    ? <span className="text-amber-300">{names.join(', ') || 'partial'} <span className="text-amber-400/70">(partial)</span></span>
+                    : <span className="text-action-300 font-medium">{names.join(', ')}</span>}
               </div>
             );
           })()}

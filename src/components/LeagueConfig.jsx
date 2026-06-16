@@ -10,6 +10,7 @@ import {
   fetchStatDefinitions, createStatDefinition, updateStatDefinition, deleteStatDefinition,
   fetchFeatureToggles, updateFeatureToggles,
   fetchVolunteerRoles, createVolunteerRole, updateVolunteerRole, deleteVolunteerRole,
+  fetchPrepTaskTypes, createPrepTaskType, updatePrepTaskType, deletePrepTaskType,
 } from '../api/index.js';
 import { Button, Badge } from './ui/index.js';
 import { useBranding } from '../hooks/useBranding.js';
@@ -41,6 +42,7 @@ export default function LeagueConfig({ onBack }) {
         <button className={tabCls('divisions')} onClick={() => setTab('divisions')}>Divisions</button>
         <button className={tabCls('stats')} onClick={() => setTab('stats')}>Stats</button>
         <button className={tabCls('volunteers')} onClick={() => setTab('volunteers')}>Volunteer Roles</button>
+        <button className={tabCls('field_prep')} onClick={() => setTab('field_prep')}>Field Prep</button>
       </div>
       {tab === 'branding' && <BrandingConfig />}
       {tab === 'features' && <FeatureTogglesConfig />}
@@ -63,6 +65,7 @@ export default function LeagueConfig({ onBack }) {
           updateItem={updateVolunteerRole} deleteItem={deleteVolunteerRole}
         />
       )}
+      {tab === 'field_prep' && <PrepTaskTypeConfig />}
     </div>
   );
 }
@@ -329,6 +332,7 @@ const FEATURE_DEFS = [
   { key: 'feature_push_notifications', label: 'Push Notifications', desc: 'Browser push notifications for schedule changes and announcements' },
   { key: 'feature_game_delete',       label: 'Allow Game Deletion', desc: 'When off, only super-admins can delete games. Turn on to let org-admins and team managers delete games for their own teams.' },
   { key: 'feature_chat',              label: 'Team Chat',            desc: 'In-app messaging for team channels and direct messages between members.' },
+  { key: 'feature_field_prep',        label: 'Field Prep Crew',      desc: 'Per-task crew assignments (lining, dragging, etc.) with pay tracking. Enable on each org separately to use it on games.' },
 ];
 
 function FeatureTogglesConfig() {
@@ -1570,6 +1574,152 @@ function StatDefinitionsConfig() {
       {!defs.length && !showForm && (
         <p className="text-sm text-gray-500 py-4 text-center">No stat definitions yet. Click "Add Stat" to create one.</p>
       )}
+    </div>
+  );
+}
+
+function PrepTaskTypeConfig() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ name: '', default_rate: '', sort_order: 0, active: true });
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetchPrepTaskTypes()
+      .then(setItems)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function startAdd() {
+    setEditingId(null);
+    setForm({ name: '', default_rate: '', sort_order: items.length, active: true });
+    setShowForm(true);
+  }
+  function startEdit(item) {
+    setEditingId(item.id);
+    setForm({ name: item.name, default_rate: item.default_rate, sort_order: item.sort_order, active: item.active });
+    setShowForm(true);
+  }
+  function cancelForm() { setShowForm(false); setEditingId(null); }
+
+  async function save(e) {
+    e.preventDefault();
+    setError(null);
+    const payload = {
+      name: form.name.trim(),
+      default_rate: Number(form.default_rate),
+      sort_order: Number(form.sort_order) || 0,
+      active: !!form.active,
+    };
+    if (!payload.name) return setError('Name is required');
+    if (!Number.isFinite(payload.default_rate) || payload.default_rate < 0) return setError('Default rate must be a non-negative number');
+    try {
+      let updated;
+      if (editingId) {
+        updated = await updatePrepTaskType(editingId, payload);
+      } else {
+        updated = await createPrepTaskType(payload);
+      }
+      // Server cache is in-process per Vercel lambda — a re-fetch may hit a different
+      // instance with stale data. Patch state from the write response instead.
+      setItems(prev => {
+        if (editingId) {
+          return prev.map(it => it.id === editingId ? { ...it, ...updated, default_rate: Number(updated.default_rate) } : it);
+        }
+        const next = [...prev, { ...updated, default_rate: Number(updated.default_rate) }];
+        return next.sort((a, b) => (a.sort_order - b.sort_order) || String(a.name).localeCompare(String(b.name)));
+      });
+      cancelForm();
+    } catch (err) { setError(err.message); }
+  }
+
+  async function remove(id) {
+    if (!window.confirm('Delete this task type? Any historical game assignments using it will be removed.')) return;
+    try {
+      await deletePrepTaskType(id);
+      setItems(prev => prev.filter(it => it.id !== id));
+    }
+    catch (err) { setError(err.message); }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold text-white">Field Prep Task Types</h3>
+        {!showForm && <Button size="sm" onClick={startAdd}>+ Add Task Type</Button>}
+      </div>
+      <p className="text-xs text-gray-400">
+        Define the prep tasks crews can be assigned to on a game-by-game basis (e.g. Lining, Dragging). The default rate is split evenly among everyone assigned to that task on a game, unless a per-person override is set.
+      </p>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      {loading && <p className="text-sm text-gray-400">Loading…</p>}
+
+      {showForm && (
+        <form onSubmit={save} className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_80px_auto_auto] gap-2 items-end bg-gray-900 border border-gray-700 rounded-lg p-3">
+          <div>
+            <label className="lh-eyebrow block mb-1">Name *</label>
+            <input className="lh-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Lining" autoFocus />
+          </div>
+          <div>
+            <label className="lh-eyebrow block mb-1">Default Rate ($)</label>
+            <input className="lh-input" type="number" min="0" step="0.01" value={form.default_rate} onChange={e => setForm({ ...form, default_rate: e.target.value })} placeholder="20.00" />
+          </div>
+          <div>
+            <label className="lh-eyebrow block mb-1">Sort</label>
+            <input className="lh-input" type="number" value={form.sort_order} onChange={e => setForm({ ...form, sort_order: e.target.value })} />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-200">
+            <input type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} />
+            Active
+          </label>
+          <div className="flex gap-2">
+            <Button type="submit" size="sm">{editingId ? 'Save' : 'Add'}</Button>
+            <Button type="button" size="sm" variant="secondary" onClick={cancelForm}>Cancel</Button>
+          </div>
+        </form>
+      )}
+
+      <div className="border border-gray-700 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-800 text-gray-300">
+            <tr>
+              <th className="px-3 py-2 text-left">Name</th>
+              <th className="px-3 py-2 text-right">Default Rate</th>
+              <th className="px-3 py-2 text-right">Sort</th>
+              <th className="px-3 py-2 text-center">Active</th>
+              <th className="px-3 py-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 && !loading && (
+              <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-500">No prep task types yet.</td></tr>
+            )}
+            {items.map(item => (
+              <tr key={item.id} className="border-t border-gray-700">
+                <td className="px-3 py-2 text-gray-100">{item.name}</td>
+                <td className="px-3 py-2 text-right text-gray-100">${Number(item.default_rate).toFixed(2)}</td>
+                <td className="px-3 py-2 text-right text-gray-400">{item.sort_order}</td>
+                <td className="px-3 py-2 text-center">
+                  {item.active
+                    ? <Badge variant="success">Active</Badge>
+                    : <Badge variant="neutral">Inactive</Badge>}
+                </td>
+                <td className="px-3 py-2 text-right space-x-1">
+                  <Button size="xs" variant="secondary" onClick={() => startEdit(item)}>Edit</Button>
+                  <Button size="xs" variant="danger" onClick={() => remove(item.id)}>Delete</Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

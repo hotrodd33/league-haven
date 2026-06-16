@@ -44,6 +44,8 @@ const BASE_SELECT = `
     gil.is_gamechanger_imported,
     goa.official_ids, goa.official_names, goa.officials,
     gua.interested_official_ids, gua.interested_umpire_names, gua.interested_umpires,
+    gpt.prep_tasks, gpt.prep_assignments, gpt.prep_assigned_staff_names,
+    gpi.interested_prep_user_ids, gpi.interested_prep_names,
     hsc.name AS home_sched_name, hsc.email AS home_sched_email, hsc.phone AS home_sched_phone, hsc.role AS home_sched_role,
     asched.name AS away_sched_name, asched.email AS away_sched_email, asched.phone AS away_sched_phone, asched.role AS away_sched_role,
     scu.name AS scoring_user_name
@@ -89,6 +91,58 @@ const BASE_SELECT = `
     JOIN officials o ON o.id = go.official_id
     WHERE go.game_id = g.id
   ) goa ON true
+  LEFT JOIN LATERAL (
+    SELECT
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'task_type_id', t.task_type_id,
+            'name', tt.name,
+            'rate', t.rate,
+            'sort_order', tt.sort_order
+          )
+          ORDER BY tt.sort_order, tt.name
+        ) FILTER (WHERE t.task_type_id IS NOT NULL),
+        '[]'::json
+      ) AS prep_tasks,
+      (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'task_type_id', a.task_type_id,
+              'staff_id', a.staff_id,
+              'staff_name', s.name,
+              'is_paid', a.is_paid,
+              'no_show', a.no_show,
+              'paid_at', a.paid_at,
+              'fee_override', a.fee_override
+            )
+            ORDER BY s.name
+          ),
+          '[]'::json
+        )
+        FROM game_prep_task_assignments a
+        JOIN field_prep_staff s ON s.id = a.staff_id
+        WHERE a.game_id = g.id
+      ) AS prep_assignments,
+      (
+        SELECT COALESCE(array_agg(DISTINCT s.name ORDER BY s.name) FILTER (WHERE s.id IS NOT NULL), ARRAY[]::TEXT[])
+        FROM game_prep_task_assignments a
+        JOIN field_prep_staff s ON s.id = a.staff_id
+        WHERE a.game_id = g.id
+      ) AS prep_assigned_staff_names
+    FROM game_prep_tasks t
+    LEFT JOIN prep_task_types tt ON tt.id = t.task_type_id
+    WHERE t.game_id = g.id
+  ) gpt ON true
+  LEFT JOIN LATERAL (
+    SELECT
+      COALESCE(array_agg(pgi.user_id ORDER BY u.name) FILTER (WHERE pgi.user_id IS NOT NULL), ARRAY[]::INTEGER[]) AS interested_prep_user_ids,
+      COALESCE(array_agg(u.name ORDER BY u.name) FILTER (WHERE u.name IS NOT NULL), ARRAY[]::TEXT[]) AS interested_prep_names
+    FROM prep_staff_game_interests pgi
+    JOIN users u ON u.id = pgi.user_id
+    WHERE pgi.game_id = g.id
+  ) gpi ON true
   LEFT JOIN LATERAL (
     SELECT
       COALESCE(array_agg(i.official_id ORDER BY i.name) FILTER (WHERE i.official_id IS NOT NULL), ARRAY[]::INTEGER[]) AS interested_official_ids,
@@ -166,6 +220,7 @@ const SLIM_SELECT = `
     g.game_duration_minutes,
     g.innings_played,
     g.notes,
+    g.prep_required,
     g.deleted_at,
     ht.name AS home_team_name, ht.logo_url AS home_team_logo,
     ht.org_id AS home_org_id,
@@ -187,6 +242,9 @@ const SLIM_SELECT = `
     fl.org_id AS location_org_id,
     gd.division_name, gd.division_sort,
     goa.official_names,
+    gpt_slim.prep_assigned_staff_names,
+    gpt_slim.prep_task_count,
+    gpt_slim.prep_assignment_count,
     hag.ump_required AS home_ump_required
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
@@ -212,6 +270,17 @@ const SLIM_SELECT = `
     JOIN officials o ON o.id = go.official_id
     WHERE go.game_id = g.id
   ) goa ON true
+  LEFT JOIN LATERAL (
+    SELECT
+      (SELECT COUNT(*)::INT FROM game_prep_tasks t WHERE t.game_id = g.id) AS prep_task_count,
+      (SELECT COUNT(*)::INT FROM game_prep_task_assignments a WHERE a.game_id = g.id) AS prep_assignment_count,
+      (
+        SELECT COALESCE(array_agg(DISTINCT s.name ORDER BY s.name) FILTER (WHERE s.id IS NOT NULL), ARRAY[]::TEXT[])
+        FROM game_prep_task_assignments a
+        JOIN field_prep_staff s ON s.id = a.staff_id
+        WHERE a.game_id = g.id
+      ) AS prep_assigned_staff_names
+  ) gpt_slim ON true
 `;
 
 function enrichGame(row) {
@@ -256,6 +325,17 @@ function enrichGame(row) {
     interested_official_ids: row.interested_official_ids || [],
     interested_umpire_names: row.interested_umpire_names || [],
     interested_umpires: row.interested_umpires || [],
+    prep_required: row.prep_required === null || row.prep_required === undefined ? true : !!row.prep_required,
+    prep_tasks: (row.prep_tasks || []).map((t) => ({ ...t, rate: t.rate != null ? Number(t.rate) : 0 })),
+    prep_assignments: (row.prep_assignments || []).map((a) => ({
+      ...a,
+      is_paid: !!a.is_paid,
+      no_show: !!a.no_show,
+      fee_override: a.fee_override != null ? Number(a.fee_override) : null,
+    })),
+    prep_assigned_staff_names: row.prep_assigned_staff_names || [],
+    interested_prep_user_ids: row.interested_prep_user_ids || [],
+    interested_prep_names: row.interested_prep_names || [],
   };
 }
 
@@ -319,6 +399,10 @@ function enrichGameSlim(row) {
     game_duration_minutes: row.game_duration_minutes ?? null,
     innings_played: row.innings_played ?? null,
     notes: row.notes ?? null,
+    prep_required: row.prep_required === null || row.prep_required === undefined ? true : !!row.prep_required,
+    prep_assigned_staff_names: row.prep_assigned_staff_names || [],
+    prep_task_count: row.prep_task_count ?? 0,
+    prep_assignment_count: row.prep_assignment_count ?? 0,
     division_name: row.division_name || null,
     home_ump_required: row.home_ump_required === null || row.home_ump_required === undefined ? null : !!row.home_ump_required,
     is_gamechanger_imported: false, // not in SLIM_SELECT — omitted intentionally
@@ -360,6 +444,94 @@ async function canAssignOfficialsForTeam(client, teamId) {
     [teamId]
   );
   return !!rows[0]?.officials_enabled;
+}
+
+async function canAssignPrepForTeam(client, teamId) {
+  if (!teamId) return false;
+  const { rows } = await client.query(
+    `SELECT COALESCE(o.field_prep_enabled, false) AS field_prep_enabled
+     FROM teams t
+     LEFT JOIN organizations o ON o.id = t.org_id
+     WHERE t.id = $1`,
+    [teamId]
+  );
+  return !!rows[0]?.field_prep_enabled;
+}
+
+// Replace the set of game prep tasks. `tasks` is an array of either
+// { task_type_id, rate? } objects or bare task_type_id numbers. If `rate`
+// is omitted we snapshot the current default_rate of the task type.
+async function replaceGamePrepTasks(client, gameId, tasks = []) {
+  await client.query('DELETE FROM game_prep_tasks WHERE game_id = $1', [gameId]);
+  if (!Array.isArray(tasks) || !tasks.length) return;
+
+  const normalized = [];
+  for (const entry of tasks) {
+    const taskTypeId = Number(entry?.task_type_id ?? entry);
+    if (!Number.isFinite(taskTypeId)) continue;
+    normalized.push({ task_type_id: taskTypeId, rate: entry?.rate });
+  }
+  if (!normalized.length) return;
+
+  const ids = [...new Set(normalized.map((t) => t.task_type_id))];
+  const { rows: ttRows } = await client.query(
+    'SELECT id, default_rate FROM prep_task_types WHERE id = ANY($1) AND active = TRUE',
+    [ids]
+  );
+  const defaultRates = new Map(ttRows.map((r) => [Number(r.id), Number(r.default_rate)]));
+
+  for (const id of ids) {
+    if (!defaultRates.has(id)) continue;
+    const entry = normalized.find((t) => t.task_type_id === id);
+    const rate = entry?.rate != null && Number.isFinite(Number(entry.rate))
+      ? Number(entry.rate)
+      : defaultRates.get(id);
+    await client.query(
+      `INSERT INTO game_prep_tasks (game_id, task_type_id, rate)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (game_id, task_type_id) DO UPDATE SET rate = EXCLUDED.rate`,
+      [gameId, id, rate]
+    );
+  }
+}
+
+// Replace per-task assignments. `assignments` is array of
+// { task_type_id, staff_id, is_paid?, no_show?, fee_override? }.
+// Any assignment whose (task_type_id) isn't currently a game_prep_task is skipped.
+async function replaceGamePrepAssignments(client, gameId, assignments = []) {
+  await client.query('DELETE FROM game_prep_task_assignments WHERE game_id = $1', [gameId]);
+  if (!Array.isArray(assignments) || !assignments.length) return;
+
+  const { rows: taskRows } = await client.query(
+    'SELECT task_type_id FROM game_prep_tasks WHERE game_id = $1',
+    [gameId]
+  );
+  const validTaskIds = new Set(taskRows.map((r) => Number(r.task_type_id)));
+  if (!validTaskIds.size) return;
+
+  const seen = new Set();
+  for (const a of assignments) {
+    const taskTypeId = Number(a?.task_type_id);
+    const staffId = Number(a?.staff_id);
+    if (!Number.isFinite(taskTypeId) || !Number.isFinite(staffId)) continue;
+    if (!validTaskIds.has(taskTypeId)) continue;
+    const key = `${taskTypeId}:${staffId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const feeOverride = a?.fee_override != null && a.fee_override !== ''
+      ? Number(a.fee_override)
+      : null;
+    const isPaid = !!a?.is_paid;
+    const noShow = !!a?.no_show;
+
+    await client.query(
+      `INSERT INTO game_prep_task_assignments
+         (game_id, task_type_id, staff_id, is_paid, no_show, paid_at, fee_override)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [gameId, taskTypeId, staffId, isPaid, noShow, isPaid ? new Date() : null, Number.isFinite(feeOverride) ? feeOverride : null]
+    );
+  }
 }
 
 // GET /games/org-stats — per-org game summary counts (avoids loading all rows into memory)
@@ -676,7 +848,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, official_ids } = req.body;
+    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, official_ids, prep_required, prep_task_type_ids, prep_assignments } = req.body;
     if (!home_team_id || !away_team_id) {
       return res.status(400).json({ error: 'home_team_id and away_team_id are required' });
     }
@@ -714,9 +886,10 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 
     await client.query('BEGIN');
+    const prepRequiredInsert = prep_required === undefined ? true : !!prep_required;
     const { rows } = await client.query(
-      `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, prep_required)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
       [season_id || null, home_team_id, away_team_id, location_id || null,
        game_date || null, game_time || null, game_duration_minutes ? Number(game_duration_minutes) : 150,
        // Auto-promote: treat explicit 'unscheduled' (sent by the form default) the same as no status.
@@ -724,7 +897,7 @@ router.post('/', authMiddleware, async (req, res) => {
        (!status || status === 'unscheduled')
          ? (game_date && game_time && location_id ? 'scheduled' : 'unscheduled')
          : status,
-       notes || null]
+       notes || null, prepRequiredInsert]
     );
     const gameId = rows[0].id;
     const officialIds = Array.isArray(official_ids) ? official_ids : [];
@@ -743,6 +916,20 @@ router.post('/', authMiddleware, async (req, res) => {
       }
     }
     await replaceGameOfficials(client, gameId, officialIds);
+
+    if (prepRequiredInsert && Array.isArray(prep_task_type_ids) && prep_task_type_ids.length) {
+      const tasks = prep_task_type_ids.map((id) => ({ task_type_id: Number(id) })).filter((t) => Number.isFinite(t.task_type_id));
+      const prepAllowed = await canAssignPrepForTeam(client, home_team_id);
+      if (!prepAllowed && tasks.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Field prep is not enabled for the home organization' });
+      }
+      await replaceGamePrepTasks(client, gameId, tasks);
+      if (Array.isArray(prep_assignments) && prep_assignments.length) {
+        await replaceGamePrepAssignments(client, gameId, prep_assignments);
+      }
+    }
+
     await client.query('COMMIT');
 
     cache.invalidatePrefix('games:');
@@ -773,12 +960,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const allowed = await canScoreGame(req.user, game.home_team_id, game.away_team_id);
     if (!allowed) return res.status(403).json({ error: 'Not authorized to update this game' });
 
-    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, home_score, away_score, innings_played, notes, official_ids } = req.body;
+    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, home_score, away_score, innings_played, notes, official_ids, prep_required, prep_task_type_ids, prep_assignments } = req.body;
     let { status } = req.body;
     const hasGameDate = Object.prototype.hasOwnProperty.call(req.body, 'game_date');
     const hasGameTime = Object.prototype.hasOwnProperty.call(req.body, 'game_time');
     const hasLocationId = Object.prototype.hasOwnProperty.call(req.body, 'location_id');
     const hasNotes = Object.prototype.hasOwnProperty.call(req.body, 'notes');
+    const hasPrepRequired = Object.prototype.hasOwnProperty.call(req.body, 'prep_required');
+    const hasPrepTasks = Object.prototype.hasOwnProperty.call(req.body, 'prep_task_type_ids');
+    const hasPrepAssignments = Object.prototype.hasOwnProperty.call(req.body, 'prep_assignments');
 
     // Live-scoring claim enforcement: if someone else has claimed this game
     // for live scoring, only that user (or super_admin) may push score /
@@ -848,12 +1038,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
         away_score = $10,
         innings_played = $11,
         notes = ${hasNotes ? '$12' : 'COALESCE($12, notes)'},
+        prep_required = ${hasPrepRequired ? '$13' : 'prep_required'},
         updated_at = NOW()
-       WHERE id = $13`,
+       WHERE id = $14`,
       [season_id, home_team_id, away_team_id, location_id ?? null,
        game_date, game_time ?? null, game_duration_minutes ? Number(game_duration_minutes) : null,
        status, home_score ?? null, away_score ?? null,
-       innings_played ?? null, notes ?? null, id]
+       innings_played ?? null, notes ?? null,
+       hasPrepRequired ? !!prep_required : null,
+       id]
     );
 
     if (official_ids !== undefined) {
@@ -874,6 +1067,26 @@ router.put('/:id', authMiddleware, async (req, res) => {
         }
       }
       await replaceGameOfficials(client, id, officialIds);
+    }
+
+    if (hasPrepTasks) {
+      const tasks = Array.isArray(prep_task_type_ids)
+        ? prep_task_type_ids.map((tid) => ({ task_type_id: Number(tid) })).filter((t) => Number.isFinite(t.task_type_id))
+        : [];
+      if (tasks.length) {
+        const effectiveHomeTeamId = home_team_id || game.home_team_id;
+        const prepAllowed = await canAssignPrepForTeam(client, effectiveHomeTeamId);
+        if (!prepAllowed) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Field prep is not enabled for the home organization' });
+        }
+      }
+      await replaceGamePrepTasks(client, id, tasks);
+    }
+
+    if (hasPrepAssignments) {
+      // Only valid if game_prep_tasks exist; replaceGamePrepAssignments filters by current tasks.
+      await replaceGamePrepAssignments(client, id, Array.isArray(prep_assignments) ? prep_assignments : []);
     }
 
     await client.query('COMMIT');

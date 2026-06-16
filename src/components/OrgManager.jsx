@@ -281,6 +281,7 @@ function OrgForm({ org, onDone, onCancel }) {
     state: org?.state || '', zip: org?.zip || '', notes: org?.notes || '',
     latitude: org?.latitude ?? '', longitude: org?.longitude ?? '',
     officials_enabled: !!org?.officials_enabled,
+    field_prep_enabled: !!org?.field_prep_enabled,
     scheduling_contact_is_org_contact: !!org?.scheduling_contact_is_org_contact,
   });
 
@@ -406,6 +407,20 @@ function OrgForm({ org, onDone, onCancel }) {
             <div>
               <p className="text-sm font-semibold text-gray-200">Enable Officials For This Organization</p>
               <p className="text-xs text-gray-400">When enabled, game forms can assign officials to games for this org.</p>
+            </div>
+          </label>
+
+          <label className="flex items-start gap-2 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="field_prep_enabled"
+              checked={!!form.field_prep_enabled}
+              onChange={handleChange}
+              className="mt-0.5"
+            />
+            <div>
+              <p className="text-sm font-semibold text-gray-200">Enable Field Prep For This Organization</p>
+              <p className="text-xs text-gray-400">When enabled, game forms can mark fields as needing prep and assign paid prep crew (e.g. lining, dragging).</p>
             </div>
           </label>
 

@@ -15,6 +15,7 @@ const DEFAULT_FEATURES = {
     feature_push_notifications: true,
     feature_game_delete: false,
     feature_chat: true,
+    feature_field_prep: true,
 };
 
 export function useBranding(isAuthenticated) {

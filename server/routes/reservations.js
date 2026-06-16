@@ -45,11 +45,13 @@ router.get('/', async (req, res) => {
     const { rows: games } = await pool.query(
       `SELECT g.id AS game_id, g.game_date, g.game_time, g.status, g.game_duration_minutes,
               g.home_team_id, g.away_team_id,
+              g.prep_required,
               ht.name AS home_team_name, at.name AS away_team_name,
               ht.age_group AS home_team_age_group, ht.level AS home_team_level,
               at.age_group AS away_team_age_group, at.level AS away_team_level,
               hag.ump_required AS home_ump_required,
-              goa.official_names
+              goa.official_names,
+              gpt.prep_assigned_staff_names, gpt.prep_task_count, gpt.prep_assignment_count
        FROM games g
        JOIN teams ht ON ht.id = g.home_team_id
        JOIN teams at ON at.id = g.away_team_id
@@ -60,6 +62,16 @@ router.get('/', async (req, res) => {
          JOIN officials o ON o.id = go.official_id
          WHERE go.game_id = g.id
        ) goa ON true
+       LEFT JOIN LATERAL (
+         SELECT
+           COUNT(DISTINCT gpt2.task_type_id)::int AS prep_task_count,
+           COUNT(DISTINCT gpta2.staff_id)::int AS prep_assignment_count,
+           COALESCE(array_agg(DISTINCT fps.name) FILTER (WHERE fps.id IS NOT NULL), ARRAY[]::TEXT[]) AS prep_assigned_staff_names
+         FROM game_prep_tasks gpt2
+         LEFT JOIN game_prep_task_assignments gpta2 ON gpta2.game_id = gpt2.game_id AND gpta2.task_type_id = gpt2.task_type_id
+         LEFT JOIN field_prep_staff fps ON fps.id = gpta2.staff_id
+         WHERE gpt2.game_id = g.id
+       ) gpt ON true
        WHERE g.location_id = $1
          AND g.game_date >= $2 AND g.game_date <= $3
          AND g.status IN ('scheduled', 'in_progress')
@@ -103,6 +115,10 @@ router.get('/', async (req, res) => {
         away_team_level: g.away_team_level,
         home_ump_required: g.home_ump_required === null || g.home_ump_required === undefined ? null : !!g.home_ump_required,
         official_names: g.official_names || [],
+        prep_required: g.prep_required === null || g.prep_required === undefined ? true : !!g.prep_required,
+        prep_assigned_staff_names: g.prep_assigned_staff_names || [],
+        prep_task_count: Number(g.prep_task_count || 0),
+        prep_assignment_count: Number(g.prep_assignment_count || 0),
         title: `${g.home_team_name} vs ${g.away_team_name}`,
         event_type: 'game_hold',
         event_date: g.game_date,

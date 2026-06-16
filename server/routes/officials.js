@@ -488,6 +488,8 @@ router.get('/:id/detail', authMiddleware, async (req, res) => {
 
 // ── Official games: all assigned games with fee/payment info ──
 router.get('/:id/games', authMiddleware, async (req, res) => {
+  // Payment data must reflect latest writes; bypass the default 60s GET cache.
+  res.set('Cache-Control', 'no-store');
   try {
     const { id } = req.params;
 
@@ -656,12 +658,25 @@ router.put('/:id/games/:gameId/payment', authMiddleware, async (req, res) => {
     if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
 
     params.push(Number(gameId), Number(id));
-    await pool.query(
-      `UPDATE game_official_assignments SET ${updates.join(', ')} WHERE game_id = $${params.length - 1} AND official_id = $${params.length}`,
+    const { rows: updated } = await pool.query(
+      `UPDATE game_official_assignments SET ${updates.join(', ')}
+         WHERE game_id = $${params.length - 1} AND official_id = $${params.length}
+         RETURNING game_id, official_id, game_fee, is_paid, paid_at, no_show`,
       params
     );
 
-    res.json({ success: true });
+    const row = updated[0] || null;
+    res.json({
+      success: true,
+      assignment: row ? {
+        game_id: row.game_id,
+        official_id: row.official_id,
+        game_fee: row.game_fee != null ? Number(row.game_fee) : null,
+        is_paid: !!row.is_paid,
+        paid_at: row.paid_at,
+        no_show: !!row.no_show,
+      } : null,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

@@ -404,6 +404,41 @@ body {
 .lh-input::placeholder { color: #64748b; }
 .lh-textarea { height: auto; min-height: 88px; padding: 10px 12px; resize: vertical; }
 
+/* Native date/time picker icon — Chromium's default indicator is near-black and
+   invisible on our dark inputs. We render a custom light-gray calendar SVG via
+   background-image and make the native indicator transparent (so its click-area
+   still opens the picker). color-scheme: dark also makes the popup itself dark. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"],
+input[type="week"] {
+  color-scheme: dark;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px 16px;
+  padding-right: 36px !important;
+}
+input[type="time"] {
+  /* clock glyph */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>");
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator,
+input[type="week"]::-webkit-calendar-picker-indicator {
+  /* Hide the native glyph but keep its click-area covering the right side
+     of the field so the picker still opens on click. */
+  opacity: 0;
+  cursor: pointer;
+  position: absolute;
+  right: 0;
+  width: 36px;
+  height: 100%;
+}
+
 /* ═══════════════════════════════════════════════════════
    Component Classes — Semantic Typography
    ═══════════════════════════════════════════════════════ */
