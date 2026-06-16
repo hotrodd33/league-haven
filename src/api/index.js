@@ -785,6 +785,12 @@ export async function bulkMarkPaid(entries) {
   });
 }
 
+// ── Admin utilities (super_admin only) ──
+
+export async function clearServerCache() {
+  return apiFetch('/admin/clear-cache', { method: 'POST' });
+}
+
 // ── Prep Task Types (config) ──
 
 export async function fetchPrepTaskTypes() {
