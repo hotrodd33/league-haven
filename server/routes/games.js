@@ -241,6 +241,7 @@ const SLIM_SELECT = `
     fl.latitude AS location_lat, fl.longitude AS location_lon,
     fl.org_id AS location_org_id,
     gd.division_name, gd.division_sort,
+    goa.official_ids,
     goa.official_names,
     gpt_slim.prep_assigned_staff_names,
     gpt_slim.prep_task_count,
