@@ -4,7 +4,7 @@ import { STALE } from '../lib/queryConfig.js';
 import { formatPhone } from '../utils/formatPhone.js';
 import { needsScoreEntry, isGameToday } from '../utils/games.js';
 import {
-  fetchGames, createGame, updateGame, deleteGame,
+  fetchGames, fetchGame, createGame, updateGame, deleteGame,
   fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
   fetchOrganizations, fetchAssignableOfficials,
   fetchGameInterests, expressGameInterest, removeGameInterest,
@@ -421,7 +421,26 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   }
 
   function handleScheduleIt(game) {
-    setEditing(game);
+    openEditForm(game);
+  }
+
+  // Open the edit form with FULL game data. The schedule list uses a slim shape
+  // that omits prep_tasks/prep_assignments and (historically) official_ids — so
+  // initializing the form straight from the list row would wipe those collections
+  // on save. Fetch the full game first, then mount the form so its useState
+  // initializer sees the complete shape.
+  async function openEditForm(game) {
+    if (!game?.id) {
+      setEditing(game);
+      setShowForm(true);
+      return;
+    }
+    try {
+      const full = await fetchGame(game.id);
+      setEditing(full?.id ? full : game);
+    } catch {
+      setEditing(game); // fallback — at least top-level fields editable
+    }
     setShowForm(true);
   }
 
@@ -921,7 +940,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                                 <Button size="xs" variant="danger" onClick={() => handleScheduleIt(game)}>Schedule It!</Button>
                               )}
                               {game.status !== 'unscheduled' && (
-                                <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
+                                <Button size="xs" variant="secondary" onClick={() => openEditForm(game)}>Edit</Button>
                               )}
                               {canShowDelete(game) && (
                                 <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Del'}</Button>
@@ -1061,7 +1080,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                               <Button size="xs" variant="danger" onClick={() => handleScheduleIt(game)}>Schedule It!</Button>
                             )}
                             {game.status !== 'unscheduled' && (
-                              <Button size="xs" variant="secondary" onClick={() => { setEditing(game); setShowForm(true); }}>Edit</Button>
+                              <Button size="xs" variant="secondary" onClick={() => openEditForm(game)}>Edit</Button>
                             )}
                             {canShowDelete(game) && (
                               <Button size="xs" variant="danger" onClick={() => handleDelete(game)} disabled={deleting === game.id}>{deleting === game.id ? '…' : 'Delete'}</Button>
