@@ -1039,7 +1039,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         away_score = $10,
         innings_played = $11,
         notes = ${hasNotes ? '$12' : 'COALESCE($12, notes)'},
-        prep_required = ${hasPrepRequired ? '$13' : 'prep_required'},
+        prep_required = ${hasPrepRequired ? '$13' : 'COALESCE($13, prep_required)'},
         updated_at = NOW()
        WHERE id = $14`,
       [season_id, home_team_id, away_team_id, location_id ?? null,
