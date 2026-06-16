@@ -678,7 +678,11 @@ export async function fetchOfficialDetail(id) {
 }
 
 export async function fetchOfficialGames(id) {
-  return apiFetch(`/officials/${id}/games`);
+  // Cache-buster + no-store so payment state is always fresh after writes
+  // (Vercel's per-lambda cache and the default GET Cache-Control would otherwise stale-serve).
+  return apiFetch(`/officials/${id}/games?_=${Date.now()}`, {
+    headers: { 'Cache-Control': 'no-store' },
+  });
 }
 
 export async function updateOfficialGamePayment(officialId, gameId, data) {

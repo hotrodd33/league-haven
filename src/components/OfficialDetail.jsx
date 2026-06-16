@@ -78,43 +78,57 @@ export default function OfficialDetail({ officialId, onBack }) {
     ? (isSuperAdmin || (official.org_ids?.length && official.org_ids.some(oid => canEditOrg(oid))))
     : false;
 
-  async function handleTogglePaid(game) {
+  // Optimistic patch: flip a single game's fields locally, then PUT, then reconcile.
+  async function patchGame(game, fields) {
     setUpdatingGame(game.game_id);
+    setGamesData(prev => ({
+      ...prev,
+      games: (prev.games || []).map(g =>
+        g.game_id === game.game_id ? { ...g, ...fields } : g
+      ),
+    }));
     try {
-      await updateOfficialGamePayment(officialId, game.game_id, { is_paid: !game.is_paid });
+      const resp = await updateOfficialGamePayment(officialId, game.game_id, fields);
+      if (resp?.assignment) {
+        const a = resp.assignment;
+        setGamesData(prev => ({
+          ...prev,
+          games: (prev.games || []).map(g =>
+            g.game_id === a.game_id
+              ? { ...g,
+                  game_fee: a.game_fee != null ? Number(a.game_fee) : g.game_fee,
+                  is_paid: !!a.is_paid,
+                  paid_at: a.paid_at,
+                  no_show: !!a.no_show,
+                  effective_fee: a.game_fee != null ? Number(a.game_fee) : g.effective_fee,
+                }
+              : g
+          ),
+        }));
+      }
+      // Refresh summary totals (default rate, total earned/paid/due) from authoritative source.
       const gd = await fetchOfficialGames(officialId);
       setGamesData(gd);
     } catch (err) {
+      // Roll back optimistic update on failure.
+      const gd = await fetchOfficialGames(officialId).catch(() => null);
+      if (gd) setGamesData(gd);
       alert(`Failed to update: ${err.message}`);
     } finally {
       setUpdatingGame(null);
     }
   }
 
-  async function handleToggleNoShow(game) {
-    setUpdatingGame(game.game_id);
-    try {
-      await updateOfficialGamePayment(officialId, game.game_id, { no_show: !game.no_show });
-      const gd = await fetchOfficialGames(officialId);
-      setGamesData(gd);
-    } catch (err) {
-      alert(`Failed to update: ${err.message}`);
-    } finally {
-      setUpdatingGame(null);
-    }
+  function handleTogglePaid(game) {
+    return patchGame(game, { is_paid: !game.is_paid });
   }
 
-  async function handleFeeChange(game, newFee) {
-    setUpdatingGame(game.game_id);
-    try {
-      await updateOfficialGamePayment(officialId, game.game_id, { game_fee: newFee });
-      const gd = await fetchOfficialGames(officialId);
-      setGamesData(gd);
-    } catch (err) {
-      alert(`Failed to update fee: ${err.message}`);
-    } finally {
-      setUpdatingGame(null);
-    }
+  function handleToggleNoShow(game) {
+    return patchGame(game, { no_show: !game.no_show });
+  }
+
+  function handleFeeChange(game, newFee) {
+    return patchGame(game, { game_fee: newFee });
   }
 
   async function handleAssign(gameId) {
