@@ -171,8 +171,10 @@ export default function OfficialDetail({ officialId, onBack }) {
   if (!official) return <div className="py-8 text-center text-gray-400">Official not found</div>;
 
   const { games, summary } = gamesData;
-  const completedGames = games.filter(g => g.status === 'completed');
-  const upcomingGames = games.filter(g => g.status !== 'completed');
+  // Owed math (and Completed tab) follows server's is_owed_complete: past or completed AND not cancelled.
+  // Cancelled games still appear in the Completed tab so history is preserved, but contribute $0.
+  const completedGames = games.filter(g => g.is_owed_complete || g.status === 'cancelled');
+  const upcomingGames = games.filter(g => !g.is_owed_complete && g.status !== 'cancelled');
 
   const tabCounts = {
     upcoming: upcomingGames.length,
