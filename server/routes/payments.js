@@ -103,7 +103,7 @@ router.get('/', authMiddleware, requireRole('super_admin', 'accountant', 'org_ad
            goa.paid_at,
            goa.no_show
          FROM game_official_assignments goa
-         JOIN games g ON g.id = goa.game_id AND g.deleted_at IS NULL
+         JOIN games g ON g.id = goa.game_id AND g.deleted_at IS NULL AND g.status != 'cancelled'
          JOIN teams ht ON ht.id = g.home_team_id
          JOIN teams at_t ON at_t.id = g.away_team_id
          LEFT JOIN organizations org ON org.id = ht.org_id
