@@ -817,6 +817,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTou
                               <TrophyIcon className="w-3 h-3" />
                               {game.tournament_name}
                             </button>
+                          )}
                           {officialsFeatureEnabled && !game.officials?.length && (
                             game.home_ump_required === false
                               ? <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-gray-700/60 text-gray-400 italic" title="No umpire needed for this age group">No Ump</span>
