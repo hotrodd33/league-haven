@@ -1242,4 +1242,3 @@ async function ensureReady() {
 }
 
 module.exports = { pool, ensureReady };
-module.exports = { pool, ensureReady };
