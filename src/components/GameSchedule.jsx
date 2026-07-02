@@ -20,9 +20,10 @@ import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { PracticeCard, PracticeEditModal } from './TeamSchedule.jsx';
+import { FieldForm } from './FieldsPage.jsx';
 
 import { DARK_STATUS_COLORS } from '../constants/statusClasses.js';
-import { Button, Modal } from './ui/index.js';
+import { Button, Input, Modal } from './ui/index.js';
 import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, PlusIcon, ChevronLeftIcon, TrophyIcon } from './ui/icons.jsx';
 
 // Compact chip label: "10U" + "AA" → "10AA", "12U" alone → "12U", division_name as-is.
@@ -48,6 +49,78 @@ function stripAgeLevel(name, ageGroup, level) {
     if (n.endsWith(suffix)) n = n.slice(0, -suffix.length).trim();
   }
   return n || name;
+}
+
+// --- Time / recurrence helpers used by the inline GameForm below ---
+function toMinutes(hhmm) {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return (h * 60) + m;
+}
+
+function toHHMM(totalMinutes) {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function buildTimeSlots(startTime, endTime, increment) {
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) return [];
+  const step = Number(increment) || 30;
+  const slots = [];
+  for (let cur = start; cur <= end; cur += step) {
+    slots.push(toHHMM(cur));
+  }
+  return slots;
+}
+
+const DURATION_OPTIONS = (() => {
+  const opts = [];
+  for (let m = 60; m <= 720; m += 15) {
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    const label = min === 0 ? `${h} hr${h !== 1 ? 's' : ''}` : `${h}:${String(min).padStart(2, '0')}`;
+    opts.push({ value: m, label });
+  }
+  return opts;
+})();
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCount) {
+  if (recurType === 'none') return [startDate];
+  const dates = [];
+  const limit = recurType === 'count' ? Number(recurCount) : 365;
+  let cur = startDate;
+  while (dates.length < limit) {
+    const dow = new Date(cur + 'T00:00:00').getDay();
+    if (recurDays.includes(dow)) dates.push(cur);
+    cur = addDays(cur, 1);
+    if (recurType === 'until' && cur > recurEndDate) break;
+    if (cur > addDays(startDate, 365)) break;
+  }
+  return dates;
+}
+
+function AddFieldModal({ homeOrgId, onDone, onCancel }) {
+  const [orgs, setOrgs] = useState([]);
+  const [ageGroups, setAgeGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    Promise.all([fetchOrganizations(), fetchAgeGroups()])
+      .then(([o, ag]) => { setOrgs(o); setAgeGroups(ag); })
+      .finally(() => setLoading(false));
+  }, []);
+  if (loading) return <Modal open onClose={onCancel} title="Add Field Location" size="lg"><div className="p-6 text-center text-gray-400">Loading...</div></Modal>;
+  const editableOrgIds = new Set(orgs.map(o => o.id));
+  return (
+    <FieldForm orgId={homeOrgId} editableOrgIds={editableOrgIds} orgs={orgs} ageGroups={ageGroups} onDone={onDone} onCancel={onCancel} />
+  );
 }
 
 export const STATUS_OPTIONS = [
