@@ -10,8 +10,11 @@ import {
   fetchStatDefinitions, createStatDefinition, updateStatDefinition, deleteStatDefinition,
   fetchFeatureToggles, updateFeatureToggles,
   fetchVolunteerRoles, createVolunteerRole, updateVolunteerRole, deleteVolunteerRole,
+  fetchPrepTaskTypes, createPrepTaskType, updatePrepTaskType, deletePrepTaskType,
 } from '../api/index.js';
 import { Button, Badge } from './ui/index.js';
+import { useBranding } from '../hooks/useBranding.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function LeagueConfig({ onBack }) {
   const [tab, setTab] = useState('age_groups');
@@ -39,6 +42,7 @@ export default function LeagueConfig({ onBack }) {
         <button className={tabCls('divisions')} onClick={() => setTab('divisions')}>Divisions</button>
         <button className={tabCls('stats')} onClick={() => setTab('stats')}>Stats</button>
         <button className={tabCls('volunteers')} onClick={() => setTab('volunteers')}>Volunteer Roles</button>
+        <button className={tabCls('field_prep')} onClick={() => setTab('field_prep')}>Field Prep</button>
       </div>
       {tab === 'branding' && <BrandingConfig />}
       {tab === 'features' && <FeatureTogglesConfig />}
@@ -61,6 +65,7 @@ export default function LeagueConfig({ onBack }) {
           updateItem={updateVolunteerRole} deleteItem={deleteVolunteerRole}
         />
       )}
+      {tab === 'field_prep' && <PrepTaskTypeConfig />}
     </div>
   );
 }
@@ -327,6 +332,7 @@ const FEATURE_DEFS = [
   { key: 'feature_push_notifications', label: 'Push Notifications', desc: 'Browser push notifications for schedule changes and announcements' },
   { key: 'feature_game_delete',       label: 'Allow Game Deletion', desc: 'When off, only super-admins can delete games. Turn on to let org-admins and team managers delete games for their own teams.' },
   { key: 'feature_chat',              label: 'Team Chat',            desc: 'In-app messaging for team channels and direct messages between members.' },
+  { key: 'feature_field_prep',        label: 'Field Prep Crew',      desc: 'Per-task crew assignments (lining, dragging, etc.) with pay tracking. Enable on each org separately to use it on games.' },
 ];
 
 function FeatureTogglesConfig() {
@@ -407,6 +413,7 @@ function SchedulingConfig() {
     game_start_time: '08:00',
     game_end_time: '20:00',
     game_time_increment_minutes: 30,
+    default_game_duration_minutes: 150,
   });
 
   const load = useCallback(async () => {
@@ -418,6 +425,7 @@ function SchedulingConfig() {
         game_start_time: data?.game_start_time || '08:00',
         game_end_time: data?.game_end_time || '20:00',
         game_time_increment_minutes: Number(data?.game_time_increment_minutes) || 30,
+        default_game_duration_minutes: Number(data?.default_game_duration_minutes) || 150,
       });
     } catch (err) {
       setError(err.message);
@@ -437,11 +445,13 @@ function SchedulingConfig() {
         game_start_time: form.game_start_time,
         game_end_time: form.game_end_time,
         game_time_increment_minutes: Number(form.game_time_increment_minutes),
+        default_game_duration_minutes: Number(form.default_game_duration_minutes),
       });
       setForm({
         game_start_time: updated?.game_start_time || form.game_start_time,
         game_end_time: updated?.game_end_time || form.game_end_time,
         game_time_increment_minutes: Number(updated?.game_time_increment_minutes) || Number(form.game_time_increment_minutes),
+        default_game_duration_minutes: Number(updated?.default_game_duration_minutes) || Number(form.default_game_duration_minutes),
       });
     } catch (err) {
       setError(err.message);
@@ -494,6 +504,24 @@ function SchedulingConfig() {
                 <option key={n} value={n}>{n} min</option>
               ))}
             </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="lh-eyebrow block mb-1">Default Game Length</label>
+            <select
+              value={form.default_game_duration_minutes}
+              onChange={(e) => setForm((prev) => ({ ...prev, default_game_duration_minutes: Number(e.target.value) }))}
+              className="lh-select"
+            >
+              {[60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 240].map((n) => (
+                <option key={n} value={n}>
+                  {Math.floor(n / 60)}h {n % 60 ? `${n % 60}m` : ''} ({n} min)
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Pre-fills duration when scheduling a new game.</p>
           </div>
         </div>
 
@@ -643,7 +671,88 @@ function SeasonList() {
 }
 
 // ── Age Group Config with Umpire Rate ──
+const DEFAULT_THRESHOLDS = [
+  { min: 56, days: 3 },
+  { min: 41, days: 2 },
+  { min: 21, days: 1 },
+  { min: 1,  days: 0 },
+];
+
+function PitchRuleEditor({ dailyLimit, setDailyLimit, thresholds, setThresholds, maxConsec, setMaxConsec }) {
+  function updateRow(i, field, value) {
+    const next = thresholds.slice();
+    next[i] = { ...next[i], [field]: value };
+    setThresholds(next);
+  }
+  function removeRow(i) {
+    setThresholds(thresholds.filter((_, idx) => idx !== i));
+  }
+  function addRow() {
+    setThresholds([...thresholds, { min: '', days: '' }]);
+  }
+  function applyDefault() {
+    setDailyLimit('50');
+    setThresholds(DEFAULT_THRESHOLDS.map(t => ({ ...t })));
+    setMaxConsec('2');
+  }
+  function clearAll() {
+    setDailyLimit('');
+    setThresholds([]);
+    setMaxConsec('2');
+  }
+
+  return (
+    <div className="mt-2 p-3 bg-gray-900 border border-gray-700 rounded">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-semibold text-gray-300 uppercase tracking-wide">Pitch Count Rules</h4>
+        <div className="flex gap-1">
+          <button type="button" onClick={applyDefault} className="text-xs px-2 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-200">Default</button>
+          <button type="button" onClick={clearAll} className="text-xs px-2 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-200">Clear</button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 mb-3">
+        <label className="flex flex-col text-xs text-gray-400">
+          <span>Daily limit (pitches)</span>
+          <input type="number" min="0" step="1" value={dailyLimit} onChange={e => setDailyLimit(e.target.value)}
+                 placeholder="—" className="w-28 lh-input mt-1" />
+        </label>
+        <label className="flex flex-col text-xs text-gray-400">
+          <span>Max consecutive days</span>
+          <input type="number" min="1" max="7" step="1" value={maxConsec} onChange={e => setMaxConsec(e.target.value)}
+                 className="w-28 lh-input mt-1" />
+        </label>
+      </div>
+
+      <div className="text-xs text-gray-400 mb-1">Rest day thresholds <span className="text-gray-500">(min pitches → required rest days)</span></div>
+      {thresholds.length === 0 ? (
+        <div className="text-xs text-gray-500 italic py-2">No thresholds defined — no rest enforcement.</div>
+      ) : (
+        <div className="space-y-1">
+          {thresholds.map((t, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input type="number" min="0" step="1" value={t.min} onChange={e => updateRow(i, 'min', e.target.value)}
+                     placeholder="min" className="w-20 lh-input" />
+              <span className="text-gray-500 text-xs">→</span>
+              <input type="number" min="0" max="30" step="1" value={t.days} onChange={e => updateRow(i, 'days', e.target.value)}
+                     placeholder="days" className="w-20 lh-input" />
+              <span className="text-xs text-gray-500">rest day{Number(t.days) !== 1 ? 's' : ''}</span>
+              <button type="button" onClick={() => removeRow(i)}
+                      className="ml-auto text-xs px-2 py-0.5 rounded bg-red-900/40 hover:bg-red-900/70 text-red-200">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <button type="button" onClick={addRow}
+              className="mt-2 text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-200">+ Add threshold</button>
+    </div>
+  );
+}
+
 function AgeGroupConfig() {
+  const { isAuthenticated } = useAuth();
+  const { features } = useBranding(isAuthenticated);
+  const officialsFeatureEnabled = features.feature_officials !== false;
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -651,6 +760,9 @@ function AgeGroupConfig() {
   const [newRate, setNewRate] = useState('50');
   const [newLeagueFee, setNewLeagueFee] = useState('');
   const [newUmpRequired, setNewUmpRequired] = useState(true);
+  const [newDailyLimit, setNewDailyLimit] = useState('');
+  const [newThresholds, setNewThresholds] = useState([]);
+  const [newMaxConsec, setNewMaxConsec] = useState('2');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
@@ -658,6 +770,9 @@ function AgeGroupConfig() {
   const [editRate, setEditRate] = useState('50');
   const [editLeagueFee, setEditLeagueFee] = useState('');
   const [editUmpRequired, setEditUmpRequired] = useState(true);
+  const [editDailyLimit, setEditDailyLimit] = useState('');
+  const [editThresholds, setEditThresholds] = useState([]);
+  const [editMaxConsec, setEditMaxConsec] = useState('2');
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -670,16 +785,36 @@ function AgeGroupConfig() {
 
   useEffect(() => { load(); }, [load]);
 
+  function buildPitchPayload(dailyLimit, thresholds, maxConsec) {
+    return {
+      daily_pitch_limit: dailyLimit !== '' ? Number(dailyLimit) : null,
+      rest_thresholds: thresholds
+        .map(t => ({ min: Number(t.min), days: Number(t.days) }))
+        .filter(t => Number.isFinite(t.min) && Number.isFinite(t.days)),
+      max_consecutive_days: maxConsec !== '' ? Number(maxConsec) : 2,
+    };
+  }
+
   async function handleAdd(e) {
     e.preventDefault();
     if (!newName.trim()) return;
     setAdding(true); setError(null);
     try {
-      await createAgeGroup({ name: newName.trim(), sort_order: items.length, umpire_rate: newUmpRequired ? (Number(newRate) || 50) : 0, ump_required: newUmpRequired, league_fee: newLeagueFee !== '' ? Number(newLeagueFee) : null });
+      await createAgeGroup({
+        name: newName.trim(),
+        sort_order: items.length,
+        umpire_rate: newUmpRequired ? (Number(newRate) || 50) : 0,
+        ump_required: newUmpRequired,
+        league_fee: newLeagueFee !== '' ? Number(newLeagueFee) : null,
+        ...buildPitchPayload(newDailyLimit, newThresholds, newMaxConsec),
+      });
       setNewName('');
       setNewRate('50');
       setNewLeagueFee('');
       setNewUmpRequired(true);
+      setNewDailyLimit('');
+      setNewThresholds([]);
+      setNewMaxConsec('2');
       await load();
     } catch (err) { setError(err.message); }
     finally { setAdding(false); }
@@ -692,13 +827,25 @@ function AgeGroupConfig() {
     setEditRate(String(item.umpire_rate ?? 50));
     setEditLeagueFee(item.league_fee != null ? String(item.league_fee) : '');
     setEditUmpRequired(item.ump_required !== false);
+    setEditDailyLimit(item.daily_pitch_limit != null ? String(item.daily_pitch_limit) : '');
+    setEditThresholds(Array.isArray(item.rest_thresholds)
+      ? item.rest_thresholds.map(t => ({ min: t.min, days: t.days }))
+      : []);
+    setEditMaxConsec(String(item.max_consecutive_days ?? 2));
   }
 
   async function handleSaveEdit() {
     if (!editName.trim()) return;
     setSavingEdit(true); setError(null);
     try {
-      await updateAgeGroup(editingId, { name: editName.trim(), sort_order: editOrder, umpire_rate: editUmpRequired ? (Number(editRate) || 50) : 0, ump_required: editUmpRequired, league_fee: editLeagueFee !== '' ? Number(editLeagueFee) : null });
+      await updateAgeGroup(editingId, {
+        name: editName.trim(),
+        sort_order: editOrder,
+        umpire_rate: editUmpRequired ? (Number(editRate) || 50) : 0,
+        ump_required: editUmpRequired,
+        league_fee: editLeagueFee !== '' ? Number(editLeagueFee) : null,
+        ...buildPitchPayload(editDailyLimit, editThresholds, editMaxConsec),
+      });
       setEditingId(null);
       await load();
     } catch (err) { setError(err.message); }
@@ -722,35 +869,44 @@ function AgeGroupConfig() {
       {error && <div className="lh-alert lh-alert-error mb-3">{error}</div>}
 
       {/* Add form */}
-      <form onSubmit={handleAdd} className="flex flex-wrap gap-2 mb-4 items-center">
-        <input
-          type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
-          placeholder="e.g. 8U, 10U, 12U, 14U" className="flex-1 min-w-[120px] lh-input"
-        />
-        {newUmpRequired && (
+      <form onSubmit={handleAdd} className="mb-4">
+        <div className="flex flex-wrap gap-2 items-center">
+          <input
+            type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
+            placeholder="e.g. 8U, 10U, 12U, 14U" className="flex-1 min-w-[120px] lh-input"
+          />
+          {officialsFeatureEnabled && newUmpRequired && (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-gray-400">Ump $</span>
+              <input
+                type="number" min="0" step="0.01" value={newRate} onChange={(e) => setNewRate(e.target.value)}
+                placeholder="50" className="w-20 lh-input" title="Umpire rate per game"
+              />
+            </div>
+          )}
           <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-400">Ump $</span>
+            <span className="text-xs text-gray-400">Fee $</span>
             <input
-              type="number" min="0" step="0.01" value={newRate} onChange={(e) => setNewRate(e.target.value)}
-              placeholder="50" className="w-20 lh-input" title="Umpire rate per game"
+              type="number" min="0" step="0.01" value={newLeagueFee} onChange={(e) => setNewLeagueFee(e.target.value)}
+              placeholder="—" className="w-20 lh-input" title="League registration fee"
             />
           </div>
-        )}
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-gray-400">Fee $</span>
-          <input
-            type="number" min="0" step="0.01" value={newLeagueFee} onChange={(e) => setNewLeagueFee(e.target.value)}
-            placeholder="—" className="w-20 lh-input" title="League registration fee"
-          />
+          {officialsFeatureEnabled && (
+          <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
+            <input type="checkbox" checked={newUmpRequired} onChange={(e) => setNewUmpRequired(e.target.checked)}
+              className="rounded border-gray-600" />
+            Ump Required
+          </label>
+          )}
+          <Button type="submit" disabled={adding || !newName.trim()} loading={adding}>
+            {adding ? '…' : '+ Add'}
+          </Button>
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
-          <input type="checkbox" checked={newUmpRequired} onChange={(e) => setNewUmpRequired(e.target.checked)}
-            className="rounded border-gray-600" />
-          Ump Required
-        </label>
-        <Button type="submit" disabled={adding || !newName.trim()} loading={adding}>
-          {adding ? '…' : '+ Add'}
-        </Button>
+        <PitchRuleEditor
+          dailyLimit={newDailyLimit} setDailyLimit={setNewDailyLimit}
+          thresholds={newThresholds} setThresholds={setNewThresholds}
+          maxConsec={newMaxConsec} setMaxConsec={setNewMaxConsec}
+        />
       </form>
 
       {items.length === 0 ? (
@@ -760,7 +916,8 @@ function AgeGroupConfig() {
           {items.map((item) => (
             <div key={item.id} className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-3">
               {editingId === item.id ? (
-                <div className="flex-1 flex flex-col sm:flex-row gap-2">
+                <div className="flex-1 flex flex-col gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
                     className="flex-1 lh-input" autoFocus
@@ -773,7 +930,7 @@ function AgeGroupConfig() {
                       className="w-20 lh-input"
                     />
                   </div>
-                  {editUmpRequired && (
+                  {officialsFeatureEnabled && editUmpRequired && (
                     <div className="flex items-center gap-2">
                       <label className="text-xs text-gray-400 whitespace-nowrap">Ump $:</label>
                       <input
@@ -789,11 +946,13 @@ function AgeGroupConfig() {
                       placeholder="—" className="w-24 lh-input"
                     />
                   </div>
+                  {officialsFeatureEnabled && (
                   <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer whitespace-nowrap">
                     <input type="checkbox" checked={editUmpRequired} onChange={(e) => setEditUmpRequired(e.target.checked)}
                       className="rounded border-gray-600" />
                     Ump Required
                   </label>
+                  )}
                   <div className="flex gap-1">
                     <Button size="xs" onClick={handleSaveEdit} disabled={savingEdit} loading={savingEdit}>
                       {savingEdit ? '…' : 'Save'}
@@ -802,13 +961,19 @@ function AgeGroupConfig() {
                       Cancel
                     </Button>
                   </div>
+                  </div>
+                  <PitchRuleEditor
+                    dailyLimit={editDailyLimit} setDailyLimit={setEditDailyLimit}
+                    thresholds={editThresholds} setThresholds={setEditThresholds}
+                    maxConsec={editMaxConsec} setMaxConsec={setEditMaxConsec}
+                  />
                 </div>
               ) : (
                 <>
                   <div className="flex-1 flex items-center gap-2">
                     <span className="font-semibold text-sm">{item.name}</span>
                     <span className="text-xs text-gray-400">#{item.sort_order ?? 0}</span>
-                    {item.ump_required !== false && (
+                    {officialsFeatureEnabled && item.ump_required !== false && (
                       <Badge variant="success">
                         Ump ${Number(item.umpire_rate ?? 50).toFixed(2)}/game
                       </Badge>
@@ -818,10 +983,19 @@ function AgeGroupConfig() {
                         Fee ${Number(item.league_fee).toFixed(2)}
                       </Badge>
                     )}
-                    {item.ump_required === false ? (
+                    {officialsFeatureEnabled && (item.ump_required === false ? (
                       <Badge variant="neutral">No Ump</Badge>
                     ) : (
                       <Badge variant="success">Ump Required</Badge>
+                    ))}
+                    {item.daily_pitch_limit != null && (
+                      <span title={
+                        Array.isArray(item.rest_thresholds) && item.rest_thresholds.length
+                          ? `Rest: ${item.rest_thresholds.map(t => `${t.min}+→${t.days}d`).join(', ')}`
+                          : 'No rest thresholds'
+                      }>
+                        <Badge variant="info">{item.daily_pitch_limit} pitch/day</Badge>
+                      </span>
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -1400,6 +1574,152 @@ function StatDefinitionsConfig() {
       {!defs.length && !showForm && (
         <p className="text-sm text-gray-500 py-4 text-center">No stat definitions yet. Click "Add Stat" to create one.</p>
       )}
+    </div>
+  );
+}
+
+function PrepTaskTypeConfig() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ name: '', default_rate: '', sort_order: 0, active: true });
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetchPrepTaskTypes()
+      .then(setItems)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function startAdd() {
+    setEditingId(null);
+    setForm({ name: '', default_rate: '', sort_order: items.length, active: true });
+    setShowForm(true);
+  }
+  function startEdit(item) {
+    setEditingId(item.id);
+    setForm({ name: item.name, default_rate: item.default_rate, sort_order: item.sort_order, active: item.active });
+    setShowForm(true);
+  }
+  function cancelForm() { setShowForm(false); setEditingId(null); }
+
+  async function save(e) {
+    e.preventDefault();
+    setError(null);
+    const payload = {
+      name: form.name.trim(),
+      default_rate: Number(form.default_rate),
+      sort_order: Number(form.sort_order) || 0,
+      active: !!form.active,
+    };
+    if (!payload.name) return setError('Name is required');
+    if (!Number.isFinite(payload.default_rate) || payload.default_rate < 0) return setError('Default rate must be a non-negative number');
+    try {
+      let updated;
+      if (editingId) {
+        updated = await updatePrepTaskType(editingId, payload);
+      } else {
+        updated = await createPrepTaskType(payload);
+      }
+      // Server cache is in-process per Vercel lambda — a re-fetch may hit a different
+      // instance with stale data. Patch state from the write response instead.
+      setItems(prev => {
+        if (editingId) {
+          return prev.map(it => it.id === editingId ? { ...it, ...updated, default_rate: Number(updated.default_rate) } : it);
+        }
+        const next = [...prev, { ...updated, default_rate: Number(updated.default_rate) }];
+        return next.sort((a, b) => (a.sort_order - b.sort_order) || String(a.name).localeCompare(String(b.name)));
+      });
+      cancelForm();
+    } catch (err) { setError(err.message); }
+  }
+
+  async function remove(id) {
+    if (!window.confirm('Delete this task type? Any historical game assignments using it will be removed.')) return;
+    try {
+      await deletePrepTaskType(id);
+      setItems(prev => prev.filter(it => it.id !== id));
+    }
+    catch (err) { setError(err.message); }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold text-white">Field Prep Task Types</h3>
+        {!showForm && <Button size="sm" onClick={startAdd}>+ Add Task Type</Button>}
+      </div>
+      <p className="text-xs text-gray-400">
+        Define the prep tasks crews can be assigned to on a game-by-game basis (e.g. Lining, Dragging). The default rate is split evenly among everyone assigned to that task on a game, unless a per-person override is set.
+      </p>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      {loading && <p className="text-sm text-gray-400">Loading…</p>}
+
+      {showForm && (
+        <form onSubmit={save} className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_80px_auto_auto] gap-2 items-end bg-gray-900 border border-gray-700 rounded-lg p-3">
+          <div>
+            <label className="lh-eyebrow block mb-1">Name *</label>
+            <input className="lh-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Lining" autoFocus />
+          </div>
+          <div>
+            <label className="lh-eyebrow block mb-1">Default Rate ($)</label>
+            <input className="lh-input" type="number" min="0" step="0.01" value={form.default_rate} onChange={e => setForm({ ...form, default_rate: e.target.value })} placeholder="20.00" />
+          </div>
+          <div>
+            <label className="lh-eyebrow block mb-1">Sort</label>
+            <input className="lh-input" type="number" value={form.sort_order} onChange={e => setForm({ ...form, sort_order: e.target.value })} />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-200">
+            <input type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} />
+            Active
+          </label>
+          <div className="flex gap-2">
+            <Button type="submit" size="sm">{editingId ? 'Save' : 'Add'}</Button>
+            <Button type="button" size="sm" variant="secondary" onClick={cancelForm}>Cancel</Button>
+          </div>
+        </form>
+      )}
+
+      <div className="border border-gray-700 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-800 text-gray-300">
+            <tr>
+              <th className="px-3 py-2 text-left">Name</th>
+              <th className="px-3 py-2 text-right">Default Rate</th>
+              <th className="px-3 py-2 text-right">Sort</th>
+              <th className="px-3 py-2 text-center">Active</th>
+              <th className="px-3 py-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 && !loading && (
+              <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-500">No prep task types yet.</td></tr>
+            )}
+            {items.map(item => (
+              <tr key={item.id} className="border-t border-gray-700">
+                <td className="px-3 py-2 text-gray-100">{item.name}</td>
+                <td className="px-3 py-2 text-right text-gray-100">${Number(item.default_rate).toFixed(2)}</td>
+                <td className="px-3 py-2 text-right text-gray-400">{item.sort_order}</td>
+                <td className="px-3 py-2 text-center">
+                  {item.active
+                    ? <Badge variant="success">Active</Badge>
+                    : <Badge variant="neutral">Inactive</Badge>}
+                </td>
+                <td className="px-3 py-2 text-right space-x-1">
+                  <Button size="xs" variant="secondary" onClick={() => startEdit(item)}>Edit</Button>
+                  <Button size="xs" variant="danger" onClick={() => remove(item.id)}>Delete</Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

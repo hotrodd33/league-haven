@@ -293,6 +293,94 @@ async function migrate() {
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS game_end_time TIME NOT NULL DEFAULT '20:00';`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS game_time_increment_minutes INTEGER NOT NULL DEFAULT 30;`);
   await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'America/Chicago';`);
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS default_game_duration_minutes INTEGER NOT NULL DEFAULT 150;`);
+
+  // Field Prep crew & per-task payment tracking
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_field_prep BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS field_prep_enabled BOOLEAN NOT NULL DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_prep_staff BOOLEAN NOT NULL DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS prep_required BOOLEAN NOT NULL DEFAULT TRUE;`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS prep_task_types (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      default_rate NUMERIC(10, 2) NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    INSERT INTO prep_task_types (name, default_rate, sort_order)
+    VALUES ('Lining', 20.00, 1), ('Dragging', 10.00, 2)
+    ON CONFLICT (name) DO NOTHING;
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS field_prep_staff (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT,
+      phone TEXT,
+      venmo_id TEXT,
+      default_rate_override NUMERIC(10, 2),
+      notes TEXT,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS prep_staff_organizations (
+      staff_id INTEGER NOT NULL REFERENCES field_prep_staff(id) ON DELETE CASCADE,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      PRIMARY KEY (staff_id, org_id)
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS prep_staff_task_eligibility (
+      staff_id INTEGER NOT NULL REFERENCES field_prep_staff(id) ON DELETE CASCADE,
+      task_type_id INTEGER NOT NULL REFERENCES prep_task_types(id) ON DELETE CASCADE,
+      PRIMARY KEY (staff_id, task_type_id)
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS game_prep_tasks (
+      game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      task_type_id INTEGER NOT NULL REFERENCES prep_task_types(id) ON DELETE CASCADE,
+      rate NUMERIC(10, 2) NOT NULL,
+      added_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (game_id, task_type_id)
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS game_prep_task_assignments (
+      game_id INTEGER NOT NULL,
+      task_type_id INTEGER NOT NULL,
+      staff_id INTEGER NOT NULL REFERENCES field_prep_staff(id) ON DELETE CASCADE,
+      added_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      paid_at TIMESTAMPTZ,
+      is_paid BOOLEAN NOT NULL DEFAULT FALSE,
+      no_show BOOLEAN NOT NULL DEFAULT FALSE,
+      fee_override NUMERIC(10, 2),
+      PRIMARY KEY (game_id, task_type_id, staff_id),
+      FOREIGN KEY (game_id, task_type_id) REFERENCES game_prep_tasks(game_id, task_type_id) ON DELETE CASCADE
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS prep_staff_game_interests (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      interested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, game_id)
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_game_prep_tasks_game ON game_prep_tasks(game_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_game_prep_task_assignments_staff ON game_prep_task_assignments(staff_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_game_prep_task_assignments_game ON game_prep_task_assignments(game_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_prep_staff_game_interests_user ON prep_staff_game_interests(user_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_prep_staff_game_interests_game ON prep_staff_game_interests(game_id);`);
 
   // Add parent_id to league_divisions if missing (hierarchy support)
   await pool.query(`
@@ -714,6 +802,28 @@ async function migrate() {
 
   // ── League fee per age group ──
   await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS league_fee NUMERIC(10, 2);`);
+
+  // ── Per-age-group pitch count rules ──
+  await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS daily_pitch_limit INTEGER;`);
+  await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS rest_thresholds JSONB;`);
+  await pool.query(`ALTER TABLE league_age_groups ADD COLUMN IF NOT EXISTS max_consecutive_days INTEGER NOT NULL DEFAULT 2;`);
+  // Seed historical defaults (only if not yet customised). Pattern matches existing 8U–15U names.
+  await pool.query(`
+    UPDATE league_age_groups
+       SET daily_pitch_limit = 50,
+           rest_thresholds   = '[{"min":56,"days":3},{"min":41,"days":2},{"min":21,"days":1},{"min":1,"days":0}]'::jsonb
+     WHERE daily_pitch_limit IS NULL
+       AND rest_thresholds   IS NULL
+       AND LOWER(REGEXP_REPLACE(name, '\\s+', '', 'g')) IN ('8u','9u','10u','11u','12u');
+  `);
+  await pool.query(`
+    UPDATE league_age_groups
+       SET daily_pitch_limit = 65,
+           rest_thresholds   = '[{"min":61,"days":3},{"min":41,"days":2},{"min":26,"days":1},{"min":1,"days":0}]'::jsonb
+     WHERE daily_pitch_limit IS NULL
+       AND rest_thresholds   IS NULL
+       AND LOWER(REGEXP_REPLACE(name, '\\s+', '', 'g')) IN ('13u','14u','15u','14/15u');
+  `);
 
   // ── Official ↔ Organization many-to-many ──
   await pool.query(`

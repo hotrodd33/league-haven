@@ -7,6 +7,7 @@ import {
   fetchWeather, fetchWeatherForecast,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useBranding } from '../hooks/useBranding.js';
 import TeamLogo from './TeamLogo.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import BoxScoreView from './BoxScoreView.jsx';
@@ -35,7 +36,9 @@ function formatTime(timeStr) {
 }
 
 export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImport, onViewPlayer }) {
-  const { isAdmin, canEditTeam, canScoreGame, permissions } = useAuth();
+  const { isAdmin, canEditTeam, canScoreGame, isAuthenticated, permissions } = useAuth();
+  const { features } = useBranding(isAuthenticated);
+  const officialsFeatureEnabled = features.feature_officials !== false;
   const [game, setGame] = useState(null);
   useGameHeartbeat(gameId, game?.status === 'in_progress');
   const [pitchCounts, setPitchCounts] = useState([]);
@@ -400,9 +403,18 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
           </div>
         )}
 
-        {!!game.official_names?.length && (
+        {officialsFeatureEnabled && !!game.official_names?.length && (
           <div className="text-xs text-gray-400 text-center mt-1">
             {game.official_names.length === 1 ? 'Umpire:' : 'Umpires:'} {game.official_names.join(', ')}
+          </div>
+        )}
+        {(features.feature_field_prep !== false) && game.prep_required !== false && Number(game.prep_tasks?.length || 0) > 0 && (
+          <div className="text-xs text-gray-400 text-center mt-1">
+            {(() => {
+              const names = (game.prep_assigned_staff_names || []).filter(Boolean);
+              if (!names.length) return <>Prep Crew: <span className="text-amber-300">unassigned</span></>;
+              return <>Prep Crew: <span className="text-action-300">{names.join(', ')}</span></>;
+            })()}
           </div>
         )}
         {game.notes && <div className="text-xs text-gray-400 italic text-center mt-1">{game.notes}</div>}

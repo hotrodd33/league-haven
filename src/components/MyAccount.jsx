@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchMe, fetchNotificationPrefs, updateNotificationPrefs, sendTestPush, fetchMyClaims, submitGuardianClaim, withdrawGuardianClaim } from '../api/index.js';
+import { fetchMe, fetchNotificationPrefs, updateNotificationPrefs, sendTestPush, fetchMyClaims, submitGuardianClaim, withdrawGuardianClaim, clearServerCache } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { UserIcon, UsersIcon, BuildingIcon, CogIcon, BellIcon } from './ui/icons.jsx';
 import { usePushNotifications } from '../hooks/usePushNotifications.js';
@@ -279,14 +279,70 @@ export default function MyAccount({ onChangePassword }) {
       )}
 
       {isSuperAdmin && (
-        <p className="text-sm text-gray-500 text-center">
-          Super Admins have access to all organizations and teams.
-        </p>
+        <>
+          <p className="text-sm text-gray-500 text-center">
+            Super Admins have access to all organizations and teams.
+          </p>
+          <SuperAdminTools />
+        </>
       )}
 
       {/* Guardian Claims section */}
       {isGuardian && <GuardianClaimsSection />}
     </div>
+  );
+}
+
+function SuperAdminTools() {
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  async function handleClearCache() {
+    if (!window.confirm('Clear all caches and reload? Server cache, React Query cache, and browser caches will be wiped, then this page will reload.')) return;
+    setBusy(true); setMsg(null);
+    try {
+      // 1) Server in-memory cache
+      await clearServerCache();
+      // 2) React Query client cache
+      queryClient.clear();
+      // 3) Browser CacheStorage (service worker / PWA caches)
+      if (typeof caches !== 'undefined' && caches.keys) {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        } catch { /* not fatal */ }
+      }
+      setMsg('Caches cleared. Reloading…');
+      // Tiny delay so the message paints, then hard reload (browser revalidates HTTP cache).
+      setTimeout(() => window.location.reload(), 400);
+    } catch (err) {
+      setMsg(`Failed: ${err.message}`);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card variant="bordered">
+      <CardHeader>
+        <h3 className="text-base font-bold text-gray-100">Super Admin Tools</h3>
+      </CardHeader>
+      <CardBody className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <p className="text-sm text-gray-200 font-medium">Clear All Caches</p>
+            <p className="text-xs text-gray-400">
+              Wipes server in-memory cache, React Query cache, and browser caches, then reloads.
+              Use this when changes don't seem to take effect.
+            </p>
+          </div>
+          <Button variant="warn" onClick={handleClearCache} disabled={busy}>
+            {busy ? 'Clearing…' : 'Clear Cache'}
+          </Button>
+        </div>
+        {msg && <p className="text-xs text-gray-300">{msg}</p>}
+      </CardBody>
+    </Card>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   fetchReservations, createReservation, updateReservation, deleteReservation,
   fetchTeams, fetchSeasons, createGame,
@@ -6,7 +6,10 @@ import {
   checkGameConflicts,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useBranding } from '../hooks/useBranding.js';
 import { Button, Input, Select, Modal } from './ui';
+import GameDetail from './GameDetail.jsx';
+import './FieldCalendar.print.css';
 
 const EVENT_COLORS = {
   game_hold: { bg: 'bg-signal-900/40', border: 'border-signal-500', text: 'text-signal-300', dot: 'bg-signal-500' },
@@ -21,6 +24,28 @@ const EVENT_LABELS = {
   event: 'Event',
   maintenance: 'Maintenance',
 };
+
+// Short single-letter codes for the calendar chip (colorblind-friendly cue)
+const EVENT_ABBR = {
+  game_hold: 'G',
+  practice: 'P',
+  event: 'E',
+  maintenance: 'M',
+};
+
+// Color palette assigned per field in combined view (Outlook-style)
+const FIELD_COLORS = [
+  { bg: 'bg-blue-900/40', border: 'border-blue-500', text: 'text-blue-300', dot: 'bg-blue-500' },
+  { bg: 'bg-emerald-900/40', border: 'border-emerald-500', text: 'text-emerald-300', dot: 'bg-emerald-500' },
+  { bg: 'bg-rose-900/40', border: 'border-rose-500', text: 'text-rose-300', dot: 'bg-rose-500' },
+  { bg: 'bg-amber-900/40', border: 'border-amber-500', text: 'text-amber-300', dot: 'bg-amber-500' },
+  { bg: 'bg-purple-900/40', border: 'border-purple-500', text: 'text-purple-300', dot: 'bg-purple-500' },
+  { bg: 'bg-cyan-900/40', border: 'border-cyan-500', text: 'text-cyan-300', dot: 'bg-cyan-500' },
+  { bg: 'bg-pink-900/40', border: 'border-pink-500', text: 'text-pink-300', dot: 'bg-pink-500' },
+  { bg: 'bg-indigo-900/40', border: 'border-indigo-500', text: 'text-indigo-300', dot: 'bg-indigo-500' },
+  { bg: 'bg-teal-900/40', border: 'border-teal-500', text: 'text-teal-300', dot: 'bg-teal-500' },
+  { bg: 'bg-orange-900/40', border: 'border-orange-500', text: 'text-orange-300', dot: 'bg-orange-500' },
+];
 
 const DURATION_OPTIONS = (() => {
   const opts = [];
@@ -38,6 +63,33 @@ function formatTime(t) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+// Compact time used in day-cell chips: "6P", "6:30P", "12A"
+function formatTimeChip(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const ap = h >= 12 ? 'P' : 'A';
+  const h12 = h % 12 || 12;
+  return m === 0 ? `${h12}${ap}` : `${h12}:${String(m).padStart(2, '0')}${ap}`;
+}
+
+// Short field code for colorblind accessibility in combined view.
+// Uses up to 3 initials of multi-word names, else first 3 letters.
+function fieldAbbrev(name) {
+  if (!name) return '';
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return words.slice(0, 3).map(w => w[0].toUpperCase()).join('');
+  }
+  return String(name).slice(0, 3).toUpperCase();
+}
+
+// Build a short level/age label from a team's stored attributes
+// (preferred over parsing the display name). Combines age_group + level
+// when both exist, e.g. "12U AAA"; falls back gracefully.
+function teamLevelLabel(ageGroup, level) {
+  return [ageGroup, level].filter(Boolean).map(s => String(s).trim()).join(' ').trim();
 }
 
 function toMinutes(hhmm) {
@@ -100,9 +152,34 @@ function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCou
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
-export default function FieldCalendar({ field, onClose, onViewGame }) {
-  const { canEditOrg } = useAuth();
-  const editable = canEditOrg(field.org_id);
+export default function FieldCalendar({ field, fields, onClose, onViewGame }) {
+  const { canEditOrg, isAuthenticated } = useAuth();
+  const { features } = useBranding(isAuthenticated);
+  const officialsFeatureEnabled = features.feature_officials !== false;
+  const prepFeatureEnabled = features.feature_field_prep !== false;
+
+  // Normalize to an array of fields. `field` (single) is the legacy/primary mode.
+  const fieldsArr = useMemo(() => {
+    if (fields && fields.length) return fields;
+    if (field) return [field];
+    return [];
+  }, [fields, field]);
+  const isMulti = fieldsArr.length > 1;
+  const primaryField = fieldsArr[0] || null;
+  const editable = primaryField ? canEditOrg(primaryField.org_id) : false;
+
+  // Stable color per field
+  const fieldColorMap = useMemo(() => {
+    const m = {};
+    fieldsArr.forEach((f, i) => { m[f.id] = FIELD_COLORS[i % FIELD_COLORS.length]; });
+    return m;
+  }, [fieldsArr]);
+  const fieldsById = useMemo(() => {
+    const m = {};
+    fieldsArr.forEach(f => { m[f.id] = f; });
+    return m;
+  }, [fieldsArr]);
+
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -111,26 +188,53 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [editingField, setEditingField] = useState(null); // field context for the form
   const [deleting, setDeleting] = useState(null);
   const [teams, setTeams] = useState([]);
   const [view, setView] = useState('month'); // 'month' | 'list'
+  const [viewingGameId, setViewingGameId] = useState(null); // in-modal game viewer
+
+  // Filter state: which calendars/types/teams are visible
+  const [visibleFieldIds, setVisibleFieldIds] = useState(() => new Set(fieldsArr.map(f => f.id)));
+  const [visibleTypes, setVisibleTypes] = useState(() => new Set(Object.keys(EVENT_LABELS)));
+  // null = "all teams (including no-team)". A Set means explicit selection.
+  const [visibleTeamIds, setVisibleTeamIds] = useState(null);
+  const [showFilters, setShowFilters] = useState(true);
+
+  // Keep visibleFieldIds in sync when caller adds/removes fields
+  useEffect(() => {
+    setVisibleFieldIds(prev => {
+      const next = new Set();
+      fieldsArr.forEach(f => { next.add(f.id); });
+      // Preserve any user-driven exclusions by intersecting with prev IF prev had fewer
+      // (Simpler: if prev is non-empty and ⊆ current, keep prev; else default to all)
+      if (prev.size && [...prev].every(id => next.has(id))) return prev;
+      return next;
+    });
+  }, [fieldsArr]);
 
   const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
   const toDate = new Date(year, month + 1, 0);
   const to = `${toDate.getFullYear()}-${String(toDate.getMonth() + 1).padStart(2, '0')}-${String(toDate.getDate()).padStart(2, '0')}`;
 
   const load = useCallback(async () => {
+    if (!fieldsArr.length) { setEvents([]); setLoading(false); return; }
     setLoading(true);
     try {
-      const [res, teamList] = await Promise.all([
-        fetchReservations(field.id, from, to),
+      const promises = [
         teams.length ? Promise.resolve(teams) : fetchTeams(),
-      ]);
-      setEvents(res);
+        ...fieldsArr.map(f => fetchReservations(f.id, from, to).catch(err => {
+          console.error(`Failed to load reservations for field ${f.id}`, err);
+          return [];
+        })),
+      ];
+      const [teamList, ...resultsPerField] = await Promise.all(promises);
+      const merged = resultsPerField.flat();
+      setEvents(merged);
       if (!teams.length) setTeams(teamList);
     } catch (err) { console.error('Failed to load reservations', err); }
     finally { setLoading(false); }
-  }, [field.id, from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fieldsArr, from, to]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
 
@@ -152,40 +256,155 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
     finally { setDeleting(null); }
   }
 
+  // Fields the current user can schedule into (used for the create flow's field picker)
+  const editableFields = useMemo(
+    () => fieldsArr.filter(f => canEditOrg(f.org_id)),
+    [fieldsArr, canEditOrg]
+  );
+  const canCreate = editableFields.length > 0;
+
+  function openEdit(ev) {
+    const f = fieldsById[ev.location_id] || primaryField;
+    setEditingField(f);
+    setEditing(ev);
+    setShowForm(true);
+  }
+  function openCreate() {
+    // Default to primary field if it's editable, else first editable field
+    const def = (primaryField && canEditOrg(primaryField.org_id)) ? primaryField : editableFields[0];
+    setEditingField(def || null);
+    setEditing(null);
+    setShowForm(true);
+  }
+
+  // ── Filter options & application ──────────────────────────────────────────
+  // Only allow filtering by teams that belong to one of the organizations
+  // that owns a field currently in view (visibleFieldIds). Falls back to all
+  // orgs of the configured fields when no field info is available.
+  const orgsInView = useMemo(() => {
+    const s = new Set();
+    fieldsArr.forEach(f => { if (visibleFieldIds.has(f.id) && f.org_id != null) s.add(f.org_id); });
+    return s;
+  }, [fieldsArr, visibleFieldIds]);
+
+  const teamOptions = useMemo(() => {
+    // Map of teamId -> team record (with org_id) for org filtering
+    const teamsById = new Map();
+    teams.forEach(t => teamsById.set(t.id, t));
+    const isAllowed = (teamId) => {
+      if (!orgsInView.size) return true;
+      const t = teamsById.get(teamId);
+      if (!t || t.org_id == null) return false;
+      return orgsInView.has(t.org_id);
+    };
+
+    const m = new Map();
+    let hasNone = false;
+    events.forEach(ev => {
+      if (ev.is_game) {
+        if (ev.home_team_id && ev.home_team_name && isAllowed(ev.home_team_id)) m.set(ev.home_team_id, ev.home_team_name);
+        if (ev.away_team_id && ev.away_team_name && isAllowed(ev.away_team_id)) m.set(ev.away_team_id, ev.away_team_name);
+      } else if (ev.team_id && ev.team_name) {
+        if (isAllowed(ev.team_id)) m.set(ev.team_id, ev.team_name);
+      } else {
+        hasNone = true;
+      }
+    });
+    const arr = [...m.entries()].map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (hasNone) arr.push({ id: '__none__', name: '(No team)' });
+    return arr;
+  }, [events, teams, orgsInView]);
+
+  const effectiveTeamIds = visibleTeamIds ?? new Set(teamOptions.map(t => t.id));
+
+  const filteredEvents = useMemo(() => events.filter(ev => {
+    if (!visibleFieldIds.has(ev.location_id)) return false;
+    if (!visibleTypes.has(ev.event_type)) return false;
+    // Team filter: game holds match if either home or away team is visible;
+    // other events match by their single team_id (or '__none__').
+    if (ev.is_game) {
+      const ids = ev.team_ids && ev.team_ids.length
+        ? ev.team_ids
+        : [ev.home_team_id, ev.away_team_id].filter(Boolean);
+      if (ids.length === 0) {
+        if (!effectiveTeamIds.has('__none__')) return false;
+      } else if (!ids.some(id => effectiveTeamIds.has(id))) {
+        return false;
+      }
+    } else {
+      const tid = ev.team_id || '__none__';
+      if (!effectiveTeamIds.has(tid)) return false;
+    }
+    return true;
+  }), [events, visibleFieldIds, visibleTypes, effectiveTeamIds]);
+
   // Group events by date
   const eventsByDate = {};
-  events.forEach(ev => {
+  filteredEvents.forEach(ev => {
     const d = typeof ev.event_date === 'string' ? ev.event_date.slice(0, 10) : ev.event_date;
     if (!eventsByDate[d]) eventsByDate[d] = [];
     eventsByDate[d].push(ev);
   });
-
-  // Sort events within each date by start_time
   Object.values(eventsByDate).forEach(arr => arr.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')));
 
   const monthDays = getMonthDays(year, month);
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
-  // All upcoming events sorted for list view
-  const upcomingEvents = [...events]
+  const upcomingEvents = [...filteredEvents]
     .sort((a, b) => (a.event_date + a.start_time).localeCompare(b.event_date + b.start_time));
 
+  // Color resolver: per-field color in multi mode, per-type color in single mode
+  function colorFor(ev) {
+    if (isMulti) {
+      return fieldColorMap[ev.location_id] || EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
+    }
+    return EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
+  }
+
+  // Toggle helpers
+  function toggleSetItem(setter, key) {
+    setter(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+  function toggleTeam(id) {
+    setVisibleTeamIds(prev => {
+      const base = prev ?? new Set(teamOptions.map(t => t.id));
+      const next = new Set(base);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  const headerTitle = isMulti
+    ? `Combined Calendar · ${fieldsArr.length} fields`
+    : (primaryField?.name || 'Field Calendar');
+  const headerSub = isMulti
+    ? fieldsArr.map(f => f.name).join(', ')
+    : (primaryField ? [primaryField.address, primaryField.city, primaryField.state].filter(Boolean).join(', ') : '');
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl my-4 text-gray-200 flex flex-col max-h-[90vh]">
+    <div className="fc-print-root fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className={`fc-print-panel bg-gray-800 rounded-xl shadow-xl w-full ${isMulti ? 'max-w-6xl' : 'max-w-3xl'} my-4 text-gray-200 flex flex-col max-h-[90vh]`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0">
-          <div>
-            <h2 className="text-xl font-display font-bold text-white">{field.name}</h2>
-            <p className="text-xs text-gray-400">{[field.address, field.city, field.state].filter(Boolean).join(', ')}</p>
+        <div className="fc-print-header flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0">
+          <div className="min-w-0">
+            <h2 className="text-xl font-display font-bold text-white truncate">{headerTitle}</h2>
+            <p className="text-xs text-gray-400 truncate">{headerSub}</p>
           </div>
-          <div className="flex items-center gap-2">
-            {editable && (
-              <Button onClick={() => { setEditing(null); setShowForm(true); }}>
+          <div className="fc-print-hide flex items-center gap-2 shrink-0">
+            {canCreate && (
+              <Button onClick={openCreate}>
                 + Schedule
               </Button>
             )}
-            <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+            <Button variant="secondary" onClick={() => window.print()} title="Print this view">
+              Print
+            </Button>
+            <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg" aria-label="Close">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -194,8 +413,8 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
         </div>
 
         {/* View toggle + month nav */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700 shrink-0">
-          <div className="flex items-center gap-1">
+        <div className="fc-print-month-bar flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-gray-700 shrink-0">
+          <div className="fc-print-hide flex items-center gap-1">
             <button onClick={() => setView('month')}
               className={`lh-tab ${view === 'month' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
               Calendar
@@ -204,36 +423,59 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
               className={`lh-tab ${view === 'list' ? 'lh-tab-active' : 'lh-tab-inactive'}`}>
               List
             </button>
+            <button onClick={() => setShowFilters(s => !s)}
+              className={`lh-tab ${showFilters ? 'lh-tab-active' : 'lh-tab-inactive'}`}
+              title="Toggle filter panel">
+              {showFilters ? 'Hide Filters' : 'Filters'}
+            </button>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={prevMonth} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+            <button onClick={prevMonth} className="fc-print-hide p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <button onClick={goToday} className="px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 rounded">Today</button>
-            <span className="text-sm font-semibold text-white min-w-[140px] text-center">{MONTH_NAMES[month]} {year}</span>
-            <button onClick={nextMonth} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+            <button onClick={goToday} className="fc-print-hide px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 rounded">Today</button>
+            <span className="fc-print-month-label text-sm font-semibold text-white min-w-[140px] text-center">{MONTH_NAMES[month]} {year}</span>
+            <button onClick={nextMonth} className="fc-print-hide p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </button>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        {/* Body: filter sidebar (when shown) + main content */}
+        <div className="fc-print-body flex-1 overflow-y-auto flex flex-col lg:flex-row">
+          {showFilters && (
+            <FilterPanel
+              fieldsArr={fieldsArr}
+              fieldColorMap={fieldColorMap}
+              visibleFieldIds={visibleFieldIds}
+              onToggleField={(id) => toggleSetItem(setVisibleFieldIds, id)}
+              onSetAllFields={(all) => setVisibleFieldIds(all ? new Set(fieldsArr.map(f => f.id)) : new Set())}
+              visibleTypes={visibleTypes}
+              onToggleType={(t) => toggleSetItem(setVisibleTypes, t)}
+              onSetAllTypes={(all) => setVisibleTypes(all ? new Set(Object.keys(EVENT_LABELS)) : new Set())}
+              teamOptions={teamOptions}
+              effectiveTeamIds={effectiveTeamIds}
+              onToggleTeam={toggleTeam}
+              onSetAllTeams={(all) => setVisibleTeamIds(all ? new Set(teamOptions.map(t => t.id)) : new Set())}
+            />
+          )}
+
+          <div className="fc-print-content flex-1 px-5 py-4 min-w-0">
           {loading ? (
             <div className="py-12 text-center text-gray-400">Loading…</div>
           ) : view === 'month' ? (
             /* Month calendar grid */
             <div>
               {/* Day headers */}
-              <div className="grid grid-cols-7 gap-px mb-1">
+              <div className="fc-print-grid-header grid grid-cols-7 gap-px mb-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                   <div key={d} className="text-center text-[10px] font-bold uppercase text-gray-500 py-1">{d}</div>
                 ))}
               </div>
               {/* Day cells */}
-              <div className="grid grid-cols-7 gap-px">
+              <div className="fc-print-grid grid grid-cols-7 gap-px">
                 {monthDays.map((day, i) => {
-                  if (day === null) return <div key={`pad-${i}`} className="min-h-[70px]" />;
+                  if (day === null) return <div key={`pad-${i}`} className="fc-print-day min-h-[70px]" />;
                   const dk = dateKey(year, month, day);
                   const dayEvents = eventsByDate[dk] || [];
                   const isToday = dk === todayKey;
@@ -241,22 +483,56 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
                   return (
                     <button key={dk} type="button"
                       onClick={() => setSelectedDate(isSelected ? null : dk)}
-                      className={`min-h-[70px] p-1 text-left rounded transition-colors
+                      className={`fc-print-day min-h-[70px] p-1 text-left rounded transition-colors
                         ${isToday ? 'ring-1 ring-chrome-500' : ''}
                         ${isSelected ? 'bg-gray-700' : 'hover:bg-gray-700/50'}
                       `}>
-                      <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
+                      <div className={`fc-print-day-num text-xs font-semibold mb-0.5 ${isToday ? 'text-chrome-400' : 'text-gray-300'}`}>{day}</div>
                       <div className="space-y-0.5">
-                        {dayEvents.slice(0, 3).map((ev, j) => {
-                          const c = EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
+                        {dayEvents.map((ev, j) => {
+                          const c = colorFor(ev);
+                          const evField = fieldsById[ev.location_id];
+                          const abbr = EVENT_ABBR[ev.event_type] || '?';
+                          const fAbbr = isMulti ? fieldAbbrev(evField?.name) : '';
+                          const teamInfo = ev.is_game
+                            ? [ev.home_team_name, ev.away_team_name].filter(Boolean).join(' vs ')
+                            : (ev.team_name || '');
+                          // Compact level shown on the chip (scannable);
+                          // full team names remain in the tooltip.
+                          const chipLevel = ev.is_game
+                            ? (teamLevelLabel(ev.home_team_age_group, ev.home_team_level)
+                                || teamLevelLabel(ev.away_team_age_group, ev.away_team_level))
+                            : teamLevelLabel(ev.team_age_group, ev.team_level);
+                          // Umpire info (games only)
+                          const umps = ev.is_game ? (ev.official_names || []) : [];
+                          const umpRequired = ev.is_game ? ev.home_ump_required !== false : true;
+                          const umpChipText = !ev.is_game || !officialsFeatureEnabled ? null
+                            : !umpRequired ? 'No Ump'
+                            : umps.length ? umps[0].split(' ').slice(-1)[0]
+                            : 'unassigned';
+                          const umpTooltip = !ev.is_game || !officialsFeatureEnabled ? null
+                            : !umpRequired ? 'No umpire needed for this age group'
+                            : umps.length ? `Umpire(s): ${umps.join(', ')}`
+                            : 'Umpire: unassigned';
+                          const tooltip = [
+                            `${formatTime(ev.start_time)}–${formatTime(ev.end_time)} — ${ev.title}`,
+                            evField?.name && `Field: ${evField.name}`,
+                            EVENT_LABELS[ev.event_type] && `Type: ${EVENT_LABELS[ev.event_type]}`,
+                            teamInfo && `Team: ${teamInfo}`,
+                            umpTooltip,
+                            ev.notes,
+                          ].filter(Boolean).join('\n');
+                          const isOverflow = j >= 3;
                           return (
-                            <div key={ev.id || j} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
-                              {formatTime(ev.start_time)} {ev.title}
+                            <div key={ev.id || j} title={tooltip}
+                              className={`fc-print-event-chip ${isOverflow ? 'fc-print-only' : ''} text-[9px] leading-tight truncate rounded px-1 py-0.5 ${c.bg} ${c.text}`}>
+                              {fAbbr && <span className="font-bold mr-0.5">[{fAbbr}]</span>}
+                              {formatTimeChip(ev.start_time)} ({abbr}){chipLevel ? ` ${chipLevel}` : ''}{umpChipText ? ` · ${umpChipText}` : ''}
                             </div>
                           );
                         })}
                         {dayEvents.length > 3 && (
-                          <div className="text-[9px] text-gray-400">+{dayEvents.length - 3} more</div>
+                          <div className="fc-print-event-chip-overflow fc-print-hide text-[9px] text-gray-400">+{dayEvents.length - 3} more</div>
                         )}
                       </div>
                     </button>
@@ -266,13 +542,13 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
 
               {/* Selected date detail */}
               {selectedDate && (
-                <div className="mt-4 border-t border-gray-700 pt-4">
+                <div className="fc-print-selected-day mt-4 border-t border-gray-700 pt-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-bold text-white">
                       {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                     </h3>
-                    {editable && (
-                      <button onClick={() => { setEditing(null); setShowForm(true); }}
+                    {canCreate && (
+                      <button onClick={openCreate}
                         className="btn btn-xs btn-primary">
                         + Schedule
                       </button>
@@ -282,13 +558,21 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
                     <p className="text-sm text-gray-400">No events scheduled.</p>
                   ) : (
                     <div className="space-y-2">
-                      {(eventsByDate[selectedDate] || []).map(ev => (
-                        <EventCard key={ev.id} ev={ev} editable={editable && !ev.is_game}
-                          onEdit={() => { setEditing(ev); setShowForm(true); }}
-                          onDelete={() => handleDelete(ev)}
-                          onViewGame={onViewGame}
-                          deleting={deleting} />
-                      ))}
+                      {(eventsByDate[selectedDate] || []).map(ev => {
+                        const evField = fieldsById[ev.location_id];
+                        const canEditEv = evField ? canEditOrg(evField.org_id) : editable;
+                        return (
+                          <EventCard key={ev.id} ev={ev} editable={canEditEv && !ev.is_game}
+                            color={colorFor(ev)}
+                            fieldName={isMulti ? (evField?.name) : null}
+                            onEdit={() => openEdit(ev)}
+                            onDelete={() => handleDelete(ev)}
+                            onViewGame={(id) => setViewingGameId(id)}
+                            officialsFeatureEnabled={officialsFeatureEnabled}
+                            prepFeatureEnabled={prepFeatureEnabled}
+                            deleting={deleting} />
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -300,65 +584,245 @@ export default function FieldCalendar({ field, onClose, onViewGame }) {
               {upcomingEvents.length === 0 ? (
                 <p className="py-8 text-center text-gray-400">No upcoming events.</p>
               ) : (
-                <div className="space-y-2">
-                  {upcomingEvents.map(ev => (
-                    <EventCard key={ev.id} ev={ev} editable={editable && !ev.is_game} showDate
-                      onEdit={() => { setEditing(ev); setShowForm(true); }}
-                      onDelete={() => handleDelete(ev)}
-                      onViewGame={onViewGame}
-                      deleting={deleting} />
-                  ))}
-                </div>
+                <>
+                  <div className="space-y-2">
+                    {upcomingEvents.map(ev => {
+                      const evField = fieldsById[ev.location_id];
+                      const canEditEv = evField ? canEditOrg(evField.org_id) : editable;
+                      return (
+                        <EventCard key={ev.id} ev={ev} editable={canEditEv && !ev.is_game} showDate
+                          color={colorFor(ev)}
+                          fieldName={isMulti ? (evField?.name) : null}
+                          onEdit={() => openEdit(ev)}
+                          onDelete={() => handleDelete(ev)}
+                          onViewGame={(id) => setViewingGameId(id)}
+                          officialsFeatureEnabled={officialsFeatureEnabled}
+                          prepFeatureEnabled={prepFeatureEnabled}
+                          deleting={deleting} />
+                      );
+                    })}
+                  </div>
+                  {/* Print-only compact spreadsheet table */}
+                  <table className="fc-print-list-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Field</th>
+                        <th className="fc-print-col-desc">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {upcomingEvents.map(ev => {
+                        const evField = fieldsById[ev.location_id];
+                        const dateStr = new Date(String(ev.event_date).slice(0, 10) + 'T12:00:00')
+                          .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                        const timeStr = `${formatTime(ev.start_time)} – ${formatTime(ev.end_time)}`;
+                        const typeStr = EVENT_LABELS[ev.event_type] || ev.event_type;
+                        const desc = [ev.title, ev.team_name, ev.notes].filter(Boolean).join(' — ');
+                        return (
+                          <tr key={ev.id}>
+                            <td>{dateStr}</td>
+                            <td>{timeStr}</td>
+                            <td>{typeStr}</td>
+                            <td>{evField?.name || ''}</td>
+                            <td className="fc-print-col-desc">{desc}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </>
               )}
             </div>
           )}
 
           {/* Legend */}
-          <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-700">
-            {Object.entries(EVENT_LABELS).map(([type, label]) => {
-              const c = EVENT_COLORS[type];
-              return (
-                <div key={type} className="flex items-center gap-1.5 text-xs text-gray-400">
-                  <span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} />
-                  {label}
+          <div className="fc-print-legend flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-700">
+            {isMulti ? (
+              fieldsArr.filter(f => visibleFieldIds.has(f.id)).map(f => (
+                <div key={f.id} className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <span className={`w-2.5 h-2.5 rounded-full ${fieldColorMap[f.id].dot}`} />
+                  <span className="font-bold text-gray-300">[{fieldAbbrev(f.name)}]</span>
+                  {f.name}
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              Object.entries(EVENT_LABELS).map(([type, label]) => {
+                const c = EVENT_COLORS[type];
+                return (
+                  <div key={type} className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} />
+                    {label}
+                  </div>
+                );
+              })
+            )}
+            {isMulti && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 ml-auto">
+                {Object.entries(EVENT_LABELS).map(([type, label]) => (
+                  <span key={type}><span className="font-bold text-gray-300">({EVENT_ABBR[type]})</span> {label}</span>
+                )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, <span key={`sep-${i}`} className="text-gray-600">·</span>, el], [])}
+              </div>
+            )}
+          </div>
           </div>
         </div>
 
-        {showForm && (
+        {showForm && editingField && (
           <ReservationForm
-            field={field}
+            field={editingField}
+            fieldChoices={editing ? null : editableFields}
             reservation={editing}
             teams={teams}
             defaultDate={selectedDate}
-            onDone={() => { setShowForm(false); setEditing(null); load(); }}
-            onCancel={() => { setShowForm(false); setEditing(null); }}
+            onDone={() => { setShowForm(false); setEditing(null); setEditingField(null); load(); }}
+            onCancel={() => { setShowForm(false); setEditing(null); setEditingField(null); }}
           />
         )}
       </div>
+      {/* In-modal game viewer: keeps the calendar/filters intact behind it */}
+      {viewingGameId && (
+        <div className="fc-print-hide fixed inset-0 z-60 bg-black/70 flex items-start justify-center p-2 sm:p-4 overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) setViewingGameId(null); }}>
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-5xl my-4 text-gray-200 flex flex-col max-h-[92vh]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 shrink-0">
+              <h3 className="text-sm font-semibold text-gray-300">Game Details</h3>
+              <button
+                onClick={() => setViewingGameId(null)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
+                aria-label="Close game viewer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <GameDetail
+                gameId={viewingGameId}
+                onBack={() => { setViewingGameId(null); load(); }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function EventCard({ ev, editable, showDate, onEdit, onDelete, onViewGame, deleting }) {
-  const c = EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
+// ── Filter sidebar ──────────────────────────────────────────────────────────
+function FilterPanel({
+  fieldsArr, fieldColorMap, visibleFieldIds, onToggleField, onSetAllFields,
+  visibleTypes, onToggleType, onSetAllTypes,
+  teamOptions, effectiveTeamIds, onToggleTeam, onSetAllTeams,
+}) {
+  return (
+    <aside className="lg:w-56 shrink-0 border-b lg:border-b-0 lg:border-r border-gray-700 bg-gray-900/40 px-4 py-3 space-y-4">
+      {fieldsArr.length > 0 && (
+        <FilterSection
+          title="Calendars"
+          allChecked={fieldsArr.every(f => visibleFieldIds.has(f.id))}
+          onSetAll={onSetAllFields}
+        >
+          {fieldsArr.map(f => (
+            <label key={f.id} className="flex items-center gap-2 text-xs text-gray-200 cursor-pointer py-0.5 hover:text-white">
+              <input
+                type="checkbox"
+                checked={visibleFieldIds.has(f.id)}
+                onChange={() => onToggleField(f.id)}
+                className="rounded border-gray-600 bg-gray-800 text-chrome-500 focus:ring-chrome-500"
+              />
+              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${fieldColorMap[f.id].dot}`} />
+              <span className="truncate">{f.name}</span>
+            </label>
+          ))}
+        </FilterSection>
+      )}
+
+      <FilterSection
+        title="Event Types"
+        allChecked={Object.keys(EVENT_LABELS).every(t => visibleTypes.has(t))}
+        onSetAll={onSetAllTypes}
+      >
+        {Object.entries(EVENT_LABELS).map(([type, label]) => (
+          <label key={type} className="flex items-center gap-2 text-xs text-gray-200 cursor-pointer py-0.5 hover:text-white">
+            <input
+              type="checkbox"
+              checked={visibleTypes.has(type)}
+              onChange={() => onToggleType(type)}
+              className="rounded border-gray-600 bg-gray-800 text-chrome-500 focus:ring-chrome-500"
+            />
+            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${EVENT_COLORS[type].dot}`} />
+            <span>{label}</span>
+          </label>
+        ))}
+      </FilterSection>
+
+      {teamOptions.length > 0 && (
+        <FilterSection
+          title="Teams"
+          allChecked={teamOptions.every(t => effectiveTeamIds.has(t.id))}
+          onSetAll={onSetAllTeams}
+        >
+          <div className="max-h-48 overflow-y-auto pr-1">
+            {teamOptions.map(t => (
+              <label key={t.id} className="flex items-center gap-2 text-xs text-gray-200 cursor-pointer py-0.5 hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={effectiveTeamIds.has(t.id)}
+                  onChange={() => onToggleTeam(t.id)}
+                  className="rounded border-gray-600 bg-gray-800 text-chrome-500 focus:ring-chrome-500"
+                />
+                <span className="truncate">{t.name}</span>
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+      )}
+    </aside>
+  );
+}
+
+function FilterSection({ title, allChecked, onSetAll, children }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <h4 className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{title}</h4>
+        <button
+          type="button"
+          onClick={() => onSetAll(!allChecked)}
+          className="text-[10px] text-chrome-400 hover:text-chrome-300"
+        >
+          {allChecked ? 'None' : 'All'}
+        </button>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function EventCard({ ev, editable, showDate, color, fieldName, onEdit, onDelete, onViewGame, deleting, officialsFeatureEnabled = true, prepFeatureEnabled = true }) {
+  const c = color || EVENT_COLORS[ev.event_type] || EVENT_COLORS.practice;
   const label = EVENT_LABELS[ev.event_type] || ev.event_type;
   const gameClickable = ev.is_game && ev.game_id && onViewGame;
   return (
-    <div className={`rounded-lg border ${c.border} ${c.bg} px-4 py-3 ${gameClickable ? 'cursor-pointer hover:brightness-125 transition-all' : ''}`}
+    <div className={`fc-print-list-card rounded-lg border ${c.border} ${c.bg} px-4 py-3 ${gameClickable ? 'cursor-pointer hover:brightness-125 transition-all' : ''}`}
       onClick={gameClickable ? () => onViewGame(ev.game_id) : undefined}
       role={gameClickable ? 'button' : undefined}
       tabIndex={gameClickable ? 0 : undefined}
       onKeyDown={gameClickable ? (e) => { if (e.key === 'Enter') onViewGame(ev.game_id); } : undefined}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <span className={`text-[10px] font-bold uppercase tracking-wide ${c.text}`}>{label}</span>
+            {fieldName && (
+              <span className="text-[10px] text-gray-300 bg-gray-900/60 px-1.5 py-0.5 rounded">{fieldName}</span>
+            )}
             {showDate && (
               <span className="text-[10px] text-gray-400">
-                {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {new Date(String(ev.event_date).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </span>
             )}
             {gameClickable && (
@@ -370,6 +834,45 @@ function EventCard({ ev, editable, showDate, onEdit, onDelete, onViewGame, delet
             {formatTime(ev.start_time)} – {formatTime(ev.end_time)}
             {ev.team_name && <span className="text-gray-400 ml-2">• {ev.team_name}</span>}
           </div>
+          {ev.is_game && officialsFeatureEnabled && (() => {
+            const umps = ev.official_names || [];
+            const umpRequired = ev.home_ump_required !== false;
+            return (
+              <div className="text-xs mt-0.5">
+                <span className="text-gray-400">Umpire:</span>{' '}
+                {!umpRequired
+                  ? <span className="text-gray-400 italic">No Ump</span>
+                  : umps.length
+                    ? <span className="text-action-300 font-medium">{umps.join(', ')}</span>
+                    : <span className="text-amber-400 italic">unassigned</span>}
+              </div>
+            );
+          })()}
+          {ev.is_game && prepFeatureEnabled && (() => {
+            const prepRequired = ev.prep_required !== false;
+            if (!prepRequired) {
+              return (
+                <div className="text-xs mt-0.5">
+                  <span className="text-gray-400">Prep:</span>{' '}
+                  <span className="text-gray-400 italic">No Prep</span>
+                </div>
+              );
+            }
+            const names = (ev.prep_assigned_staff_names || []).filter(Boolean);
+            const taskCount = Number(ev.prep_task_count || 0);
+            const assignmentCount = Number(ev.prep_assignment_count || 0);
+            if (taskCount === 0) return null;
+            return (
+              <div className="text-xs mt-0.5">
+                <span className="text-gray-400">Prep Crew:</span>{' '}
+                {assignmentCount === 0
+                  ? <span className="text-amber-400 italic">unassigned</span>
+                  : assignmentCount < taskCount
+                    ? <span className="text-amber-300">{names.join(', ') || 'partial'} <span className="text-amber-400/70">(partial)</span></span>
+                    : <span className="text-action-300 font-medium">{names.join(', ')}</span>}
+              </div>
+            );
+          })()}
           {ev.created_by_name && !ev.is_game && (
             <div className="text-[10px] text-gray-500 mt-0.5">
               Booked by {ev.created_by_name}
@@ -384,7 +887,7 @@ function EventCard({ ev, editable, showDate, onEdit, onDelete, onViewGame, delet
           {ev.notes && <div className="text-xs text-gray-400 mt-1">{ev.notes}</div>}
         </div>
         {editable && (
-          <div className="flex gap-1 shrink-0">
+          <div className="fc-print-hide flex gap-1 shrink-0">
             <button onClick={onEdit} className="px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-200 rounded hover:bg-gray-600">Edit</button>
             <button onClick={onDelete} disabled={deleting === ev.id}
               className="btn btn-xs btn-danger">
@@ -397,12 +900,28 @@ function EventCard({ ev, editable, showDate, onEdit, onDelete, onViewGame, delet
   );
 }
 
-function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCancel }) {
+function ReservationForm({ field, fieldChoices, reservation, teams, defaultDate, onDone, onCancel }) {
   const isEditing = !!reservation;
-  const { canScheduleGames } = useAuth();
+  const { canScheduleGames, canEditOrg } = useAuth();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [conflictDetails, setConflictDetails] = useState(null);
+
+  // When creating from combined view, allow the user to pick a field.
+  // When editing, the field is fixed to the reservation's field.
+  const selectableFields = useMemo(() => {
+    if (isEditing) return [];
+    const list = (fieldChoices && fieldChoices.length ? fieldChoices : [field])
+      .filter(Boolean)
+      .filter(f => canEditOrg(f.org_id));
+    return list;
+  }, [fieldChoices, field, isEditing, canEditOrg]);
+  const [activeFieldId, setActiveFieldId] = useState(() => {
+    if (field) return field.id;
+    if (selectableFields.length) return selectableFields[0].id;
+    return null;
+  });
+  const activeField = (selectableFields.find(f => f.id === activeFieldId)) || field;
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const [eventType, setEventType] = useState(reservation?.event_type || 'practice');
@@ -440,7 +959,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
     home_team_id: '',
     away_team_id: '',
     game_time: '',
-    game_duration_minutes: 150,
+    game_duration_minutes: null,
     status: 'scheduled',
   });
   const [seasons, setSeasons] = useState([]);
@@ -449,6 +968,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
     game_start_time: '08:00',
     game_end_time: '20:00',
     game_time_increment_minutes: 30,
+    default_game_duration_minutes: 150,
   });
   const [fieldConflicts, setFieldConflicts] = useState(null);
   const [confirmSave, setConfirmSave] = useState(false);
@@ -469,7 +989,10 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
         game_start_time: settings?.game_start_time || '08:00',
         game_end_time: settings?.game_end_time || '20:00',
         game_time_increment_minutes: Number(settings?.game_time_increment_minutes) || 30,
+        default_game_duration_minutes: Number(settings?.default_game_duration_minutes) || 150,
       });
+      const def = Number(settings?.default_game_duration_minutes) || 150;
+      setGameForm((prev) => prev.game_duration_minutes ? prev : { ...prev, game_duration_minutes: def });
     }).catch(() => {});
   }, [isGame]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -517,10 +1040,10 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
         season_id: gameForm.season_id ? Number(gameForm.season_id) : null,
         home_team_id: Number(gameForm.home_team_id),
         away_team_id: Number(gameForm.away_team_id),
-        location_id: field.id,
+        location_id: activeField.id,
         game_date: form.event_date,
         game_time: gameForm.game_time || null,
-        game_duration_minutes: Number(gameForm.game_duration_minutes) || 150,
+        game_duration_minutes: Number(gameForm.game_duration_minutes) || Number(scheduleSettings.default_game_duration_minutes) || 150,
         status: gameForm.status,
         home_score: null,
         away_score: null,
@@ -532,7 +1055,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
       // Check for field conflicts
       if (data.game_time && !confirmSave) {
         try {
-          const result = await checkGameConflicts(field.id, data.game_date, data.game_time, data.game_duration_minutes);
+          const result = await checkGameConflicts(activeField.id, data.game_date, data.game_time, data.game_duration_minutes);
           if (result.has_conflicts || result.has_warnings) {
             setFieldConflicts(result);
             setSaving(false);
@@ -565,7 +1088,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
     const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
 
     const baseData = {
-      location_id: field.id,
+      location_id: activeField.id,
       team_id: form.team_id ? Number(form.team_id) : null,
       title: form.title.trim(),
       event_type: form.event_type,
@@ -601,7 +1124,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
   }
 
   // Filter teams to those in the field's org
-  const orgTeams = teams.filter(t => t.org_id === field.org_id).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const orgTeams = teams.filter(t => t.org_id === activeField?.org_id).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   // Available event types (game only if user canScheduleGames)
   const eventTypeOptions = [
@@ -614,6 +1137,26 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
   return (
     <Modal open onClose={onCancel} size="md" title={isEditing ? 'Edit Reservation' : isGame ? 'Schedule Game' : 'Book Field Time'}>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Field picker — only when creating from combined view */}
+          {!isEditing && selectableFields.length > 1 && (
+            <Select
+              label="Field *"
+              id="res-field"
+              value={activeFieldId ?? ''}
+              onChange={(e) => {
+                const newId = Number(e.target.value);
+                setActiveFieldId(newId);
+                // Reset team selection since teams are scoped to the field's org
+                setForm(prev => ({ ...prev, team_id: '' }));
+                setGameForm(prev => ({ ...prev, home_team_id: '', away_team_id: '' }));
+              }}
+            >
+              {selectableFields.map(f => (
+                <option key={f.id} value={f.id}>{f.name}{f.org_name ? ` — ${f.org_name}` : ''}</option>
+              ))}
+            </Select>
+          )}
+
           {/* Event type toggle — only on create */}
           {!isEditing && eventTypeOptions.length > 1 && (
             <div>
@@ -707,7 +1250,7 @@ function ReservationForm({ field, reservation, teams, defaultDate, onDone, onCan
               </div>
 
               <div className="bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-400">
-                📍 Location: <span className="text-white font-semibold">{field.name}</span>
+                📍 Location: <span className="text-white font-semibold">{activeField?.name}</span>
               </div>
             </>
           ) : (

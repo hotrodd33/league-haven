@@ -24,6 +24,8 @@ const importRoutes = require('./routes/import');
 const contactRoutes = require('./routes/contact');
 const officialsRoutes = require('./routes/officials');
 const umpireRoutes = require('./routes/umpires');
+const prepStaffRoutes = require('./routes/prep-staff');
+const paymentsRoutes = require('./routes/payments');
 const registrationsRoutes = require('./routes/registrations');
 const reservationsRoutes = require('./routes/reservations');
 const calendarRoutes = require('./routes/calendar');
@@ -40,6 +42,7 @@ const bugReportRoutes = require('./routes/bug-report');
 const guardianClaimsRoutes = require('./routes/guardian-claims');
 const chatRoutes = require('./routes/chat');
 const tournamentsRoutes = require('./routes/tournaments');
+const adminRoutes = require('./routes/admin');
 
 const helmet = require('helmet');
 const compression = require('compression');
@@ -103,6 +106,8 @@ app.use('/api/import', importRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/officials', officialsRoutes);
 app.use('/api/umpires', umpireRoutes);
+app.use('/api/prep-staff', prepStaffRoutes);
+app.use('/api/payments', paymentsRoutes);
 app.use('/api/registrations', registrationsRoutes);
 app.use('/api/reservations', reservationsRoutes);
 app.use('/api/calendar', calendarRoutes);
@@ -119,6 +124,7 @@ app.use('/api/bug-report', bugReportRoutes);
 app.use('/api/guardian-claims', guardianClaimsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/tournaments', tournamentsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ── Serve React build in local dev only (Vercel serves static files itself) ──
 if (!process.env.VERCEL) {

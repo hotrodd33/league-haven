@@ -162,10 +162,12 @@ router.get('/', authMiddleware, async (req, res) => {
        LEFT JOIN users u ON u.id = o.user_id
        LEFT JOIN LATERAL (
          SELECT
-           COUNT(*) FILTER (WHERE g.status != 'completed') AS assigned_games,
-           COUNT(*) FILTER (WHERE g.status = 'completed') AS completed_games,
+           COUNT(*) FILTER (WHERE g.status != 'cancelled' AND NOT (g.status = 'completed' OR g.game_date < CURRENT_DATE)) AS assigned_games,
+           COUNT(*) FILTER (WHERE g.status != 'cancelled' AND (g.status = 'completed' OR g.game_date < CURRENT_DATE)) AS completed_games,
            COALESCE(SUM(
-             CASE WHEN g.status = 'completed' AND NOT goa.is_paid AND NOT goa.no_show THEN
+             CASE WHEN g.status != 'cancelled'
+                   AND (g.status = 'completed' OR g.game_date < CURRENT_DATE)
+                   AND NOT goa.is_paid AND NOT goa.no_show THEN
                COALESCE(goa.game_fee, o.rate_per_game, (SELECT lag.umpire_rate FROM league_age_groups lag WHERE LOWER(TRIM(lag.name)) = LOWER(TRIM(ht.age_group)) LIMIT 1), 50)
              ELSE 0 END
            ), 0) AS total_owed
@@ -488,6 +490,8 @@ router.get('/:id/detail', authMiddleware, async (req, res) => {
 
 // ── Official games: all assigned games with fee/payment info ──
 router.get('/:id/games', authMiddleware, async (req, res) => {
+  // Payment data must reflect latest writes; bypass the default 60s GET cache.
+  res.set('Cache-Control', 'no-store');
   try {
     const { id } = req.params;
 
@@ -523,6 +527,7 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
          g.game_date,
          g.game_time,
          g.status,
+         (g.status != 'cancelled' AND (g.status = 'completed' OR g.game_date < CURRENT_DATE)) AS is_owed_complete,
          g.home_score,
          g.away_score,
          g.innings_played,
@@ -569,12 +574,13 @@ router.get('/:id/games', authMiddleware, async (req, res) => {
         game_fee: fee,
         is_paid: !!r.is_paid,
         no_show: !!r.no_show,
+        is_owed_complete: !!r.is_owed_complete,
         effective_fee: fee,
         game_date: r.game_date instanceof Date ? r.game_date.toISOString().slice(0, 10) : (r.game_date || '').slice(0, 10),
       };
     });
 
-    const completedGames = games.filter(g => g.status === 'completed');
+    const completedGames = games.filter(g => g.is_owed_complete);
     const earnableGames = completedGames.filter(g => !g.no_show);
     const totalEarnings = earnableGames.reduce((sum, g) => sum + g.effective_fee, 0);
     const totalPayments = earnableGames.filter(g => g.is_paid).reduce((sum, g) => sum + g.effective_fee, 0);
@@ -656,12 +662,25 @@ router.put('/:id/games/:gameId/payment', authMiddleware, async (req, res) => {
     if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
 
     params.push(Number(gameId), Number(id));
-    await pool.query(
-      `UPDATE game_official_assignments SET ${updates.join(', ')} WHERE game_id = $${params.length - 1} AND official_id = $${params.length}`,
+    const { rows: updated } = await pool.query(
+      `UPDATE game_official_assignments SET ${updates.join(', ')}
+         WHERE game_id = $${params.length - 1} AND official_id = $${params.length}
+         RETURNING game_id, official_id, game_fee, is_paid, paid_at, no_show`,
       params
     );
 
-    res.json({ success: true });
+    const row = updated[0] || null;
+    res.json({
+      success: true,
+      assignment: row ? {
+        game_id: row.game_id,
+        official_id: row.official_id,
+        game_fee: row.game_fee != null ? Number(row.game_fee) : null,
+        is_paid: !!row.is_paid,
+        paid_at: row.paid_at,
+        no_show: !!row.no_show,
+      } : null,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

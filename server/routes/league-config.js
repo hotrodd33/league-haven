@@ -19,10 +19,11 @@ async function getBranding() {
   if (cached) return cached;
   const { rows } = await pool.query(
     `SELECT app_name, logo_url, public_site_url, game_start_time, game_end_time, game_time_increment_minutes,
+            default_game_duration_minutes,
             feature_live_scoring, feature_pitch_tracking, feature_officials,
             feature_stats, feature_documents, feature_financials,
             feature_registration, feature_public_site, feature_push_notifications,
-            feature_game_delete, feature_chat, timezone, email_redirect
+            feature_game_delete, feature_chat, feature_field_prep, timezone, email_redirect
      FROM app_branding WHERE id = 1`
   );
   const result = rows[0] || { app_name: 'LeagueHaven', logo_url: null };
@@ -161,6 +162,7 @@ router.get('/schedule-settings', async (req, res) => {
       game_start_time: formatTime(branding.game_start_time) || '08:00',
       game_end_time: formatTime(branding.game_end_time) || '20:00',
       game_time_increment_minutes: Number(branding.game_time_increment_minutes) || 30,
+      default_game_duration_minutes: Number(branding.default_game_duration_minutes) || 150,
     });
   } catch (err) {
     console.error(err);
@@ -173,6 +175,8 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
     const start = String(req.body?.game_start_time || '').trim();
     const end = String(req.body?.game_end_time || '').trim();
     const increment = Number(req.body?.game_time_increment_minutes);
+    const hasDuration = req.body?.default_game_duration_minutes !== undefined;
+    const duration = hasDuration ? Number(req.body.default_game_duration_minutes) : null;
 
     if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(start)) {
       return res.status(400).json({ error: 'Start time must be HH:MM (24-hour)' });
@@ -183,6 +187,9 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
     if (!Number.isInteger(increment) || increment < 5 || increment > 120) {
       return res.status(400).json({ error: 'Increment must be between 5 and 120 minutes' });
     }
+    if (hasDuration && (!Number.isInteger(duration) || duration < 30 || duration > 480)) {
+      return res.status(400).json({ error: 'Default game duration must be between 30 and 480 minutes' });
+    }
     if (toMinutes(start) >= toMinutes(end)) {
       return res.status(400).json({ error: 'End time must be later than start time' });
     }
@@ -192,9 +199,10 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
        SET game_start_time = $1,
            game_end_time = $2,
            game_time_increment_minutes = $3,
+           default_game_duration_minutes = COALESCE($4, default_game_duration_minutes),
            updated_at = NOW()
        WHERE id = 1`,
-      [start, end, increment]
+      [start, end, increment, hasDuration ? duration : null]
     );
     cache.del(BRANDING_KEY);
     const branding = await getBranding();
@@ -202,6 +210,7 @@ router.put('/schedule-settings', authMiddleware, requireAdmin, async (req, res) 
       game_start_time: formatTime(branding.game_start_time),
       game_end_time: formatTime(branding.game_end_time),
       game_time_increment_minutes: Number(branding.game_time_increment_minutes),
+      default_game_duration_minutes: Number(branding.default_game_duration_minutes) || 150,
     });
   } catch (err) {
     console.error(err);
@@ -215,7 +224,7 @@ const FEATURE_KEYS = [
   'feature_live_scoring', 'feature_pitch_tracking', 'feature_officials',
   'feature_stats', 'feature_documents', 'feature_financials',
   'feature_registration', 'feature_public_site', 'feature_push_notifications',
-  'feature_game_delete', 'feature_chat',
+  'feature_game_delete', 'feature_chat', 'feature_field_prep',
 ];
 
 router.get('/features', async (req, res) => {
@@ -266,7 +275,14 @@ router.get('/age-groups', authMiddleware, async (req, res) => {
     }
     const canSeeFinancials = ['super_admin', 'accountant', 'org_admin'].includes(req.user.role);
     res.json(rows.map(r => {
-      const result = { ...r, umpire_rate: r.umpire_rate != null ? Number(r.umpire_rate) : 50, league_fee: r.league_fee != null ? Number(r.league_fee) : null };
+      const result = {
+        ...r,
+        umpire_rate: r.umpire_rate != null ? Number(r.umpire_rate) : 50,
+        league_fee: r.league_fee != null ? Number(r.league_fee) : null,
+        daily_pitch_limit: r.daily_pitch_limit != null ? Number(r.daily_pitch_limit) : null,
+        rest_thresholds: r.rest_thresholds ?? null,
+        max_consecutive_days: r.max_consecutive_days != null ? Number(r.max_consecutive_days) : 2,
+      };
       if (!canSeeFinancials) {
         delete result.umpire_rate;
         delete result.league_fee;
@@ -279,6 +295,34 @@ router.get('/age-groups', authMiddleware, async (req, res) => {
   }
 });
 
+function parsePitchRuleFields(body) {
+  const errors = [];
+  let daily = null;
+  if (body.daily_pitch_limit !== undefined && body.daily_pitch_limit !== '' && body.daily_pitch_limit !== null) {
+    daily = Number(body.daily_pitch_limit);
+    if (!Number.isInteger(daily) || daily < 0 || daily > 500) errors.push('Daily pitch limit must be an integer 0–500');
+  }
+  let thresholds = null;
+  if (body.rest_thresholds !== undefined && body.rest_thresholds !== null && body.rest_thresholds !== '') {
+    if (!Array.isArray(body.rest_thresholds)) {
+      errors.push('rest_thresholds must be an array');
+    } else {
+      thresholds = body.rest_thresholds
+        .map(t => ({ min: Number(t?.min), days: Number(t?.days) }))
+        .filter(t => Number.isFinite(t.min) && Number.isFinite(t.days));
+      if (thresholds.some(t => t.min < 0 || t.days < 0 || t.days > 30)) errors.push('Each threshold needs non-negative min and days (0–30)');
+      thresholds.sort((a, b) => b.min - a.min); // descending
+      if (thresholds.length === 0) thresholds = null;
+    }
+  }
+  let consec = 2;
+  if (body.max_consecutive_days !== undefined && body.max_consecutive_days !== '' && body.max_consecutive_days !== null) {
+    consec = Number(body.max_consecutive_days);
+    if (!Number.isInteger(consec) || consec < 1 || consec > 7) errors.push('Max consecutive days must be an integer 1–7');
+  }
+  return { daily, thresholds, consec, errors };
+}
+
 router.post('/age-groups', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { name, sort_order, umpire_rate, ump_required, league_fee } = req.body;
@@ -287,13 +331,21 @@ router.post('/age-groups', authMiddleware, requireAdmin, async (req, res) => {
     if (!Number.isFinite(rate) || rate < 0) return res.status(400).json({ error: 'Umpire rate must be a non-negative number' });
     const parsedLeagueFee = league_fee != null && league_fee !== '' ? Number(league_fee) : null;
     if (parsedLeagueFee != null && (!Number.isFinite(parsedLeagueFee) || parsedLeagueFee < 0)) return res.status(400).json({ error: 'League fee must be a non-negative number' });
+    const pr = parsePitchRuleFields(req.body);
+    if (pr.errors.length) return res.status(400).json({ error: pr.errors.join('; ') });
     const { rows } = await pool.query(
-      'INSERT INTO league_age_groups (name, sort_order, umpire_rate, ump_required, league_fee) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null]
+      'INSERT INTO league_age_groups (name, sort_order, umpire_rate, ump_required, league_fee, daily_pitch_limit, rest_thresholds, max_consecutive_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null, pr.daily, pr.thresholds ? JSON.stringify(pr.thresholds) : null, pr.consec]
     );
     const r = rows[0];
     cache.del(AGE_GROUPS_KEY);
-    res.status(201).json({ ...r, umpire_rate: Number(r.umpire_rate), league_fee: r.league_fee != null ? Number(r.league_fee) : null });
+    res.status(201).json({
+      ...r,
+      umpire_rate: Number(r.umpire_rate),
+      league_fee: r.league_fee != null ? Number(r.league_fee) : null,
+      daily_pitch_limit: r.daily_pitch_limit != null ? Number(r.daily_pitch_limit) : null,
+      max_consecutive_days: Number(r.max_consecutive_days ?? 2),
+    });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Age group already exists' });
     console.error(err);
@@ -309,14 +361,22 @@ router.put('/age-groups/:id', authMiddleware, requireAdmin, async (req, res) => 
     if (!Number.isFinite(rate) || rate < 0) return res.status(400).json({ error: 'Umpire rate must be a non-negative number' });
     const parsedLeagueFee = league_fee != null && league_fee !== '' ? Number(league_fee) : null;
     if (parsedLeagueFee != null && (!Number.isFinite(parsedLeagueFee) || parsedLeagueFee < 0)) return res.status(400).json({ error: 'League fee must be a non-negative number' });
+    const pr = parsePitchRuleFields(req.body);
+    if (pr.errors.length) return res.status(400).json({ error: pr.errors.join('; ') });
     const { rows } = await pool.query(
-      'UPDATE league_age_groups SET name = $1, sort_order = $2, umpire_rate = $3, ump_required = $4, league_fee = $5 WHERE id = $6 RETURNING *',
-      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null, req.params.id]
+      'UPDATE league_age_groups SET name = $1, sort_order = $2, umpire_rate = $3, ump_required = $4, league_fee = $5, daily_pitch_limit = $6, rest_thresholds = $7, max_consecutive_days = $8 WHERE id = $9 RETURNING *',
+      [name.trim(), sort_order ?? 0, Math.round(rate * 100) / 100, ump_required !== false, parsedLeagueFee != null ? Math.round(parsedLeagueFee * 100) / 100 : null, pr.daily, pr.thresholds ? JSON.stringify(pr.thresholds) : null, pr.consec, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     const r = rows[0];
     cache.del(AGE_GROUPS_KEY);
-    res.json({ ...r, umpire_rate: Number(r.umpire_rate), league_fee: r.league_fee != null ? Number(r.league_fee) : null });
+    res.json({
+      ...r,
+      umpire_rate: Number(r.umpire_rate),
+      league_fee: r.league_fee != null ? Number(r.league_fee) : null,
+      daily_pitch_limit: r.daily_pitch_limit != null ? Number(r.daily_pitch_limit) : null,
+      max_consecutive_days: Number(r.max_consecutive_days ?? 2),
+    });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Age group already exists' });
     console.error(err);
@@ -605,6 +665,105 @@ router.delete('/volunteer-roles/:id', authMiddleware, requireAdmin, async (req, 
   try {
     const { rows } = await pool.query('DELETE FROM volunteer_roles WHERE id = $1 RETURNING id', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Field Prep Task Types ──
+
+const PREP_TASK_TYPES_KEY = 'league-config:prep-task-types';
+
+router.get('/prep-task-types', authMiddleware, async (req, res) => {
+  try {
+    let rows = cache.get(PREP_TASK_TYPES_KEY);
+    if (!rows) {
+      ({ rows } = await pool.query(
+        'SELECT id, name, default_rate, sort_order, active FROM prep_task_types ORDER BY sort_order, name'
+      ));
+      cache.set(PREP_TASK_TYPES_KEY, rows, CONFIG_TTL);
+    }
+    res.json(rows.map(r => ({ ...r, default_rate: Number(r.default_rate) })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/prep-task-types', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    const defaultRate = Number(req.body?.default_rate);
+    if (!Number.isFinite(defaultRate) || defaultRate < 0 || defaultRate > 10000) {
+      return res.status(400).json({ error: 'default_rate must be between 0 and 10000' });
+    }
+    const sortOrder = Number.isInteger(Number(req.body?.sort_order)) ? Number(req.body.sort_order) : 0;
+    const { rows } = await pool.query(
+      `INSERT INTO prep_task_types (name, default_rate, sort_order)
+       VALUES ($1, $2, $3) RETURNING id, name, default_rate, sort_order, active`,
+      [name.slice(0, 64), defaultRate, sortOrder]
+    );
+    cache.del(PREP_TASK_TYPES_KEY);
+    res.status(201).json({ ...rows[0], default_rate: Number(rows[0].default_rate) });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A task type with that name already exists' });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/prep-task-types/:id', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid id' });
+    const sets = [];
+    const vals = [];
+    let idx = 1;
+    if (req.body?.name !== undefined) {
+      const name = String(req.body.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Name cannot be empty' });
+      sets.push(`name = $${idx++}`); vals.push(name.slice(0, 64));
+    }
+    if (req.body?.default_rate !== undefined) {
+      const r = Number(req.body.default_rate);
+      if (!Number.isFinite(r) || r < 0 || r > 10000) return res.status(400).json({ error: 'default_rate out of range' });
+      sets.push(`default_rate = $${idx++}`); vals.push(r);
+    }
+    if (req.body?.sort_order !== undefined) {
+      const so = Number(req.body.sort_order);
+      if (!Number.isInteger(so)) return res.status(400).json({ error: 'sort_order must be integer' });
+      sets.push(`sort_order = $${idx++}`); vals.push(so);
+    }
+    if (req.body?.active !== undefined) {
+      sets.push(`active = $${idx++}`); vals.push(!!req.body.active);
+    }
+    if (!sets.length) return res.status(400).json({ error: 'No fields to update' });
+    vals.push(id);
+    const { rows } = await pool.query(
+      `UPDATE prep_task_types SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${idx}
+       RETURNING id, name, default_rate, sort_order, active`,
+      vals
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    cache.del(PREP_TASK_TYPES_KEY);
+    res.json({ ...rows[0], default_rate: Number(rows[0].default_rate) });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A task type with that name already exists' });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/prep-task-types/:id', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid id' });
+    const { rowCount } = await pool.query('DELETE FROM prep_task_types WHERE id = $1', [id]);
+    if (!rowCount) return res.status(404).json({ error: 'Not found' });
+    cache.del(PREP_TASK_TYPES_KEY);
     res.json({ success: true });
   } catch (err) {
     console.error(err);

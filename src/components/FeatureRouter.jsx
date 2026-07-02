@@ -11,6 +11,8 @@ import Standings from './Standings.jsx';
 import Directory from './Directory.jsx';
 import DataManager from './DataManager.jsx';
 import OfficialsManager from './OfficialsManager.jsx';
+import PrepStaffManager from './PrepStaffManager.jsx';
+import PaymentsReport from './PaymentsReport.jsx';
 import UmpireDashboard from './UmpireDashboard.jsx';
 import HelpPage from './HelpPage.jsx';
 import LeagueFees from './LeagueFees.jsx';
@@ -134,6 +136,16 @@ function PageContent({
         case 'officials':
             return (isAdmin || isAccountant || isOrgAdmin) && features.feature_officials !== false
                 ? <OfficialsManager onBack={() => setPage('dashboard')} />
+                : null;
+
+        case 'prep_staff':
+            return (isAdmin || isAccountant || isOrgAdmin) && features.feature_field_prep !== false
+                ? <PrepStaffManager onBack={() => setPage('dashboard')} />
+                : null;
+
+        case 'payments':
+            return (isAdmin || isAccountant || isOrgAdmin)
+                ? <PaymentsReport />
                 : null;
 
         case 'fees':

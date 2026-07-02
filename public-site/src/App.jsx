@@ -8,6 +8,7 @@ import GameDetail from './components/GameDetail.jsx';
 import TravelMatrix from './components/TravelMatrix.jsx';
 import Tournaments from './components/Tournaments.jsx';
 import TournamentDetail from './components/TournamentDetail.jsx';
+import FieldPrep from './components/FieldPrep.jsx';
 import { fetchBranding, fetchTeams } from './api/index.js';
 
 class SiteErrorBoundary extends Component {
@@ -38,12 +39,13 @@ class SiteErrorBoundary extends Component {
 }
 
 const TABS = [
-  { key: 'home',        label: 'Home'        },
-  { key: 'standings',   label: 'Standings'   },
-  { key: 'scores',      label: 'Scores'      },
-  { key: 'teams',       label: 'Teams'       },
+  { key: 'home',      label: 'Home'      },
+  { key: 'standings', label: 'Standings' },
+  { key: 'scores',    label: 'Scores'    },
+  { key: 'teams',     label: 'Teams'     },
   { key: 'tournaments', label: 'Tournaments' },
-  { key: 'travel',      label: 'Travel'      },
+  { key: 'travel',    label: 'Travel'    },
+  { key: 'prep',      label: 'Field Prep' },
 ];
 
 function toSlug(name) {
@@ -65,12 +67,16 @@ function parsePath(pathname) {
 export default function App() {
   const [nav, setNav]           = useState(() => parsePath(window.location.pathname));
   const [menuOpen, setMenuOpen] = useState(false);
-  const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null });
+  const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null, feature_officials: true });
   const [allTeams, setAllTeams] = useState([]);
 
   useEffect(() => {
     fetchBranding()
-      .then(data => setBranding({ app_name: data?.app_name || 'LeagueHaven', logo_url: data?.logo_url || null }))
+      .then(data => setBranding({
+        app_name: data?.app_name || 'LeagueHaven',
+        logo_url: data?.logo_url || null,
+        feature_officials: data?.feature_officials !== false,
+      }))
       .catch(() => {});
     fetchTeams().then(setAllTeams).catch(() => {});
   }, []);
@@ -212,6 +218,7 @@ export default function App() {
             gameId={nav.gameId}
             onBack={() => window.history.back()}
             onNavigateToTeam={navigateToTeam}
+            officialsEnabled={branding.feature_officials !== false}
           />
         ) : nav.view === 'tournament' ? (
           <TournamentDetail
@@ -229,12 +236,13 @@ export default function App() {
             : <div className="py-16 text-center text-gray-400">Loading team…</div>
         ) : (
           <SiteErrorBoundary>
-            {nav.tab === 'home'        && <Home      onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} onNavigateToTab={navigateToTab} />}
-            {nav.tab === 'standings'   && <Standings onNavigateToTeam={navigateToTeam} />}
-            {nav.tab === 'scores'      && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} />}
-            {nav.tab === 'teams'       && <Teams     onNavigateToTeam={navigateToTeam} />}
+            {nav.tab === 'home'      && <Home      onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} onNavigateToTab={navigateToTab} />}
+            {nav.tab === 'standings' && <Standings onNavigateToTeam={navigateToTeam} />}
+            {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} officialsEnabled={branding.feature_officials !== false} />}
+            {nav.tab === 'teams'     && <Teams     onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'tournaments' && <Tournaments onNavigateToTournament={navigateToTournament} />}
-            {nav.tab === 'travel'      && <TravelMatrix />}
+            {nav.tab === 'travel'    && <TravelMatrix />}
+            {nav.tab === 'prep'      && <FieldPrep  onNavigateToGame={navigateToGame} officialsEnabled={branding.feature_officials !== false} />}
           </SiteErrorBoundary>
         )}
       </main>
