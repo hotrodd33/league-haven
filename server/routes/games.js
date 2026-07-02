@@ -867,7 +867,6 @@ router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
 
-    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, official_ids, tournament_id, tournament_match_id } = req.body;
     const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, official_ids, prep_required, prep_task_type_ids, prep_assignments, tournament_id, tournament_match_id } = req.body;
 
     if (!home_team_id || !away_team_id) {
