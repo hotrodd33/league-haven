@@ -7,7 +7,9 @@
     "build": "vite build && cd public-site && npm install && npx vite build",
     "preview": "vite preview",
     "server": "node server/index.js",
-    "dev:all": "concurrently \"npm run server\" \"npm run dev\""
+    "dev:all": "concurrently \"npm run server\" \"npm run dev\"",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
@@ -34,10 +36,26 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@chromatic-com/storybook": "^5.1.2",
+    "@eslint/js": "^9.39.4",
+    "@storybook/addon-a11y": "^10.3.6",
+    "@storybook/addon-docs": "^10.3.6",
+    "@storybook/addon-onboarding": "^10.3.6",
+    "@storybook/addon-vitest": "^10.3.6",
+    "@storybook/react-vite": "^10.3.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "@vitest/browser-playwright": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.5",
     "concurrently": "^9.2.1",
-    "vite": "^6.0.0"
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^17.6.0",
+    "playwright": "^1.59.1",
+    "prop-types": "^15.8.1",
+    "storybook": "^10.3.6",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.5"
   }
 }

@@ -58,6 +58,8 @@ export default function AppShell({
     guide: 'Help',
     fields: 'Fields',
     travel: 'Travel Matrix',
+    tournaments: 'Tournaments',
+    'tournament-detail': 'Tournament',
     account: 'My Account',
     chat: 'Chat',
     'guardian-home': 'My Players',

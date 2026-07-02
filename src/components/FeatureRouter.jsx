@@ -26,6 +26,8 @@ import TeamPage from './TeamPage.jsx';
 import GuardiansPage from './GuardiansPage.jsx';
 import CoachesPage from './CoachesPage.jsx';
 import TravelMatrix from './TravelMatrix.jsx';
+import TournamentsPage from './tourneyComponents/TournamentsPage.jsx';
+import TournamentSchedule from './tourneyComponents/TournamentSchedule.jsx';
 
 export default function FeatureRouter(props) {
     return (
@@ -40,10 +42,11 @@ function PageContent({
     isUmpire, isAdmin, isOrgAdmin, isTeamManager, isAccountant, isGuardian,
     features,
     selectedTeam, selectedTeamOrgId, setSelectedTeam, setSelectedTeamOrgId,
-    navigateToTeam, navigateToGame,
+    navigateToTeam, navigateToGame, navigateToTournament,
     onViewPlayer,
     pendingGameId, clearPendingGame,
     selectedPlayerData, onClearPlayer,
+    selectedTournamentId,
     openImportWizard,
     onEditPlayer, onAddPlayer,
     onTeamWatermarkChange, onTeamsChanged,
@@ -87,7 +90,7 @@ function PageContent({
             return isAdmin ? <LeagueConfig onBack={() => setPage('dashboard')} /> : null;
 
         case 'schedule':
-            return <GameSchedule onBack={() => setPage('dashboard')} onNavigateToTeam={navigateToTeam} initialGameId={pendingGameId} onGameIdConsumed={clearPendingGame} onOpenImport={openImportWizard} onViewPlayer={onViewPlayer} />;
+            return <GameSchedule onBack={() => setPage('dashboard')} onNavigateToTeam={navigateToTeam} onNavigateToTournament={navigateToTournament} initialGameId={pendingGameId} onGameIdConsumed={clearPendingGame} onOpenImport={openImportWizard} onViewPlayer={onViewPlayer} />;
 
         case 'standings':
             return <Standings onBack={() => setPage('dashboard')} onNavigateToTeam={navigateToTeam} />;
@@ -153,6 +156,19 @@ function PageContent({
         case 'travel':
             return <TravelMatrix />;
 
+        case 'tournaments':
+            return <TournamentsPage onSelectTournament={navigateToTournament} />;
+
+        case 'tournament-schedule':
+            return (
+                <TournamentSchedule
+                    tournamentId={selectedTournamentId}
+                    onBack={() => setPage('tournaments')}
+                    onNavigateToTeam={navigateToTeam}
+                    onNavigateToFields={() => setPage('fields')}
+                />
+            );
+
         case 'about':
             return <HelpPage initialTab="about" onBack={() => setPage('dashboard')} />;
 
@@ -181,6 +197,7 @@ function PageContent({
                             onViewPlayer={onViewPlayer}
                             refreshKey={refreshKey}
                             onNavigateToTeam={navigateToTeam}
+                            onNavigateToTournament={navigateToTournament}
                             onWatermarkLogoChange={onTeamWatermarkChange}
                             onEditTeam={isAdmin ? () => editTeamTriggerRef.current?.() : null}
                         />

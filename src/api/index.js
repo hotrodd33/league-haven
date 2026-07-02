@@ -1525,3 +1525,127 @@ export async function findOrCreateTeamChannel(teamId) {
 export async function fetchChatUnreadCount() {
   return apiFetch('/chat/unread-count');
 }
+
+// ── Tournaments ──
+
+export async function fetchTournaments(filters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, val] of Object.entries(filters)) {
+    if (val != null && val !== '') params.append(key, val);
+  }
+  const qs = params.toString();
+  return apiFetch(`/tournaments${qs ? '?' + qs : ''}`);
+}
+
+export async function fetchTournamentTeams(tournamentId) {
+  return apiFetch(`/tournaments/${tournamentId}/teams`);
+}
+
+export async function fetchTournament(id) {
+  return apiFetch(`/tournaments/${id}`);
+}
+
+export async function createTournament(data) {
+  return apiFetch('/tournaments', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateTournament(id, data) {
+  return apiFetch(`/tournaments/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteTournament(id) {
+  return apiFetch(`/tournaments/${id}`, { method: 'DELETE' });
+}
+
+export async function addTournamentTeam(tournamentId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/teams`, {
+    method: 'POST', body: JSON.stringify(data),
+  });
+}
+
+export async function removeTournamentTeam(tournamentId, ttId) {
+  return apiFetch(`/tournaments/${tournamentId}/teams/${ttId}`, { method: 'DELETE' });
+}
+
+export async function assignTournamentMatch(tournamentId, matchId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/assign`, {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+}
+
+export async function scheduleTournamentMatch(tournamentId, matchId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/schedule`, {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+}
+
+export async function scoreTournamentMatch(tournamentId, matchId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/score`, {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+}
+
+export async function advanceTournamentMatch(tournamentId, matchId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/advance`, {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+}
+
+// ── Tournament Games ──
+
+export async function updateTournamentRound(tournamentId, roundId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/rounds/${roundId}`, {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+}
+
+export async function createTournamentGame(tournamentId, matchId, data = {}) {
+  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/create-game`, {
+    method: 'POST', body: JSON.stringify(data),
+  });
+}
+
+export async function undoCreateGame(tournamentId, matchId) {
+  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/create-game`, {
+    method: 'DELETE',
+  });
+}
+
+export async function resetTournamentMatch(tournamentId, matchId) {
+  return apiFetch(`/tournaments/${tournamentId}/matches/${matchId}/reset`, {
+    method: 'POST',
+  });
+}
+
+export async function resetTournamentRound(tournamentId, roundId) {
+  return apiFetch(`/tournaments/${tournamentId}/rounds/${roundId}/reset`, {
+    method: 'POST',
+  });
+}
+
+export async function resizeTournament(tournamentId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/resize`, {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+}
+
+export async function fetchMyTournamentRegistrations() {
+  return apiFetch('/tournaments/my-registrations');
+}
+
+export async function registerTeamForTournament(tournamentId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/register`, {
+    method: 'POST', body: JSON.stringify(data),
+  });
+}
+
+export async function withdrawTournamentRegistration(tournamentId, ttId) {
+  return apiFetch(`/tournaments/${tournamentId}/teams/${ttId}/withdraw`, {
+    method: 'PATCH',
+  });
+}
+
+export async function fetchTournamentRegistrations(tournamentId) {
+  return apiFetch(`/tournaments/${tournamentId}/registrations`);
+}
+

@@ -24,7 +24,7 @@ const TABS = [
   { key: 'coaches', label: 'Coaches', icon: UserGroupIcon },
 ];
 
-export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer, onViewPlayer, refreshKey, onNavigateToTeam, onWatermarkLogoChange, onEditTeam }) {
+export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer, onViewPlayer, refreshKey, onNavigateToTeam, onNavigateToTournament, onWatermarkLogoChange, onEditTeam }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [contactModal, setContactModal] = useState(null);
@@ -170,7 +170,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
           />
         )}
         {activeTab === 'schedule' && (
-          <TeamSchedule teamId={teamId} onNavigateToTeam={onNavigateToTeam} onViewPlayer={onViewPlayer} />
+          <TeamSchedule teamId={teamId} onNavigateToTeam={onNavigateToTeam} onNavigateToTournament={onNavigateToTournament} onViewPlayer={onViewPlayer} />
         )}
         {activeTab === 'stats' && (
           <TeamStats teamId={teamId} />

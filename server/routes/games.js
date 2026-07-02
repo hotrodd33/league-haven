@@ -48,7 +48,11 @@ const BASE_SELECT = `
     gpi.interested_prep_user_ids, gpi.interested_prep_names,
     hsc.name AS home_sched_name, hsc.email AS home_sched_email, hsc.phone AS home_sched_phone, hsc.role AS home_sched_role,
     asched.name AS away_sched_name, asched.email AS away_sched_email, asched.phone AS away_sched_phone, asched.role AS away_sched_role,
-    scu.name AS scoring_user_name
+    scu.name AS scoring_user_name,
+    tm.id AS tournament_match_id, tth.temp_name AS home_temp_name, tth.is_temp AS home_is_temp,
+    tta.temp_name AS away_temp_name, tta.is_temp AS away_is_temp,
+    tm.team_a_id AS tournament_team_a_id, tm.team_b_id AS tournament_team_b_id,
+    t.org_id AS tournament_org_id, t.name AS tournament_name
   FROM games g
   LEFT JOIN teams ht ON ht.id = g.home_team_id
   LEFT JOIN organizations ho ON ho.id = ht.org_id
@@ -57,6 +61,10 @@ const BASE_SELECT = `
   LEFT JOIN field_locations fl ON fl.id = g.location_id
   LEFT JOIN league_seasons ls ON ls.id = g.season_id
   LEFT JOIN users scu ON scu.id = g.scoring_user_id
+  LEFT JOIN tournament_matches tm ON tm.game_id = g.id
+  LEFT JOIN tournament_teams tth ON tth.id = tm.team_a_id
+  LEFT JOIN tournament_teams tta ON tta.id = tm.team_b_id
+  LEFT JOIN tournaments t ON t.id = tm.tournament_id
   LEFT JOIN LATERAL (
     SELECT ld.id AS division_id, ld.name AS division_name, ld.sort_order AS division_sort
     FROM team_divisions htd
@@ -239,6 +247,9 @@ const SLIM_SELECT = `
     fl.name AS location_name,
     fl.address AS location_address, fl.city AS location_city,
     fl.latitude AS location_lat, fl.longitude AS location_lon,
+    gd.division_name, gd.division_sort,
+    tm.id AS tournament_match_id, tth.temp_name AS home_temp_name, tth.is_temp AS home_is_temp,
+    tta.temp_name AS away_temp_name, tta.is_temp AS away_is_temp
     fl.org_id AS location_org_id,
     gd.division_name, gd.division_sort,
     goa.official_ids,
@@ -254,6 +265,10 @@ const SLIM_SELECT = `
   LEFT JOIN organizations ao ON ao.id = at.org_id
   LEFT JOIN field_locations fl ON fl.id = g.location_id
   LEFT JOIN league_age_groups hag ON LOWER(TRIM(hag.name)) = LOWER(TRIM(ht.age_group))
+  LEFT JOIN league_seasons ls ON ls.id = g.season_id
+  LEFT JOIN tournament_matches tm ON tm.game_id = g.id
+  LEFT JOIN tournament_teams tth ON tth.id = tm.team_a_id
+  LEFT JOIN tournament_teams tta ON tta.id = tm.team_b_id
   LEFT JOIN LATERAL (
     SELECT ld.id AS division_id, ld.name AS division_name, ld.sort_order AS division_sort
     FROM team_divisions htd
@@ -308,8 +323,10 @@ function enrichGame(row) {
     game_date: gameDate,
     is_gamechanger_imported: !!row.is_gamechanger_imported,
     status_label: STATUS_LABELS[row.status] || row.status,
-    home_team_name: homeLong || row.home_team_name || '(Deleted Team)',
-    away_team_name: awayLong || row.away_team_name || '(Deleted Team)',
+    home_is_temp: !!row.home_is_temp,
+    away_is_temp: !!row.away_is_temp,
+    home_team_name: homeLong || row.home_team_name || row.home_temp_name || '(Deleted Team)',
+    away_team_name: awayLong || row.away_team_name || row.away_temp_name || '(Deleted Team)',
     home_logo: row.home_team_logo || row.home_org_logo || null,
     away_logo: row.away_team_logo || row.away_org_logo || null,
     home_primary_color: row.home_primary_color || null,
@@ -849,7 +866,10 @@ router.get('/:id', async (req, res) => {
 router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, official_ids, prep_required, prep_task_type_ids, prep_assignments } = req.body;
+
+    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, official_ids, tournament_id, tournament_match_id } = req.body;
+    const { season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, official_ids, prep_required, prep_task_type_ids, prep_assignments, tournament_id, tournament_match_id } = req.body;
+
     if (!home_team_id || !away_team_id) {
       return res.status(400).json({ error: 'home_team_id and away_team_id are required' });
     }
@@ -889,8 +909,8 @@ router.post('/', authMiddleware, async (req, res) => {
     await client.query('BEGIN');
     const prepRequiredInsert = prep_required === undefined ? true : !!prep_required;
     const { rows } = await client.query(
-      `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, prep_required)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      `INSERT INTO games (season_id, home_team_id, away_team_id, location_id, game_date, game_time, game_duration_minutes, status, notes, prep_required, tournament_id, tournament_match_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
       [season_id || null, home_team_id, away_team_id, location_id || null,
        game_date || null, game_time || null, game_duration_minutes ? Number(game_duration_minutes) : 150,
        // Auto-promote: treat explicit 'unscheduled' (sent by the form default) the same as no status.
@@ -898,7 +918,9 @@ router.post('/', authMiddleware, async (req, res) => {
        (!status || status === 'unscheduled')
          ? (game_date && game_time && location_id ? 'scheduled' : 'unscheduled')
          : status,
-       notes || null, prepRequiredInsert]
+       notes || null,
+       prepRequiredInsert,
+       tournament_id || null, tournament_match_id || null]
     );
     const gameId = rows[0].id;
     const officialIds = Array.isArray(official_ids) ? official_ids : [];
@@ -936,6 +958,7 @@ router.post('/', authMiddleware, async (req, res) => {
     cache.invalidatePrefix('games:');
     cache.invalidatePrefix('standings:');
     cache.invalidatePrefix('umpires:');
+    if (tournament_id) cache.invalidatePrefix('tournaments:');
     const { rows: gameRows } = await pool.query(BASE_SELECT + ' WHERE g.id = $1', [gameId]);
     res.status(201).json(enrichGame(gameRows[0]));
   } catch (err) {
@@ -953,7 +976,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows: existing } = await client.query(
-      'SELECT id, home_team_id, away_team_id, game_date, game_time, status FROM games WHERE id = $1', [id]
+      'SELECT id, home_team_id, away_team_id, game_date, game_time, status, tournament_id, tournament_match_id FROM games WHERE id = $1', [id]
     );
     if (!existing.length) return res.status(404).json({ error: 'Game not found' });
 
@@ -1018,6 +1041,33 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const oldDate = normalizeDate(game.game_date);
     const oldTime = normalizeTime(game.game_time);
 
+    let realHomeTeamId = home_team_id;
+    let realAwayTeamId = away_team_id;
+
+    if (game.tournament_id) {
+      if (home_team_id || away_team_id) {
+        const { rows: ttRows } = await client.query(
+          'SELECT id, team_id FROM tournament_teams WHERE id IN ($1, $2)',
+          [home_team_id || -1, away_team_id || -1]
+        );
+        const ttMap = {};
+        for (const row of ttRows) ttMap[row.id] = row.team_id;
+        
+        if (home_team_id) realHomeTeamId = ttMap[home_team_id] || null;
+        if (away_team_id) realAwayTeamId = ttMap[away_team_id] || null;
+        
+        if (game.tournament_match_id) {
+          await client.query(
+            'UPDATE tournament_matches SET team_a_id = COALESCE($1, team_a_id), team_b_id = COALESCE($2, team_b_id) WHERE id = $3',
+            [home_team_id, away_team_id, game.tournament_match_id]
+          );
+        }
+      }
+    }
+
+    const finalHomeTeamId = home_team_id !== undefined ? realHomeTeamId : game.home_team_id;
+    const finalAwayTeamId = away_team_id !== undefined ? realAwayTeamId : game.away_team_id;
+
     await client.query('BEGIN');
     if (shouldClearSchedule) {
       await client.query(
@@ -1068,7 +1118,139 @@ router.put('/:id', authMiddleware, async (req, res) => {
         }
       }
       await replaceGameOfficials(client, id, officialIds);
+      await replaceGameOfficials(client, id, officialIds);
     }
+
+    // --- Tournament Auto-Advance Logic ---
+    if (game.tournament_id) {
+      const { rows: matchRows } = await client.query('SELECT * FROM tournament_matches WHERE game_id = $1', [id]);
+      if (matchRows.length) {
+        const match = matchRows[0];
+        const newStatus = status !== undefined ? status : game.status;
+        const isCompleted = newStatus === 'completed' || newStatus === 'final';
+        
+        if (isCompleted) {
+          const hs = home_score !== undefined ? home_score : game.home_score;
+          const as = away_score !== undefined ? away_score : game.away_score;
+          
+          if (hs != null && as != null) {
+            if (Number(hs) === Number(as)) {
+              await client.query('ROLLBACK');
+              return res.status(400).json({ error: 'Ties not allowed in elimination tournaments' });
+            }
+            
+            const winnerId = Number(hs) > Number(as) ? match.team_a_id : match.team_b_id;
+            const loserId = Number(hs) > Number(as) ? match.team_b_id : match.team_a_id;
+            
+            if (match.winner_team_id !== winnerId) {
+              // Ensure we aren't changing winner if downstream is scheduled
+              if (match.next_match_id) {
+                const { rows: nextGameRows } = await client.query(
+                  "SELECT g.id FROM games g JOIN tournament_matches tm ON tm.game_id = g.id WHERE tm.id = $1 AND g.status IN ('completed', 'final', 'in_progress')",
+                  [match.next_match_id]
+                );
+                if (nextGameRows.length > 0) {
+                  await client.query('ROLLBACK');
+                  return res.status(400).json({ error: 'Cannot change score: Winner is already playing or has finished their next match. Please revert the downstream game first.' });
+                }
+              }
+              if (match.loser_next_match_id) {
+                const { rows: loserNextGameRows } = await client.query(
+                  "SELECT g.id FROM games g JOIN tournament_matches tm ON tm.game_id = g.id WHERE tm.id = $1 AND g.status IN ('completed', 'final', 'in_progress')",
+                  [match.loser_next_match_id]
+                );
+                if (loserNextGameRows.length > 0) {
+                  await client.query('ROLLBACK');
+                  return res.status(400).json({ error: 'Cannot change score: Loser is already playing or has finished their next match. Please revert the downstream game first.' });
+                }
+              }
+
+              // Clear old slots if winner changed
+              if (match.winner_team_id && match.next_match_id) {
+                await client.query(
+                  'UPDATE tournament_matches SET team_a_id = CASE WHEN team_a_id = $1 THEN NULL ELSE team_a_id END, team_b_id = CASE WHEN team_b_id = $1 THEN NULL ELSE team_b_id END WHERE id = $2',
+                  [match.winner_team_id, match.next_match_id]
+                );
+              }
+              if (match.loser_team_id && match.loser_next_match_id) {
+                await client.query(
+                  'UPDATE tournament_matches SET team_a_id = CASE WHEN team_a_id = $1 THEN NULL ELSE team_a_id END, team_b_id = CASE WHEN team_b_id = $1 THEN NULL ELSE team_b_id END WHERE id = $2',
+                  [match.loser_team_id, match.loser_next_match_id]
+                );
+              }
+
+              // Update winner/loser
+              await client.query(
+                'UPDATE tournament_matches SET winner_team_id = $1, loser_team_id = $2 WHERE id = $3',
+                [winnerId, loserId, match.id]
+              );
+
+              // Advance new winner
+              if (match.next_match_id && winnerId) {
+                const { rows: nextMatch } = await client.query(
+                  'SELECT team_a_id, team_b_id FROM tournament_matches WHERE id = $1', [match.next_match_id]
+                );
+                if (nextMatch.length) {
+                  const slot = !nextMatch[0].team_a_id ? 'team_a_id' : 'team_b_id';
+                  await client.query(`UPDATE tournament_matches SET ${slot} = $1 WHERE id = $2`, [winnerId, match.next_match_id]);
+                }
+              }
+
+              // Advance new loser
+              if (match.loser_next_match_id && loserId) {
+                const { rows: loserNext } = await client.query(
+                  'SELECT team_a_id, team_b_id FROM tournament_matches WHERE id = $1', [match.loser_next_match_id]
+                );
+                if (loserNext.length) {
+                  const slot = !loserNext[0].team_a_id ? 'team_a_id' : 'team_b_id';
+                  await client.query(`UPDATE tournament_matches SET ${slot} = $1 WHERE id = $2`, [loserId, match.loser_next_match_id]);
+                }
+              }
+            }
+          }
+        } else if (!isCompleted && match.winner_team_id) {
+          // Un-finalizing!
+          if (match.next_match_id) {
+            const { rows: nextGameRows } = await client.query(
+              "SELECT g.id FROM games g JOIN tournament_matches tm ON tm.game_id = g.id WHERE tm.id = $1 AND g.status IN ('completed', 'final', 'in_progress')",
+              [match.next_match_id]
+            );
+            if (nextGameRows.length > 0) {
+              await client.query('ROLLBACK');
+              return res.status(400).json({ error: 'Cannot un-finalize score: Winner is already playing or has finished their next match. Please revert the downstream game first.' });
+            }
+          }
+          if (match.loser_next_match_id) {
+            const { rows: loserNextGameRows } = await client.query(
+              "SELECT g.id FROM games g JOIN tournament_matches tm ON tm.game_id = g.id WHERE tm.id = $1 AND g.status IN ('completed', 'final', 'in_progress')",
+              [match.loser_next_match_id]
+            );
+            if (loserNextGameRows.length > 0) {
+              await client.query('ROLLBACK');
+              return res.status(400).json({ error: 'Cannot un-finalize score: Loser is already playing or has finished their next match. Please revert the downstream game first.' });
+            }
+          }
+
+          if (match.next_match_id && match.winner_team_id) {
+            await client.query(
+              'UPDATE tournament_matches SET team_a_id = CASE WHEN team_a_id = $1 THEN NULL ELSE team_a_id END, team_b_id = CASE WHEN team_b_id = $1 THEN NULL ELSE team_b_id END WHERE id = $2',
+              [match.winner_team_id, match.next_match_id]
+            );
+          }
+          if (match.loser_next_match_id && match.loser_team_id) {
+            await client.query(
+              'UPDATE tournament_matches SET team_a_id = CASE WHEN team_a_id = $1 THEN NULL ELSE team_a_id END, team_b_id = CASE WHEN team_b_id = $1 THEN NULL ELSE team_b_id END WHERE id = $2',
+              [match.loser_team_id, match.loser_next_match_id]
+            );
+          }
+          await client.query(
+            'UPDATE tournament_matches SET winner_team_id = NULL, loser_team_id = NULL WHERE id = $1',
+            [match.id]
+          );
+        }
+      }
+    }
+    // ----------------------------------------
 
     if (hasPrepTasks) {
       const tasks = Array.isArray(prep_task_type_ids)
@@ -1117,6 +1299,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     cache.invalidatePrefix('games:');
     cache.invalidatePrefix('standings:');
     cache.invalidatePrefix('umpires:');
+    if (game.tournament_id) cache.invalidatePrefix('tournaments:');
     res.json(updated);
   } catch (err) {
     await client.query('ROLLBACK');

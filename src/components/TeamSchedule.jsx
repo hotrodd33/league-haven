@@ -8,9 +8,9 @@ import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
-import { GameForm } from './GameSchedule.jsx';
+import { GameForm } from './GameForm.jsx';
 import { Button, Input, Select, Modal } from './ui/index.js';
-import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, UserIcon } from './ui/icons.jsx';
+import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, UserIcon, TrophyIcon } from './ui/icons.jsx';
 import { DARK_STATUS_COLORS, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
 
 const STATUS_COLORS = DARK_STATUS_COLORS;
@@ -56,7 +56,7 @@ const PRACTICE_COLORS = {
   maintenance: { bg: 'bg-amber-900/40', border: 'border-amber-500', text: 'text-amber-300', dot: 'bg-amber-500', badge: 'bg-amber-900/60 text-amber-300' },
 };
 
-export default function TeamSchedule({ teamId, onNavigateToTeam, onViewPlayer }) {
+export default function TeamSchedule({ teamId, onNavigateToTeam, onNavigateToTournament, onViewPlayer }) {
   const { isAdmin, canScoreGame, canScheduleGames } = useAuth();
   const canManageGames = isAdmin || canScheduleGames;
   const queryClient = useQueryClient();
@@ -305,17 +305,18 @@ export default function TeamSchedule({ teamId, onNavigateToTeam, onViewPlayer })
                   {itemsByDate[dateKey].map(item => (
                     item._type === 'game'
                       ? <GameCard key={`game-${item.id}`} game={item} teamId={teamId}
-                          weather={gameWeather[String(item.id)]}
-                          onSelect={() => setSelectedGameId(item.id)}
-                          onTrack={() => setTrackingGameId(item.id)}
-                          onSchedule={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id) ? () => { setEditingGame(item); setShowForm(true); } : undefined}
-                          canScore={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id)} />
+                        weather={gameWeather[String(item.id)]}
+                        onSelect={() => setSelectedGameId(item.id)}
+                        onTrack={() => setTrackingGameId(item.id)}
+                        onSchedule={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id) ? () => { setEditingGame(item); setShowForm(true); } : undefined}
+                        canScore={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id)}
+                        onNavigateToTournament={onNavigateToTournament} />
                       : <PracticeCard key={`practice-${item.id}`} practice={item}
-                          editable={canManageGames}
-                          onEdit={() => setEditingPractice(item)}
-                          onClone={() => { setEditingGame(null); setShowForm(true); }}
-                          onDelete={() => handleDeletePractice(item)}
-                          deleting={deletingPractice} />
+                        editable={canManageGames}
+                        onEdit={() => setEditingPractice(item)}
+                        onClone={() => { setEditingGame(null); setShowForm(true); }}
+                        onDelete={() => handleDeletePractice(item)}
+                        deleting={deletingPractice} />
                   ))}
                 </div>
               </div>
@@ -356,7 +357,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam, onViewPlayer })
 
 /* ── Game Card (list view) ── */
 
-function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canScore }) {
+function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canScore, onNavigateToTournament }) {
   const isHome = game.home_team_id === teamId;
   const opponent = isHome ? game.away_team_name : game.home_team_name;
   const opponentLogo = isHome ? game.away_logo : game.home_logo;
@@ -448,11 +449,10 @@ function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canSco
                 <span className={weather.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️{weather.precipitationProbability}%</span>
               )}
               {weather.playability && weather.playability.rating !== 'good' && (
-                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
-                  weather.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
-                  weather.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
-                  'bg-yellow-900/40 text-yellow-300'
-                }`}>{weather.playability.rating}</span>
+                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${weather.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
+                    weather.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
+                      'bg-yellow-900/40 text-yellow-300'
+                  }`}>{weather.playability.rating}</span>
               )}
             </span>
           )}
@@ -474,6 +474,17 @@ function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canSco
               {game.away_sched_phone && <a href={`tel:${game.away_sched_phone.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()} className="hover:text-action-300 cursor-pointer flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{formatPhone(game.away_sched_phone)}</a>}
             </span>
           )}
+        </div>
+      )}
+      {game.tournament_id && game.tournament_name && (
+        <div className="mt-1 ml-[76px]">
+          <button
+            onClick={(e) => { e.stopPropagation(); onNavigateToTournament?.(game.tournament_id); }}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors"
+          >
+            <TrophyIcon className="w-3 h-3" />
+            {game.tournament_name}
+          </button>
         </div>
       )}
     </div>
@@ -591,9 +602,9 @@ function TeamCalendar({ items, teamId, year, month, onPrevMonth, onNextMonth, on
                   if (item._type === 'game') {
                     const statusColor =
                       item.status === 'completed' ? 'bg-action-900/40 text-action-300' :
-                      item.status === 'cancelled' ? 'bg-signal-900/40 text-signal-300 line-through' :
-                      item.status === 'postponed' ? 'bg-amber-900/40 text-amber-300' :
-                      'bg-slate-800/80 text-gray-300';
+                        item.status === 'cancelled' ? 'bg-signal-900/40 text-signal-300 line-through' :
+                          item.status === 'postponed' ? 'bg-amber-900/40 text-amber-300' :
+                            'bg-slate-800/80 text-gray-300';
                     return (
                       <div key={`g-${item.id}`} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${statusColor}`}>
                         {formatTime(item.game_time)} {[item.home_age_group, item.home_level].filter(Boolean).join(' ')} {item.home_city_abbr} vs {item.away_city_abbr}
@@ -710,32 +721,32 @@ function TeamSubscribeModal({ teamId, onClose }) {
 
   return (
     <Modal open onClose={onClose} title="Subscribe to Team Calendar" size="md">
-        <p className="text-sm text-gray-400 mb-4">
-          Subscribe to this team's schedule in your calendar app. Games and practices will sync automatically.
-        </p>
+      <p className="text-sm text-gray-400 mb-4">
+        Subscribe to this team's schedule in your calendar app. Games and practices will sync automatically.
+      </p>
 
           <a href={webcalUrl}
           className="btn btn-md btn-primary w-full flex items-center justify-center gap-2 mb-4">
           <CalendarIcon className="w-4 h-4" /> Open in Calendar App
         </a>
 
-        <div className="mb-4">
-          <label className="lh-eyebrow block mb-1">Or copy the feed URL</label>
-          <div className="flex gap-2">
-            <input type="text" readOnly value={icsUrl}
-              className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-gray-300 font-mono select-all focus:outline-none focus:ring-2 focus:ring-action-500/30"
-              onClick={e => e.target.select()} />
-            <Button size="xs" variant="secondary" onClick={handleCopy}>
-              {copied ? '✓ Copied' : 'Copy'}
-            </Button>
-          </div>
+      <div className="mb-4">
+        <label className="lh-eyebrow block mb-1">Or copy the feed URL</label>
+        <div className="flex gap-2">
+          <input type="text" readOnly value={icsUrl}
+            className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-gray-300 font-mono select-all focus:outline-none focus:ring-2 focus:ring-action-500/30"
+            onClick={e => e.target.select()} />
+          <Button size="xs" variant="secondary" onClick={handleCopy}>
+            {copied ? '✓ Copied' : 'Copy'}
+          </Button>
         </div>
+      </div>
 
-        <div className="text-xs text-gray-500 space-y-1">
-          <p><strong>Google Calendar:</strong> Settings → Add calendar → From URL → paste the link</p>
-          <p><strong>Apple Calendar:</strong> Click "Open in Calendar App" above, or File → New Subscription</p>
-          <p><strong>Outlook:</strong> Add calendar → Subscribe from web → paste the link</p>
-        </div>
+      <div className="text-xs text-gray-500 space-y-1">
+        <p><strong>Google Calendar:</strong> Settings → Add calendar → From URL → paste the link</p>
+        <p><strong>Apple Calendar:</strong> Click "Open in Calendar App" above, or File → New Subscription</p>
+        <p><strong>Outlook:</strong> Add calendar → Subscribe from web → paste the link</p>
+      </div>
     </Modal>
   );
 }
@@ -813,71 +824,70 @@ export function PracticeEditModal({ practice, onDone, onCancel }) {
 
   return (
     <Modal open onClose={onCancel} title="Edit Reservation" size="md">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Event type */}
-          <div>
-            <label className="lh-eyebrow block mb-1">Type</label>
-            <div className="flex gap-1 p-1 bg-gray-900 rounded-lg">
-              {eventTypeOptions.map(opt => (
-                <button key={opt.value} type="button"
-                  onClick={() => setForm(prev => ({ ...prev, event_type: opt.value }))}
-                  className={`flex-1 lh-tab ${
-                    form.event_type === opt.value
-                      ? 'lh-tab-active'
-                      : 'lh-tab-inactive'
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Event type */}
+        <div>
+          <label className="lh-eyebrow block mb-1">Type</label>
+          <div className="flex gap-1 p-1 bg-gray-900 rounded-lg">
+            {eventTypeOptions.map(opt => (
+              <button key={opt.value} type="button"
+                onClick={() => setForm(prev => ({ ...prev, event_type: opt.value }))}
+                className={`flex-1 lh-tab ${form.event_type === opt.value
+                    ? 'lh-tab-active'
+                    : 'lh-tab-inactive'
                   }`}>
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+                {opt.label}
+              </button>
+            ))}
           </div>
+        </div>
 
-          <Input label="Title *" id="pe-title" name="title" type="text" value={form.title} onChange={handleChange} required />
-          <Input label="Date" id="pe-date" name="event_date" type="date" value={form.event_date} onChange={handleChange} />
+        <Input label="Title *" id="pe-title" name="title" type="text" value={form.title} onChange={handleChange} required />
+        <Input label="Date" id="pe-date" name="event_date" type="date" value={form.event_date} onChange={handleChange} />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Start Time *" id="pe-start" name="start_time" type="time" value={form.start_time} onChange={handleChange} required />
-            <div>
-              <label htmlFor="pe-duration" className="lh-eyebrow block mb-1">Duration *</label>
-              <select id="pe-duration" name="duration_minutes" value={form.duration_minutes} onChange={handleChange} required className="lh-select">
-                {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <Select label="Location" id="pe-location" name="location_id" value={form.location_id} onChange={handleChange}>
-            <option value="">—</option>
-            {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
-          </Select>
-
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Start Time *" id="pe-start" name="start_time" type="time" value={form.start_time} onChange={handleChange} required />
           <div>
-            <label htmlFor="pe-notes" className="lh-eyebrow block mb-1">Notes</label>
-            <textarea id="pe-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} className="lh-input" />
+            <label htmlFor="pe-duration" className="lh-eyebrow block mb-1">Duration *</label>
+            <select id="pe-duration" name="duration_minutes" value={form.duration_minutes} onChange={handleChange} required className="lh-select">
+              {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
+        </div>
 
-          {error && <div className="lh-alert lh-alert-error">{error}</div>}
+        <Select label="Location" id="pe-location" name="location_id" value={form.location_id} onChange={handleChange}>
+          <option value="">—</option>
+          {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+        </Select>
 
-          {warning && (
-            <div className="bg-yellow-900/30 border border-yellow-600 text-yellow-200 text-sm px-4 py-3 rounded-lg flex items-start gap-2">
-              <span className="text-yellow-400 font-bold mt-0.5">⚠</span>
-              <div className="flex-1">
-                <p>{warning}</p>
-                <Button size="xs" variant="secondary" className="mt-2" onClick={() => { setWarning(null); onDone(); }}>
-                  OK, got it
-                </Button>
-              </div>
-            </div>
-          )}
+        <div>
+          <label htmlFor="pe-notes" className="lh-eyebrow block mb-1">Notes</label>
+          <textarea id="pe-notes" name="notes" value={form.notes} onChange={handleChange} rows={2} className="lh-input" />
+        </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-            {!warning && (
-              <Button type="submit" disabled={saving} loading={saving}>
-                {saving ? 'Saving…' : 'Update'}
+        {error && <div className="lh-alert lh-alert-error">{error}</div>}
+
+        {warning && (
+          <div className="bg-yellow-900/30 border border-yellow-600 text-yellow-200 text-sm px-4 py-3 rounded-lg flex items-start gap-2">
+            <span className="text-yellow-400 font-bold mt-0.5">⚠</span>
+            <div className="flex-1">
+              <p>{warning}</p>
+              <Button size="xs" variant="secondary" className="mt-2" onClick={() => { setWarning(null); onDone(); }}>
+                OK, got it
               </Button>
-            )}
+            </div>
           </div>
-        </form>
+        )}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          {!warning && (
+            <Button type="submit" disabled={saving} loading={saving}>
+              {saving ? 'Saving…' : 'Update'}
+            </Button>
+          )}
+        </div>
+      </form>
     </Modal>
   );
 }

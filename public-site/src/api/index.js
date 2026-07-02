@@ -58,6 +58,20 @@ export function fetchTravelMatrix() {
   return apiFetch('/travel');
 }
 
+export function fetchTournaments(params = {}) {
+  const qs = new URLSearchParams();
+  if (params.registration_open) qs.set('registration_open', '1');
+  if (params.org_id) qs.set('org_id', params.org_id);
+  if (params.from) qs.set('from', params.from);
+  if (params.to) qs.set('to', params.to);
+  const q = qs.toString();
+  return apiFetch(`/tournaments${q ? '?' + q : ''}`);
+}
+
+export function fetchTournament(id) {
+  return apiFetch(`/tournaments/${id}`);
+}
+
 export function fetchGame(gameId) {
   return apiFetch(`/games/${gameId}`);
 }

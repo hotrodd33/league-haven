@@ -6,6 +6,8 @@ import Scores from './components/Scores.jsx';
 import TeamDetail from './components/TeamDetail.jsx';
 import GameDetail from './components/GameDetail.jsx';
 import TravelMatrix from './components/TravelMatrix.jsx';
+import Tournaments from './components/Tournaments.jsx';
+import TournamentDetail from './components/TournamentDetail.jsx';
 import FieldPrep from './components/FieldPrep.jsx';
 import { fetchBranding, fetchTeams } from './api/index.js';
 
@@ -41,6 +43,7 @@ const TABS = [
   { key: 'standings', label: 'Standings' },
   { key: 'scores',    label: 'Scores'    },
   { key: 'teams',     label: 'Teams'     },
+  { key: 'tournaments', label: 'Tournaments' },
   { key: 'travel',    label: 'Travel'    },
   { key: 'prep',      label: 'Field Prep' },
 ];
@@ -53,6 +56,8 @@ function parsePath(pathname) {
   const path = pathname.replace(/^\/site/, '') || '/';
   const mg = path.match(/^\/game\/(\d+)$/);
   if (mg) return { view: 'game', gameId: parseInt(mg[1], 10) };
+  const mt = path.match(/^\/tournament\/(\d+)$/);
+  if (mt) return { view: 'tournament', tournamentId: parseInt(mt[1], 10) };
   const m = path.match(/^\/team\/(.+)$/);
   if (m) return { view: 'team', teamSlug: m[1] };
   const tab = (path.replace(/^\//, '').split('/')[0]) || 'home';
@@ -117,6 +122,11 @@ export default function App() {
     const slug = team ? toSlug(team.long_name || team.name) : String(teamId);
     window.history.pushState({}, '', `/site/team/${slug}`);
     setNav({ view: 'team', teamSlug: slug, teamId });
+  }
+
+  function navigateToTournament(tournamentId) {
+    window.history.pushState({}, '', `/site/tournament/${tournamentId}`);
+    setNav({ view: 'tournament', tournamentId });
   }
 
   function navigateToTab(tab) {
@@ -210,6 +220,11 @@ export default function App() {
             onNavigateToTeam={navigateToTeam}
             officialsEnabled={branding.feature_officials !== false}
           />
+        ) : nav.view === 'tournament' ? (
+          <TournamentDetail
+            tournamentId={nav.tournamentId}
+            onBack={() => window.history.back()}
+          />
         ) : nav.view === 'team' ? (
           resolvedTeamId
             ? <TeamDetail
@@ -225,6 +240,7 @@ export default function App() {
             {nav.tab === 'standings' && <Standings onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} officialsEnabled={branding.feature_officials !== false} />}
             {nav.tab === 'teams'     && <Teams     onNavigateToTeam={navigateToTeam} />}
+            {nav.tab === 'tournaments' && <Tournaments onNavigateToTournament={navigateToTournament} />}
             {nav.tab === 'travel'    && <TravelMatrix />}
             {nav.tab === 'prep'      && <FieldPrep  onNavigateToGame={navigateToGame} officialsEnabled={branding.feature_officials !== false} />}
           </SiteErrorBoundary>

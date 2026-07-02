@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { STALE } from '../lib/queryConfig.js';
@@ -19,10 +20,11 @@ import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { PracticeCard, PracticeEditModal } from './TeamSchedule.jsx';
-import { FieldForm } from './FieldsPage.jsx';
-import { DARK_STATUS_COLORS, DARK_BADGES, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';
-import { Button, Input, Modal } from './ui/index.js';
-import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, PlusIcon, ChevronLeftIcon } from './ui/icons.jsx';
+import { GameForm } from './GameForm.jsx';
+
+import { DARK_STATUS_COLORS } from '../constants/statusClasses.js';
+import { Button, Modal } from './ui/index.js';
+import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, PlusIcon, ChevronLeftIcon, TrophyIcon } from './ui/icons.jsx';
 
 // Compact chip label: "10U" + "AA" → "10AA", "12U" alone → "12U", division_name as-is.
 function divisionChipLabel(game) {
@@ -49,7 +51,7 @@ function stripAgeLevel(name, ageGroup, level) {
   return n || name;
 }
 
-const STATUS_OPTIONS = [
+export const STATUS_OPTIONS = [
   { value: 'unscheduled', label: 'Unscheduled' },
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'in_progress', label: 'In Progress' },
@@ -70,7 +72,7 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function formatTime(timeStr) {
+export function formatTime(timeStr) {
   if (!timeStr) return '';
   const [h, m] = timeStr.split(':').map(Number);
   const ampm = h >= 12 ? 'PM' : 'AM';
@@ -78,12 +80,9 @@ function formatTime(timeStr) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-function toMinutes(hhmm) {
-  const [h, m] = String(hhmm).split(':').map(Number);
-  return (h * 60) + m;
-}
 
-function CoachContact({ name, email, phone, label }) {
+
+export function CoachContact({ name, email, phone, label }) {
   if (!name && !email && !phone) return null;
   return (
     <div className="flex items-center gap-2 text-xs text-gray-400">
@@ -95,101 +94,9 @@ function CoachContact({ name, email, phone, label }) {
   );
 }
 
-const SCHED_ROLE_LABELS = { scheduling_contact: 'Scheduler', org_scheduler: 'Org Scheduler', head_coach: 'Head Coach', org_admin: 'Org Admin' };
+export const SCHED_ROLE_LABELS = { scheduling_contact: 'Scheduler', org_scheduler: 'Org Scheduler', head_coach: 'Head Coach', org_admin: 'Org Admin' };
 
-function AddFieldModal({ homeOrgId, onDone, onCancel }) {
-  const [orgs, setOrgs] = useState([]);
-  const [ageGroups, setAgeGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    Promise.all([fetchOrganizations(), fetchAgeGroups()])
-      .then(([o, ag]) => { setOrgs(o); setAgeGroups(ag); })
-      .finally(() => setLoading(false));
-  }, []);
-  if (loading) return <Modal open onClose={onCancel} title="Add Field Location" size="lg"><div className="p-6 text-center text-gray-400">Loading...</div></Modal>;
-  const editableOrgIds = new Set(orgs.map(o => o.id));
-  return (
-    <FieldForm orgId={homeOrgId} editableOrgIds={editableOrgIds} orgs={orgs} ageGroups={ageGroups} onDone={onDone} onCancel={onCancel} />
-  );
-}
-
-function toHHMM(totalMinutes) {
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function UmpireStatusList({ officials, interestedUmpires }) {
-  const assignedIds = new Set((officials || []).map(o => Number(o.id)));
-  const items = [];
-  for (const o of (officials || [])) {
-    items.push({ name: o.name, status: 'assigned' });
-  }
-  for (const u of (interestedUmpires || [])) {
-    if (!assignedIds.has(Number(u.official_id))) {
-      items.push({ name: u.name, status: 'interested' });
-    }
-  }
-  if (!items.length) return null;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {items.map((item, i) => (
-        <span key={i} className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-          item.status === 'assigned'
-            ? 'bg-action-900/50 text-action-300'
-            : DARK_BADGES.warning
-        }`}>
-          {item.name}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function buildTimeSlots(startTime, endTime, increment) {
-  const start = toMinutes(startTime);  const end = toMinutes(endTime);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) return [];
-  const step = Number(increment) || 30;  const slots = [];
-  for (let cur = start; cur <= end; cur += step) {
-    slots.push(toHHMM(cur));
-  }
-  return slots;
-}
-
-// Duration options: 1 hr, then 15-min increments up to 12 hrs
-const DURATION_OPTIONS = (() => {
-  const opts = [];
-  for (let m = 60; m <= 720; m += 15) {
-    const h = Math.floor(m / 60);
-    const min = m % 60;
-    const label = min === 0 ? `${h} hr${h !== 1 ? 's' : ''}` : `${h}:${String(min).padStart(2, '0')}`;
-    opts.push({ value: m, label });
-  }
-  return opts;
-})();
-
-function addDays(dateStr, n) {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
-function buildRecurDates(startDate, recurType, recurDays, recurEndDate, recurCount) {
-  if (recurType === 'none') return [startDate];
-  const dates = [];
-  const limit = recurType === 'count' ? Number(recurCount) : 365;
-  let cur = startDate;
-  while (dates.length < limit) {
-    const dow = new Date(cur + 'T00:00:00').getDay();
-    if (recurDays.includes(dow)) dates.push(cur);
-    cur = addDays(cur, 1);
-    if (recurType === 'until' && cur > recurEndDate) break;
-    if (cur > addDays(startDate, 365)) break;
-  }
-  return dates;
-}
-
-export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, onGameIdConsumed, onOpenImport, onViewPlayer }) {
+export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTournament, initialGameId, onGameIdConsumed, onOpenImport, onViewPlayer }) {
   const { isAdmin, isSuperAdmin, isOrgAdmin, isTeamManager, isAuthenticated, canScoreGame, canScheduleGames, canDeleteGame, role, isUmpire, permissions } = useAuth();
   const { features } = useBranding(isAuthenticated);
   const officialsFeatureEnabled = features.feature_officials !== false;
@@ -229,7 +136,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
   // Consume initialGameId so it doesn't re-trigger on re-renders
   useEffect(() => {
     if (initialGameId && onGameIdConsumed) onGameIdConsumed();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filters
   const [filterTeam, setFilterTeam] = useState('');
@@ -290,7 +197,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
       setFilterTeam('__my_teams__');
     }
     setFilterTeamReady(true);
-  }, [teamsLoading, isAdmin, myTeamIds, filterTeamReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [teamsLoading, isAdmin, myTeamIds, filterTeamReady]);
 
   // ── React Query: filter-driven data ────────────────────────────────────────
   const isMyTeams = filterTeam === '__my_teams__';
@@ -803,13 +710,13 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                 </>
               )}
             </div>
-      ) : (
-        <div className="space-y-6">
-          {sortedDateKeys.map(dateKey => (
-            <div key={dateKey} ref={(el) => { dateSectionRefs.current[dateKey] = el; }}>
-              <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
-                {formatDate(dateKey)}
-              </h3>
+          ) : (
+            <div className="space-y-6">
+              {sortedDateKeys.map(dateKey => (
+                <div key={dateKey} ref={(el) => { dateSectionRefs.current[dateKey] = el; }}>
+                  <h3 className="text-base font-display font-bold text-white uppercase tracking-wide mb-2 border-b border-gray-700 pb-1">
+                    {formatDate(dateKey)}
+                  </h3>
 
               {/* Desktop */}
               <div className="hidden md:block">
@@ -901,6 +808,15 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                               ))}
                             </div>
                           )}
+                          {game.tournament_id && game.tournament_name && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onNavigateToTournament?.(game.tournament_id); }}
+                              className="hidden lg:inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors whitespace-nowrap"
+                              title={`Tournament: ${game.tournament_name}`}
+                            >
+                              <TrophyIcon className="w-3 h-3" />
+                              {game.tournament_name}
+                            </button>
                           {officialsFeatureEnabled && !game.officials?.length && (
                             game.home_ump_required === false
                               ? <span className="hidden lg:inline-flex text-xs px-1.5 py-0.5 rounded font-medium bg-gray-700/60 text-gray-400 italic" title="No umpire needed for this age group">No Ump</span>
@@ -1029,6 +945,15 @@ export default function GameSchedule({ onBack, onNavigateToTeam, initialGameId, 
                       </div>
                       {game.location_name && (
                         <div className="text-xs text-gray-400 mb-1 flex items-center gap-1"><MapPinIcon className="w-3.5 h-3.5 shrink-0" />{game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
+                      )}
+                      {game.tournament_id && game.tournament_name && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onNavigateToTournament?.(game.tournament_id); }}
+                          className="mb-1 inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        >
+                          <TrophyIcon className="w-3 h-3" />
+                          {game.tournament_name}
+                        </button>
                       )}
                       {gameWeather[String(game.id)] && (() => {
                         const w = gameWeather[String(game.id)];
@@ -1179,43 +1104,43 @@ function SubscribeModal({ filterTeam, filterSeason, onClose }) {
 
   return (
     <Modal open onClose={onClose} title="Subscribe to Calendar" size="md">
-        <p className="text-sm text-gray-400 mb-4">
-          Subscribe to this game schedule in your calendar app. Games will sync automatically as they're added or updated.
-          {(filterTeam || filterSeason) && (
-            <span className="block mt-1 text-chrome-400">Your current filters are included in this feed.</span>
-          )}
-        </p>
+      <p className="text-sm text-gray-400 mb-4">
+        Subscribe to this game schedule in your calendar app. Games will sync automatically as they're added or updated.
+        {(filterTeam || filterSeason) && (
+          <span className="block mt-1 text-chrome-400">Your current filters are included in this feed.</span>
+        )}
+      </p>
 
-        {/* Quick subscribe button */}
-        <a href={webcalUrl}
-          className="btn btn-md btn-primary w-full flex items-center justify-center gap-2 mb-4">
-          📅 Open in Calendar App
-        </a>
+      {/* Quick subscribe button */}
+      <a href={webcalUrl}
+        className="btn btn-md btn-primary w-full flex items-center justify-center gap-2 mb-4">
+        📅 Open in Calendar App
+      </a>
 
-        {/* Manual URL copy */}
-        <div className="mb-4">
-          <label className="lh-eyebrow block mb-1">
-            Or copy the feed URL
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              readOnly
-              value={icsUrl}
-              className="lh-input flex-1 font-mono text-xs"
-              onClick={e => e.target.select()}
-            />
-            <Button size="sm" variant="secondary" onClick={handleCopy}>
-              {copied ? '✓ Copied' : 'Copy'}
-            </Button>
-          </div>
+      {/* Manual URL copy */}
+      <div className="mb-4">
+        <label className="lh-eyebrow block mb-1">
+          Or copy the feed URL
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            readOnly
+            value={icsUrl}
+            className="lh-input flex-1 font-mono text-xs"
+            onClick={e => e.target.select()}
+          />
+          <Button size="sm" variant="secondary" onClick={handleCopy}>
+            {copied ? '✓ Copied' : 'Copy'}
+          </Button>
         </div>
+      </div>
 
-        <div className="text-xs text-gray-500 space-y-1">
-          <p><strong>Google Calendar:</strong> Settings → Add calendar → From URL → paste the link</p>
-          <p><strong>Apple Calendar:</strong> Click "Open in Calendar App" above, or File → New Subscription</p>
-          <p><strong>Outlook:</strong> Add calendar → Subscribe from web → paste the link</p>
-        </div>
+      <div className="text-xs text-gray-500 space-y-1">
+        <p><strong>Google Calendar:</strong> Settings → Add calendar → From URL → paste the link</p>
+        <p><strong>Apple Calendar:</strong> Click "Open in Calendar App" above, or File → New Subscription</p>
+        <p><strong>Outlook:</strong> Add calendar → Subscribe from web → paste the link</p>
+      </div>
     </Modal>
   );
 }
@@ -1295,9 +1220,9 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                 {dayGames.slice(0, 3).map((g, j) => {
                   const statusColor =
                     g.status === 'completed' ? 'bg-action-900/40 text-action-300' :
-                    g.status === 'cancelled' ? 'bg-signal-900/40 text-signal-300 line-through' :
-                    g.status === 'postponed' ? 'bg-amber-900/40 text-amber-300' :
-                    'bg-chrome-900/40 text-chrome-300';
+                      g.status === 'cancelled' ? 'bg-signal-900/40 text-signal-300 line-through' :
+                        g.status === 'postponed' ? 'bg-amber-900/40 text-amber-300' :
+                          'bg-chrome-900/40 text-chrome-300';
                   return (
                     <div key={g.id || j} className={`text-[9px] leading-tight truncate rounded px-1 py-0.5 ${statusColor}`}>
                       {[formatTime(g.game_time), divisionChipLabel(g), g.home_city_abbr, 'vs', g.away_city_abbr].filter(Boolean).join(' ')}
@@ -1370,11 +1295,10 @@ function ScheduleCalendar({ games, year, month, onPrevMonth, onNextMonth, onToda
                                 <span className={w.precipitationProbability >= 50 ? 'text-orange-400' : 'text-gray-500'}>🌧️{w.precipitationProbability}%</span>
                               )}
                               {w.playability && w.playability.rating !== 'good' && (
-                                <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded-full ${
-                                  w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
+                                <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded-full ${w.playability.rating === 'unplayable' ? 'bg-signal-900/40 text-signal-300' :
                                   w.playability.rating === 'poor' ? 'bg-orange-900/40 text-orange-300' :
-                                  'bg-yellow-900/40 text-yellow-300'
-                                }`}>{w.playability.rating}</span>
+                                    'bg-yellow-900/40 text-yellow-300'
+                                  }`}>{w.playability.rating}</span>
                               )}
                             </span>
                           );
@@ -2479,7 +2403,7 @@ function QuickCreateTeamForm({ onCreated, onCancel }) {
   useEffect(() => {
     Promise.all([fetchAgeGroups(), fetchLevels(), fetchOrganizations()])
       .then(([ag, lv, og]) => { setAgeGroups(ag); setLevels(lv); setOrgs(og); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const shortName = [form.team_city, form.team_color, form.age_group, form.level].filter(Boolean).join(' ');
@@ -2514,80 +2438,80 @@ function QuickCreateTeamForm({ onCreated, onCancel }) {
 
   return (
     <Modal open onClose={onCancel} title="Create Opponent Team" size="md">
-        <p className="text-xs text-gray-400 mb-4">Quickly add a team that doesn&apos;t exist yet. Organization is optional for opponent teams.</p>
+      <p className="text-xs text-gray-400 mb-4">Quickly add a team that doesn&apos;t exist yet. Organization is optional for opponent teams.</p>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <Input label="Team City *" id="qt-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" />
-            <Input label="Team Mascot" id="qt-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" />
-            <Input label="Team Color" id="qt-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="Team City *" id="qt-city" name="team_city" type="text" value={form.team_city} onChange={handleChange} required placeholder="e.g. Austin" />
+          <Input label="Team Mascot" id="qt-mascot" name="team_mascot" type="text" value={form.team_mascot} onChange={handleChange} placeholder="e.g. Thunder" />
+          <Input label="Team Color" id="qt-color" name="team_color" type="text" value={form.team_color} onChange={handleChange} placeholder="e.g. Red" />
+        </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="qt-primary" className="lh-eyebrow block mb-1">Primary Color</label>
-              <div className="flex items-center gap-2">
-                <input id="qt-primary" type="color" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
-                <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="qt-secondary" className="lh-eyebrow block mb-1">Secondary Color</label>
-              <div className="flex items-center gap-2">
-                <input id="qt-secondary" type="color" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
-                <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="qt-age" className="lh-eyebrow block mb-1">Age Group</label>
-              {ageGroups.length > 0 ? (
-                <select id="qt-age" name="age_group" value={form.age_group} onChange={handleChange} className="lh-select">
-                  <option value="">— Select —</option>
-                  {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
-                </select>
-              ) : (
-                <input id="qt-age" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className="lh-input" />
-              )}
-            </div>
-            <div>
-              <label htmlFor="qt-level" className="lh-eyebrow block mb-1">Level</label>
-              {levels.length > 0 ? (
-                <select id="qt-level" name="level" value={form.level} onChange={handleChange} className="lh-select">
-                  <option value="">— Select —</option>
-                  {levels.map(lv => <option key={lv.id} value={lv.name}>{lv.name}</option>)}
-                </select>
-              ) : (
-                <input id="qt-level" name="level" type="text" value={form.level} onChange={handleChange} placeholder="e.g. Competitive" className="lh-input" />
-              )}
-            </div>
-          </div>
-
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="qt-org" className="lh-eyebrow block mb-1">Organization</label>
-            <select id="qt-org" name="org_id" value={form.org_id} onChange={handleChange} className="lh-select">
-              <option value="">— None (opponent) —</option>
-              {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">Leave blank for external opponent teams.</p>
-          </div>
-
-          {shortName && (
-            <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm">
-              <span className="text-xs font-semibold text-gray-400 uppercase">Team Name: </span>
-              <span className="font-semibold text-gray-200">{shortName}</span>
+            <label htmlFor="qt-primary" className="lh-eyebrow block mb-1">Primary Color</label>
+            <div className="flex items-center gap-2">
+              <input id="qt-primary" type="color" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
+              <input type="text" value={form.primary_color} onChange={e => setForm(prev => ({ ...prev, primary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
             </div>
-          )}
-
-          {error && <div className="lh-alert lh-alert-error">{error}</div>}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-            <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Creating…' : 'Create Team'}</Button>
           </div>
-        </form>
+          <div>
+            <label htmlFor="qt-secondary" className="lh-eyebrow block mb-1">Secondary Color</label>
+            <div className="flex items-center gap-2">
+              <input id="qt-secondary" type="color" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="w-10 h-8 rounded border border-gray-600 cursor-pointer p-0.5" />
+              <input type="text" value={form.secondary_color} onChange={e => setForm(prev => ({ ...prev, secondary_color: e.target.value }))} className="lh-input flex-1 font-mono text-xs" maxLength={7} />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="qt-age" className="lh-eyebrow block mb-1">Age Group</label>
+            {ageGroups.length > 0 ? (
+              <select id="qt-age" name="age_group" value={form.age_group} onChange={handleChange} className="lh-select">
+                <option value="">— Select —</option>
+                {ageGroups.map(ag => <option key={ag.id} value={ag.name}>{ag.name}</option>)}
+              </select>
+            ) : (
+              <input id="qt-age" name="age_group" type="text" value={form.age_group} onChange={handleChange} placeholder="e.g. 12U" className="lh-input" />
+            )}
+          </div>
+          <div>
+            <label htmlFor="qt-level" className="lh-eyebrow block mb-1">Level</label>
+            {levels.length > 0 ? (
+              <select id="qt-level" name="level" value={form.level} onChange={handleChange} className="lh-select">
+                <option value="">— Select —</option>
+                {levels.map(lv => <option key={lv.id} value={lv.name}>{lv.name}</option>)}
+              </select>
+            ) : (
+              <input id="qt-level" name="level" type="text" value={form.level} onChange={handleChange} placeholder="e.g. Competitive" className="lh-input" />
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="qt-org" className="lh-eyebrow block mb-1">Organization</label>
+          <select id="qt-org" name="org_id" value={form.org_id} onChange={handleChange} className="lh-select">
+            <option value="">— None (opponent) —</option>
+            {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Leave blank for external opponent teams.</p>
+        </div>
+
+        {shortName && (
+          <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+            <span className="text-xs font-semibold text-gray-400 uppercase">Team Name: </span>
+            <span className="font-semibold text-gray-200">{shortName}</span>
+          </div>
+        )}
+
+        {error && <div className="lh-alert lh-alert-error">{error}</div>}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" disabled={saving} loading={saving}>{saving ? 'Creating…' : 'Create Team'}</Button>
+        </div>
+      </form>
     </Modal>
   );
 }
