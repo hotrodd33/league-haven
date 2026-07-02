@@ -14,7 +14,7 @@ import BoxScoreView from './BoxScoreView.jsx';
 import { Button, Input, Select, ShareButton } from './ui/index.js';
 import { PencilIcon, BaseballIcon, PlusIcon, ArrowPathIcon, MapPinIcon, ExclamationTriangleIcon } from './ui/icons.jsx';
 import { DARK_STATUS_COLORS, DARK_BADGES } from '../constants/statusClasses.js';
-import { GameForm } from './GameForm.jsx';
+import { GameForm } from './GameSchedule.jsx';
 import { fetchTeams, fetchSeasons, fetchTournamentTeams } from '../api/index.js';
 import { directionsUrl } from '../utils/directions.js';
 

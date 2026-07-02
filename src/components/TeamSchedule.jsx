@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
-import { GameForm } from './GameForm.jsx';
+import { GameForm } from './GameSchedule.jsx';
 import { Button, Input, Select, Modal } from './ui/index.js';
 import { BaseballIcon, MapPinIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, UserIcon, TrophyIcon } from './ui/icons.jsx';
 import { DARK_STATUS_COLORS, DARK_TRACK_BUTTON_TONE } from '../constants/statusClasses.js';

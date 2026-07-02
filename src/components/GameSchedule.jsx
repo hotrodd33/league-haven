@@ -20,7 +20,6 @@ import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
 import { PracticeCard, PracticeEditModal } from './TeamSchedule.jsx';
-import { GameForm } from './GameForm.jsx';
 
 import { DARK_STATUS_COLORS } from '../constants/statusClasses.js';
 import { Button, Modal } from './ui/index.js';
