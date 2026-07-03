@@ -28,6 +28,15 @@ function formatDate(d) {
   return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function formatTime(t) {
+  if (!t) return null;
+  const [hours, minutes] = String(t).split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  const suffix = hours >= 12 ? 'PM' : 'AM';
+  const displayHour = hours % 12 || 12;
+  return `${displayHour}:${String(minutes).padStart(2, '0')} ${suffix}`;
+}
+
 // ─── Zoom and Pan Hook ────────────────────────────────────────────────────────
 function useZoomPan(containerRef) {
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
@@ -138,8 +147,8 @@ export const BracketMatch = ({ match, onMatchClick, onNavigateToTeam, onNavigate
               </span>
             ) : (
               <>
-                {game?.game_date && (
-                  <span className="text-slate-500">{formatDate(game.game_date)}</span>
+                {(game?.game_date || game?.game_time) && (
+                  <span className="text-slate-500">{formatDate(game.game_date)}{game?.game_time ? ` · ${formatTime(game.game_time)}` : ''}</span>
                 )}
                 {badge && (
                   <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border ${badge.cls}`}>
@@ -182,12 +191,12 @@ export const BracketMatch = ({ match, onMatchClick, onNavigateToTeam, onNavigate
                           e.stopPropagation();
                           onNavigateToTeam(team.team_id, team.org_id, team.is_temp);
                         }}
-                        className="hover:text-action-100 hover:underline text-left transition-colors font-semibold truncate max-w-[90px]"
+                        className="hover:text-action-100 hover:underline text-left transition-colors font-semibold truncate max-w-22.5"
                       >
                         {team.name}
                       </button>
                     ) : (
-                      <span className="truncate max-w-[90px] inline-block align-bottom font-semibold">{team.name}</span>
+                      <span className="truncate max-w-22.5 inline-block align-bottom font-semibold">{team.name}</span>
                     )
                   ) : (
                     'TBD'
@@ -244,7 +253,7 @@ export const BracketRound = ({ title, matches, onMatchClick, onNavigateToTeam, o
     <div className="flex flex-col justify-around items-center min-h-full px-8 relative">
       <h3 className="absolute -top-10 text-slate-400 font-heading text-lg whitespace-nowrap">{title}</h3>
       {matches.map((match, idx) => (
-        <div key={idx} className="relative flex-1 flex items-center justify-center w-52 min-h-[9rem] py-4">
+        <div key={idx} className="relative flex-1 flex items-center justify-center w-52 min-h-36 py-4">
 
           <BracketMatch match={match} onMatchClick={onMatchClick} onNavigateToTeam={onNavigateToTeam} onNavigateToFields={onNavigateToFields} />
 
@@ -291,7 +300,7 @@ export default function TournamentBracket({
   };
 
   return (
-    <div className="w-full h-full min-h-[600px] bg-slate-950 overflow-hidden relative border border-slate-800 rounded-xl shadow-inner-field select-none">
+    <div className="w-full h-full min-h-150 bg-slate-950 overflow-hidden relative border border-slate-800 rounded-xl shadow-inner-field select-none">
 
       {/* UI Overlay */}
       <div className="absolute top-4 left-4 z-10 bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-700 shadow-card pointer-events-none">
@@ -314,7 +323,7 @@ export default function TournamentBracket({
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
           }}
         >
-          <div className="flex flex-row justify-start items-stretch gap-0 min-h-[400px]">
+          <div className="flex flex-row justify-start items-stretch gap-0 min-h-100">
             {bracketData.map((round, rIdx) => (
               <BracketRound
                 key={rIdx}

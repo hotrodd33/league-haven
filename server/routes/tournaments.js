@@ -39,7 +39,7 @@ function enrichTeam(tt, teamRow) {
         ? (teamRow.team_city
             ? [teamRow.team_city, teamRow.team_mascot, teamRow.team_color, teamRow.age_group, teamRow.level].filter(Boolean).join(' ')
             : teamRow.name)
-        : '(Deleted Team)');
+        : (tt.seed != null ? `Seed #${tt.seed}` : '(Unassigned Team)'));
   const cityWords = (teamRow?.team_city || '').trim().split(/\s+/);
   const cityAbbr = teamRow?.team_city
     ? (cityWords.length > 1 ? cityWords.map(w => w[0]).join('') : teamRow.team_city.substring(0, 3)).toUpperCase()
@@ -1626,12 +1626,6 @@ router.post('/:id/pools/:poolId/schedule-round-robin', authMiddleware, async (re
 
     if (assignedTeams.length < 2) {
       return res.status(400).json({ error: 'Pool needs at least 2 teams to generate round-robin matches' });
-    }
-
-    // Pool games must be real team-vs-team matchups.
-    const hasPlaceholderTeams = assignedTeams.some((t) => !t.team_id);
-    if (hasPlaceholderTeams) {
-      return res.status(400).json({ error: 'All pool teams must be mapped to real league teams before generating round-robin games' });
     }
 
     const teamIds = assignedTeams.map(t => t.tournament_team_id);

@@ -43,6 +43,7 @@ export default function TournamentSchedule({ tournamentId, onBack, onNavigateToT
   const [selectedGameId, setSelectedGameId] = useState(null); // When a match is clicked
   const [showEditor, setShowEditor] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
 
   // ── Data fetching ──────────────────────────────────────────
   const { data, isLoading, error } = useQuery({
@@ -95,6 +96,13 @@ export default function TournamentSchedule({ tournamentId, onBack, onNavigateToT
     if (match.game?.id) {
       setSelectedGameId(match.game.id);
     }
+  }
+
+  function handleScheduleMatch(match) {
+    setSelectedSchedule({
+      match,
+      title: match.roundTitle || match.poolLabel || `Match #${match.match_number}`,
+    });
   }
 
   // ── Finalize matchup → create game ────────────────────
@@ -184,6 +192,7 @@ export default function TournamentSchedule({ tournamentId, onBack, onNavigateToT
               queryClient={queryClient}
               onCreateGame={handleCreateGame}
               onOpenGame={(gameId) => setSelectedGameId(gameId)}
+              onScheduleGame={handleScheduleMatch}
             />
           </aside>
         )}
@@ -197,6 +206,18 @@ export default function TournamentSchedule({ tournamentId, onBack, onNavigateToT
           teams={teams}
           queryClient={queryClient}
           onClose={() => setSlottingMatch(null)}
+        />
+      )}
+
+      {selectedSchedule && (
+        <ScheduleModal
+          tournamentId={tournamentId}
+          tournamentOrgId={tournament?.org_id}
+          match={selectedSchedule.match}
+          matchLabel={selectedSchedule.title}
+          defaultLocationId={tournament?.location_id || ''}
+          queryClient={queryClient}
+          onClose={() => setSelectedSchedule(null)}
         />
       )}
 
@@ -267,9 +288,7 @@ function StatusToggle({ tournament, tournamentId, queryClient }) {
 
 
 // ── Match Scheduler Panel ────────────────────────────────────────────────────
-function MatchScheduler({ tournamentId, rounds, teams, pools, queryClient, onCreateGame, onOpenGame }) {
-  const [selectedMatch, setSelectedMatch] = useState(null);
-
+function MatchScheduler({ tournamentId, rounds, teams, pools, queryClient, onCreateGame, onOpenGame, onScheduleGame }) {
   // Flatten all matches for the list
   const allMatches = useMemo(() => {
     return rounds.flatMap((round) =>
@@ -277,9 +296,9 @@ function MatchScheduler({ tournamentId, rounds, teams, pools, queryClient, onCre
     );
   }, [rounds]);
 
-  // Only show unscheduled, non-bye matches that have at least one team
+  // Show all unscheduled, non-bye matches so admins can lay out the bracket early.
   const unscheduled = allMatches.filter(
-    (m) => !m.is_bye && m.game?.status === 'pending' && !m.game?.game_date && (m.teams[0] || m.teams[1])
+    (m) => !m.is_bye && m.game?.status === 'pending' && !m.game?.game_date
   );
 
   // Matches ready for finalization (both teams assigned, no linked game, no winner)
@@ -292,8 +311,8 @@ function MatchScheduler({ tournamentId, rounds, teams, pools, queryClient, onCre
         poolName: pool.name,
         roundNumber: pm.round_number,
         matchNumber: pm.match_number,
-        teamA: pm.team_a?.name || 'TBD',
-        teamB: pm.team_b?.name || 'TBD',
+        teamA: pm.team_a?.name || (pm.team_a?.seed != null ? `Seed #${pm.team_a.seed}` : 'TBD'),
+        teamB: pm.team_b?.name || (pm.team_b?.seed != null ? `Seed #${pm.team_b.seed}` : 'TBD'),
         game: pm.game || null,
       }))
     );
@@ -325,7 +344,7 @@ function MatchScheduler({ tournamentId, rounds, teams, pools, queryClient, onCre
             {finalizeable.map((m) => (
               <div key={m.id} className="flex items-center justify-between px-2 py-1.5 rounded-md bg-emerald-500/5 border border-emerald-500/20 text-xs">
                 <span className="text-slate-300 truncate flex-1">
-                  {m.teams[0]?.name} vs {m.teams[1]?.name}
+                  {m.teams[0]?.name || 'TBD'} vs {m.teams[1]?.name || 'TBD'}
                 </span>
                 <Button
                   variant="ghost"
@@ -347,7 +366,7 @@ function MatchScheduler({ tournamentId, rounds, teams, pools, queryClient, onCre
           {unscheduled.map((m) => (
             <button
               key={m.id}
-              onClick={() => setSelectedMatch(m)}
+              onClick={() => onScheduleGame?.({ ...m, roundTitle: m.roundTitle })}
               className="flex items-center justify-between w-full px-2 py-1.5 rounded-md hover:bg-slate-700/50 text-left text-xs"
             >
               <span className="text-slate-400">{m.roundTitle} #{m.match_number}</span>
@@ -410,43 +429,47 @@ function MatchScheduler({ tournamentId, rounds, teams, pools, queryClient, onCre
         ) : (
           <div className="space-y-1 max-h-56 overflow-y-auto scrollbar-thin">
             {poolGames.map((pg) => (
-              <button
-                key={pg.id}
-                className="w-full text-left rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 hover:bg-slate-800/70"
-                onClick={() => pg.game?.id && onOpenGame?.(pg.game.id)}
-                disabled={!pg.game?.id}
-              >
+              <div key={pg.id} className="w-full text-left rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 hover:bg-slate-800/70 space-y-1">
                 <div className="flex items-center justify-between text-[10px] text-slate-500">
                   <span>{pg.poolName} · R{pg.roundNumber} M{pg.matchNumber}</span>
                   <span className="uppercase">{pg.game?.status || 'unscheduled'}</span>
                 </div>
                 <div className="text-xs text-slate-200 truncate">{pg.teamA} vs {pg.teamB}</div>
-                <div className="text-[10px] text-slate-500">
-                  {pg.game?.game_date || 'Date TBD'}{pg.game?.game_time ? ` ${pg.game.game_time}` : ''}
-                  {pg.game?.location_name ? ` · ${pg.game.location_name}` : ''}
+                <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                  <span className="truncate">{pg.game?.game_date || 'Date TBD'}{pg.game?.game_time ? ` ${pg.game.game_time}` : ''}{pg.game?.location_name ? ` · ${pg.game.location_name}` : ''}</span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    {pg.game?.id && (
+                      <button
+                        type="button"
+                        className="text-action-400 hover:text-action-300"
+                        onClick={() => onOpenGame?.(pg.game.id)}
+                      >
+                        Open
+                      </button>
+                    )}
+                    {pg.game?.id && (
+                      <button
+                        type="button"
+                        className="text-sky-400 hover:text-sky-300"
+                        onClick={() => onScheduleGame?.({ ...pg, roundTitle: `${pg.poolName} · R${pg.roundNumber} M${pg.matchNumber}` })}
+                      >
+                        Schedule
+                      </button>
+                    )}
+                  </span>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}
       </div>
 
-      {selectedMatch && (
-        <ScheduleModal
-          tournamentId={tournamentId}
-          tournamentOrgId={tournament?.org_id}
-          match={selectedMatch}
-          defaultLocationId={tournament?.location_id || ''}
-          queryClient={queryClient}
-          onClose={() => setSelectedMatch(null)}
-        />
-      )}
     </div>
   );
 }
 
 // ── Schedule Modal ───────────────────────────────────────────────────────────
-function ScheduleModal({ tournamentId, tournamentOrgId, match, defaultLocationId, queryClient, onClose }) {
+function ScheduleModal({ tournamentId, tournamentOrgId, match, matchLabel, defaultLocationId, queryClient, onClose }) {
   const [form, setForm] = useState({ game_date: '', game_time: '', location_id: defaultLocationId || '' });
   const [error, setError] = useState('');
 
@@ -474,7 +497,7 @@ function ScheduleModal({ tournamentId, tournamentOrgId, match, defaultLocationId
   }
 
   return (
-    <Modal onClose={onClose} title={`Schedule: ${match.roundTitle} #${match.match_number}`} size="sm">
+    <Modal onClose={onClose} title={`Schedule: ${matchLabel || match.roundTitle || `Match #${match.match_number}`}`} size="sm">
       <div className="text-sm text-slate-300 mb-3">
         {match.teams[0]?.name || 'TBD'} vs {match.teams[1]?.name || 'TBD'}
       </div>
