@@ -620,15 +620,57 @@ router.get('/:id/pools', async (req, res) => {
     );
 
     const teamsByPool = {};
+    const teamLookup = {};
     for (const row of teamRows) {
       if (!teamsByPool[row.pool_id]) teamsByPool[row.pool_id] = [];
-      teamsByPool[row.pool_id].push({
+      const enriched = {
         ...enrichTeam(row, row.team_id ? row : null),
         tournament_team_id: row.tournament_team_id,
+      };
+      teamsByPool[row.pool_id].push(enriched);
+      teamLookup[row.tournament_team_id] = enriched;
+    }
+
+    const { rows: poolMatchRows } = await pool.query(
+      `SELECT pm.id, pm.pool_id, pm.round_number, pm.match_number, pm.team_a_id, pm.team_b_id, pm.game_id,
+              g.game_date, g.game_time, g.status AS game_status, g.home_score, g.away_score,
+              fl.name AS location_name
+       FROM tournament_pool_matches pm
+       LEFT JOIN games g ON g.id = pm.game_id
+       LEFT JOIN field_locations fl ON fl.id = g.location_id
+       WHERE pm.tournament_id = $1
+       ORDER BY pm.pool_id, pm.round_number, pm.match_number, pm.id`,
+      [id]
+    );
+
+    const poolMatchesByPool = {};
+    for (const row of poolMatchRows) {
+      if (!poolMatchesByPool[row.pool_id]) poolMatchesByPool[row.pool_id] = [];
+      poolMatchesByPool[row.pool_id].push({
+        id: row.id,
+        round_number: row.round_number,
+        match_number: row.match_number,
+        team_a_id: row.team_a_id,
+        team_b_id: row.team_b_id,
+        team_a: row.team_a_id ? (teamLookup[row.team_a_id] || null) : null,
+        team_b: row.team_b_id ? (teamLookup[row.team_b_id] || null) : null,
+        game: row.game_id ? {
+          id: row.game_id,
+          status: row.game_status || 'unscheduled',
+          game_date: row.game_date instanceof Date ? row.game_date.toISOString().slice(0, 10) : row.game_date,
+          game_time: row.game_time || null,
+          location_name: row.location_name || null,
+          home_score: row.home_score,
+          away_score: row.away_score,
+        } : null,
       });
     }
 
-    res.json(pools.map((p) => ({ ...p, teams: teamsByPool[p.id] || [] })));
+    res.json(pools.map((p) => ({
+      ...p,
+      teams: teamsByPool[p.id] || [],
+      pool_matches: poolMatchesByPool[p.id] || [],
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

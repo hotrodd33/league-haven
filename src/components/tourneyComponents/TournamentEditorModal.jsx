@@ -25,6 +25,19 @@ const TAB_ITEMS = [
   { key: 'matchups', label: 'Matchups' },
 ];
 
+function formatPoolGameDate(dateStr) {
+  if (!dateStr) return 'Date TBD';
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
+}
+
+function formatPoolGameTime(timeStr) {
+  if (!timeStr) return 'TBD';
+  const [h, m] = String(timeStr).split(':').map(Number);
+  return `${h % 12 || 12}:${String(m || 0).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
 export default function TournamentEditorModal({ tournament, tournamentId, teams, rounds, onClose, onCreateGame }) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState('info');
@@ -623,6 +636,7 @@ function PoolsTab({ tournamentId, teams, queryClient }) {
         )}
         {pools.map((pool) => {
           const poolTeams = pool.teams || [];
+          const poolGames = pool.pool_matches || [];
           const selectedTtId = assignmentByPool[pool.id] || '';
           return (
             <div key={pool.id} className="bg-slate-900 border border-slate-700 rounded-lg p-3 space-y-3">
@@ -731,6 +745,43 @@ function PoolsTab({ tournamentId, teams, queryClient }) {
                       </button>
                     </div>
                   ))
+                )}
+              </div>
+
+              <div className="border border-slate-700/70 rounded-lg overflow-hidden">
+                <div className="px-3 py-2 bg-slate-800/70 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+                  Pool Games ({poolGames.length})
+                </div>
+                {poolGames.length === 0 ? (
+                  <p className="px-3 py-3 text-xs text-slate-500">No round-robin games generated yet.</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto divide-y divide-slate-800">
+                    {poolGames.map((pm) => {
+                      const game = pm.game || {};
+                      const hs = game.home_score;
+                      const as_ = game.away_score;
+                      const scored = hs != null && as_ != null;
+                      return (
+                        <div key={pm.id} className="px-3 py-2 text-xs space-y-1">
+                          <div className="flex items-center justify-between text-slate-400">
+                            <span>Round {pm.round_number} · Match {pm.match_number}</span>
+                            <span className="uppercase">{game.status || 'unscheduled'}</span>
+                          </div>
+                          <div className="text-slate-200">
+                            {(pm.team_a?.name || 'TBD')}
+                            {scored ? ` ${hs}` : ''}
+                            <span className="text-slate-500 mx-1">vs</span>
+                            {(pm.team_b?.name || 'TBD')}
+                            {scored ? ` ${as_}` : ''}
+                          </div>
+                          <div className="text-slate-500">
+                            {formatPoolGameDate(game.game_date)} · {formatPoolGameTime(game.game_time)}
+                            {game.location_name ? ` · ${game.location_name}` : ''}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 

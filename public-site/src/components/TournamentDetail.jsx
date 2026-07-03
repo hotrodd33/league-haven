@@ -84,7 +84,21 @@ export default function TournamentDetail({ tournamentId, onBack }) {
     }))
   );
 
-  const anyLive = bracketGames.some(g => g.status === 'in_progress');
+  const poolGames = (pools || []).flatMap((pool) =>
+    (pool.pool_matches || []).map((pm) => ({
+      ...(pm.game || {}),
+      round_name: `${pool.name} · Round ${pm.round_number}`,
+      team_a: pm.team_a || null,
+      team_b: pm.team_b || null,
+      pool_name: pool.name,
+      pool_round: pm.round_number,
+      pool_match: pm.match_number,
+    }))
+  );
+
+  const scheduleGames = [...bracketGames, ...poolGames];
+
+  const anyLive = scheduleGames.some(g => g.status === 'in_progress');
 
   const visibleTabs = [
     { key: 'info',     label: 'Info'      },
@@ -128,7 +142,7 @@ export default function TournamentDetail({ tournamentId, onBack }) {
       {tab === 'info'     && <InfoTab tournament={data.tournament} teams={data.teams} />}
       {tab === 'pools'    && <PoolsTab tournamentId={tournamentId} pools={pools} />}
       {tab === 'bracket'  && <BracketTab rounds={data.rounds} />}
-      {tab === 'schedule' && <ScheduleTab games={bracketGames} />}
+      {tab === 'schedule' && <ScheduleTab games={scheduleGames} />}
     </div>
   );
 }
@@ -224,6 +238,7 @@ function PoolsTab({ tournamentId, pools }) {
 function PoolCard({ tournamentId, pool }) {
   const [standings, setStandings] = useState([]);
   const [totals, setTotals]       = useState(null);
+  const poolGames = pool.pool_matches || [];
 
   const load = useCallback(async () => {
     try {
@@ -297,6 +312,46 @@ function PoolCard({ tournamentId, pool }) {
           </table>
         </div>
       )}
+
+      <div className="border-t border-chrome-700/40">
+        <div className="px-4 py-2 bg-chrome-900/40 text-[11px] text-gray-500 font-semibold uppercase tracking-wider">
+          Games ({poolGames.length})
+        </div>
+        {poolGames.length === 0 ? (
+          <p className="text-gray-500 text-sm p-4">No pool games generated yet.</p>
+        ) : (
+          <div className="divide-y divide-chrome-700/30">
+            {poolGames.map((pm) => {
+              const game = pm.game || {};
+              const hs = game.home_score;
+              const as_ = game.away_score;
+              const scored = hs != null && as_ != null;
+              return (
+                <div key={pm.id} className="px-4 py-3 text-sm">
+                  <div className="flex items-center justify-between text-[11px] text-gray-500 mb-1">
+                    <span>Round {pm.round_number} · Match {pm.match_number}</span>
+                    <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${GAME_STATUS_STYLE[game.status || 'unscheduled'] || GAME_STATUS_STYLE.unscheduled}`}>
+                      {GAME_STATUS_LABEL[game.status || 'unscheduled'] || game.status || 'unscheduled'}
+                    </span>
+                  </div>
+                  <div className="text-gray-200">
+                    {(pm.team_a?.name || 'TBD')}
+                    {scored ? ` ${hs}` : ''}
+                    <span className="mx-1 text-gray-500">vs</span>
+                    {(pm.team_b?.name || 'TBD')}
+                    {scored ? ` ${as_}` : ''}
+                  </div>
+                  <div className="text-[11px] text-gray-500 mt-1">
+                    {formatDate(game.game_date)}
+                    {game.game_time ? ` · ${formatTime(game.game_time)}` : ''}
+                    {game.location_name ? ` · ${game.location_name}` : ''}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
