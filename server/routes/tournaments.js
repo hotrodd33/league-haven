@@ -1203,7 +1203,7 @@ router.post('/:id/pools/:poolId/schedule-round-robin', authMiddleware, async (re
   const client = await pool.connect();
   try {
     const { id, poolId } = req.params;
-    const { rows: tRows } = await client.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
+    const { rows: tRows } = await client.query('SELECT org_id, start_date FROM tournaments WHERE id = $1', [id]);
     if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
     const allowed = await canManageTournament(req.user, tRows[0].org_id);
     if (!allowed) return res.status(403).json({ error: 'Not authorized' });
@@ -1227,7 +1227,14 @@ router.post('/:id/pools/:poolId/schedule-round-robin', authMiddleware, async (re
       return res.status(400).json({ error: 'Pool needs at least 2 teams to generate round-robin matches' });
     }
 
+    // Pool games must be real team-vs-team matchups.
+    const hasPlaceholderTeams = assignedTeams.some((t) => !t.team_id);
+    if (hasPlaceholderTeams) {
+      return res.status(400).json({ error: 'All pool teams must be mapped to real league teams before generating round-robin games' });
+    }
+
     const rounds = buildRoundRobinRounds(assignedTeams.map(t => t.tournament_team_id));
+    const defaultGameDate = tRows[0].start_date || new Date().toISOString().slice(0, 10);
 
     await client.query('BEGIN');
 
@@ -1249,10 +1256,10 @@ router.post('/:id/pools/:poolId/schedule-round-robin', authMiddleware, async (re
         const teamB = assignedTeams.find(t => t.tournament_team_id === teamBId) || null;
 
         const { rows: gRows } = await client.query(
-          `INSERT INTO games (tournament_id, home_team_id, away_team_id, status)
-           VALUES ($1, $2, $3, 'unscheduled')
+          `INSERT INTO games (tournament_id, home_team_id, away_team_id, game_date, status)
+           VALUES ($1, $2, $3, $4, 'scheduled')
            RETURNING id`,
-          [id, teamA?.team_id || null, teamB?.team_id || null]
+          [id, teamA?.team_id || null, teamB?.team_id || null, defaultGameDate]
         );
         const gameId = gRows[0].id;
 
