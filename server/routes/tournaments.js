@@ -879,23 +879,72 @@ router.post('/:id/generate-bracket-from-pools', authMiddleware, async (req, res)
       }
     }
 
-    // Get first-round matches ordered by match_number
-    const { rows: round1Rows } = await client.query(
-      `SELECT tr.id AS round_id FROM tournament_rounds tr
-       WHERE tr.tournament_id = $1 ORDER BY tr.round_number LIMIT 1`, [id]
-    );
-    if (!round1Rows.length) return res.status(400).json({ error: 'Tournament bracket not generated yet' });
-
-    const { rows: r1Matches } = await client.query(
-      `SELECT id FROM tournament_matches WHERE tournament_id = $1 AND round_id = $2
-       ORDER BY match_number`,
-      [id, round1Rows[0].round_id]
-    );
+    if (qualifiers.length < 2) {
+      return res.status(400).json({ error: 'Need at least 2 qualifying teams to generate bracket' });
+    }
 
     const bracketSize = nearestPowerOf2(qualifiers.length);
     const seedPositions = buildSeedPositions(bracketSize);
 
     await client.query('BEGIN');
+
+    const { rows: winnerCheck } = await client.query(
+      'SELECT id FROM tournament_matches WHERE tournament_id = $1 AND winner_team_id IS NOT NULL LIMIT 1', [id]
+    );
+    if (winnerCheck.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Cannot regenerate bracket: some matches already have results. Reset bracket results first.' });
+    }
+
+    // Rebuild the bracket from the number of advancing qualifiers so pool advancement
+    // drives bracket size (e.g., 6 qualifiers => 8-slot bracket with 2 byes).
+    await client.query('DELETE FROM tournament_matches WHERE tournament_id = $1', [id]);
+    await client.query('DELETE FROM games WHERE tournament_id = $1', [id]);
+    await client.query('DELETE FROM tournament_rounds WHERE tournament_id = $1', [id]);
+
+    const numRounds = Math.log2(bracketSize);
+    const names = roundNames(numRounds);
+    const roundIds = [];
+    for (let r = 0; r < numRounds; r++) {
+      const { rows } = await client.query(
+        `INSERT INTO tournament_rounds (tournament_id, round_number, name, round_type)
+         VALUES ($1, $2, $3, 'winners') RETURNING id`,
+        [id, r + 1, names[r]]
+      );
+      roundIds.push(rows[0].id);
+    }
+
+    const matchIdsByRound = [];
+    for (let r = numRounds - 1; r >= 0; r--) {
+      const matchCount = bracketSize / Math.pow(2, r + 1);
+      const matchIds = [];
+      for (let m = 0; m < matchCount; m++) {
+        const { rows: gRows } = await client.query(
+          `INSERT INTO games (tournament_id, status) VALUES ($1, 'unscheduled') RETURNING id`, [id]
+        );
+        const gameId = gRows[0].id;
+
+        let nextMatchId = null;
+        if (r < numRounds - 1) {
+          const nextRoundMatches = matchIdsByRound[matchIdsByRound.length - 1];
+          nextMatchId = nextRoundMatches[Math.floor(m / 2)];
+        }
+
+        const { rows: mRows } = await client.query(
+          `INSERT INTO tournament_matches (tournament_id, round_id, match_number, game_id, next_match_id)
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [id, roundIds[r], m + 1, gameId, nextMatchId]
+        );
+        matchIds.push(mRows[0].id);
+      }
+      matchIdsByRound.push(matchIds);
+    }
+
+    const { rows: r1Matches } = await client.query(
+      `SELECT id FROM tournament_matches WHERE tournament_id = $1 AND round_id = $2
+       ORDER BY match_number`,
+      [id, roundIds[0]]
+    );
 
     // Update seeds on tournament_teams
     for (let i = 0; i < qualifiers.length; i++) {
@@ -906,7 +955,6 @@ router.post('/:id/generate-bracket-from-pools', authMiddleware, async (req, res)
     }
 
     // Assign round-1 match slots. seedPositions pairs: [0,1], [2,3], …
-    const totalSlots = bracketSize;
     for (let matchIdx = 0; matchIdx < r1Matches.length; matchIdx++) {
       const slotA = seedPositions[matchIdx * 2] - 1;    // 0-based qualifier index
       const slotB = seedPositions[matchIdx * 2 + 1] - 1;
