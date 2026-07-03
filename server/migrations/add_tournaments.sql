@@ -1,6 +1,9 @@
 -- Tournament management schema. Idempotent and safe to re-run.
 -- Mirrors the tournament section of server/db.js migrate().
 
+-- ── Feature toggle ──
+ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_tournaments BOOLEAN NOT NULL DEFAULT TRUE;
+
 -- ── Tournaments ──
 CREATE TABLE IF NOT EXISTS tournaments (
   id SERIAL PRIMARY KEY,

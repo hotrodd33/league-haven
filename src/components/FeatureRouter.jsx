@@ -157,17 +157,21 @@ function PageContent({
             return <TravelMatrix />;
 
         case 'tournaments':
-            return <TournamentsPage onSelectTournament={navigateToTournament} />;
+            return features.feature_tournaments !== false
+                ? <TournamentsPage onSelectTournament={navigateToTournament} />
+                : null;
 
         case 'tournament-schedule':
-            return (
-                <TournamentSchedule
-                    tournamentId={selectedTournamentId}
-                    onBack={() => setPage('tournaments')}
-                    onNavigateToTeam={navigateToTeam}
-                    onNavigateToFields={() => setPage('fields')}
-                />
-            );
+            return features.feature_tournaments !== false
+                ? (
+                    <TournamentSchedule
+                        tournamentId={selectedTournamentId}
+                        onBack={() => setPage('tournaments')}
+                        onNavigateToTeam={navigateToTeam}
+                        onNavigateToFields={() => setPage('fields')}
+                    />
+                )
+                : null;
 
         case 'about':
             return <HelpPage initialTab="about" onBack={() => setPage('dashboard')} />;

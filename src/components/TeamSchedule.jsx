@@ -5,6 +5,7 @@ import { formatPhone } from '../utils/formatPhone.js';
 import { needsScoreEntry, isGameToday } from '../utils/games.js';
 import { fetchGames, fetchTeams, fetchSeasons, fetchTeamPractices, updateReservation, deleteReservation, fetchLocations, fetchWeather, fetchWeatherForecast } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useBranding } from '../hooks/useBranding.js';
 import GameDetail from './GameDetail.jsx';
 import PitchTracker from './PitchTracker.jsx';
 import TeamLogo from './TeamLogo.jsx';
@@ -57,7 +58,9 @@ const PRACTICE_COLORS = {
 };
 
 export default function TeamSchedule({ teamId, onNavigateToTeam, onNavigateToTournament, onViewPlayer }) {
-  const { isAdmin, canScoreGame, canScheduleGames } = useAuth();
+  const { isAdmin, canScoreGame, canScheduleGames, isAuthenticated } = useAuth();
+  const { features } = useBranding(isAuthenticated);
+  const tournamentFeatureEnabled = features.feature_tournaments !== false;
   const canManageGames = isAdmin || canScheduleGames;
   const queryClient = useQueryClient();
   const [teams, setTeams] = useState([]);
@@ -310,7 +313,7 @@ export default function TeamSchedule({ teamId, onNavigateToTeam, onNavigateToTou
                         onTrack={() => setTrackingGameId(item.id)}
                         onSchedule={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id) ? () => { setEditingGame(item); setShowForm(true); } : undefined}
                         canScore={canScoreGame(item.home_team_id, item.away_team_id, item.home_org_id, item.away_org_id)}
-                        onNavigateToTournament={onNavigateToTournament} />
+                        onNavigateToTournament={tournamentFeatureEnabled ? onNavigateToTournament : undefined} />
                       : <PracticeCard key={`practice-${item.id}`} practice={item}
                         editable={canManageGames}
                         onEdit={() => setEditingPractice(item)}
@@ -476,7 +479,7 @@ function GameCard({ game, teamId, weather, onSelect, onTrack, onSchedule, canSco
           )}
         </div>
       )}
-      {game.tournament_id && game.tournament_name && (
+      {onNavigateToTournament && game.tournament_id && game.tournament_name && (
         <div className="mt-1 ml-[76px]">
           <button
             onClick={(e) => { e.stopPropagation(); onNavigateToTournament?.(game.tournament_id); }}

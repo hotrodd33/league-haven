@@ -36,11 +36,15 @@ export default function Sidebar({
   // ACTIVITY — day-to-day operational destinations
   const activityItems = [
     { key: 'schedule',     label: 'Schedule',    icon: CalendarIcon },
-    { key: 'tournaments',  label: 'Tournaments', icon: TournamentIcon },
+  ];
+  if (ft('feature_tournaments')) {
+    activityItems.push({ key: 'tournaments', label: 'Tournaments', icon: TournamentIcon });
+  }
+  activityItems.push(
     { key: 'standings',    label: 'Standings',   icon: TrophyIcon },
     { key: 'fields',       label: 'Fields',      icon: MapPinIcon },
     { key: 'travel',       label: 'Travel',      icon: ArrowTrendingUpIcon },
-  ];
+  );
   if (ft('feature_chat')) activityItems.push({ key: 'chat', label: 'Chat', icon: MegaphoneIcon, badge: chatUnreadCount });
 
   // ROSTER — teams + every people directory in one place

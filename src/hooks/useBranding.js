@@ -16,6 +16,7 @@ const DEFAULT_FEATURES = {
     feature_game_delete: false,
     feature_chat: true,
     feature_field_prep: true,
+    feature_tournaments: true,
 };
 
 export function useBranding(isAuthenticated) {

@@ -67,7 +67,7 @@ function parsePath(pathname) {
 export default function App() {
   const [nav, setNav]           = useState(() => parsePath(window.location.pathname));
   const [menuOpen, setMenuOpen] = useState(false);
-  const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null, feature_officials: true });
+  const [branding, setBranding] = useState({ app_name: 'LeagueHaven', logo_url: null, feature_officials: true, feature_tournaments: true });
   const [allTeams, setAllTeams] = useState([]);
 
   useEffect(() => {
@@ -76,6 +76,7 @@ export default function App() {
         app_name: data?.app_name || 'LeagueHaven',
         logo_url: data?.logo_url || null,
         feature_officials: data?.feature_officials !== false,
+        feature_tournaments: data?.feature_tournaments !== false,
       }))
       .catch(() => {});
     fetchTeams().then(setAllTeams).catch(() => {});
@@ -137,6 +138,7 @@ export default function App() {
   }
 
   const activeTab = nav.view === 'tab' ? nav.tab : null;
+  const visibleTabs = TABS.filter(t => t.key !== 'tournaments' || branding.feature_tournaments !== false);
 
   return (
     <div className="min-h-screen bg-league-watermark text-gray-100">
@@ -162,7 +164,7 @@ export default function App() {
 
           {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-1" aria-label="Main navigation">
-            {TABS.map(tab => (
+            {visibleTabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => navigateToTab(tab.key)}
@@ -193,7 +195,7 @@ export default function App() {
         {/* Mobile dropdown */}
         {menuOpen && (
           <nav className="sm:hidden flex flex-col border-t border-gray-700/60 px-4 pb-3 pt-2 gap-1 bg-chrome-900" aria-label="Mobile navigation">
-            {TABS.map(tab => (
+            {visibleTabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => navigateToTab(tab.key)}
@@ -221,10 +223,14 @@ export default function App() {
             officialsEnabled={branding.feature_officials !== false}
           />
         ) : nav.view === 'tournament' ? (
-          <TournamentDetail
-            tournamentId={nav.tournamentId}
-            onBack={() => window.history.back()}
-          />
+          branding.feature_tournaments !== false ? (
+            <TournamentDetail
+              tournamentId={nav.tournamentId}
+              onBack={() => window.history.back()}
+            />
+          ) : (
+            <div className="py-16 text-center text-gray-400">Tournaments are not enabled.</div>
+          )
         ) : nav.view === 'team' ? (
           resolvedTeamId
             ? <TeamDetail
@@ -240,7 +246,7 @@ export default function App() {
             {nav.tab === 'standings' && <Standings onNavigateToTeam={navigateToTeam} />}
             {nav.tab === 'scores'    && <Scores    onNavigateToTeam={navigateToTeam} onNavigateToGame={navigateToGame} officialsEnabled={branding.feature_officials !== false} />}
             {nav.tab === 'teams'     && <Teams     onNavigateToTeam={navigateToTeam} />}
-            {nav.tab === 'tournaments' && <Tournaments onNavigateToTournament={navigateToTournament} />}
+            {nav.tab === 'tournaments' && branding.feature_tournaments !== false && <Tournaments onNavigateToTournament={navigateToTournament} />}
             {nav.tab === 'travel'    && <TravelMatrix />}
             {nav.tab === 'prep'      && <FieldPrep  onNavigateToGame={navigateToGame} officialsEnabled={branding.feature_officials !== false} />}
           </SiteErrorBoundary>

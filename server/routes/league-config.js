@@ -23,7 +23,7 @@ async function getBranding() {
             feature_live_scoring, feature_pitch_tracking, feature_officials,
             feature_stats, feature_documents, feature_financials,
             feature_registration, feature_public_site, feature_push_notifications,
-            feature_game_delete, feature_chat, feature_field_prep, timezone, email_redirect
+            feature_game_delete, feature_chat, feature_field_prep, feature_tournaments, timezone, email_redirect
      FROM app_branding WHERE id = 1`
   );
   const result = rows[0] || { app_name: 'LeagueHaven', logo_url: null };
@@ -224,7 +224,7 @@ const FEATURE_KEYS = [
   'feature_live_scoring', 'feature_pitch_tracking', 'feature_officials',
   'feature_stats', 'feature_documents', 'feature_financials',
   'feature_registration', 'feature_public_site', 'feature_push_notifications',
-  'feature_game_delete', 'feature_chat', 'feature_field_prep',
+  'feature_game_delete', 'feature_chat', 'feature_field_prep', 'feature_tournaments',
 ];
 
 router.get('/features', async (req, res) => {

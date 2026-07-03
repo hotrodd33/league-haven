@@ -1136,6 +1136,7 @@ async function migrate() {
   `);
 
   // ── Tournaments ──
+  await pool.query(`ALTER TABLE app_branding ADD COLUMN IF NOT EXISTS feature_tournaments BOOLEAN NOT NULL DEFAULT TRUE;`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tournaments (
       id SERIAL PRIMARY KEY,

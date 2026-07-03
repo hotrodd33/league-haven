@@ -173,6 +173,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTou
   const { features } = useBranding(isAuthenticated);
   const officialsFeatureEnabled = features.feature_officials !== false;
   const prepFeatureEnabled = features.feature_field_prep !== false;
+  const tournamentFeatureEnabled = features.feature_tournaments !== false;
   const queryClient = useQueryClient();
   const gameDeleteEnabled = features.feature_game_delete === true;
   const canShowDelete = (game) =>
@@ -880,7 +881,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTou
                               ))}
                             </div>
                           )}
-                          {game.tournament_id && game.tournament_name && (
+                          {tournamentFeatureEnabled && game.tournament_id && game.tournament_name && (
                             <button
                               onClick={(e) => { e.stopPropagation(); onNavigateToTournament?.(game.tournament_id); }}
                               className="hidden lg:inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors whitespace-nowrap"
@@ -1019,7 +1020,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTou
                       {game.location_name && (
                         <div className="text-xs text-gray-400 mb-1 flex items-center gap-1"><MapPinIcon className="w-3.5 h-3.5 shrink-0" />{game.location_name}{game.location_city ? `, ${game.location_city}` : ''}</div>
                       )}
-                      {game.tournament_id && game.tournament_name && (
+                      {tournamentFeatureEnabled && game.tournament_id && game.tournament_name && (
                         <button
                           onClick={(e) => { e.stopPropagation(); onNavigateToTournament?.(game.tournament_id); }}
                           className="mb-1 inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30"

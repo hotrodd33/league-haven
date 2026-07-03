@@ -333,6 +333,7 @@ const FEATURE_DEFS = [
   { key: 'feature_game_delete',       label: 'Allow Game Deletion', desc: 'When off, only super-admins can delete games. Turn on to let org-admins and team managers delete games for their own teams.' },
   { key: 'feature_chat',              label: 'Team Chat',            desc: 'In-app messaging for team channels and direct messages between members.' },
   { key: 'feature_field_prep',        label: 'Field Prep Crew',      desc: 'Per-task crew assignments (lining, dragging, etc.) with pay tracking. Enable on each org separately to use it on games.' },
+  { key: 'feature_tournaments',       label: 'Tournaments',          desc: 'Bracket-based tournament management, team registration, and auto-advancing games.' },
 ];
 
 function FeatureTogglesConfig() {
