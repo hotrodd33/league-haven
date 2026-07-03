@@ -295,12 +295,16 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
             let t = null;
             if (game.tournament_id) {
               const tt = await fetchTournamentTeams(game.tournament_id).catch(() => []);
-              t = tt.map(x => ({
-                id: x.id,
-                name: x.is_temp ? x.temp_name : x.team?.name,
-                org_id: x.team?.org_id,
-                org_name: x.is_temp ? 'Temporary Teams' : x.team?.org_name,
-              }));
+              // Use the real team_id so the selects can match game.home_team_id / away_team_id.
+              // Filter out placeholder entries that have no real team backing them.
+              t = tt
+                .filter(x => x.team_id)
+                .map(x => ({
+                  id: x.team_id,
+                  name: x.is_temp ? x.temp_name : x.team?.name,
+                  org_id: x.team?.org_id,
+                  org_name: x.is_temp ? 'Temporary Teams' : x.team?.org_name,
+                }));
             } else {
               t = await fetchTeams();
             }
