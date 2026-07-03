@@ -1498,7 +1498,21 @@ router.put('/:id/matches/:matchId/schedule', authMiddleware, async (req, res) =>
     if (!mRows[0].game_id) return res.status(400).json({ error: 'No game linked to this match' });
 
     const { game_date, game_time, location_id } = req.body;
-    const newStatus = game_date && game_time && location_id ? 'scheduled' : 'unscheduled';
+    const parsedLocationId = location_id ? Number(location_id) : null;
+    if (location_id && !Number.isFinite(parsedLocationId)) {
+      return res.status(400).json({ error: 'Invalid location_id' });
+    }
+    if (parsedLocationId) {
+      const { rows: locRows } = await pool.query(
+        'SELECT id FROM field_locations WHERE id = $1 AND org_id = $2',
+        [parsedLocationId, tRows[0].org_id]
+      );
+      if (!locRows.length) {
+        return res.status(400).json({ error: 'Selected field is not associated with this tournament organization' });
+      }
+    }
+
+    const newStatus = game_date && game_time && parsedLocationId ? 'scheduled' : 'unscheduled';
     await pool.query(
       `UPDATE games SET
         game_date = COALESCE($1, game_date),
@@ -1507,7 +1521,7 @@ router.put('/:id/matches/:matchId/schedule', authMiddleware, async (req, res) =>
         status = $4,
         updated_at = NOW()
        WHERE id = $5`,
-      [game_date || null, game_time || null, location_id || null, newStatus, mRows[0].game_id]
+      [game_date || null, game_time || null, parsedLocationId || null, newStatus, mRows[0].game_id]
     );
     cache.invalidatePrefix('tournaments:');
     res.json({ success: true });
@@ -1698,7 +1712,21 @@ router.post('/:id/matches/:matchId/create-game', authMiddleware, async (req, res
 
     // Set teams on the game
     const { game_date, game_time, location_id } = req.body;
-    const newStatus = game_date && game_time && location_id ? 'scheduled' : 'unscheduled';
+    const parsedLocationId = location_id ? Number(location_id) : null;
+    if (location_id && !Number.isFinite(parsedLocationId)) {
+      return res.status(400).json({ error: 'Invalid location_id' });
+    }
+    if (parsedLocationId) {
+      const { rows: locRows } = await pool.query(
+        'SELECT id FROM field_locations WHERE id = $1 AND org_id = $2',
+        [parsedLocationId, tRows[0].org_id]
+      );
+      if (!locRows.length) {
+        return res.status(400).json({ error: 'Selected field is not associated with this tournament organization' });
+      }
+    }
+
+    const newStatus = game_date && game_time && parsedLocationId ? 'scheduled' : 'unscheduled';
     await pool.query(
       `UPDATE games SET
         home_team_id = $1, away_team_id = $2,
@@ -1706,7 +1734,7 @@ router.post('/:id/matches/:matchId/create-game', authMiddleware, async (req, res
         status = $6, updated_at = NOW()
        WHERE id = $7`,
       [homeTeamId, awayTeamId,
-       game_date || null, game_time || null, location_id || null,
+       game_date || null, game_time || null, parsedLocationId || null,
        newStatus, match.game_id]
     );
 
