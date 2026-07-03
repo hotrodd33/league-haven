@@ -247,9 +247,8 @@ const SLIM_SELECT = `
     fl.name AS location_name,
     fl.address AS location_address, fl.city AS location_city,
     fl.latitude AS location_lat, fl.longitude AS location_lon,
-    gd.division_name, gd.division_sort,
     tm.id AS tournament_match_id, tth.temp_name AS home_temp_name, tth.is_temp AS home_is_temp,
-    tta.temp_name AS away_temp_name, tta.is_temp AS away_is_temp
+    tta.temp_name AS away_temp_name, tta.is_temp AS away_is_temp,
     fl.org_id AS location_org_id,
     gd.division_name, gd.division_sort,
     goa.official_ids,
