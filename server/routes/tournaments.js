@@ -874,12 +874,12 @@ router.post('/:id/generate-bracket-from-pools', authMiddleware, async (req, res)
 
       await client.query(
         `UPDATE tournament_matches SET
-           team_a_id = $1,
-           team_b_id = $2,
-           winner_team_id = CASE WHEN $3 THEN COALESCE($1, $2) ELSE NULL END,
+           team_a_id = $1::int,
+           team_b_id = $2::int,
+           winner_team_id = CASE WHEN $3::boolean THEN COALESCE($1::int, $2::int) ELSE NULL END,
            loser_team_id = NULL,
-           is_bye = $3
-         WHERE id = $4`,
+           is_bye = $3::boolean
+         WHERE id = $4::int`,
         [
           teamA?.tournament_team_id ?? null,
           teamB?.tournament_team_id ?? null,
