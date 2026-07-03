@@ -13,6 +13,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchTournament, fetchTeams, fetchLocations,
+  fetchTournamentPools,
   assignTournamentMatch, scheduleTournamentMatch,
   updateTournament, createTournamentGame, resetTournamentMatch, resetTournamentRound,
 } from '../../api/index.js';
@@ -56,6 +57,14 @@ export default function TournamentSchedule({ tournamentId, onBack, onNavigateToT
   const tournament = data?.tournament;
   const teams = data?.teams || [];
   const rounds = data?.rounds || [];
+
+  const { data: tournamentPools = [] } = useQuery({
+    queryKey: ['tournament-pools', tournamentId],
+    queryFn: () => fetchTournamentPools(tournamentId),
+    staleTime: STALE.THIRTY_SEC,
+    refetchInterval: 15000,
+    enabled: !!tournamentId,
+  });
 
   // ── Transform API data → bracketData for TournamentBracket ──
   const bracketData = useMemo(() => {
@@ -171,8 +180,10 @@ export default function TournamentSchedule({ tournamentId, onBack, onNavigateToT
               tournamentId={tournamentId}
               rounds={rounds}
               teams={teams}
+              pools={tournamentPools}
               queryClient={queryClient}
               onCreateGame={handleCreateGame}
+              onOpenGame={(gameId) => setSelectedGameId(gameId)}
             />
           </aside>
         )}
@@ -256,7 +267,7 @@ function StatusToggle({ tournament, tournamentId, queryClient }) {
 
 
 // ── Match Scheduler Panel ────────────────────────────────────────────────────
-function MatchScheduler({ tournamentId, rounds, teams, queryClient, onCreateGame }) {
+function MatchScheduler({ tournamentId, rounds, teams, pools, queryClient, onCreateGame, onOpenGame }) {
   const [selectedMatch, setSelectedMatch] = useState(null);
 
   // Flatten all matches for the list
@@ -273,6 +284,32 @@ function MatchScheduler({ tournamentId, rounds, teams, queryClient, onCreateGame
 
   // Matches ready for finalization (both teams assigned, no linked game, no winner)
   const finalizeable = allMatches.filter((m) => m.can_create_game);
+
+  const poolGames = useMemo(() => {
+    const items = (pools || []).flatMap((pool) =>
+      (pool.pool_matches || []).map((pm) => ({
+        id: pm.id,
+        poolName: pool.name,
+        roundNumber: pm.round_number,
+        matchNumber: pm.match_number,
+        teamA: pm.team_a?.name || 'TBD',
+        teamB: pm.team_b?.name || 'TBD',
+        game: pm.game || null,
+      }))
+    );
+
+    return items.sort((a, b) => {
+      const ad = a.game?.game_date || '';
+      const bd = b.game?.game_date || '';
+      if (ad !== bd) return ad.localeCompare(bd);
+      const at = a.game?.game_time || '';
+      const bt = b.game?.game_time || '';
+      if (at !== bt) return at.localeCompare(bt);
+      if (a.poolName !== b.poolName) return a.poolName.localeCompare(b.poolName);
+      if (a.roundNumber !== b.roundNumber) return a.roundNumber - b.roundNumber;
+      return a.matchNumber - b.matchNumber;
+    });
+  }, [pools]);
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
@@ -363,6 +400,35 @@ function MatchScheduler({ tournamentId, rounds, teams, queryClient, onCreateGame
             );
           })}
         </div>
+      </div>
+
+      {/* Pool play games */}
+      <div className="mt-4 pt-4 border-t border-slate-700">
+        <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">Pool Play Games</h4>
+        {poolGames.length === 0 ? (
+          <p className="text-slate-500 text-xs py-1">No pool-play games found yet.</p>
+        ) : (
+          <div className="space-y-1 max-h-56 overflow-y-auto scrollbar-thin">
+            {poolGames.map((pg) => (
+              <button
+                key={pg.id}
+                className="w-full text-left rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 hover:bg-slate-800/70"
+                onClick={() => pg.game?.id && onOpenGame?.(pg.game.id)}
+                disabled={!pg.game?.id}
+              >
+                <div className="flex items-center justify-between text-[10px] text-slate-500">
+                  <span>{pg.poolName} · R{pg.roundNumber} M{pg.matchNumber}</span>
+                  <span className="uppercase">{pg.game?.status || 'unscheduled'}</span>
+                </div>
+                <div className="text-xs text-slate-200 truncate">{pg.teamA} vs {pg.teamB}</div>
+                <div className="text-[10px] text-slate-500">
+                  {pg.game?.game_date || 'Date TBD'}{pg.game?.game_time ? ` ${pg.game.game_time}` : ''}
+                  {pg.game?.location_name ? ` · ${pg.game.location_name}` : ''}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {selectedMatch && (
