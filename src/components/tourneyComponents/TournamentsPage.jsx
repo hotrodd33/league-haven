@@ -1,10 +1,11 @@
 // This holds a list of the active tournaments.
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchTournaments, createTournament, deleteTournament, fetchOrganizations,
   fetchTeams, fetchMyTournamentRegistrations, registerTeamForTournament, withdrawTournamentRegistration,
+  fetchSeasons, fetchDivisions, fetchStandings, addTournamentTeam,
 } from '../../api/index.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { STALE } from '../../lib/queryConfig.js';
@@ -23,6 +24,16 @@ const STATUS_COLORS = {
   cancelled: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
+const CREATE_MODE_LABELS = {
+  manual: 'Manual Setup',
+  division: 'Create From Division',
+};
+
+function toPositiveInt(value) {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 export default function TournamentsPage({ onSelectTournament }) {
   const queryClient = useQueryClient();
   const { isAdmin, isOrgAdmin, isTeamManager, permissions } = useAuth();
@@ -40,6 +51,10 @@ export default function TournamentsPage({ onSelectTournament }) {
     pitch_limit_per_tournament: '',
   });
   const [createError, setCreateError] = useState('');
+  const [createMode, setCreateMode] = useState('manual');
+  const [divisionSeasonId, setDivisionSeasonId] = useState('');
+  const [divisionId, setDivisionId] = useState('');
+  const [divisionSeedDraft, setDivisionSeedDraft] = useState({});
 
   const canCreate = isAdmin || isOrgAdmin;
   const canRegister = isAdmin || isOrgAdmin || isTeamManager;
@@ -72,6 +87,27 @@ export default function TournamentsPage({ onSelectTournament }) {
     enabled: canRegister,
   });
 
+  const { data: seasons = [] } = useQuery({
+    queryKey: ['seasons'],
+    queryFn: fetchSeasons,
+    staleTime: STALE.HOUR,
+    enabled: canCreate && showCreate,
+  });
+
+  const { data: divisions = [] } = useQuery({
+    queryKey: ['divisions', divisionSeasonId],
+    queryFn: () => fetchDivisions(divisionSeasonId),
+    staleTime: STALE.HOUR,
+    enabled: canCreate && showCreate && !!divisionSeasonId,
+  });
+
+  const { data: standings = [] } = useQuery({
+    queryKey: ['standings', divisionSeasonId],
+    queryFn: () => fetchStandings(divisionSeasonId),
+    staleTime: STALE.TWO_MIN,
+    enabled: canCreate && showCreate && !!divisionSeasonId,
+  });
+
   // The teams this user can manage
   const myTeams = useMemo(() => {
     if (isAdmin) return allTeams;
@@ -98,11 +134,134 @@ export default function TournamentsPage({ onSelectTournament }) {
     t.registration_open && (isAdmin || !myOrgIds.has(Number(t.org_id)))
   );
 
+  useEffect(() => {
+    if (!showCreate) return;
+    if (divisionSeasonId) return;
+    const active = seasons.find((s) => s.is_active);
+    if (active) setDivisionSeasonId(String(active.id));
+  }, [showCreate, divisionSeasonId, seasons]);
+
+  useEffect(() => {
+    setDivisionId('');
+    setDivisionSeedDraft({});
+  }, [divisionSeasonId]);
+
+  const divisionOptions = useMemo(() => {
+    return divisions
+      .filter((d) => d.season_id == null || String(d.season_id) === String(divisionSeasonId))
+      .sort((a, b) => String(a.path || '').localeCompare(String(b.path || '')));
+  }, [divisions, divisionSeasonId]);
+
+  const divisionTeams = useMemo(() => {
+    if (!divisionId) return [];
+    const selectedId = Number(divisionId);
+    return allTeams.filter((team) =>
+      Array.isArray(team.divisions) && team.divisions.some((d) => Number(d.id) === selectedId)
+    );
+  }, [allTeams, divisionId]);
+
+  const divisionSeedDefaults = useMemo(() => {
+    if (!divisionId) return [];
+    const selectedDivisionId = Number(divisionId);
+    const standingRankByTeamId = new Map();
+    standings
+      .filter((row) => Number(row.division_id) === selectedDivisionId)
+      .forEach((row, idx) => {
+        standingRankByTeamId.set(Number(row.team_id), idx + 1);
+      });
+
+    const sorted = [...divisionTeams].sort((a, b) => {
+      const rankA = standingRankByTeamId.get(Number(a.id)) ?? Number.POSITIVE_INFINITY;
+      const rankB = standingRankByTeamId.get(Number(b.id)) ?? Number.POSITIVE_INFINITY;
+      if (rankA !== rankB) return rankA - rankB;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+
+    return sorted.map((team, idx) => ({
+      team,
+      defaultSeed: idx + 1,
+      standingRank: standingRankByTeamId.get(Number(team.id)) || null,
+    }));
+  }, [divisionId, divisionTeams, standings]);
+
+  useEffect(() => {
+    if (createMode !== 'division') return;
+    if (!divisionSeedDefaults.length) {
+      setDivisionSeedDraft({});
+      return;
+    }
+
+    setDivisionSeedDraft((prev) => {
+      const next = {};
+      for (const row of divisionSeedDefaults) {
+        const teamId = String(row.team.id);
+        const previous = prev[teamId];
+        next[teamId] = {
+          include: previous?.include ?? true,
+          seed: previous?.seed ?? row.defaultSeed,
+        };
+      }
+      return next;
+    });
+  }, [createMode, divisionSeedDefaults]);
+
+  const divisionSeedRows = useMemo(() => {
+    return divisionSeedDefaults.map((row) => {
+      const draft = divisionSeedDraft[String(row.team.id)] || {};
+      const seed = toPositiveInt(draft.seed) ?? row.defaultSeed;
+      return {
+        ...row,
+        include: draft.include ?? true,
+        seed,
+      };
+    });
+  }, [divisionSeedDefaults, divisionSeedDraft]);
+
+  const selectedDivisionSeedPreview = useMemo(() => {
+    const included = divisionSeedRows
+      .filter((row) => row.include)
+      .map((row) => ({ seed: row.seed, name: row.team.name }));
+
+    const seedCounts = included.reduce((acc, row) => {
+      acc[row.seed] = (acc[row.seed] || 0) + 1;
+      return acc;
+    }, {});
+
+    const hasDuplicateSeeds = Object.values(seedCounts).some((count) => count > 1);
+    const ordered = [...included].sort((a, b) => a.seed - b.seed || String(a.name).localeCompare(String(b.name)));
+
+    return { ordered, hasDuplicateSeeds };
+  }, [divisionSeedRows]);
+
   const createMut = useMutation({
-    mutationFn: (data) => createTournament(data),
+    mutationFn: async ({ tournamentData, seededTeams }) => {
+      const created = await createTournament(tournamentData);
+      if (!Array.isArray(seededTeams) || seededTeams.length === 0) return created;
+
+      try {
+        for (const team of seededTeams) {
+          await addTournamentTeam(created.id, { team_id: team.team_id });
+        }
+      } catch (err) {
+        try {
+          await deleteTournament(created.id);
+          throw new Error((err && err.message) || 'Failed to add seeded teams from division. Tournament creation was rolled back.');
+        } catch {
+          throw new Error((err && err.message)
+            ? `${err.message} Tournament was created but automatic team seeding failed; remove it manually if needed.`
+            : 'Tournament was created but automatic team seeding failed; remove it manually if needed.');
+        }
+      }
+
+      return created;
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tournaments'] });
       setShowCreate(false);
+      setCreateMode('manual');
+      setDivisionSeasonId('');
+      setDivisionId('');
+      setDivisionSeedDraft({});
       setForm({
         name: '',
         format: 'single_elimination',
@@ -133,15 +292,39 @@ export default function TournamentsPage({ onSelectTournament }) {
     e.preventDefault();
     if (!form.name.trim()) return setCreateError('Name is required');
     if (!form.org_id && !isAdmin) return setCreateError('Organization is required');
-    const count = Number(form.team_count);
+    let count = Number(form.team_count);
+    let seededTeams = [];
+
+    if (createMode === 'division') {
+      if (!divisionSeasonId) return setCreateError('Select a season for division seeding');
+      if (!divisionId) return setCreateError('Select a division');
+
+      const included = divisionSeedRows.filter((row) => row.include);
+      if (included.length < 2) return setCreateError('Select at least 2 teams from the division');
+
+      const seeds = included.map((row) => toPositiveInt(row.seed));
+      if (seeds.some((s) => !s)) return setCreateError('All included teams must have a positive numeric seed');
+      const unique = new Set(seeds);
+      if (unique.size !== seeds.length) return setCreateError('Seeds must be unique across included teams');
+
+      seededTeams = included
+        .map((row) => ({ team_id: row.team.id, seed: Number(row.seed), name: row.team.name }))
+        .sort((a, b) => a.seed - b.seed || String(a.name).localeCompare(String(b.name)));
+      count = seededTeams.length;
+    }
+
     if (count < 2 || count > 128) return setCreateError('Team count must be 2–128');
+
     setCreateError('');
     createMut.mutate({
-      ...form,
-      team_count: count,
-      org_id: form.org_id || (orgs.length === 1 ? orgs[0].id : null),
-      pitch_limit_per_day: form.pitch_limit_per_day !== '' ? Number(form.pitch_limit_per_day) : null,
-      pitch_limit_per_tournament: form.pitch_limit_per_tournament !== '' ? Number(form.pitch_limit_per_tournament) : null,
+      tournamentData: {
+        ...form,
+        team_count: count,
+        org_id: form.org_id || (orgs.length === 1 ? orgs[0].id : null),
+        pitch_limit_per_day: form.pitch_limit_per_day !== '' ? Number(form.pitch_limit_per_day) : null,
+        pitch_limit_per_tournament: form.pitch_limit_per_tournament !== '' ? Number(form.pitch_limit_per_tournament) : null,
+      },
+      seededTeams,
     });
   }
 
@@ -240,8 +423,27 @@ export default function TournamentsPage({ onSelectTournament }) {
 
       {/* Create Modal */}
       {showCreate && (
-        <Modal open onClose={() => { setShowCreate(false); setCreateError(''); }} title="Create Tournament" size="md">
+        <Modal open onClose={() => {
+          setShowCreate(false);
+          setCreateError('');
+          setCreateMode('manual');
+          setDivisionSeasonId('');
+          setDivisionId('');
+          setDivisionSeedDraft({});
+        }} title="Create Tournament" size="md">
           <form onSubmit={handleCreate} className="space-y-4">
+            <Select
+              label="Creation Mode"
+              value={createMode}
+              onChange={(e) => {
+                const next = e.target.value;
+                setCreateMode(next);
+                setCreateError('');
+              }}
+            >
+              <option value="manual">{CREATE_MODE_LABELS.manual}</option>
+              <option value="division">{CREATE_MODE_LABELS.division}</option>
+            </Select>
             <Input
               label="Tournament Name"
               value={form.name}
@@ -257,14 +459,125 @@ export default function TournamentsPage({ onSelectTournament }) {
               <option value="single_elimination">Single Elimination</option>
               <option value="double_elimination">Double Elimination</option>
             </Select>
-            <Input
-              label="Team Count (bracket size)"
-              type="number"
-              min={2}
-              max={128}
-              value={form.team_count}
-              onChange={(e) => setForm({ ...form, team_count: e.target.value })}
-            />
+            {createMode === 'manual' ? (
+              <Input
+                label="Team Count (bracket size)"
+                type="number"
+                min={2}
+                max={128}
+                value={form.team_count}
+                onChange={(e) => setForm({ ...form, team_count: e.target.value })}
+              />
+            ) : (
+              <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-900/40 p-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Select
+                    label="Standings Season"
+                    value={divisionSeasonId}
+                    onChange={(e) => setDivisionSeasonId(e.target.value)}
+                  >
+                    <option value="">Select season…</option>
+                    {seasons.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.year}){s.is_active ? ' ★' : ''}</option>
+                    ))}
+                  </Select>
+                  <Select
+                    label="Division"
+                    value={divisionId}
+                    onChange={(e) => setDivisionId(e.target.value)}
+                    disabled={!divisionSeasonId}
+                  >
+                    <option value="">Select division…</option>
+                    {divisionOptions.map((d) => (
+                      <option key={d.id} value={d.id}>{d.path || d.name}</option>
+                    ))}
+                  </Select>
+                </div>
+
+                {!divisionId ? (
+                  <p className="text-xs text-slate-400">Select a division to prefill teams and seeds from league standings.</p>
+                ) : divisionSeedRows.length === 0 ? (
+                  <p className="text-xs text-yellow-300">No teams found in this division for the current setup.</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>Default seeding is standings-based. Adjust any seed before creating.</span>
+                      <span>{divisionSeedRows.filter((r) => r.include).length} selected</span>
+                    </div>
+                    <div className="max-h-56 overflow-auto rounded-md border border-slate-700">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-800/70 text-slate-300">
+                          <tr>
+                            <th className="px-2 py-1.5 text-left">Use</th>
+                            <th className="px-2 py-1.5 text-left">Team</th>
+                            <th className="px-2 py-1.5 text-left">Standings</th>
+                            <th className="px-2 py-1.5 text-left">Seed</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {divisionSeedRows.map((row) => {
+                            const teamId = String(row.team.id);
+                            return (
+                              <tr key={row.team.id} className="border-t border-slate-800">
+                                <td className="px-2 py-1.5">
+                                  <input
+                                    type="checkbox"
+                                    checked={row.include}
+                                    onChange={(e) => {
+                                      const include = e.target.checked;
+                                      setDivisionSeedDraft((prev) => ({
+                                        ...prev,
+                                        [teamId]: {
+                                          include,
+                                          seed: prev[teamId]?.seed ?? row.seed,
+                                        },
+                                      }));
+                                    }}
+                                  />
+                                </td>
+                                <td className="px-2 py-1.5 text-slate-100">{row.team.name}</td>
+                                <td className="px-2 py-1.5 text-slate-400">{row.standingRank ? `#${row.standingRank}` : 'No games'}</td>
+                                <td className="px-2 py-1.5">
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={row.seed}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      setDivisionSeedDraft((prev) => ({
+                                        ...prev,
+                                        [teamId]: {
+                                          include: prev[teamId]?.include ?? true,
+                                          seed: value,
+                                        },
+                                      }));
+                                    }}
+                                    className="lh-input w-20"
+                                    disabled={!row.include}
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="rounded-md border border-slate-700 bg-slate-900/50 px-2 py-1.5 text-xs">
+                      <div className="mb-1 text-slate-400">Seed order preview</div>
+                      <div className="text-slate-200">
+                        {selectedDivisionSeedPreview.ordered.length
+                          ? selectedDivisionSeedPreview.ordered.map((row) => `${row.seed}. ${row.name}`).join(' | ')
+                          : 'No teams selected.'}
+                      </div>
+                      {selectedDivisionSeedPreview.hasDuplicateSeeds && (
+                        <div className="mt-1 text-yellow-300">Duplicate seeds detected. Use unique seed numbers before creating.</div>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500">Included teams will be auto-added in seed order right after tournament creation.</p>
+                  </div>
+                )}
+              </div>
+            )}
             <Select
               label="Pitch Rule Mode"
               value={form.pitch_limit_mode}
@@ -323,11 +636,20 @@ export default function TournamentsPage({ onSelectTournament }) {
             />
             {createError && <p className="text-red-400 text-sm">{createError}</p>}
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="ghost" onClick={() => { setShowCreate(false); setCreateError(''); }}>
+              <Button type="button" variant="ghost" onClick={() => {
+                setShowCreate(false);
+                setCreateError('');
+                setCreateMode('manual');
+                setDivisionSeasonId('');
+                setDivisionId('');
+                setDivisionSeedDraft({});
+              }}>
                 Cancel
               </Button>
               <Button type="submit" disabled={createMut.isPending}>
-                {createMut.isPending ? 'Creating…' : 'Create Tournament'}
+                {createMut.isPending
+                  ? 'Creating…'
+                  : (createMode === 'division' ? 'Create & Seed Tournament' : 'Create Tournament')}
               </Button>
             </div>
           </form>
