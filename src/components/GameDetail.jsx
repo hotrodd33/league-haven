@@ -103,8 +103,12 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       setAwayPlayers(ap);
       // Fetch pitch eligibility
       const [he, ae] = await Promise.all([
-        g.home_team_id ? fetchPitchEligibility(g.home_team_id, g.game_date, gameId).catch(() => null) : null,
-        g.away_team_id ? fetchPitchEligibility(g.away_team_id, g.game_date, gameId).catch(() => null) : null,
+        g.home_team_id
+          ? fetchPitchEligibility(g.home_team_id, g.game_date, gameId, { tournamentId: g.tournament_id }).catch(() => null)
+          : null,
+        g.away_team_id
+          ? fetchPitchEligibility(g.away_team_id, g.game_date, gameId, { tournamentId: g.tournament_id }).catch(() => null)
+          : null,
       ]);
       setHomeEligibility(he);
       setAwayEligibility(ae);
@@ -227,7 +231,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
       const noCache = { cache: 'reload' };
       const [updated, elig, pcs] = await Promise.all([
         fetchPlayersByTeam(teamId, noCache),
-        fetchPitchEligibility(teamId, game.game_date, gameId, noCache).catch(() => null),
+        fetchPitchEligibility(teamId, game.game_date, gameId, { ...noCache, tournamentId: game.tournament_id }).catch(() => null),
         pcEntered ? fetchPitchCounts(gameId, noCache) : Promise.resolve(null),
       ]);
       if (side === 'home') { setHomePlayers(updated); setHomeEligibility(elig); }

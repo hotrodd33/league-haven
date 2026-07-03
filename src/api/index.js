@@ -529,9 +529,11 @@ export async function deletePitchCount(gameId, id) {
 
 export async function fetchPitchEligibility(teamId, gameDate, gameId, opts = {}) {
   if (!gameDate || gameDate === 'null') return null;
+  const { tournamentId, ...fetchOpts } = opts || {};
   const params = new URLSearchParams({ team_id: teamId, game_date: gameDate });
   if (gameId) params.set('game_id', gameId);
-  return apiFetch(`/pitch-rules/eligibility?${params}`, opts);
+  if (tournamentId) params.set('tournament_id', tournamentId);
+  return apiFetch(`/pitch-rules/eligibility?${params}`, fetchOpts);
 }
 
 export async function fetchTeamPitcherStats(teamId) {
@@ -1647,5 +1649,69 @@ export async function withdrawTournamentRegistration(tournamentId, ttId) {
 
 export async function fetchTournamentRegistrations(tournamentId) {
   return apiFetch(`/tournaments/${tournamentId}/registrations`);
+}
+
+export async function fetchTournamentPools(tournamentId) {
+  return apiFetch(`/tournaments/${tournamentId}/pools`);
+}
+
+export async function createTournamentPool(tournamentId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/pools`, {
+    method: 'POST', body: JSON.stringify(data),
+  });
+}
+
+export async function updateTournamentPool(tournamentId, poolId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/pools/${poolId}`, {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTournamentPool(tournamentId, poolId) {
+  return apiFetch(`/tournaments/${tournamentId}/pools/${poolId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function assignTournamentPoolTeam(tournamentId, poolId, tournamentTeamId) {
+  return apiFetch(`/tournaments/${tournamentId}/pools/${poolId}/teams`, {
+    method: 'POST',
+    body: JSON.stringify({ tournament_team_id: tournamentTeamId }),
+  });
+}
+
+export async function removeTournamentPoolTeam(tournamentId, poolId, tournamentTeamId) {
+  return apiFetch(`/tournaments/${tournamentId}/pools/${poolId}/teams/${tournamentTeamId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function autoBalanceTournamentPools(tournamentId, poolCount) {
+  return apiFetch(`/tournaments/${tournamentId}/pools/auto-balance`, {
+    method: 'POST', body: JSON.stringify({ pool_count: poolCount }),
+  });
+}
+
+export async function generatePoolRoundRobin(tournamentId, poolId) {
+  return apiFetch(`/tournaments/${tournamentId}/pools/${poolId}/schedule-round-robin`, {
+    method: 'POST',
+  });
+}
+
+export async function fetchPoolStandings(tournamentId, poolId) {
+  return apiFetch(`/tournaments/${tournamentId}/pools/${poolId}/standings`);
+}
+
+export async function previewBracketSeeds(tournamentId, params = {}) {
+  const qs = new URLSearchParams();
+  if (params.seeding_mode) qs.set('seeding_mode', params.seeding_mode);
+  if (params.qualifiers_per_pool != null) qs.set('qualifiers_per_pool', params.qualifiers_per_pool);
+  return apiFetch(`/tournaments/${tournamentId}/preview-bracket-seeds?${qs}`);
+}
+
+export async function generateBracketFromPools(tournamentId, data) {
+  return apiFetch(`/tournaments/${tournamentId}/generate-bracket-from-pools`, {
+    method: 'POST', body: JSON.stringify(data),
+  });
 }
 

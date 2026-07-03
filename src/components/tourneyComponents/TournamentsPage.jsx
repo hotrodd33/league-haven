@@ -27,7 +27,18 @@ export default function TournamentsPage({ onSelectTournament }) {
   const queryClient = useQueryClient();
   const { isAdmin, isOrgAdmin, isTeamManager, permissions } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: '', format: 'single_elimination', team_count: 8, description: '', start_date: '', end_date: '', org_id: '' });
+  const [form, setForm] = useState({
+    name: '',
+    format: 'single_elimination',
+    team_count: 8,
+    description: '',
+    start_date: '',
+    end_date: '',
+    org_id: '',
+    pitch_limit_mode: 'league_default',
+    pitch_limit_per_day: '',
+    pitch_limit_per_tournament: '',
+  });
   const [createError, setCreateError] = useState('');
 
   const canCreate = isAdmin || isOrgAdmin;
@@ -92,7 +103,18 @@ export default function TournamentsPage({ onSelectTournament }) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tournaments'] });
       setShowCreate(false);
-      setForm({ name: '', format: 'single_elimination', team_count: 8, description: '', start_date: '', end_date: '', org_id: '' });
+      setForm({
+        name: '',
+        format: 'single_elimination',
+        team_count: 8,
+        description: '',
+        start_date: '',
+        end_date: '',
+        org_id: '',
+        pitch_limit_mode: 'league_default',
+        pitch_limit_per_day: '',
+        pitch_limit_per_tournament: '',
+      });
       setCreateError('');
       if (data?.id) onSelectTournament(data.id);
     },
@@ -118,6 +140,8 @@ export default function TournamentsPage({ onSelectTournament }) {
       ...form,
       team_count: count,
       org_id: form.org_id || (orgs.length === 1 ? orgs[0].id : null),
+      pitch_limit_per_day: form.pitch_limit_per_day !== '' ? Number(form.pitch_limit_per_day) : null,
+      pitch_limit_per_tournament: form.pitch_limit_per_tournament !== '' ? Number(form.pitch_limit_per_tournament) : null,
     });
   }
 
@@ -241,6 +265,32 @@ export default function TournamentsPage({ onSelectTournament }) {
               value={form.team_count}
               onChange={(e) => setForm({ ...form, team_count: e.target.value })}
             />
+            <Select
+              label="Pitch Rule Mode"
+              value={form.pitch_limit_mode}
+              onChange={(e) => setForm({ ...form, pitch_limit_mode: e.target.value })}
+            >
+              <option value="league_default">Use League Age Group Rules</option>
+              <option value="tournament_custom">Use Tournament Custom Limits</option>
+            </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Per-Day Pitch Limit"
+                type="number"
+                min={1}
+                value={form.pitch_limit_per_day}
+                onChange={(e) => setForm({ ...form, pitch_limit_per_day: e.target.value })}
+                placeholder="Optional"
+              />
+              <Input
+                label="Per-Tournament Pitch Limit"
+                type="number"
+                min={1}
+                value={form.pitch_limit_per_tournament}
+                onChange={(e) => setForm({ ...form, pitch_limit_per_tournament: e.target.value })}
+                placeholder="Optional"
+              />
+            </div>
             {orgs.length > 1 && (
               <Select
                 label="Organization"

@@ -101,9 +101,9 @@ function datePlusDays(dateStr, days) {
   return d.toISOString().split('T')[0];
 }
 
-// GET /api/pitch-rules/eligibility?team_id=X&game_date=YYYY-MM-DD&game_id=Y
+// GET /api/pitch-rules/eligibility?team_id=X&game_date=YYYY-MM-DD&game_id=Y&tournament_id=Z
 router.get('/eligibility', authMiddleware, async (req, res) => {
-  const { team_id, game_date, game_id } = req.query;
+  const { team_id, game_date, game_id, tournament_id } = req.query;
   if (!team_id || !game_date) {
     return res.status(400).json({ error: 'team_id and game_date are required' });
   }
@@ -118,6 +118,26 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
 
     const rules = await loadRulesForTeam(team_id);
     const ageCategory = team.age_group || null;
+
+    let tournamentConfig = null;
+    if (tournament_id) {
+      const { rows: tRows } = await pool.query(
+        `SELECT id, pitch_limit_mode, pitch_limit_per_day, pitch_limit_per_tournament
+         FROM tournaments
+         WHERE id = $1`,
+        [tournament_id]
+      );
+      if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+      tournamentConfig = tRows[0];
+    }
+
+    const tournamentUsesCustomLimits = tournamentConfig?.pitch_limit_mode === 'tournament_custom';
+    const effectiveDailyLimit = tournamentUsesCustomLimits && tournamentConfig?.pitch_limit_per_day != null
+      ? Number(tournamentConfig.pitch_limit_per_day)
+      : (rules?.dailyLimit ?? null);
+    const effectiveTournamentLimit = tournamentConfig?.pitch_limit_per_tournament != null
+      ? Number(tournamentConfig.pitch_limit_per_tournament)
+      : null;
 
     // Team players
     const { rows: players } = await pool.query(
@@ -138,12 +158,20 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
         excludeClause = 'AND g.id != $4';
         params.push(game_id);
       }
+
+      let scopeClause = 'AND g.season_id IS NOT NULL';
+      if (tournament_id) {
+        const tournamentParamIndex = params.length + 1;
+        scopeClause = `AND g.tournament_id = $${tournamentParamIndex}`;
+        params.push(tournament_id);
+      }
+
       const { rows } = await pool.query(
         `SELECT gpc.player_id, gpc.pitch_count, g.game_date::text AS game_date, g.id AS game_id
          FROM game_pitch_counts gpc
          JOIN games g ON g.id = gpc.game_id AND g.deleted_at IS NULL
          WHERE gpc.player_id = ANY($1)
-           AND g.season_id IS NOT NULL
+           ${scopeClause}
            AND g.game_date >= $2::date
            AND g.game_date <= $3::date
            AND g.status != 'cancelled'
@@ -177,9 +205,18 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
         jersey_number: player.jersey_number,
         eligible: true,
         reasons: [],
-        daily_limit: rules?.dailyLimit ?? null,
+        daily_limit: effectiveDailyLimit,
+        tournament_limit: effectiveTournamentLimit,
         today_pitches: todayPitches,
-        remaining_today: (rules && rules.dailyLimit != null) ? Math.max(0, rules.dailyLimit - todayPitches) : null,
+        tournament_pitches: recentPC
+          .filter(r => r.player_id === player.id)
+          .reduce((sum, r) => sum + Number(r.pitch_count || 0), 0),
+        remaining_today: effectiveDailyLimit != null ? Math.max(0, effectiveDailyLimit - todayPitches) : null,
+        remaining_tournament: effectiveTournamentLimit != null
+          ? Math.max(0, effectiveTournamentLimit - recentPC
+            .filter(r => r.player_id === player.id)
+            .reduce((sum, r) => sum + Number(r.pitch_count || 0), 0))
+          : null,
         rest_days_required: 0,
         available_date: gd,
         recent_games: recentPC
@@ -190,9 +227,16 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
       if (!rules) return result;
 
       // Already at daily limit from other games today
-      if (rules.dailyLimit != null && todayPitches >= rules.dailyLimit) {
+      if (effectiveDailyLimit != null && todayPitches >= effectiveDailyLimit) {
         result.eligible = false;
-        result.reasons.push(`Already at daily limit (${todayPitches}/${rules.dailyLimit} pitches today)`);
+        result.reasons.push(`Already at daily limit (${todayPitches}/${effectiveDailyLimit} pitches today)`);
+      }
+
+      if (effectiveTournamentLimit != null && result.tournament_pitches >= effectiveTournamentLimit) {
+        result.eligible = false;
+        result.reasons.push(
+          `Already at tournament limit (${result.tournament_pitches}/${effectiveTournamentLimit} pitches in this tournament)`
+        );
       }
 
       // Rest from most recent pitching date BEFORE game_date
@@ -229,9 +273,12 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
     res.json({
       team_id: Number(team_id),
       game_date: gd,
+      tournament_id: tournament_id ? Number(tournament_id) : null,
       age_category: ageCategory,
-      daily_limit: rules?.dailyLimit ?? null,
+      daily_limit: effectiveDailyLimit,
+      tournament_limit: effectiveTournamentLimit,
       rules: rulesToWire(rules),
+      pitch_limit_mode: tournamentConfig?.pitch_limit_mode || 'league_default',
       players: eligibility,
     });
   } catch (err) {

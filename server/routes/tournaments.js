@@ -60,6 +60,141 @@ function enrichTeam(tt, teamRow) {
   };
 }
 
+function buildRoundRobinRounds(teamIds) {
+  const ids = [...teamIds];
+  if (ids.length < 2) return [];
+  const needsBye = ids.length % 2 === 1;
+  if (needsBye) ids.push(null);
+
+  const n = ids.length;
+  const rounds = [];
+  let rotation = [...ids];
+  for (let r = 0; r < n - 1; r++) {
+    const matches = [];
+    for (let i = 0; i < n / 2; i++) {
+      const a = rotation[i];
+      const b = rotation[n - 1 - i];
+      if (a && b) matches.push([a, b]);
+    }
+    rounds.push(matches);
+
+    const fixed = rotation[0];
+    const moving = rotation.slice(1);
+    moving.unshift(moving.pop());
+    rotation = [fixed, ...moving];
+  }
+  return rounds;
+}
+
+function buildSeedPositions(size) {
+  if (size === 1) return [1];
+  const half = buildSeedPositions(size / 2);
+  const result = [];
+  for (const h of half) { result.push(h); result.push(size + 1 - h); }
+  return result;
+}
+
+async function computePoolStandings(tournamentId, poolId) {
+  const { rows: teamRows } = await pool.query(
+    `SELECT tt.id AS tournament_team_id, tt.seed, tt.team_id, tt.temp_name, tt.is_temp,
+            t.name AS team_name, t.logo_url, t.org_id, t.age_group, t.level,
+            t.team_city, t.team_mascot, t.team_color, t.primary_color, t.secondary_color,
+            o.logo_url AS org_logo
+     FROM tournament_pool_teams ppt
+     JOIN tournament_teams tt ON tt.id = ppt.tournament_team_id
+     LEFT JOIN teams t ON t.id = tt.team_id
+     LEFT JOIN organizations o ON o.id = t.org_id
+     WHERE ppt.pool_id = $1
+     ORDER BY tt.seed NULLS LAST, tt.id`,
+    [poolId]
+  );
+
+  const teams = teamRows.map((row) => ({
+    ...enrichTeam(
+      { id: row.tournament_team_id, team_id: row.team_id, seed: row.seed, temp_name: row.temp_name, is_temp: row.is_temp },
+      row.team_id ? row : null,
+    ),
+    tournament_team_id: row.tournament_team_id,
+  }));
+
+  const standingsMap = new Map();
+  teams.forEach((team) => standingsMap.set(team.tournament_team_id, createStanding(team)));
+
+  const { rows: matchRows } = await pool.query(
+    `SELECT pm.team_a_id, pm.team_b_id, g.status, g.home_score, g.away_score
+     FROM tournament_pool_matches pm
+     LEFT JOIN games g ON g.id = pm.game_id
+     WHERE pm.tournament_id = $1 AND pm.pool_id = $2`,
+    [tournamentId, poolId]
+  );
+
+  const headToHead = new Map();
+  let completedGames = 0;
+
+  for (const match of matchRows) {
+    const a = standingsMap.get(match.team_a_id);
+    const b = standingsMap.get(match.team_b_id);
+    if (!a || !b) continue;
+    const hs = match.home_score;
+    const as_ = match.away_score;
+    const done = hs != null && as_ != null && match.status !== 'cancelled';
+    if (!done) continue;
+    completedGames++;
+    a.games_played++; b.games_played++;
+    a.runs_for += Number(hs); a.runs_against += Number(as_);
+    b.runs_for += Number(as_); b.runs_against += Number(hs);
+    if (hs > as_) {
+      a.wins++; b.losses++;
+      headToHead.set(`${a.tournament_team_id}:${b.tournament_team_id}`, (headToHead.get(`${a.tournament_team_id}:${b.tournament_team_id}`) || 0) + 1);
+    } else if (as_ > hs) {
+      b.wins++; a.losses++;
+      headToHead.set(`${b.tournament_team_id}:${a.tournament_team_id}`, (headToHead.get(`${b.tournament_team_id}:${a.tournament_team_id}`) || 0) + 1);
+    } else {
+      a.ties++; b.ties++;
+    }
+  }
+
+  const standings = Array.from(standingsMap.values()).map((s) => ({
+    ...s,
+    run_diff: s.runs_for - s.runs_against,
+    points: (s.wins * 2) + s.ties,
+  }));
+
+  standings.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    const aBeatB = headToHead.get(`${a.tournament_team_id}:${b.tournament_team_id}`) || 0;
+    const bBeatA = headToHead.get(`${b.tournament_team_id}:${a.tournament_team_id}`) || 0;
+    if ((aBeatB + bBeatA) > 0 && aBeatB !== bBeatA) return bBeatA - aBeatB;
+    if (b.run_diff !== a.run_diff) return b.run_diff - a.run_diff;
+    if (a.runs_against !== b.runs_against) return a.runs_against - b.runs_against;
+    if ((a.seed ?? 9999) !== (b.seed ?? 9999)) return (a.seed ?? 9999) - (b.seed ?? 9999);
+    return a.name.localeCompare(b.name);
+  });
+  standings.forEach((s, idx) => { s.pool_rank = idx + 1; });
+  return { standings, completedGames, totalMatches: matchRows.length, teamCount: teams.length };
+}
+
+function createStanding(team) {
+  return {
+    tournament_team_id: team.id,
+    team_id: team.team_id,
+    name: team.name,
+    seed: team.seed,
+    is_temp: team.is_temp,
+    logo: team.logo,
+    city_abbr: team.city_abbr,
+    wins: 0,
+    losses: 0,
+    ties: 0,
+    games_played: 0,
+    runs_for: 0,
+    runs_against: 0,
+    run_diff: 0,
+    points: 0,
+    rank: null,
+  };
+}
+
 // ── GET / — list tournaments ─────────────────────────────────────────────────
 
 router.get('/', async (req, res) => {
@@ -225,11 +360,30 @@ router.get('/:id', async (req, res) => {
 router.post('/', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { name, format, description, team_count, start_date, end_date, org_id } = req.body;
+    const {
+      name, format, description, team_count, start_date, end_date, org_id,
+      pitch_limit_mode, pitch_limit_per_day, pitch_limit_per_tournament,
+    } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     const fmt = format || 'single_elimination';
     if (!['single_elimination', 'double_elimination'].includes(fmt)) {
       return res.status(400).json({ error: 'Invalid format' });
+    }
+    const pitchMode = pitch_limit_mode || 'league_default';
+    if (!['league_default', 'tournament_custom'].includes(pitchMode)) {
+      return res.status(400).json({ error: 'Invalid pitch_limit_mode' });
+    }
+    const perDay = pitch_limit_per_day == null || pitch_limit_per_day === ''
+      ? null
+      : Number(pitch_limit_per_day);
+    const perTournament = pitch_limit_per_tournament == null || pitch_limit_per_tournament === ''
+      ? null
+      : Number(pitch_limit_per_tournament);
+    if (perDay != null && (!Number.isFinite(perDay) || perDay <= 0)) {
+      return res.status(400).json({ error: 'pitch_limit_per_day must be a positive number' });
+    }
+    if (perTournament != null && (!Number.isFinite(perTournament) || perTournament <= 0)) {
+      return res.status(400).json({ error: 'pitch_limit_per_tournament must be a positive number' });
     }
     const count = Number(team_count) || 8;
     if (count < 2 || count > 128) return res.status(400).json({ error: 'team_count must be 2–128' });
@@ -247,9 +401,24 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Create tournament
     const { rows: tRows } = await client.query(
-      `INSERT INTO tournaments (name, format, description, team_count, start_date, end_date, created_by, org_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [name, fmt, description || null, count, start_date || null, end_date || null, req.user.id, effectiveOrgId]
+      `INSERT INTO tournaments (
+        name, format, description, team_count, start_date, end_date, created_by, org_id,
+        pitch_limit_mode, pitch_limit_per_day, pitch_limit_per_tournament
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      [
+        name,
+        fmt,
+        description || null,
+        count,
+        start_date || null,
+        end_date || null,
+        req.user.id,
+        effectiveOrgId,
+        pitchMode,
+        perDay,
+        perTournament,
+      ]
     );
     const tournamentId = tRows[0].id;
 
@@ -329,7 +498,23 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     const { name, description, status, start_date, end_date,
             location_id, location_notes, registration_open, registration_deadline,
-            entry_fee, max_registrations } = req.body;
+            entry_fee, max_registrations, pitch_limit_mode, pitch_limit_per_day,
+            pitch_limit_per_tournament } = req.body;
+
+    const modeParam = pitch_limit_mode == null ? null : String(pitch_limit_mode);
+    if (modeParam != null && !['league_default', 'tournament_custom'].includes(modeParam)) {
+      return res.status(400).json({ error: 'Invalid pitch_limit_mode' });
+    }
+    const perDayParam = pitch_limit_per_day == null || pitch_limit_per_day === '' ? null : Number(pitch_limit_per_day);
+    const perTournamentParam = pitch_limit_per_tournament == null || pitch_limit_per_tournament === ''
+      ? null
+      : Number(pitch_limit_per_tournament);
+    if (perDayParam != null && (!Number.isFinite(perDayParam) || perDayParam <= 0)) {
+      return res.status(400).json({ error: 'pitch_limit_per_day must be a positive number' });
+    }
+    if (perTournamentParam != null && (!Number.isFinite(perTournamentParam) || perTournamentParam <= 0)) {
+      return res.status(400).json({ error: 'pitch_limit_per_tournament must be a positive number' });
+    }
     await pool.query(
       `UPDATE tournaments SET
         name = COALESCE($1, name),
@@ -343,11 +528,14 @@ router.put('/:id', authMiddleware, async (req, res) => {
         registration_deadline = COALESCE($9, registration_deadline),
         entry_fee = COALESCE($10, entry_fee),
         max_registrations = COALESCE($11, max_registrations),
+        pitch_limit_mode = COALESCE($12, pitch_limit_mode),
+        pitch_limit_per_day = COALESCE($13, pitch_limit_per_day),
+        pitch_limit_per_tournament = COALESCE($14, pitch_limit_per_tournament),
         updated_at = NOW()
-       WHERE id = $12`,
+       WHERE id = $15`,
       [name, description, status, start_date, end_date,
        location_id, location_notes, registration_open, registration_deadline,
-       entry_fee, max_registrations, id]
+       entry_fee, max_registrations, modeParam, perDayParam, perTournamentParam, id]
     );
     cache.invalidatePrefix('tournaments:');
     const { rows } = await pool.query('SELECT * FROM tournaments WHERE id = $1', [id]);
@@ -401,6 +589,697 @@ router.get('/:id/teams', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /:id/pools — list pools with assigned teams ─────────────────────────
+
+router.get('/:id/pools', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows: tRows } = await pool.query('SELECT id FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+
+    const { rows: pools } = await pool.query(
+      `SELECT * FROM tournament_pools WHERE tournament_id = $1 ORDER BY sort_order, id`,
+      [id]
+    );
+
+    const { rows: teamRows } = await pool.query(
+      `SELECT ppt.pool_id, tt.id AS tournament_team_id, tt.seed, tt.team_id, tt.temp_name, tt.is_temp,
+              t.name AS team_name, t.logo_url, t.org_id, t.age_group, t.level,
+              t.team_city, t.team_mascot, t.team_color, t.primary_color, t.secondary_color,
+              o.logo_url AS org_logo
+       FROM tournament_pool_teams ppt
+       JOIN tournament_teams tt ON tt.id = ppt.tournament_team_id
+       LEFT JOIN teams t ON t.id = tt.team_id
+       LEFT JOIN organizations o ON o.id = t.org_id
+       WHERE tt.tournament_id = $1
+       ORDER BY tt.seed NULLS LAST, tt.id`,
+      [id]
+    );
+
+    const teamsByPool = {};
+    for (const row of teamRows) {
+      if (!teamsByPool[row.pool_id]) teamsByPool[row.pool_id] = [];
+      teamsByPool[row.pool_id].push({
+        ...enrichTeam(row, row.team_id ? row : null),
+        tournament_team_id: row.tournament_team_id,
+      });
+    }
+
+    res.json(pools.map((p) => ({ ...p, teams: teamsByPool[p.id] || [] })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /:id/pools/:poolId/standings — computed pool standings ──────────────
+
+router.get('/:id/pools/:poolId/standings', async (req, res) => {
+  try {
+    const { id, poolId } = req.params;
+    const { rows: poolRows } = await pool.query(
+      `SELECT p.*
+       FROM tournament_pools p
+       WHERE p.id = $1 AND p.tournament_id = $2`,
+      [poolId, id]
+    );
+    if (!poolRows.length) return res.status(404).json({ error: 'Pool not found' });
+    const poolRow = poolRows[0];
+
+    const { rows: teamRows } = await pool.query(
+      `SELECT tt.id AS tournament_team_id, tt.seed, tt.team_id, tt.temp_name, tt.is_temp,
+              t.name AS team_name, t.logo_url, t.org_id, t.age_group, t.level,
+              t.team_city, t.team_mascot, t.team_color, t.primary_color, t.secondary_color,
+              o.logo_url AS org_logo
+       FROM tournament_pool_teams ppt
+       JOIN tournament_teams tt ON tt.id = ppt.tournament_team_id
+       LEFT JOIN teams t ON t.id = tt.team_id
+       LEFT JOIN organizations o ON o.id = t.org_id
+       WHERE ppt.pool_id = $1
+       ORDER BY tt.seed NULLS LAST, tt.id`,
+      [poolId]
+    );
+
+    const teams = teamRows.map((row) => ({
+      ...enrichTeam(
+        {
+          id: row.tournament_team_id,
+          team_id: row.team_id,
+          seed: row.seed,
+          temp_name: row.temp_name,
+          is_temp: row.is_temp,
+        },
+        row.team_id ? row : null,
+      ),
+      tournament_team_id: row.tournament_team_id,
+    }));
+
+    const { standings, completedGames, totalMatches } = await computePoolStandings(id, poolId);
+    standings.forEach((s, idx) => { s.rank = idx + 1; });
+
+    res.json({
+      pool: {
+        id: poolRow.id,
+        tournament_id: poolRow.tournament_id,
+        name: poolRow.name,
+      },
+      totals: {
+        teams: standings.length,
+        matches: totalMatches,
+        completed_games: completedGames,
+      },
+      standings,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /:id/preview-bracket-seeds — compute seeds across pools (no writes) ─
+
+router.get('/:id/preview-bracket-seeds', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { seeding_mode = 'global_rank', qualifiers_per_pool } = req.query;
+
+    if (!['global_rank', 'fixed_qualifiers_per_pool'].includes(seeding_mode)) {
+      return res.status(400).json({ error: 'seeding_mode must be global_rank or fixed_qualifiers_per_pool' });
+    }
+
+    const { rows: poolRows } = await pool.query(
+      'SELECT * FROM tournament_pools WHERE tournament_id = $1 ORDER BY sort_order, id', [id]
+    );
+    if (!poolRows.length) return res.status(400).json({ error: 'No pools found for this tournament' });
+
+    const allPoolStandings = await Promise.all(
+      poolRows.map(async (p) => {
+        const { standings, completedGames, totalMatches } = await computePoolStandings(id, p.id);
+        return { pool: { id: p.id, name: p.name }, standings, completedGames, totalMatches };
+      })
+    );
+
+    const qpp = qualifiers_per_pool != null ? Number(qualifiers_per_pool) : null;
+    let qualifiers;
+
+    if (seeding_mode === 'fixed_qualifiers_per_pool') {
+      if (!qpp || qpp < 1) return res.status(400).json({ error: 'qualifiers_per_pool required for fixed mode' });
+      qualifiers = [];
+      // Interleave: rank-1 from each pool, then rank-2 from each pool, …
+      for (let rank = 0; rank < qpp; rank++) {
+        for (const { standings } of allPoolStandings) {
+          const team = standings[rank];
+          if (team) qualifiers.push({ ...team, from_pool: allPoolStandings.find(p => p.standings.includes(team))?.pool?.name });
+        }
+      }
+    } else {
+      // global_rank: sort all teams by pool_rank first, then points/rd, interleave by pool
+      const maxRank = Math.max(...allPoolStandings.map(p => p.standings.length));
+      qualifiers = [];
+      for (let rank = 0; rank < maxRank; rank++) {
+        for (const { pool: pl, standings } of allPoolStandings) {
+          const team = standings[rank];
+          if (team) qualifiers.push({ ...team, from_pool: pl.name });
+        }
+      }
+    }
+
+    // Assign bracket seeds 1..N
+    qualifiers.forEach((t, idx) => { t.bracket_seed = idx + 1; });
+
+    res.json({
+      seeding_mode,
+      qualifiers_per_pool: qpp,
+      pools: allPoolStandings.map(p => ({ id: p.pool.id, name: p.pool.name, completed: p.completedGames, total: p.totalMatches })),
+      seeds: qualifiers,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /:id/generate-bracket-from-pools — write seeds + assign round 1 ────
+
+router.post('/:id/generate-bracket-from-pools', authMiddleware, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { rows: tRows } = await client.query('SELECT * FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+    const tournament = tRows[0];
+    const allowed = await canManageTournament(req.user, tournament.org_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
+
+    const {
+      seeding_mode = 'global_rank',
+      qualifiers_per_pool,
+      seed_overrides = [], // [{bracket_seed, tournament_team_id}]
+    } = req.body;
+
+    if (!['global_rank', 'fixed_qualifiers_per_pool'].includes(seeding_mode)) {
+      return res.status(400).json({ error: 'Invalid seeding_mode' });
+    }
+
+    const { rows: poolRows } = await client.query(
+      'SELECT * FROM tournament_pools WHERE tournament_id = $1 ORDER BY sort_order, id', [id]
+    );
+    if (!poolRows.length) return res.status(400).json({ error: 'No pools found for this tournament' });
+
+    const allPoolStandings = await Promise.all(
+      poolRows.map(async (p) => {
+        const { standings } = await computePoolStandings(id, p.id);
+        return { pool: p, standings };
+      })
+    );
+
+    const qpp = qualifiers_per_pool != null ? Number(qualifiers_per_pool) : null;
+    let qualifiers = [];
+    if (seeding_mode === 'fixed_qualifiers_per_pool') {
+      if (!qpp || qpp < 1) return res.status(400).json({ error: 'qualifiers_per_pool required for fixed mode' });
+      for (let rank = 0; rank < qpp; rank++) {
+        for (const { standings } of allPoolStandings) {
+          if (standings[rank]) qualifiers.push(standings[rank]);
+        }
+      }
+    } else {
+      const maxRank = Math.max(...allPoolStandings.map(p => p.standings.length));
+      for (let rank = 0; rank < maxRank; rank++) {
+        for (const { standings } of allPoolStandings) {
+          if (standings[rank]) qualifiers.push(standings[rank]);
+        }
+      }
+    }
+
+    // Apply seed overrides: swap teams at specific bracket positions
+    const overrideMap = new Map();
+    for (const ov of (seed_overrides || [])) {
+      if (ov.bracket_seed >= 1 && ov.bracket_seed <= qualifiers.length) {
+        overrideMap.set(Number(ov.bracket_seed), Number(ov.tournament_team_id));
+      }
+    }
+    if (overrideMap.size > 0) {
+      const ttIdToIdx = new Map(qualifiers.map((q, i) => [q.tournament_team_id, i]));
+      for (const [targetSeed, ttId] of overrideMap) {
+        const targetIdx = targetSeed - 1;
+        const currentTeamAtTarget = qualifiers[targetIdx];
+        const sourceIdx = ttIdToIdx.get(ttId);
+        if (sourceIdx == null) continue;
+        // swap
+        const temp = qualifiers[targetIdx];
+        qualifiers[targetIdx] = qualifiers[sourceIdx];
+        qualifiers[sourceIdx] = temp;
+        ttIdToIdx.set(currentTeamAtTarget.tournament_team_id, sourceIdx);
+        ttIdToIdx.set(ttId, targetIdx);
+      }
+    }
+
+    // Get first-round matches ordered by match_number
+    const { rows: round1Rows } = await client.query(
+      `SELECT tr.id AS round_id FROM tournament_rounds tr
+       WHERE tr.tournament_id = $1 ORDER BY tr.round_number LIMIT 1`, [id]
+    );
+    if (!round1Rows.length) return res.status(400).json({ error: 'Tournament bracket not generated yet' });
+
+    const { rows: r1Matches } = await client.query(
+      `SELECT id FROM tournament_matches WHERE tournament_id = $1 AND round_id = $2
+       ORDER BY match_number`,
+      [id, round1Rows[0].round_id]
+    );
+
+    const bracketSize = nearestPowerOf2(qualifiers.length);
+    const seedPositions = buildSeedPositions(bracketSize);
+
+    await client.query('BEGIN');
+
+    // Update seeds on tournament_teams
+    for (let i = 0; i < qualifiers.length; i++) {
+      await client.query(
+        'UPDATE tournament_teams SET seed = $1 WHERE id = $2',
+        [i + 1, qualifiers[i].tournament_team_id]
+      );
+    }
+
+    // Assign round-1 match slots. seedPositions pairs: [0,1], [2,3], …
+    const totalSlots = bracketSize;
+    for (let matchIdx = 0; matchIdx < r1Matches.length; matchIdx++) {
+      const slotA = seedPositions[matchIdx * 2] - 1;    // 0-based qualifier index
+      const slotB = seedPositions[matchIdx * 2 + 1] - 1;
+      const teamA = qualifiers[slotA] || null;
+      const teamB = qualifiers[slotB] || null;
+      const isBye = !teamA || !teamB;
+
+      await client.query(
+        `UPDATE tournament_matches SET
+           team_a_id = $1,
+           team_b_id = $2,
+           winner_team_id = CASE WHEN $3 THEN COALESCE($1, $2) ELSE NULL END,
+           loser_team_id = NULL,
+           is_bye = $3
+         WHERE id = $4`,
+        [
+          teamA?.tournament_team_id ?? null,
+          teamB?.tournament_team_id ?? null,
+          isBye,
+          r1Matches[matchIdx].id,
+        ]
+      );
+
+      // If it's a bye, auto-advance the present team to next match
+      if (isBye && r1Matches[matchIdx]) {
+        const winnerId = teamA?.tournament_team_id ?? teamB?.tournament_team_id;
+        if (winnerId) {
+          const { rows: matchDetails } = await client.query(
+            'SELECT next_match_id FROM tournament_matches WHERE id = $1', [r1Matches[matchIdx].id]
+          );
+          if (matchDetails[0]?.next_match_id) {
+            const { rows: nextSlot } = await client.query(
+              'SELECT team_a_id, team_b_id FROM tournament_matches WHERE id = $1',
+              [matchDetails[0].next_match_id]
+            );
+            if (nextSlot.length) {
+              const col = !nextSlot[0].team_a_id ? 'team_a_id' : 'team_b_id';
+              await client.query(
+                `UPDATE tournament_matches SET ${col} = $1 WHERE id = $2`,
+                [winnerId, matchDetails[0].next_match_id]
+              );
+            }
+          }
+        }
+      }
+
+      // Update linked game with real team IDs
+      const { rows: matchGame } = await client.query(
+        'SELECT game_id FROM tournament_matches WHERE id = $1', [r1Matches[matchIdx].id]
+      );
+      if (matchGame[0]?.game_id) {
+        const homeTeam = teamA ? await client.query('SELECT team_id FROM tournament_teams WHERE id = $1', [teamA.tournament_team_id]) : null;
+        const awayTeam = teamB ? await client.query('SELECT team_id FROM tournament_teams WHERE id = $1', [teamB.tournament_team_id]) : null;
+        await client.query(
+          'UPDATE games SET home_team_id = $1, away_team_id = $2 WHERE id = $3',
+          [homeTeam?.rows[0]?.team_id ?? null, awayTeam?.rows[0]?.team_id ?? null, matchGame[0].game_id]
+        );
+      }
+    }
+
+    // Clear any subsequent round slots that may have been set from a previous seeding
+    const { rows: laterMatches } = await client.query(
+      `SELECT tm.id FROM tournament_matches tm
+       JOIN tournament_rounds tr ON tr.id = tm.round_id
+       WHERE tm.tournament_id = $1 AND tr.round_number > 1
+         AND tm.winner_team_id IS NULL`,
+      [id]
+    );
+    for (const m of laterMatches) {
+      await client.query(
+        'UPDATE tournament_matches SET team_a_id = NULL, team_b_id = NULL WHERE id = $1',
+        [m.id]
+      );
+    }
+
+    await client.query('COMMIT');
+    cache.invalidatePrefix('tournaments:');
+
+    res.json({
+      success: true,
+      seeding_mode,
+      qualifiers_seeded: qualifiers.length,
+      bracket_size: bracketSize,
+      bye_count: bracketSize - qualifiers.length,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// ── POST /:id/pools — create a pool ─────────────────────────────────────────
+
+router.post('/:id/pools', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows: tRows } = await pool.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+    const allowed = await canManageTournament(req.user, tRows[0].org_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
+
+    const name = String(req.body?.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Pool name is required' });
+
+    const { rows: maxRows } = await pool.query(
+      'SELECT COALESCE(MAX(sort_order), 0) + 1 AS next_sort FROM tournament_pools WHERE tournament_id = $1',
+      [id]
+    );
+    const sortOrder = req.body?.sort_order != null ? Number(req.body.sort_order) : Number(maxRows[0].next_sort || 1);
+
+    const { rows } = await pool.query(
+      `INSERT INTO tournament_pools (tournament_id, name, sort_order)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [id, name, sortOrder]
+    );
+
+    cache.invalidatePrefix('tournaments:');
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Pool name or sort order already exists for this tournament' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── PUT /:id/pools/:poolId — update pool metadata ───────────────────────────
+
+router.put('/:id/pools/:poolId', authMiddleware, async (req, res) => {
+  try {
+    const { id, poolId } = req.params;
+    const { rows: tRows } = await pool.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+    const allowed = await canManageTournament(req.user, tRows[0].org_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
+
+    const nameParam = req.body?.name == null ? null : String(req.body.name).trim();
+    const sortParam = req.body?.sort_order == null ? null : Number(req.body.sort_order);
+
+    const { rows } = await pool.query(
+      `UPDATE tournament_pools SET
+         name = COALESCE($1, name),
+         sort_order = COALESCE($2, sort_order)
+       WHERE id = $3 AND tournament_id = $4
+       RETURNING *`,
+      [nameParam || null, Number.isFinite(sortParam) ? sortParam : null, poolId, id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Pool not found' });
+
+    cache.invalidatePrefix('tournaments:');
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Pool name or sort order already exists for this tournament' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── DELETE /:id/pools/:poolId — remove pool and assignments ─────────────────
+
+router.delete('/:id/pools/:poolId', authMiddleware, async (req, res) => {
+  try {
+    const { id, poolId } = req.params;
+    const { rows: tRows } = await pool.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+    const allowed = await canManageTournament(req.user, tRows[0].org_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
+
+    await pool.query(
+      `DELETE FROM tournament_pools WHERE id = $1 AND tournament_id = $2`,
+      [poolId, id]
+    );
+
+    cache.invalidatePrefix('tournaments:');
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /:id/pools/:poolId/teams — assign team to pool ─────────────────────
+
+router.post('/:id/pools/:poolId/teams', authMiddleware, async (req, res) => {
+  try {
+    const { id, poolId } = req.params;
+    const { rows: tRows } = await pool.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+    const allowed = await canManageTournament(req.user, tRows[0].org_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
+
+    const tournamentTeamId = Number(req.body?.tournament_team_id);
+    if (!Number.isFinite(tournamentTeamId)) {
+      return res.status(400).json({ error: 'tournament_team_id is required' });
+    }
+
+    const { rows: poolRows } = await pool.query(
+      'SELECT id FROM tournament_pools WHERE id = $1 AND tournament_id = $2',
+      [poolId, id]
+    );
+    if (!poolRows.length) return res.status(404).json({ error: 'Pool not found' });
+
+    const { rows: ttRows } = await pool.query(
+      'SELECT id FROM tournament_teams WHERE id = $1 AND tournament_id = $2',
+      [tournamentTeamId, id]
+    );
+    if (!ttRows.length) return res.status(404).json({ error: 'Tournament team not found' });
+
+    const { rows } = await pool.query(
+      `INSERT INTO tournament_pool_teams (pool_id, tournament_team_id)
+       VALUES ($1, $2)
+       ON CONFLICT (tournament_team_id)
+       DO UPDATE SET pool_id = EXCLUDED.pool_id
+       RETURNING *`,
+      [poolId, tournamentTeamId]
+    );
+
+    cache.invalidatePrefix('tournaments:');
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── DELETE /:id/pools/:poolId/teams/:ttId — remove assignment ───────────────
+
+router.delete('/:id/pools/:poolId/teams/:ttId', authMiddleware, async (req, res) => {
+  try {
+    const { id, poolId, ttId } = req.params;
+    const { rows: tRows } = await pool.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+    const allowed = await canManageTournament(req.user, tRows[0].org_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
+
+    await pool.query(
+      `DELETE FROM tournament_pool_teams
+       WHERE pool_id = $1
+         AND tournament_team_id = $2
+         AND EXISTS (SELECT 1 FROM tournament_pools p WHERE p.id = $1 AND p.tournament_id = $3)`,
+      [poolId, ttId, id]
+    );
+
+    cache.invalidatePrefix('tournaments:');
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /:id/pools/auto-balance — auto-assign all teams into pools ─────────
+
+router.post('/:id/pools/auto-balance', authMiddleware, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { rows: tRows } = await client.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+    const allowed = await canManageTournament(req.user, tRows[0].org_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
+
+    const poolCount = Number(req.body?.pool_count);
+    if (!Number.isFinite(poolCount) || poolCount < 2 || poolCount > 16) {
+      return res.status(400).json({ error: 'pool_count must be between 2 and 16' });
+    }
+
+    await client.query('BEGIN');
+
+    const { rows: existingPools } = await client.query(
+      'SELECT id, sort_order FROM tournament_pools WHERE tournament_id = $1 ORDER BY sort_order, id',
+      [id]
+    );
+
+    const pools = [...existingPools];
+    for (let i = pools.length; i < poolCount; i++) {
+      const letter = String.fromCharCode(65 + i);
+      const { rows } = await client.query(
+        `INSERT INTO tournament_pools (tournament_id, name, sort_order)
+         VALUES ($1, $2, $3)
+         RETURNING id, sort_order`,
+        [id, `Pool ${letter}`, i + 1]
+      );
+      pools.push(rows[0]);
+    }
+
+    const selectedPoolIds = pools
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .slice(0, poolCount)
+      .map(p => p.id);
+
+    const { rows: teams } = await client.query(
+      `SELECT id FROM tournament_teams
+       WHERE tournament_id = $1 AND registration_status != 'withdrawn'
+       ORDER BY seed NULLS LAST, id`,
+      [id]
+    );
+
+    await client.query(
+      `DELETE FROM tournament_pool_teams
+       WHERE pool_id IN (
+         SELECT id FROM tournament_pools WHERE tournament_id = $1
+       )`,
+      [id]
+    );
+
+    for (let i = 0; i < teams.length; i++) {
+      const targetPool = selectedPoolIds[i % selectedPoolIds.length];
+      await client.query(
+        'INSERT INTO tournament_pool_teams (pool_id, tournament_team_id) VALUES ($1, $2)',
+        [targetPool, teams[i].id]
+      );
+    }
+
+    await client.query('COMMIT');
+    cache.invalidatePrefix('tournaments:');
+    res.json({ success: true, pool_count: poolCount, assigned_teams: teams.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// ── POST /:id/pools/:poolId/schedule-round-robin — generate pool games ──────
+
+router.post('/:id/pools/:poolId/schedule-round-robin', authMiddleware, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, poolId } = req.params;
+    const { rows: tRows } = await client.query('SELECT org_id FROM tournaments WHERE id = $1', [id]);
+    if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
+    const allowed = await canManageTournament(req.user, tRows[0].org_id);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized' });
+
+    const { rows: poolRows } = await client.query(
+      'SELECT id FROM tournament_pools WHERE id = $1 AND tournament_id = $2',
+      [poolId, id]
+    );
+    if (!poolRows.length) return res.status(404).json({ error: 'Pool not found' });
+
+    const { rows: assignedTeams } = await client.query(
+      `SELECT tt.id AS tournament_team_id, tt.team_id
+       FROM tournament_pool_teams ppt
+       JOIN tournament_teams tt ON tt.id = ppt.tournament_team_id
+       WHERE ppt.pool_id = $1 AND tt.tournament_id = $2
+       ORDER BY tt.seed NULLS LAST, tt.id`,
+      [poolId, id]
+    );
+
+    if (assignedTeams.length < 2) {
+      return res.status(400).json({ error: 'Pool needs at least 2 teams to generate round-robin matches' });
+    }
+
+    const rounds = buildRoundRobinRounds(assignedTeams.map(t => t.tournament_team_id));
+
+    await client.query('BEGIN');
+
+    const { rows: existingPoolMatches } = await client.query(
+      'SELECT id, game_id FROM tournament_pool_matches WHERE pool_id = $1',
+      [poolId]
+    );
+    const gameIds = existingPoolMatches.map(m => m.game_id).filter(Boolean);
+    if (gameIds.length) {
+      await client.query('DELETE FROM games WHERE id = ANY($1)', [gameIds]);
+    }
+    await client.query('DELETE FROM tournament_pool_matches WHERE pool_id = $1', [poolId]);
+
+    let createdMatches = 0;
+    for (let r = 0; r < rounds.length; r++) {
+      for (let m = 0; m < rounds[r].length; m++) {
+        const [teamAId, teamBId] = rounds[r][m];
+        const teamA = assignedTeams.find(t => t.tournament_team_id === teamAId) || null;
+        const teamB = assignedTeams.find(t => t.tournament_team_id === teamBId) || null;
+
+        const { rows: gRows } = await client.query(
+          `INSERT INTO games (tournament_id, home_team_id, away_team_id, status)
+           VALUES ($1, $2, $3, 'unscheduled')
+           RETURNING id`,
+          [id, teamA?.team_id || null, teamB?.team_id || null]
+        );
+        const gameId = gRows[0].id;
+
+        const { rows: poolMatchRows } = await client.query(
+          `INSERT INTO tournament_pool_matches (tournament_id, pool_id, round_number, match_number, team_a_id, team_b_id, game_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id`,
+          [id, poolId, r + 1, m + 1, teamAId, teamBId, gameId]
+        );
+
+        await client.query(
+          'UPDATE games SET tournament_pool_match_id = $1 WHERE id = $2',
+          [poolMatchRows[0].id, gameId]
+        );
+        createdMatches += 1;
+      }
+    }
+
+    await client.query('COMMIT');
+    cache.invalidatePrefix('tournaments:');
+    res.json({ success: true, rounds: rounds.length, matches: createdMatches });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 

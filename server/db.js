@@ -1200,9 +1200,50 @@ async function migrate() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tournament_pools (
+      id SERIAL PRIMARY KEY,
+      tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 1,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(tournament_id, name),
+      UNIQUE(tournament_id, sort_order)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tournament_pool_teams (
+      id SERIAL PRIMARY KEY,
+      pool_id INTEGER NOT NULL REFERENCES tournament_pools(id) ON DELETE CASCADE,
+      tournament_team_id INTEGER NOT NULL REFERENCES tournament_teams(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(pool_id, tournament_team_id),
+      UNIQUE(tournament_team_id)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tournament_pool_matches (
+      id SERIAL PRIMARY KEY,
+      tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+      pool_id INTEGER NOT NULL REFERENCES tournament_pools(id) ON DELETE CASCADE,
+      round_number INTEGER NOT NULL,
+      match_number INTEGER NOT NULL,
+      team_a_id INTEGER REFERENCES tournament_teams(id) ON DELETE SET NULL,
+      team_b_id INTEGER REFERENCES tournament_teams(id) ON DELETE SET NULL,
+      game_id INTEGER REFERENCES games(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(pool_id, round_number, match_number)
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_tournament_pool_matches_tournament ON tournament_pool_matches(tournament_id, pool_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_tournament_pool_teams_pool ON tournament_pool_teams(pool_id);`);
+
   // ── Link real games to tournaments ──
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS tournament_id INTEGER REFERENCES tournaments(id) ON DELETE CASCADE;`);
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS tournament_match_id INTEGER REFERENCES tournament_matches(id) ON DELETE SET NULL;`);
+  await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS tournament_pool_match_id INTEGER REFERENCES tournament_pool_matches(id) ON DELETE SET NULL;`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_games_tournament ON games(tournament_id) WHERE tournament_id IS NOT NULL;`);
 
   // Drop deprecated table and fix fk
@@ -1217,6 +1258,9 @@ async function migrate() {
   await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS registration_deadline DATE;`);
   await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS entry_fee NUMERIC(10,2);`);
   await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS max_registrations INTEGER;`);
+  await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS pitch_limit_mode TEXT NOT NULL DEFAULT 'league_default' CHECK(pitch_limit_mode IN ('league_default','tournament_custom'));`);
+  await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS pitch_limit_per_day INTEGER CHECK(pitch_limit_per_day IS NULL OR pitch_limit_per_day > 0);`);
+  await pool.query(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS pitch_limit_per_tournament INTEGER CHECK(pitch_limit_per_tournament IS NULL OR pitch_limit_per_tournament > 0);`);
   await pool.query(`ALTER TABLE tournament_teams ADD COLUMN IF NOT EXISTS registration_status TEXT NOT NULL DEFAULT 'registered' CHECK(registration_status IN ('registered','waitlisted','withdrawn'));`);
   await pool.query(`ALTER TABLE tournament_teams ADD COLUMN IF NOT EXISTS registered_by INTEGER REFERENCES users(id) ON DELETE SET NULL;`);
   await pool.query(`ALTER TABLE tournament_teams ADD COLUMN IF NOT EXISTS registration_notes TEXT;`);
