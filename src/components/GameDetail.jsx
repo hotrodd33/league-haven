@@ -616,6 +616,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
               savingNewPlayer={savingNewPlayer}
               eligibilityData={homeEligibility}
               gameDate={game.game_date}
+              isTournamentGame={!!game.tournament_id}
             />
           )}
 
@@ -649,6 +650,7 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
               savingNewPlayer={savingNewPlayer}
               eligibilityData={awayEligibility}
               gameDate={game.game_date}
+              isTournamentGame={!!game.tournament_id}
             />
           )}
         </div>
@@ -664,7 +666,7 @@ function PitchCountSection({
   editingPc, onStartEdit, onSaveEdit, onCancelEdit, onDelete,
   addingNewPlayer, onStartAddNewPlayer, onCancelAddNewPlayer,
   newPlayerForm, setNewPlayerForm, onSaveNewPlayer, savingNewPlayer,
-  eligibilityData, gameDate,
+  eligibilityData, gameDate, isTournamentGame,
 }) {
   const totalPitches = entries.reduce((sum, e) => sum + (e.pitch_count || 0), 0);
 
@@ -705,7 +707,7 @@ function PitchCountSection({
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           <h3 className="text-base font-display font-bold uppercase tracking-wide text-white truncate">{label}</h3>
-          {dailyLimit && <span className="text-xs text-gray-400 shrink-0">Limit: {dailyLimit}/day</span>}
+          {!isTournamentGame && dailyLimit && <span className="text-xs text-gray-400 shrink-0">Limit: {dailyLimit}/day</span>}
         </div>
         {canEdit && !isAdding && !editingPc && (
           <button
@@ -822,7 +824,7 @@ function PitchCountSection({
             )}
 
             {/* Eligibility warning for selected player */}
-            {selectedElig && !selectedElig.eligible && (
+            {!isTournamentGame && selectedElig && !selectedElig.eligible && (
               <div className="mt-2 bg-signal-900/30 border border-signal-400/35 text-signal-300 text-xs rounded-lg px-3 py-2">
                 <strong>⚠ Ineligible to pitch:</strong>
                 <ul className="mt-1 list-disc list-inside">
@@ -832,7 +834,7 @@ function PitchCountSection({
             )}
 
             {/* Eligibility info for eligible player */}
-            {selectedElig && selectedElig.eligible && selectedElig.today_pitches > 0 && (
+            {!isTournamentGame && selectedElig && selectedElig.eligible && selectedElig.today_pitches > 0 && (
               <div className="mt-2 bg-amber-500/15 border border-amber-400/35 text-amber-200 text-xs rounded-lg px-3 py-2">
                 Already threw {selectedElig.today_pitches} pitches today in another game. Remaining: {selectedElig.remaining_today}
               </div>
@@ -877,7 +879,7 @@ function PitchCountSection({
                     onChange={(e) => setPcForm(prev => ({ ...prev, pitch_count: e.target.value }))}
                     className="lh-input" />
                   {/* Real-time pitch count feedback */}
-                  {pcForm.pitch_count && dailyLimit && (() => {
+                  {!isTournamentGame && pcForm.pitch_count && dailyLimit && (() => {
                     const entered = Number(pcForm.pitch_count);
                     const otherToday = selectedElig?.today_pitches || 0;
                     const total = entered + otherToday;
