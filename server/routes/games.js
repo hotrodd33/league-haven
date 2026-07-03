@@ -594,15 +594,16 @@ router.get('/org-stats', async (req, res) => {
 // GET games — supports filters: ?team_id=, ?team_ids=1,2,3, ?season_id=, ?status=, ?from=, ?to=, ?slim=true
 router.get('/', async (req, res) => {
   try {
-    const { team_id, team_ids, season_id, status, from, to, slim } = req.query;
+    const { team_id, team_ids, season_id, tournament_id, status, from, to, slim, include_tournaments } = req.query;
     const isSlim = slim === 'true';
+    const includeTournaments = include_tournaments === 'true';
 
     // Parse team_ids (comma-separated list for multi-team queries like "my teams")
     const teamIdList = team_ids
       ? team_ids.split(',').map(Number).filter(Number.isFinite)
       : null;
 
-    const cacheKey = `games:${isSlim ? 'slim' : 'full'}:${team_id||''}:${teamIdList ? teamIdList.sort().join('_') : ''}:${season_id||''}:${status||''}:${from||''}:${to||''}`;
+    const cacheKey = `games:${isSlim ? 'slim' : 'full'}:${team_id||''}:${teamIdList ? teamIdList.sort().join('_') : ''}:${season_id||''}:${tournament_id||''}:${status||''}:${from||''}:${to||''}:${includeTournaments ? 'with_tournaments' : 'season_only'}`;
     const cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 
@@ -620,8 +621,21 @@ router.get('/', async (req, res) => {
       idx++;
     }
     if (season_id) {
-      conditions.push(`g.season_id = $${idx}`);
+      if (includeTournaments) {
+        conditions.push(`(g.season_id = $${idx} OR g.tournament_id IS NOT NULL)`);
+      } else {
+        conditions.push(`g.season_id = $${idx}`);
+      }
       params.push(season_id);
+      idx++;
+    }
+    if (tournament_id) {
+      const tournamentIdNum = Number(tournament_id);
+      if (!Number.isFinite(tournamentIdNum)) {
+        return res.status(400).json({ error: 'tournament_id must be numeric' });
+      }
+      conditions.push(`g.tournament_id = $${idx}`);
+      params.push(tournamentIdNum);
       idx++;
     }
     if (status) {

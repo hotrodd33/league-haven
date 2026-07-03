@@ -7,6 +7,7 @@ import { needsScoreEntry, isGameToday } from '../utils/games.js';
 import {
   fetchGames, fetchGame, createGame, updateGame, deleteGame,
   fetchTeams, fetchSeasons, fetchLocations, fetchScheduleSettings, createLocation,
+  fetchTournaments,
   fetchOrganizations, fetchAssignableOfficials,
   fetchGameInterests, expressGameInterest, removeGameInterest,
   checkGameConflicts, createTeam, fetchAgeGroups, fetchLevels,
@@ -224,6 +225,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTou
     return '';
   });
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterTournament, setFilterTournament] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
   const [filterHostOrg, setFilterHostOrg] = useState('');
   const [filterNeedsUmp, setFilterNeedsUmp] = useState(false);
@@ -282,9 +284,17 @@ export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTou
     ...(isMyTeams && myTeamIds.length > 0 ? { team_ids: myTeamIds.join(',') } : {}),
     ...(!isMyTeams && filterTeam ? { team_id: filterTeam } : {}),
     ...(filterSeason ? { season_id: filterSeason } : {}),
+    ...(filterSeason ? { include_tournaments: 'true' } : {}),
+    ...(filterTournament ? { tournament_id: filterTournament } : {}),
     ...(filterStatus ? { status: filterStatus } : {}),
     slim: 'true',
   };
+
+  const { data: tournaments = [] } = useQuery({
+    queryKey: ['tournaments'],
+    queryFn: () => fetchTournaments(),
+    staleTime: STALE.THREE_MIN,
+  });
 
   const { data: rawGames = [], isLoading: gamesLoading, error: gamesError } = useQuery({
     queryKey: ['games', gamesFilters],
@@ -544,7 +554,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTou
       const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
       window.scrollTo({ top, behavior: 'smooth' });
     });
-  }, [anchorDateKey, loading, filterSeason, filterTeam, filterStatus, filterDivision, filterHostOrg, filterNeedsUmp, filterNeedsPrep]);
+  }, [anchorDateKey, loading, filterSeason, filterTeam, filterStatus, filterTournament, filterDivision, filterHostOrg, filterNeedsUmp, filterNeedsPrep]);
 
   function gameDivisionLevelLabel(game) {
     if (game.division_name) return game.division_name;
@@ -580,6 +590,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTou
   const activeFilterCount = [
     filterTeam,
     filterStatus,
+    filterTournament,
     filterDivision,
     filterEventType !== 'games' ? filterEventType : '',
   ].filter(Boolean).length;
@@ -654,7 +665,7 @@ export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTou
 
         {/* ── Filter bar — hidden on mobile until toggled, always shown md+ ── */}
         <div className={`${showFilters ? 'block' : 'hidden md:block'} mt-2`}>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
             <select value={filterSeason} onChange={(e) => {
               setFilterSeason(e.target.value);
               if (!isAdmin && myTeamIds.length === 1) setFilterTeam(String(myTeamIds[0]));
@@ -693,6 +704,13 @@ export default function GameSchedule({ onBack, onNavigateToTeam, onNavigateToTou
               className="lh-select text-sm">
               <option value="">All Statuses</option>
               {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <select value={filterTournament} onChange={(e) => setFilterTournament(e.target.value)}
+              className="lh-select text-sm">
+              <option value="">All Tournaments</option>
+              {tournaments.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
             </select>
             <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}
               className="lh-select text-sm">
