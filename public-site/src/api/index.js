@@ -72,6 +72,14 @@ export function fetchTournament(id) {
   return apiFetch(`/tournaments/${id}`);
 }
 
+export function fetchTournamentPools(tournamentId) {
+  return apiFetch(`/tournaments/${tournamentId}/pools`);
+}
+
+export function fetchPoolStandings(tournamentId, poolId) {
+  return apiFetch(`/tournaments/${tournamentId}/pools/${poolId}/standings`);
+}
+
 export function fetchGame(gameId) {
   return apiFetch(`/games/${gameId}`);
 }
