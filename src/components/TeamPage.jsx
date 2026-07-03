@@ -9,6 +9,7 @@ import RosterList from './RosterList.jsx';
 import StaffList from './StaffList.jsx';
 import PitcherRest from './PitcherRest.jsx';
 import PitchLog from './PitchLog.jsx';
+import TeamPitchGameLog from './TeamPitchGameLog.jsx';
 import TeamSchedule from './TeamSchedule.jsx';
 import GameDetail from './GameDetail.jsx';
 import TeamStats from './TeamStats.jsx';
@@ -177,6 +178,7 @@ export default function TeamPage({ teamId, teamOrgId, onEditPlayer, onAddPlayer,
         )}
         {activeTab === 'pitching' && (
           <div className="space-y-4">
+            <TeamPitchGameLog teamId={teamId} />
             <PitcherRest teamId={teamId} />
             <PitchLog teamId={teamId} />
           </div>

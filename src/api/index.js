@@ -540,6 +540,12 @@ export async function fetchTeamPitcherStats(teamId) {
   return apiFetch(`/pitch-rules/team-stats?team_id=${teamId}`);
 }
 
+export async function fetchTeamPitchGameLog(teamId, opts = {}) {
+  const params = new URLSearchParams({ team_id: String(teamId) });
+  if (opts.tournamentId) params.set('tournament_id', String(opts.tournamentId));
+  return apiFetch(`/pitch-rules/team-game-log?${params}`);
+}
+
 export async function fetchAllPitchRest() {
   return apiFetch('/pitch-rules/all-rest');
 }

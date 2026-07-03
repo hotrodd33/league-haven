@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  fetchTournament, fetchTournamentPools, fetchPoolStandings, fetchGame,
+  fetchTournament, fetchTournamentPools, fetchPoolStandings, fetchGame, fetchTournamentPitchCountBoard,
 } from '../api/index.js';
 import TeamLogo from './TeamLogo.jsx';
 
@@ -41,6 +41,7 @@ function formatDate(dateStr) {
 export default function TournamentDetail({ tournamentId, onBack }) {
   const [data, setData]   = useState(null);
   const [pools, setPools] = useState([]);
+  const [pitchBoard, setPitchBoard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [tab, setTab]     = useState('info');
@@ -48,12 +49,14 @@ export default function TournamentDetail({ tournamentId, onBack }) {
   const load = useCallback(async () => {
     if (!tournamentId) return;
     try {
-      const [td, pd] = await Promise.all([
+      const [td, pd, pitchData] = await Promise.all([
         fetchTournament(tournamentId),
         fetchTournamentPools(tournamentId).catch(() => []),
+        fetchTournamentPitchCountBoard(tournamentId).catch(() => null),
       ]);
       setData(td);
       setPools(pd || []);
+      setPitchBoard(pitchData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -73,6 +76,10 @@ export default function TournamentDetail({ tournamentId, onBack }) {
 
   const hasPools  = pools.length > 0;
   const hasRounds = (data.rounds || []).length > 0;
+  const hasPitchBoard = Array.isArray(pitchBoard?.teams) && pitchBoard.teams.length > 0;
+  const trackedPitchers = hasPitchBoard
+    ? pitchBoard.teams.reduce((sum, t) => sum + Number(t.tracked_player_count || 0), 0)
+    : 0;
 
   const bracketGames = (data.rounds || []).flatMap(r =>
     r.matches.filter(m => !m.is_bye && m.game).map(m => ({
@@ -102,6 +109,7 @@ export default function TournamentDetail({ tournamentId, onBack }) {
 
   const visibleTabs = [
     { key: 'info',     label: 'Info'      },
+    { key: 'pitch',    label: 'Pitch Counts' },
     hasPools  && { key: 'pools',    label: 'Pool Play' },
     hasRounds && { key: 'bracket',  label: 'Bracket'   },
     (hasRounds || hasPools) && { key: 'schedule', label: 'Schedule'  },
@@ -128,6 +136,23 @@ export default function TournamentDetail({ tournamentId, onBack }) {
         </div>
       )}
 
+      <div className="mb-4 bg-action-900/20 border border-action-700/40 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-action-300 font-bold">Tournament Pitch Count Board</p>
+          <p className="text-sm text-gray-200">
+            {hasPitchBoard
+              ? `${trackedPitchers} tracked pitchers across ${pitchBoard.teams.length} teams`
+              : 'No pitch counts recorded yet'}
+          </p>
+        </div>
+        <button
+          onClick={() => setTab('pitch')}
+          className="text-xs font-semibold px-3 py-1.5 rounded-md border border-action-600/40 text-action-200 hover:bg-action-900/35 transition-colors"
+        >
+          View Pitch Counts
+        </button>
+      </div>
+
       <div className="flex gap-1 p-1 bg-chrome-900 rounded-lg mb-5 overflow-x-auto">
         {visibleTabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
@@ -140,9 +165,91 @@ export default function TournamentDetail({ tournamentId, onBack }) {
       </div>
 
       {tab === 'info'     && <InfoTab tournament={data.tournament} teams={data.teams} />}
+      {tab === 'pitch'    && <PitchBoardTab board={pitchBoard} />}
       {tab === 'pools'    && <PoolsTab tournamentId={tournamentId} pools={pools} />}
       {tab === 'bracket'  && <BracketTab rounds={data.rounds} />}
       {tab === 'schedule' && <ScheduleTab games={scheduleGames} />}
+    </div>
+  );
+}
+
+// ── Pitch Counts Tab ─────────────────────────────────────────────────────────
+function PitchBoardTab({ board }) {
+  if (!board || !Array.isArray(board.teams) || board.teams.length === 0) {
+    return <p className="text-gray-500 text-sm py-8 text-center">No tournament pitch counts recorded yet.</p>;
+  }
+
+  return (
+    <div className="space-y-5 pb-4">
+      {board.teams.map((team) => (
+        <div key={team.team_id} className="bg-chrome-800/60 border border-chrome-700/40 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 bg-chrome-900/60 border-b border-chrome-700/40 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <TeamLogo
+                src={team.logo_url}
+                name={team.team_name}
+                size="w-6 h-6"
+                primaryColor={team.primary_color}
+                secondaryColor={team.secondary_color}
+              />
+              <h3 className="text-sm font-semibold text-white truncate">{team.team_name}</h3>
+              {team.seed != null && <span className="text-[11px] text-gray-500">#{team.seed}</span>}
+            </div>
+            <div className="text-[11px] text-gray-400 text-right">
+              <div>Day: <span className="text-gray-200 font-semibold">{team.team_day_total || 0}</span></div>
+              <div>Total: <span className="text-gray-200 font-semibold">{team.team_tournament_total || 0}</span></div>
+            </div>
+          </div>
+
+          {!team.players?.length ? (
+            <p className="text-gray-500 text-sm p-4">No recorded pitches yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-[11px] text-gray-500 uppercase tracking-wider bg-chrome-900/40">
+                    <th className="py-2 px-3 text-left whitespace-nowrap">Player</th>
+                    {(team.games || []).map((g) => (
+                      <th key={g.game_id} className="py-2 px-2 text-center whitespace-nowrap" title={`${g.home_away || ''} ${g.opponent_name || 'TBD'} · ${formatDate(g.game_date)}`}>
+                        G{g.game_index}
+                      </th>
+                    ))}
+                    <th className="py-2 px-3 text-center whitespace-nowrap">Day</th>
+                    <th className="py-2 px-3 text-center whitespace-nowrap">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {team.players.map((p) => (
+                    <tr key={p.player_id} className="border-t border-chrome-700/30 text-gray-200">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        {p.jersey_number != null && <span className="text-[11px] text-gray-500 mr-1">#{p.jersey_number}</span>}
+                        {p.first_name} {p.last_name}
+                      </td>
+                      {(team.games || []).map((g) => (
+                        <td key={g.game_id} className="py-2.5 px-2 text-center font-semibold tabular-nums">
+                          {Number(p.by_game?.[g.game_id] || 0)}
+                        </td>
+                      ))}
+                      <td className="py-2.5 px-3 text-center font-semibold text-action-300 tabular-nums">{Number(p.day_total || 0)}</td>
+                      <td className="py-2.5 px-3 text-center font-bold tabular-nums">{Number(p.tournament_total || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!!team.games?.length && (
+            <div className="px-4 py-2 border-t border-chrome-700/30 bg-chrome-900/25 text-[11px] text-gray-500 space-y-1">
+              {team.games.map((g) => (
+                <div key={`legend-${team.team_id}-${g.game_id}`}>
+                  <span className="text-gray-400 font-semibold">G{g.game_index}</span>: {formatDate(g.game_date)} {g.home_away} {g.opponent_name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

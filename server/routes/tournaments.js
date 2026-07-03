@@ -355,6 +355,175 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// ── GET /:id/pitch-count-board — tournament-wide pitch counts by team ──────
+
+router.get('/:id/pitch-count-board', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { rows: tournamentRows } = await pool.query(
+      'SELECT id, name FROM tournaments WHERE id = $1',
+      [id]
+    );
+    if (!tournamentRows.length) return res.status(404).json({ error: 'Tournament not found' });
+
+    const { rows: tournamentTeams } = await pool.query(
+      `SELECT tt.team_id, tt.seed,
+              t.name AS team_name,
+              t.logo_url,
+              t.primary_color,
+              t.secondary_color
+       FROM tournament_teams tt
+       JOIN teams t ON t.id = tt.team_id
+       WHERE tt.tournament_id = $1
+         AND tt.team_id IS NOT NULL
+         AND tt.registration_status != 'withdrawn'
+       ORDER BY tt.seed NULLS LAST, t.name ASC`,
+      [id]
+    );
+
+    const { rows: allGames } = await pool.query(
+      `SELECT g.id AS game_id,
+              g.game_date::text AS game_date,
+              g.game_time::text AS game_time,
+              g.home_team_id,
+              g.away_team_id,
+              COALESCE(ht.name, 'TBD') AS home_team_name,
+              COALESCE(at.name, 'TBD') AS away_team_name
+       FROM games g
+       LEFT JOIN teams ht ON ht.id = g.home_team_id
+       LEFT JOIN teams at ON at.id = g.away_team_id
+       WHERE g.tournament_id = $1
+         AND g.deleted_at IS NULL
+         AND g.status != 'cancelled'
+       ORDER BY g.game_date ASC NULLS LAST, g.game_time ASC NULLS LAST, g.id ASC`,
+      [id]
+    );
+
+    const { rows: pitchRows } = await pool.query(
+      `SELECT gpc.team_id,
+              gpc.player_id,
+              gpc.game_id,
+              SUM(gpc.pitch_count)::int AS pitch_count,
+              p.first_name,
+              p.last_name,
+              tp.jersey_number
+       FROM game_pitch_counts gpc
+       JOIN games g ON g.id = gpc.game_id
+       JOIN players p ON p.id = gpc.player_id
+       LEFT JOIN team_players tp ON tp.player_id = gpc.player_id AND tp.team_id = gpc.team_id
+       WHERE g.tournament_id = $1
+         AND g.deleted_at IS NULL
+         AND g.status != 'cancelled'
+       GROUP BY gpc.team_id, gpc.player_id, gpc.game_id, p.first_name, p.last_name, tp.jersey_number`,
+      [id]
+    );
+
+    const today = new Date().toISOString().slice(0, 10);
+    const gamesByTeam = new Map();
+
+    for (const team of tournamentTeams) {
+      const teamGames = allGames
+        .filter((g) => Number(g.home_team_id) === Number(team.team_id) || Number(g.away_team_id) === Number(team.team_id))
+        .map((g, idx) => {
+          const isHome = Number(g.home_team_id) === Number(team.team_id);
+          return {
+            game_id: g.game_id,
+            game_date: g.game_date,
+            game_time: g.game_time,
+            game_index: idx + 1,
+            opponent_name: isHome ? g.away_team_name : g.home_team_name,
+            home_away: isHome ? 'vs' : '@',
+          };
+        });
+      gamesByTeam.set(Number(team.team_id), teamGames);
+    }
+
+    const byTeamPlayer = new Map();
+    for (const row of pitchRows) {
+      const teamId = Number(row.team_id);
+      if (!byTeamPlayer.has(teamId)) byTeamPlayer.set(teamId, new Map());
+      const playerMap = byTeamPlayer.get(teamId);
+      const playerId = Number(row.player_id);
+      if (!playerMap.has(playerId)) {
+        playerMap.set(playerId, {
+          player_id: playerId,
+          first_name: row.first_name,
+          last_name: row.last_name,
+          jersey_number: row.jersey_number,
+          by_game: new Map(),
+        });
+      }
+      const player = playerMap.get(playerId);
+      player.by_game.set(Number(row.game_id), Number(row.pitch_count || 0));
+    }
+
+    const teams = tournamentTeams.map((team) => {
+      const teamId = Number(team.team_id);
+      const teamGames = gamesByTeam.get(teamId) || [];
+      const playerMap = byTeamPlayer.get(teamId) || new Map();
+
+      const players = Array.from(playerMap.values()).map((player) => {
+        const by_game = {};
+        let day_total = 0;
+        let tournament_total = 0;
+
+        for (const g of teamGames) {
+          const count = Number(player.by_game.get(Number(g.game_id)) || 0);
+          by_game[g.game_id] = count;
+          tournament_total += count;
+          if (g.game_date === today) day_total += count;
+        }
+
+        return {
+          player_id: player.player_id,
+          first_name: player.first_name,
+          last_name: player.last_name,
+          jersey_number: player.jersey_number,
+          by_game,
+          day_total,
+          tournament_total,
+        };
+      })
+        .filter((p) => p.tournament_total > 0)
+        .sort((a, b) => {
+          if (b.tournament_total !== a.tournament_total) return b.tournament_total - a.tournament_total;
+          const aLast = `${a.last_name || ''}`.toLowerCase();
+          const bLast = `${b.last_name || ''}`.toLowerCase();
+          if (aLast !== bLast) return aLast.localeCompare(bLast);
+          return `${a.first_name || ''}`.toLowerCase().localeCompare(`${b.first_name || ''}`.toLowerCase());
+        });
+
+      const team_day_total = players.reduce((sum, p) => sum + Number(p.day_total || 0), 0);
+      const team_tournament_total = players.reduce((sum, p) => sum + Number(p.tournament_total || 0), 0);
+
+      return {
+        team_id: teamId,
+        team_name: team.team_name,
+        seed: team.seed,
+        logo_url: team.logo_url,
+        primary_color: team.primary_color,
+        secondary_color: team.secondary_color,
+        games: teamGames,
+        players,
+        tracked_player_count: players.length,
+        team_day_total,
+        team_tournament_total,
+      };
+    });
+
+    res.json({
+      tournament_id: Number(id),
+      tournament_name: tournamentRows[0].name,
+      day_date: today,
+      teams,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ── POST / — create tournament ───────────────────────────────────────────────
 
 router.post('/', authMiddleware, async (req, res) => {

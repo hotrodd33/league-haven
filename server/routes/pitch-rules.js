@@ -480,6 +480,144 @@ router.get('/team-stats', authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/pitch-rules/team-game-log?team_id=X&tournament_id=Y
+// Returns per-player pitch counts by game (G1, G2, ...), plus day and tournament totals.
+router.get('/team-game-log', authMiddleware, async (req, res) => {
+  const { team_id, tournament_id } = req.query;
+  if (!team_id) return res.status(400).json({ error: 'team_id is required' });
+
+  try {
+    const teamId = Number(team_id);
+    const tournamentId = tournament_id != null && tournament_id !== '' ? Number(tournament_id) : null;
+
+    if (!Number.isFinite(teamId)) {
+      return res.status(400).json({ error: 'team_id must be a number' });
+    }
+    if (tournamentId != null && !Number.isFinite(tournamentId)) {
+      return res.status(400).json({ error: 'tournament_id must be a number' });
+    }
+
+    const { rows: teamRows } = await pool.query(
+      'SELECT id, name FROM teams WHERE id = $1',
+      [teamId]
+    );
+    if (!teamRows.length) return res.status(404).json({ error: 'Team not found' });
+
+    const gameParams = [teamId];
+    let tournamentClause = 'AND g.tournament_id IS NOT NULL';
+    if (tournamentId != null) {
+      gameParams.push(tournamentId);
+      tournamentClause = `AND g.tournament_id = $${gameParams.length}`;
+    }
+
+    const { rows: games } = await pool.query(
+      `SELECT g.id AS game_id,
+              g.game_date::text AS game_date,
+              g.game_time::text AS game_time,
+              g.tournament_id,
+              COALESCE(opp.name, 'TBD') AS opponent_name,
+              CASE WHEN g.home_team_id = $1 THEN 'vs' ELSE '@' END AS home_away
+       FROM games g
+       LEFT JOIN teams opp
+         ON opp.id = CASE WHEN g.home_team_id = $1 THEN g.away_team_id ELSE g.home_team_id END
+       WHERE g.deleted_at IS NULL
+         AND g.status != 'cancelled'
+         AND (g.home_team_id = $1 OR g.away_team_id = $1)
+         ${tournamentClause}
+       ORDER BY g.game_date ASC NULLS LAST, g.game_time ASC NULLS LAST, g.id ASC`,
+      gameParams
+    );
+
+    const { rows: players } = await pool.query(
+      `SELECT p.id AS player_id, p.first_name, p.last_name, tp.jersey_number
+       FROM team_players tp
+       JOIN players p ON p.id = tp.player_id
+       WHERE tp.team_id = $1
+       ORDER BY p.last_name, p.first_name`,
+      [teamId]
+    );
+
+    if (!players.length) {
+      return res.json({
+        team_id: teamId,
+        team_name: teamRows[0].name,
+        day_date: null,
+        games: games.map((g, idx) => ({ ...g, game_index: idx + 1 })),
+        players: [],
+      });
+    }
+
+    const playerIds = players.map((p) => p.player_id);
+    const gameIds = games.map((g) => g.game_id);
+
+    let pitchRows = [];
+    if (gameIds.length) {
+      const { rows } = await pool.query(
+        `SELECT gpc.player_id,
+                gpc.game_id,
+                g.game_date::text AS game_date,
+                SUM(gpc.pitch_count)::int AS pitch_count
+         FROM game_pitch_counts gpc
+         JOIN games g ON g.id = gpc.game_id
+         WHERE gpc.team_id = $1
+           AND gpc.player_id = ANY($2)
+           AND gpc.game_id = ANY($3)
+         GROUP BY gpc.player_id, gpc.game_id, g.game_date`,
+        [teamId, playerIds, gameIds]
+      );
+      pitchRows = rows;
+    }
+
+    const gameDateById = new Map(games.map((g) => [g.game_id, g.game_date]));
+    const dayDate = new Date().toISOString().split('T')[0];
+
+    const byPlayer = new Map();
+    for (const row of pitchRows) {
+      if (!byPlayer.has(row.player_id)) byPlayer.set(row.player_id, new Map());
+      byPlayer.get(row.player_id).set(row.game_id, Number(row.pitch_count || 0));
+    }
+
+    const payloadPlayers = players.map((p) => {
+      const gameMap = byPlayer.get(p.player_id) || new Map();
+      let dayTotal = 0;
+      let tournamentTotal = 0;
+      for (const game of games) {
+        const count = Number(gameMap.get(game.game_id) || 0);
+        tournamentTotal += count;
+        if (gameDateById.get(game.game_id) === dayDate) {
+          dayTotal += count;
+        }
+      }
+
+      const by_game = {};
+      for (const game of games) {
+        by_game[game.game_id] = Number(gameMap.get(game.game_id) || 0);
+      }
+
+      return {
+        player_id: p.player_id,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        jersey_number: p.jersey_number,
+        by_game,
+        day_total: dayTotal,
+        tournament_total: tournamentTotal,
+      };
+    });
+
+    res.json({
+      team_id: teamId,
+      team_name: teamRows[0].name,
+      day_date: dayDate,
+      games: games.map((g, idx) => ({ ...g, game_index: idx + 1 })),
+      players: payloadPlayers,
+    });
+  } catch (err) {
+    console.error('Pitch rules team-game-log error:', err);
+    res.status(500).json({ error: 'Failed to fetch team game log', detail: err.message });
+  }
+});
+
 // GET /api/pitch-rules/all-rest
 // Returns a lightweight map of player_id → { eligible_today, available_date } for all players
 router.get('/all-rest', authMiddleware, async (req, res) => {
