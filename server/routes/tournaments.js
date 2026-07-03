@@ -1219,12 +1219,41 @@ router.post('/:id/pools/auto-balance', authMiddleware, async (req, res) => {
       [id]
     );
 
-    for (let i = 0; i < teams.length; i++) {
-      const targetPool = selectedPoolIds[i % selectedPoolIds.length];
-      await client.query(
-        'INSERT INTO tournament_pool_teams (pool_id, tournament_team_id) VALUES ($1, $2)',
-        [targetPool, teams[i].id]
-      );
+    // Build high-vs-low seed pairs (1 with N, 2 with N-1, ...), then
+    // snake those pairs across pools for a more balanced distribution.
+    const pairs = [];
+    let left = 0;
+    let right = teams.length - 1;
+    while (left <= right) {
+      const pair = [teams[left].id];
+      if (left !== right) pair.push(teams[right].id);
+      pairs.push(pair);
+      left += 1;
+      right -= 1;
+    }
+
+    const poolIndexOrder = [];
+    if (selectedPoolIds.length === 1) {
+      poolIndexOrder.push(0);
+    } else {
+      let idx = 0;
+      let direction = 1;
+      for (let i = 0; i < pairs.length; i++) {
+        poolIndexOrder.push(idx);
+        if (idx === selectedPoolIds.length - 1) direction = -1;
+        else if (idx === 0) direction = 1;
+        idx += direction;
+      }
+    }
+
+    for (let i = 0; i < pairs.length; i++) {
+      const targetPool = selectedPoolIds[poolIndexOrder[i]];
+      for (const tournamentTeamId of pairs[i]) {
+        await client.query(
+          'INSERT INTO tournament_pool_teams (pool_id, tournament_team_id) VALUES ($1, $2)',
+          [targetPool, tournamentTeamId]
+        );
+      }
     }
 
     await client.query('COMMIT');
