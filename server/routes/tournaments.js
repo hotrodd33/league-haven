@@ -1280,28 +1280,31 @@ router.post('/:id/pools/auto-balance', authMiddleware, async (req, res) => {
       right -= 1;
     }
 
-    const poolIndexOrder = [];
-    if (selectedPoolIds.length === 1) {
-      poolIndexOrder.push(0);
-    } else {
-      let idx = 0;
-      let direction = 1;
-      for (let i = 0; i < pairs.length; i++) {
-        poolIndexOrder.push(idx);
-        if (idx === selectedPoolIds.length - 1) direction = -1;
-        else if (idx === 0) direction = 1;
-        idx += direction;
-      }
-    }
+    // Keep pools balanced by always placing each high/low pair into the
+    // currently least-filled pool (difference stays at most 1 team).
+    const poolTeamCounts = new Array(selectedPoolIds.length).fill(0);
+    let tieBreakerStart = 0;
 
     for (let i = 0; i < pairs.length; i++) {
-      const targetPool = selectedPoolIds[poolIndexOrder[i]];
+      const minCount = Math.min(...poolTeamCounts);
+      const candidatePoolIndexes = [];
+      for (let p = 0; p < poolTeamCounts.length; p++) {
+        if (poolTeamCounts[p] === minCount) candidatePoolIndexes.push(p);
+      }
+
+      const chosenOffset = tieBreakerStart % candidatePoolIndexes.length;
+      const targetPoolIndex = candidatePoolIndexes[chosenOffset];
+      const targetPool = selectedPoolIds[targetPoolIndex];
+
       for (const tournamentTeamId of pairs[i]) {
         await client.query(
           'INSERT INTO tournament_pool_teams (pool_id, tournament_team_id) VALUES ($1, $2)',
           [targetPool, tournamentTeamId]
         );
+        poolTeamCounts[targetPoolIndex] += 1;
       }
+
+      tieBreakerStart += 1;
     }
 
     await client.query('COMMIT');
