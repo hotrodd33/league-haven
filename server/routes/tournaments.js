@@ -86,6 +86,108 @@ function buildRoundRobinRounds(teamIds) {
   return rounds;
 }
 
+function matchupKey(a, b) {
+  return Number(a) < Number(b) ? `${a}:${b}` : `${b}:${a}`;
+}
+
+function buildPartialPoolRounds(teamIds, requestedGamesPerTeam) {
+  const rounds = buildRoundRobinRounds(teamIds);
+  const allMatches = rounds.flatMap((roundMatches, rIdx) =>
+    roundMatches.map((match, mIdx) => ({
+      teamAId: match[0],
+      teamBId: match[1],
+      round_number: rIdx + 1,
+      match_number: mIdx + 1,
+      key: matchupKey(match[0], match[1]),
+    }))
+  );
+
+  const teamCount = teamIds.length;
+  const maxGamesPerTeam = Math.max(0, teamCount - 1);
+  const sanitizedTarget = Math.max(1, Math.min(Number(requestedGamesPerTeam || 1), maxGamesPerTeam));
+
+  const totalAppearancesWanted = teamCount * sanitizedTarget;
+  const matchesWanted = Math.floor(totalAppearancesWanted / 2);
+  const feasibleAppearances = matchesWanted * 2;
+
+  const baseGames = Math.floor(feasibleAppearances / teamCount);
+  const extraGamesTeamCount = feasibleAppearances - (baseGames * teamCount);
+
+  const desiredByTeam = new Map();
+  for (let i = 0; i < teamIds.length; i++) {
+    desiredByTeam.set(teamIds[i], baseGames + (i < extraGamesTeamCount ? 1 : 0));
+  }
+
+  const remaining = new Map(desiredByTeam);
+  const selectedKeys = new Set();
+
+  // Havel-Hakimi style matching on the complete graph induced by pool teams.
+  // This gives a deterministic near-equal degree schedule when exact equality is impossible.
+  while (true) {
+    const active = [...teamIds]
+      .filter((tid) => (remaining.get(tid) || 0) > 0)
+      .sort((a, b) => {
+        const diff = (remaining.get(b) || 0) - (remaining.get(a) || 0);
+        if (diff !== 0) return diff;
+        return Number(a) - Number(b);
+      });
+
+    if (!active.length) break;
+
+    const anchor = active[0];
+    const need = remaining.get(anchor) || 0;
+    const partners = [];
+
+    for (let i = 1; i < active.length && partners.length < need; i++) {
+      const candidate = active[i];
+      const key = matchupKey(anchor, candidate);
+      if (!selectedKeys.has(key)) partners.push(candidate);
+    }
+
+    if (partners.length < need) {
+      break;
+    }
+
+    for (const partner of partners) {
+      const key = matchupKey(anchor, partner);
+      selectedKeys.add(key);
+      remaining.set(anchor, (remaining.get(anchor) || 0) - 1);
+      remaining.set(partner, (remaining.get(partner) || 0) - 1);
+    }
+  }
+
+  const selectedMatches = allMatches
+    .filter((m) => selectedKeys.has(m.key))
+    .sort((a, b) => (a.round_number - b.round_number) || (a.match_number - b.match_number));
+
+  const scheduledByTeam = new Map(teamIds.map((tid) => [tid, 0]));
+  for (const m of selectedMatches) {
+    scheduledByTeam.set(m.teamAId, (scheduledByTeam.get(m.teamAId) || 0) + 1);
+    scheduledByTeam.set(m.teamBId, (scheduledByTeam.get(m.teamBId) || 0) + 1);
+  }
+
+  const counts = [...scheduledByTeam.values()];
+  const minGames = counts.length ? Math.min(...counts) : 0;
+  const maxGames = counts.length ? Math.max(...counts) : 0;
+
+  const notes = [];
+  if (Number(requestedGamesPerTeam) > maxGamesPerTeam) {
+    notes.push(`Requested ${requestedGamesPerTeam} games per team exceeds max unique opponents (${maxGamesPerTeam}); capped at ${sanitizedTarget}.`);
+  }
+  if ((teamCount * sanitizedTarget) % 2 !== 0) {
+    notes.push(`Exact ${sanitizedTarget} games/team is not possible with ${teamCount} teams; scheduled a balanced ${minGames}-${maxGames} games/team spread.`);
+  }
+
+  return {
+    rounds: selectedMatches,
+    requested_games_per_team: Number(requestedGamesPerTeam),
+    applied_games_per_team: sanitizedTarget,
+    min_games_per_team: minGames,
+    max_games_per_team: maxGames,
+    note: notes.join(' '),
+  };
+}
+
 function buildSeedPositions(size) {
   if (size === 1) return [1];
   const half = buildSeedPositions(size / 2);
@@ -1494,6 +1596,14 @@ router.post('/:id/pools/:poolId/schedule-round-robin', authMiddleware, async (re
   const client = await pool.connect();
   try {
     const { id, poolId } = req.params;
+    const requestedGamesPerTeam = req.body?.games_per_team == null || req.body?.games_per_team === ''
+      ? null
+      : Number(req.body.games_per_team);
+
+    if (requestedGamesPerTeam != null && (!Number.isFinite(requestedGamesPerTeam) || requestedGamesPerTeam < 1)) {
+      return res.status(400).json({ error: 'games_per_team must be a positive number when provided' });
+    }
+
     const { rows: tRows } = await client.query('SELECT org_id, start_date FROM tournaments WHERE id = $1', [id]);
     if (!tRows.length) return res.status(404).json({ error: 'Tournament not found' });
     const allowed = await canManageTournament(req.user, tRows[0].org_id);
@@ -1524,7 +1634,23 @@ router.post('/:id/pools/:poolId/schedule-round-robin', authMiddleware, async (re
       return res.status(400).json({ error: 'All pool teams must be mapped to real league teams before generating round-robin games' });
     }
 
-    const rounds = buildRoundRobinRounds(assignedTeams.map(t => t.tournament_team_id));
+    const teamIds = assignedTeams.map(t => t.tournament_team_id);
+    const fullRoundRobin = buildRoundRobinRounds(teamIds);
+    const partialPlan = requestedGamesPerTeam != null
+      ? buildPartialPoolRounds(teamIds, requestedGamesPerTeam)
+      : null;
+
+    const scheduledMatches = partialPlan
+      ? partialPlan.rounds
+      : fullRoundRobin.flatMap((roundMatches, rIdx) =>
+        roundMatches.map((match, mIdx) => ({
+          teamAId: match[0],
+          teamBId: match[1],
+          round_number: rIdx + 1,
+          match_number: mIdx + 1,
+        }))
+      );
+
     const defaultGameDate = tRows[0].start_date || new Date().toISOString().slice(0, 10);
 
     await client.query('BEGIN');
@@ -1540,38 +1666,46 @@ router.post('/:id/pools/:poolId/schedule-round-robin', authMiddleware, async (re
     await client.query('DELETE FROM tournament_pool_matches WHERE pool_id = $1', [poolId]);
 
     let createdMatches = 0;
-    for (let r = 0; r < rounds.length; r++) {
-      for (let m = 0; m < rounds[r].length; m++) {
-        const [teamAId, teamBId] = rounds[r][m];
-        const teamA = assignedTeams.find(t => t.tournament_team_id === teamAId) || null;
-        const teamB = assignedTeams.find(t => t.tournament_team_id === teamBId) || null;
+    for (const sm of scheduledMatches) {
+      const teamAId = sm.teamAId;
+      const teamBId = sm.teamBId;
+      const teamA = assignedTeams.find(t => t.tournament_team_id === teamAId) || null;
+      const teamB = assignedTeams.find(t => t.tournament_team_id === teamBId) || null;
 
-        const { rows: gRows } = await client.query(
-          `INSERT INTO games (tournament_id, home_team_id, away_team_id, game_date, status)
-           VALUES ($1, $2, $3, $4, 'scheduled')
-           RETURNING id`,
-          [id, teamA?.team_id || null, teamB?.team_id || null, defaultGameDate]
-        );
-        const gameId = gRows[0].id;
+      const { rows: gRows } = await client.query(
+        `INSERT INTO games (tournament_id, home_team_id, away_team_id, game_date, status)
+         VALUES ($1, $2, $3, $4, 'scheduled')
+         RETURNING id`,
+        [id, teamA?.team_id || null, teamB?.team_id || null, defaultGameDate]
+      );
+      const gameId = gRows[0].id;
 
-        const { rows: poolMatchRows } = await client.query(
-          `INSERT INTO tournament_pool_matches (tournament_id, pool_id, round_number, match_number, team_a_id, team_b_id, game_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           RETURNING id`,
-          [id, poolId, r + 1, m + 1, teamAId, teamBId, gameId]
-        );
+      const { rows: poolMatchRows } = await client.query(
+        `INSERT INTO tournament_pool_matches (tournament_id, pool_id, round_number, match_number, team_a_id, team_b_id, game_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id`,
+        [id, poolId, sm.round_number, sm.match_number, teamAId, teamBId, gameId]
+      );
 
-        await client.query(
-          'UPDATE games SET tournament_pool_match_id = $1 WHERE id = $2',
-          [poolMatchRows[0].id, gameId]
-        );
-        createdMatches += 1;
-      }
+      await client.query(
+        'UPDATE games SET tournament_pool_match_id = $1 WHERE id = $2',
+        [poolMatchRows[0].id, gameId]
+      );
+      createdMatches += 1;
     }
 
     await client.query('COMMIT');
     cache.invalidatePrefix('tournaments:');
-    res.json({ success: true, rounds: rounds.length, matches: createdMatches });
+    res.json({
+      success: true,
+      rounds: partialPlan ? null : fullRoundRobin.length,
+      matches: createdMatches,
+      games_per_team_requested: requestedGamesPerTeam,
+      games_per_team_applied: partialPlan ? partialPlan.applied_games_per_team : null,
+      min_games_per_team: partialPlan ? partialPlan.min_games_per_team : null,
+      max_games_per_team: partialPlan ? partialPlan.max_games_per_team : null,
+      note: partialPlan?.note || null,
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);

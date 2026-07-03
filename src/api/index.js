@@ -1698,9 +1698,14 @@ export async function autoBalanceTournamentPools(tournamentId, poolCount) {
   });
 }
 
-export async function generatePoolRoundRobin(tournamentId, poolId) {
+export async function generatePoolRoundRobin(tournamentId, poolId, options = {}) {
+  const payload = {};
+  if (options.gamesPerTeam != null && options.gamesPerTeam !== '') {
+    payload.games_per_team = Number(options.gamesPerTeam);
+  }
   return apiFetch(`/tournaments/${tournamentId}/pools/${poolId}/schedule-round-robin`, {
     method: 'POST',
+    body: JSON.stringify(payload),
   });
 }
 

@@ -494,8 +494,10 @@ function PoolsTab({ tournamentId, teams, queryClient }) {
   const [newPoolName, setNewPoolName] = useState('');
   const [autoPoolCount, setAutoPoolCount] = useState(2);
   const [assignmentByPool, setAssignmentByPool] = useState({});
+  const [gamesPerTeamByPool, setGamesPerTeamByPool] = useState({});
   const [editingPoolId, setEditingPoolId] = useState(null);
   const [editingPoolName, setEditingPoolName] = useState('');
+  const [scheduleMsg, setScheduleMsg] = useState('');
 
   const { data: pools = [] } = useQuery({
     queryKey: ['tournament-pools', tournamentId],
@@ -551,8 +553,11 @@ function PoolsTab({ tournamentId, teams, queryClient }) {
   });
 
   const roundRobinMut = useMutation({
-    mutationFn: (poolId) => generatePoolRoundRobin(tournamentId, poolId),
-    onSuccess: invalidatePoolData,
+    mutationFn: ({ poolId, gamesPerTeam }) => generatePoolRoundRobin(tournamentId, poolId, { gamesPerTeam }),
+    onSuccess: (data) => {
+      setScheduleMsg(data?.note || 'Pool games generated.');
+      invalidatePoolData();
+    },
   });
 
   const assignedIds = new Set(
@@ -638,6 +643,7 @@ function PoolsTab({ tournamentId, teams, queryClient }) {
           const poolTeams = pool.teams || [];
           const poolGames = pool.pool_matches || [];
           const selectedTtId = assignmentByPool[pool.id] || '';
+          const gamesPerTeam = gamesPerTeamByPool[pool.id] || '';
           return (
             <div key={pool.id} className="bg-slate-900 border border-slate-700 rounded-lg p-3 space-y-3">
               <div className="flex flex-wrap items-center gap-2 justify-between">
@@ -669,10 +675,20 @@ function PoolsTab({ tournamentId, teams, queryClient }) {
                 )}
 
                 <div className="flex items-center gap-2">
+                  <div className="w-28">
+                    <Input
+                      label="Games/Team"
+                      type="number"
+                      min={1}
+                      value={gamesPerTeam}
+                      onChange={(e) => setGamesPerTeamByPool((prev) => ({ ...prev, [pool.id]: e.target.value }))}
+                      placeholder="Full RR"
+                    />
+                  </div>
                   <Button
                     variant="ghost"
                     className="text-xs"
-                    onClick={() => roundRobinMut.mutate(pool.id)}
+                    onClick={() => roundRobinMut.mutate({ poolId: pool.id, gamesPerTeam })}
                     disabled={roundRobinMut.isPending || poolTeams.length < 2}
                   >
                     {roundRobinMut.isPending ? 'Generating…' : 'Generate Round Robin'}
@@ -795,6 +811,9 @@ function PoolsTab({ tournamentId, teams, queryClient }) {
 
       {mutationError && (
         <p className="text-red-400 text-xs">{mutationError.message}</p>
+      )}
+      {!!scheduleMsg && !mutationError && (
+        <p className="text-amber-300 text-xs">{scheduleMsg}</p>
       )}
     </div>
   );
