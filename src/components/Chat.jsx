@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Pusher from 'pusher-js';
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchChatChannels, fetchChatMessages, sendChatMessage,
   editChatMessage, deleteChatMessage, markChatRead,
   findOrCreateDM, fetchDMUsers, fetchChatTeams, findOrCreateTeamChannel,
 } from '../api/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useRefetchWhenActive, useTabActive } from '../hooks/useTabActive.js';
 import { Button, Input } from './ui';
 
 // Module-level Pusher singleton — one persistent WebSocket for the entire session.
@@ -23,22 +24,11 @@ function getPusherClient() {
   return _pusherSingleton;
 }
 
-// Adaptive polling for the channel LIST only (less time-sensitive).
-// Message poll always runs at 2s — it's cheap (?after= returns [] on no activity)
-// and chat must feel real-time even when the tab is not focused.
-const CHAN_POLL_ACTIVE_MS = 4_000;
-const CHAN_POLL_BG_MS     = 30_000;
-const MSG_POLL_MS = 5_000;  // safety-net only — SSE handles real-time delivery
-
-function usePollInterval(active = CHAN_POLL_ACTIVE_MS, background = CHAN_POLL_BG_MS) {
-  const [visible, setVisible] = useState(!document.hidden);
-  useEffect(() => {
-    const handler = () => setVisible(!document.hidden);
-    document.addEventListener('visibilitychange', handler);
-    return () => document.removeEventListener('visibilitychange', handler);
-  }, []);
-  return visible ? active : background;
-}
+// Channel list refresh while someone is actually in chat. Pusher delivers
+// messages; this only keeps unread badges from going stale during use.
+const CHAN_POLL_MS = 60_000;
+// Fallback only when Pusher is disconnected. Never runs in a hidden or idle tab.
+const MSG_POLL_FALLBACK_MS = 10_000;
 
 // ── Format helpers ──────────────────────────────────────────────
 function formatTime(ts) {
@@ -69,16 +59,18 @@ export default function Chat({ initialChannelId = null }) {
   // Mobile navigation: 'list' shows channel list, 'messages' shows message pane
   const [mobileView, setMobileView] = useState(initialChannelId ? 'messages' : 'list');
 
-  const pollMs = usePollInterval(); // channel list only
+  const tabActive = useTabActive();
 
-  // Channel list — polled
-  const { data: channels = [] } = useQuery({
+  // Channel list — refreshed while the user is in the app, not from a background tab.
+  const { data: channels = [], refetch: refetchChannels } = useQuery({
     queryKey: ['chat-channels'],
     queryFn: fetchChatChannels,
-    refetchInterval: pollMs,
-    staleTime: 0,
+    refetchInterval: tabActive ? CHAN_POLL_MS : false,
+    refetchIntervalInBackground: false,
+    staleTime: 30_000,
     retry: false,
   });
+  useRefetchWhenActive(tabActive, refetchChannels);
 
   // Auto-select first channel for desktop pre-loading — does NOT navigate on mobile
   useEffect(() => {
@@ -242,13 +234,24 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
   const [input, setInput] = useState('');
   const [loadedAll, setLoadedAll] = useState(false);
   const [messages, setMessages] = useState([]);
-  const pollMs = usePollInterval();
+  const tabActive = useTabActive();
+  const [pusherConnected, setPusherConnected] = useState(true);
 
   // ── Pusher real-time push ─────────────────────────────────────
   // Reuses the module-level singleton — no reconnect cost on channel switch.
   useEffect(() => {
     const client = getPusherClient();
     const pChannel = client.subscribe(`chat-channel-${channelId}`);
+
+    function handleState({ current, previous }) {
+      const connected = current === 'connected';
+      setPusherConnected(connected);
+      if (connected && previous && previous !== 'connected') {
+        queryClient.invalidateQueries({ queryKey: ['chat-messages-poll', channelId] });
+      }
+    }
+    client.connection.bind('state_change', handleState);
+    setPusherConnected(client.connection.state === 'connected');
 
     function handleNewMessage(msg) {
       const el = containerRef.current;
@@ -268,6 +271,7 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
     pChannel.bind('new-message', handleNewMessage);
 
     return () => {
+      client.connection.unbind('state_change', handleState);
       pChannel.unbind('new-message', handleNewMessage);
       client.unsubscribe(`chat-channel-${channelId}`);
     };
@@ -303,12 +307,10 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
     );
   }, [channelId, queryClient]);
 
-  // ── Incremental poll ──────────────────────────────────────────
-  // Only fetches messages newer than the last seen timestamp → returns [] most of the time
-  // → minimal payload, minimal DB work, ~70–140x less data than full refetch per poll.
-  // refetchIntervalInBackground:true keeps polling even when the tab loses focus —
-  // critical for chat so messages arrive without needing to switch back to the tab.
-  useQuery({
+  // ── Incremental catch-up ──────────────────────────────────────
+  // Pusher delivers new messages. This query runs when the user returns to the
+  // tab, and on a short interval only if the Pusher socket is down.
+  const { refetch: refetchNewMessages } = useQuery({
     queryKey: ['chat-messages-poll', channelId],
     queryFn: async () => {
       const after = newestAtRef.current;
@@ -341,10 +343,11 @@ function MessagePane({ channelId, currentUserId, currentUserName, channelName, c
       }
       return newMsgs;
     },
-    refetchInterval: MSG_POLL_MS,
-    refetchIntervalInBackground: true,   // ← keep polling even when tab is not focused
+    refetchInterval: tabActive && !pusherConnected ? MSG_POLL_FALLBACK_MS : false,
+    refetchIntervalInBackground: false,
     enabled: initialized,
   });
+  useRefetchWhenActive(tabActive, refetchNewMessages);
 
   // ── Load older messages ───────────────────────────────────────
   async function loadOlder() {

@@ -36,11 +36,13 @@ function formatTime(timeStr) {
 }
 
 export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImport, onViewPlayer }) {
-  const { isAdmin, canEditTeam, canScoreGame, isAuthenticated } = useAuth();
+  const { user, isAdmin, canEditTeam, canScoreGame, isAuthenticated } = useAuth();
   const { features } = useBranding(isAuthenticated);
   const officialsFeatureEnabled = features.feature_officials !== false;
   const [game, setGame] = useState(null);
-  useGameHeartbeat(gameId, game?.status === 'in_progress');
+  const [showTracker, setShowTracker] = useState(false);
+  const isActiveScorer = !!user?.id && Number(game?.scoring_user_id) === Number(user.id);
+  useGameHeartbeat(gameId, game?.status === 'in_progress' && !showTracker && isActiveScorer);
   const [pitchCounts, setPitchCounts] = useState([]);
   const [homePlayers, setHomePlayers] = useState([]);
   const [awayPlayers, setAwayPlayers] = useState([]);
@@ -49,7 +51,6 @@ export default function GameDetail({ gameId, onBack, onNavigateToTeam, onOpenImp
   const [saving, setSaving] = useState(false);
 
   // Pitch tracker mode
-  const [showTracker, setShowTracker] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editTeams, setEditTeams] = useState([]);
   const [editSeasons, setEditSeasons] = useState([]);

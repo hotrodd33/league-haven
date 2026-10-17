@@ -18,7 +18,8 @@ export default function GuardiansPage({ onViewPlayer }) {
   const { data: claimCountData } = useQuery({
     queryKey: ['pending-claim-count'],
     queryFn: fetchPendingClaimCount,
-    refetchInterval: 60_000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
     enabled: isAdmin || isOrgAdmin,
   });
   const pendingCount = claimCountData?.count || 0;

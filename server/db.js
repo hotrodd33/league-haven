@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const { attachDatabasePool } = require('@vercel/functions');
 
 function buildConnectionString(url) {
   if (!url) return url;
@@ -11,10 +12,33 @@ function buildConnectionString(url) {
   }
 }
 
+const isVercel = !!process.env.VERCEL;
+const databaseUrl = process.env.DATABASE_URL;
+
+// Direct Neon hosts pin a backend until the socket dies. Serverless traffic
+// should use the pooled hostname (contains "-pooler") so PgBouncer can drop
+// the session as soon as the query finishes.
+if (isVercel && databaseUrl?.includes('neon.tech') && !databaseUrl.includes('-pooler')) {
+  console.warn('[db] DATABASE_URL is a direct Neon host. Use the pooled connection string (hostname contains "-pooler") so idle serverless sessions do not keep compute awake.');
+}
+
 const pool = new Pool({
-  connectionString: buildConnectionString(process.env.DATABASE_URL),
-  ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,
+  connectionString: buildConnectionString(databaseUrl),
+  ssl: databaseUrl?.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,
+  // One socket per warm Vercel instance. Idle clients are destroyed quickly,
+  // and TCP keepalives are off so a finished request cannot hold Neon compute.
+  max: isVercel ? 1 : 10,
+  idleTimeoutMillis: isVercel ? 5000 : 10000,
+  connectionTimeoutMillis: 10000,
+  allowExitOnIdle: true,
+  keepAlive: false,
 });
+
+if (isVercel) {
+  // Fluid can freeze an instance before the idle timer fires, which leaves the
+  // Postgres socket open. This waits out idleTimeoutMillis so the socket closes.
+  attachDatabasePool(pool);
+}
 
 // ── Schema migration ──
 

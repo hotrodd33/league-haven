@@ -4,6 +4,10 @@ const cache = require('../cache');
 
 const router = express.Router();
 
+// Edge-cache calendar feeds so subscribed clients and repeat hits do not
+// invoke the function (and Neon) on every refresh.
+const ICS_CACHE_CONTROL = 'public, max-age=1800, s-maxage=1800';
+
 async function getLeagueTz() {
   const cached = cache.get('league-config:branding');
   if (cached?.timezone) return cached.timezone;
@@ -67,7 +71,7 @@ router.get('/games.ics', async (req, res) => {
       res.set({
         'Content-Type': 'text/calendar; charset=utf-8',
         'Content-Disposition': 'inline; filename="leaguehaven-games.ics"',
-        'Cache-Control': 'public, max-age=1800',
+        'Cache-Control': ICS_CACHE_CONTROL,
       });
       return res.send(cachedICS);
     }
@@ -305,7 +309,7 @@ router.get('/games.ics', async (req, res) => {
     res.set({
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': 'inline; filename="leaguehaven-games.ics"',
-      'Cache-Control': 'public, max-age=1800',
+      'Cache-Control': ICS_CACHE_CONTROL,
     });
     res.send(ical);
   } catch (err) {

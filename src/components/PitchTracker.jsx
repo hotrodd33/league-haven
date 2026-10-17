@@ -20,9 +20,11 @@ function teamAbbr(name, fallback = '') {
 }
 
 export default function PitchTracker({ gameId, onBack }) {
-  useGameHeartbeat(gameId);
   const { user, isAdmin, isSuperAdmin, permissions } = useAuth();
   const [game, setGame] = useState(null);
+  const [finalized, setFinalized] = useState(false);
+  const scoringSession = !finalized && (game?.status === 'in_progress' || game?.status === 'scheduled');
+  useGameHeartbeat(gameId, scoringSession);
   const [pitchCounts, setPitchCounts] = useState([]); // server-saved records
   const [localCounts, setLocalCounts] = useState({}); // { `${side}-${playerId}`: count }
   const [homePlayers, setHomePlayers] = useState([]);
@@ -49,9 +51,6 @@ export default function PitchTracker({ gameId, onBack }) {
   const [newLast, setNewLast] = useState('');
   const [newJersey, setNewJersey] = useState('');
   const [savingPlayer, setSavingPlayer] = useState(false);
-
-  // Finalized
-  const [finalized, setFinalized] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true); setError(null);
