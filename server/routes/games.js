@@ -590,6 +590,16 @@ router.get('/', async (req, res) => {
     const cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 
+    // Drop abandoned live-scoring claims when someone actually asks for live
+    // games, instead of a scheduled job that would keep Neon compute awake.
+    if (status === 'in_progress') {
+      try {
+        await expireStaleScorers();
+      } catch (err) {
+        console.error('[SWEEP]', err.message);
+      }
+    }
+
     const conditions = ['g.deleted_at IS NULL'];
     const params = [];
     let idx = 1;
@@ -814,10 +824,15 @@ router.get('/deleted', authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
-// GET /games/sweep — called by Vercel cron (and local setInterval) to expire stale scorers.
+// GET /games/sweep — manual/opt-in expiry of stale scorers.
 // Must be registered before /:id to avoid the wildcard swallowing it.
+// Disabled unless ENABLE_SCORER_SWEEP_CRON=true so a leftover scheduler
+// cannot wake Neon. Claims are also expired when a game is loaded.
 // Protect with CRON_SECRET env var if set.
 router.get('/sweep', async (req, res) => {
+  if (process.env.ENABLE_SCORER_SWEEP_CRON !== 'true') {
+    return res.json({ expired: 0, disabled: true });
+  }
   const secret = req.headers['x-cron-secret'] || req.query.secret;
   if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -1049,6 +1064,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
        hasPrepRequired ? !!prep_required : null,
        id]
     );
+
+    // Score updates keep the live-scoring claim fresh without a background poll.
+    if (touchesLiveScore) {
+      await client.query('UPDATE games SET scoring_last_active_at = NOW() WHERE id = $1', [id]);
+    }
 
     if (official_ids !== undefined) {
       const officialIds = Array.isArray(official_ids) ? official_ids : [];
@@ -1306,6 +1326,7 @@ async function getUserGameSide(user, game) {
 router.post('/:id/scoring-claim', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    await expireStaleScorers();
     const force = req.body?.force === true || req.body?.force === 'true';
     const { rows } = await pool.query(
       'SELECT id, home_team_id, away_team_id, scoring_user_id FROM games WHERE id = $1',

@@ -147,8 +147,11 @@ if (!process.env.VERCEL) {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 
-  // Background sweep for stale live-scoring claims (Vercel uses cron instead)
-  setInterval(() => expireStaleScorers().catch(() => {}), 5 * 60 * 1000);
+  // Opt-in only. A timer here queries Neon on a schedule and keeps compute
+  // from suspending. Stale scoring claims are cleared when a game is opened.
+  if (process.env.ENABLE_SCORER_SWEEP_CRON === 'true') {
+    setInterval(() => expireStaleScorers().catch(() => {}), 5 * 60 * 1000);
+  }
 }
 
 module.exports = app;

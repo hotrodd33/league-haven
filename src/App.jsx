@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./context/AuthContext.jsx";
-import { fetchPlayer, fetchPendingApprovals, fetchUnreadAnnouncementCount } from "./api/index.js";
+import { fetchPlayer, fetchPendingApprovals, fetchUnreadAnnouncementCount, fetchChatUnreadCount } from "./api/index.js";
 import { STALE } from "./lib/queryConfig.js";
 import { useAppNavigation } from "./hooks/useAppNavigation.js";
+import { useTabActive } from "./hooks/useTabActive.js";
 import { useBranding } from "./hooks/useBranding.js";
 import Login from "./components/Login.jsx";
 import ResetPassword from "./components/ResetPassword.jsx";
@@ -21,6 +22,7 @@ export default function App() {
 
     const queryClient = useQueryClient();
     const nav = useAppNavigation();
+    const tabActive = useTabActive();
     const { branding, features, setTeamWatermark } = useBranding(isAuthenticated);
 
     const [showForm, setShowForm] = useState(false);
@@ -42,29 +44,33 @@ export default function App() {
         return id ? Number(id) : null;
     });
 
-    // Fetch pending counts for nav badges
+    // Nav badges. Loaded on sign-in and when the user comes back to the tab.
+    // While they are actually using the app, refresh every 2 minutes.
+    // Hidden or idle tabs do not poll.
     useEffect(() => {
-        if (!isAuthenticated) return;
+        if (!isAuthenticated || !tabActive) return undefined;
+        let cancelled = false;
         const loadCounts = async () => {
             try {
                 if (isAdmin || isOrgAdmin || isTeamManager) {
                     const pending = await fetchPendingApprovals();
-                    setPendingApprovalCount(Array.isArray(pending) ? pending.filter(u => u.approval_status === 'pending').length : 0);
+                    if (!cancelled) {
+                        setPendingApprovalCount(Array.isArray(pending) ? pending.filter(u => u.approval_status === 'pending').length : 0);
+                    }
                 }
-                if (isAuthenticated) {
-                    const { count } = await fetchUnreadAnnouncementCount();
-                    setUnreadAnnouncementCount(count || 0);
-                }
-                // Chat unread count
-                const { fetchChatUnreadCount } = await import('./api/index.js');
+                const { count } = await fetchUnreadAnnouncementCount();
+                if (!cancelled) setUnreadAnnouncementCount(count || 0);
                 const { count: chatCount } = await fetchChatUnreadCount().catch(() => ({ count: 0 }));
-                setChatUnreadCount(chatCount || 0);
+                if (!cancelled) setChatUnreadCount(chatCount || 0);
             } catch { /* ignore */ }
         };
         loadCounts();
-        const interval = setInterval(loadCounts, 10000);
-        return () => clearInterval(interval);
-    }, [isAuthenticated, isAdmin, isOrgAdmin, isTeamManager]);
+        const interval = setInterval(loadCounts, 2 * 60 * 1000);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [isAuthenticated, isAdmin, isOrgAdmin, isTeamManager, tabActive]);
 
     // Clear transient page state when navigating away
     useEffect(() => {
