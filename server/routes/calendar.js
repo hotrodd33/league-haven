@@ -1,12 +1,13 @@
 const express = require('express');
 const { pool } = require('../db');
 const cache = require('../cache');
+const {
+  buildCalendarICS,
+  ICS_CACHE_CONTROL,
+  ICS_ERROR_CACHE_CONTROL,
+} = require('./calendar-ics');
 
 const router = express.Router();
-
-// Edge-cache calendar feeds so subscribed clients and repeat hits do not
-// invoke the function (and Neon) on every refresh.
-const ICS_CACHE_CONTROL = 'public, max-age=1800, s-maxage=1800';
 
 async function getLeagueTz() {
   const cached = cache.get('league-config:branding');
@@ -15,47 +16,13 @@ async function getLeagueTz() {
   return rows[0]?.timezone || 'America/Chicago';
 }
 
-/* ── helpers ── */
-
-function esc(str) {
-  // Escape special iCalendar characters
-  return String(str || '')
-    .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\\;')
-    .replace(/,/g, '\\,')
-    .replace(/\n/g, '\\n');
-}
-
-function foldLine(line) {
-  // RFC 5545 §3.1: lines > 75 octets must be folded
-  const octets = Buffer.from(line, 'utf8');
-  if (octets.length <= 75) return line;
-  const parts = [];
-  let start = 0;
-  while (start < octets.length) {
-    const chunk = start === 0 ? 75 : 74; // continuation lines start with space
-    const end = Math.min(start + chunk, octets.length);
-    const slice = octets.slice(start, end).toString('utf8');
-    parts.push(start === 0 ? slice : ' ' + slice);
-    start = end;
-  }
-  return parts.join('\r\n');
-}
-
-function formatICSDate(dateStr, timeStr) {
-  // dateStr = 'YYYY-MM-DD', timeStr = 'HH:MM' or null
-  const d = dateStr.replace(/-/g, '');
-  if (!timeStr) return d; // all-day: VALUE=DATE
-  const t = timeStr.replace(/:/g, '').padEnd(6, '0');
-  return d + 'T' + t;
-}
-
-function uid(gameId) {
-  return `game-${gameId}@leaguehaven`;
-}
-
-function practiceUid(reservationId) {
-  return `practice-${reservationId}@leaguehaven`;
+function sendICS(res, body) {
+  res.set({
+    'Content-Type': 'text/calendar; charset=utf-8',
+    'Content-Disposition': 'inline; filename="leaguehaven-games.ics"',
+    'Cache-Control': ICS_CACHE_CONTROL,
+  });
+  res.send(body);
 }
 
 /* ── GET /games.ics ── */
@@ -68,15 +35,12 @@ router.get('/games.ics', async (req, res) => {
     const cacheKey = `ics:${team_id||''}:${season_id||''}:${location_id||''}:${org_id||''}:${from||''}:${to||''}`;
     const cachedICS = cache.get(cacheKey);
     if (cachedICS) {
-      res.set({
-        'Content-Type': 'text/calendar; charset=utf-8',
-        'Content-Disposition': 'inline; filename="leaguehaven-games.ics"',
-        'Cache-Control': ICS_CACHE_CONTROL,
-      });
-      return res.send(cachedICS);
+      return sendICS(res, cachedICS);
     }
 
-    const conditions = ['g.deleted_at IS NULL'];
+    // A null game_date (unscheduled) cannot be an event. Leaving those rows in
+    // used to throw while formatting the feed and 500 every subscriber poll.
+    const conditions = ['g.deleted_at IS NULL', 'g.game_date IS NOT NULL'];
     const params = [];
     let idx = 1;
 
@@ -137,109 +101,11 @@ router.get('/games.ics', async (req, res) => {
 
     const { rows } = await pool.query(sql, params);
 
-    // Build calendar title
-    let calName = 'LeagueHaven Games';
-    if (team_id && rows.length) {
-      // Find team name from first appearance
-      const r = rows[0];
-      const teamName = String(r.home_team_name).includes(team_id)
-        ? r.home_team_name : (r.away_team_name || 'Team');
-      // Better: just label with first row's perspective
-      calName = 'LeagueHaven Games';
-    }
+    const calName = 'LeagueHaven Games';
 
-    const lines = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//LeagueHaven//Game Schedule//EN',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      `X-WR-CALNAME:${esc(calName)}`,
-      `X-WR-TIMEZONE:${LEAGUE_TZ}`,
-    ];
-
-    for (const g of rows) {
-      // Normalize date
-      let gameDate = g.game_date;
-      if (gameDate instanceof Date) gameDate = gameDate.toISOString().slice(0, 10);
-      else if (typeof gameDate === 'string' && gameDate.length > 10) gameDate = gameDate.slice(0, 10);
-
-      // Build team display names
-      const homeName = g.home_team_city
-        ? [g.home_team_city, g.home_team_mascot, g.home_team_color, g.home_age_group, g.home_level].filter(Boolean).join(' ')
-        : (g.home_team_name || 'TBD');
-      const awayName = g.away_team_city
-        ? [g.away_team_city, g.away_team_mascot, g.away_team_color, g.away_age_group, g.away_level].filter(Boolean).join(' ')
-        : (g.away_team_name || 'TBD');
-
-      // Summary
-      let summary = `${awayName} @ ${homeName}`;
-      if (g.status === 'completed' && g.home_score != null && g.away_score != null) {
-        summary += ` (${g.away_score}-${g.home_score})`;
-      } else if (g.status === 'cancelled') {
-        summary = `[CANCELLED] ${summary}`;
-      } else if (g.status === 'postponed') {
-        summary = `[POSTPONED] ${summary}`;
-      }
-
-      // Location
-      const locParts = [g.location_name, g.location_address, g.location_city, g.location_state].filter(Boolean);
-      const location = locParts.join(', ');
-
-      // Description
-      const descParts = [];
-      if (g.season_name) descParts.push(`Season: ${g.season_name} ${g.season_year || ''}`);
-      if (g.status) descParts.push(`Status: ${g.status.charAt(0).toUpperCase() + g.status.slice(1)}`);
-      if (g.status === 'completed' && g.home_score != null && g.away_score != null) {
-        descParts.push(`Final: ${awayName} ${g.away_score} - ${homeName} ${g.home_score}`);
-      }
-      if (g.notes) descParts.push(`Notes: ${g.notes}`);
-      const description = descParts.join('\\n');
-
-      // Timestamps
-      const dtstart = formatICSDate(gameDate, g.game_time);
-      const isAllDay = !g.game_time;
-      const updatedAt = g.updated_at
-        ? new Date(g.updated_at).toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
-        : new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
-
-      lines.push('BEGIN:VEVENT');
-      lines.push(foldLine(`UID:${uid(g.id)}`));
-      lines.push(foldLine(`DTSTAMP:${updatedAt}`));
-
-      if (isAllDay) {
-        lines.push(foldLine(`DTSTART;VALUE=DATE:${dtstart}`));
-        // All-day event: end = next day
-        const nextDay = new Date(gameDate + 'T00:00:00');
-        nextDay.setDate(nextDay.getDate() + 1);
-        const nd = nextDay.toISOString().slice(0, 10).replace(/-/g, '');
-        lines.push(foldLine(`DTEND;VALUE=DATE:${nd}`));
-      } else {
-        lines.push(foldLine(`DTSTART;TZID=${LEAGUE_TZ}:${dtstart}`));
-        // Default 2.5 hour game duration
-        const [h, m] = g.game_time.split(':').map(Number);
-        const endMin = h * 60 + m + 150;
-        const endH = String(Math.floor(endMin / 60)).padStart(2, '0');
-        const endM = String(endMin % 60).padStart(2, '0');
-        const dtend = formatICSDate(gameDate, `${endH}:${endM}`);
-        lines.push(foldLine(`DTEND;TZID=${LEAGUE_TZ}:${dtend}`));
-      }
-
-      lines.push(foldLine(`SUMMARY:${esc(summary)}`));
-      if (location) lines.push(foldLine(`LOCATION:${esc(location)}`));
-      if (description) lines.push(foldLine(`DESCRIPTION:${esc(description)}`));
-
-      // Status mapping
-      if (g.status === 'cancelled') lines.push('STATUS:CANCELLED');
-      else if (g.status === 'completed') lines.push('STATUS:CONFIRMED');
-      else lines.push('STATUS:TENTATIVE');
-
-      lines.push('END:VEVENT');
-    }
-
-    // ── Practices / team events (when team_id is specified) ──
+    let practices = [];
     if (team_id) {
-      const { rows: practices } = await pool.query(
+      const { rows: practiceRows } = await pool.query(
         `SELECT r.id, r.title, r.event_type, r.event_date, r.start_time, r.end_time,
                 r.notes, r.created_at,
                 fl.name AS location_name, fl.address AS location_address,
@@ -247,74 +113,44 @@ router.get('/games.ics', async (req, res) => {
          FROM field_reservations r
          LEFT JOIN field_locations fl ON fl.id = r.location_id
          WHERE r.team_id = $1
+           AND r.event_date IS NOT NULL
          ORDER BY r.event_date, r.start_time`,
         [team_id]
       );
-
-      for (const p of practices) {
-        let eventDate = p.event_date;
-        if (eventDate instanceof Date) eventDate = eventDate.toISOString().slice(0, 10);
-        else if (typeof eventDate === 'string' && eventDate.length > 10) eventDate = eventDate.slice(0, 10);
-
-        const typeLabel = p.event_type === 'practice' ? 'Practice'
-          : p.event_type === 'event' ? 'Event' : p.event_type || 'Practice';
-        const summary = `[${typeLabel}] ${p.title}`;
-
-        const locParts = [p.location_name, p.location_address, p.location_city, p.location_state].filter(Boolean);
-        const location = locParts.join(', ');
-
-        const descParts = [`Type: ${typeLabel}`];
-        if (p.notes) descParts.push(`Notes: ${p.notes}`);
-        const description = descParts.join('\\n');
-
-        const startTime = p.start_time ? String(p.start_time).slice(0, 5) : null;
-        const endTime = p.end_time ? String(p.end_time).slice(0, 5) : null;
-
-        const dtstart = formatICSDate(eventDate, startTime);
-        const pStamp = p.created_at
-          ? new Date(p.created_at).toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
-          : new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
-
-        lines.push('BEGIN:VEVENT');
-        lines.push(foldLine(`UID:${practiceUid(p.id)}`));
-        lines.push(foldLine(`DTSTAMP:${pStamp}`));
-
-        if (!startTime) {
-          lines.push(foldLine(`DTSTART;VALUE=DATE:${dtstart}`));
-          const nextDay = new Date(eventDate + 'T00:00:00');
-          nextDay.setDate(nextDay.getDate() + 1);
-          const nd = nextDay.toISOString().slice(0, 10).replace(/-/g, '');
-          lines.push(foldLine(`DTEND;VALUE=DATE:${nd}`));
-        } else {
-          lines.push(foldLine(`DTSTART;TZID=${LEAGUE_TZ}:${dtstart}`));
-          if (endTime) {
-            const dtend = formatICSDate(eventDate, endTime);
-            lines.push(foldLine(`DTEND;TZID=${LEAGUE_TZ}:${dtend}`));
-          }
-        }
-
-        lines.push(foldLine(`SUMMARY:${esc(summary)}`));
-        if (location) lines.push(foldLine(`LOCATION:${esc(location)}`));
-        if (description) lines.push(foldLine(`DESCRIPTION:${esc(description)}`));
-        lines.push('STATUS:CONFIRMED');
-        lines.push('END:VEVENT');
-      }
+      practices = practiceRows;
     }
 
-    lines.push('END:VCALENDAR');
-
-    const ical = lines.join('\r\n') + '\r\n';
-
-    cache.set(cacheKey, ical, 30 * 60 * 1000);
-    res.set({
-      'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': 'inline; filename="leaguehaven-games.ics"',
-      'Cache-Control': ICS_CACHE_CONTROL,
+    const { ical, skipped } = buildCalendarICS({
+      games: rows,
+      practices,
+      timezone: LEAGUE_TZ,
+      calName,
     });
-    res.send(ical);
+    if (skipped.length) {
+      const sample = skipped.slice(0, 20).map((item) => {
+        const label = `${item.kind}:${item.id}`;
+        return item.error ? `${label} (${item.error})` : label;
+      }).join(', ');
+      console.warn(`Calendar feed omitted ${skipped.length} event(s) with no usable date: ${sample}`);
+    }
+
+    // Per-instance dedupe only. Cache-Control on the response is what keeps
+    // hourly polls off Neon; this just avoids a second query if the same warm
+    // instance builds the feed again within 30 minutes.
+    cache.set(cacheKey, ical, 30 * 60 * 1000);
+    sendICS(res, ical);
   } catch (err) {
     console.error('Calendar feed error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    if (!res.headersSent) {
+      // Vercel does not edge-cache 5xx. Retry-After / max-age ask the client
+      // to wait. stale-if-error on a prior 200 is what actually stops a retry
+      // storm; an empty 200 calendar would delete subscribed events.
+      res.set({
+        'Cache-Control': ICS_ERROR_CACHE_CONTROL,
+        'Retry-After': '300',
+      });
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 });
 
