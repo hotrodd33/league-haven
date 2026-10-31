@@ -844,10 +844,15 @@ router.get('/deleted', authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
-// GET /games/sweep — called by Vercel cron (and local setInterval) to expire stale scorers.
+// GET /games/sweep — manual/opt-in expiry of stale scorers.
 // Must be registered before /:id to avoid the wildcard swallowing it.
+// Disabled unless ENABLE_SCORER_SWEEP_CRON=true so a leftover scheduler
+// cannot wake Neon. Claims are also expired when a game is loaded.
 // Protect with CRON_SECRET env var if set.
 router.get('/sweep', async (req, res) => {
+  if (process.env.ENABLE_SCORER_SWEEP_CRON !== 'true') {
+    return res.json({ expired: 0, disabled: true });
+  }
   const secret = req.headers['x-cron-secret'] || req.query.secret;
   if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
