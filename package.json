@@ -7,7 +7,8 @@
     "build": "vite build && cd public-site && npm install && npx vite build",
     "preview": "vite preview",
     "server": "node server/index.js",
-    "dev:all": "concurrently \"npm run server\" \"npm run dev\""
+    "dev:all": "concurrently \"npm run server\" \"npm run dev\"",
+    "test": "node --test server/routes/calendar-ics.test.js"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
